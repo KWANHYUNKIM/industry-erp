@@ -1,0 +1,44 @@
+{
+  "about": "공통양식 [원본 양식 불러오기](개발 서버 전용) · 결재문서 '근태관리' → 기안서작성에서 [근태입력] 창이 같이 뜬다(원본 2026-10-30 실측, 캡처 12-휴가신청서-근태입력-같이뜸). 새 양식 '휴가 신청서'(띄어쓰기는 안 본다 → 원본 휴가신청서 서식)를 만들고 [원본 양식 불러오기] → [기안내용] 이 원본 표(휴 가 신 청 서 · 비상연락망 · 700px)로 차고 결재문서가 근태관리로 → 저장하면 field_schema 에 __body · __doc → 목록 [결재문서] 칸에 근태관리 → 기안서작성에서 그 양식을 누르면 작성 창 위에 [근태입력] 창(저장(F8) · 다시 작성 · 닫기) → [닫기] 하면 근태입력만 닫힌다. 끝에 양식을 지운다(회사 0001). node qa/shot.mjs qa/flows/approval-original-template.json",
+  "shots": [
+    {
+      "name": "원본 양식 불러오기 → 저장",
+      "path": "/groupware/approval/settings?tab=공통양식등록",
+      "steps": [
+        "wait:800",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ts = await (await fetch('/api/approval-settings/templates', { headers: H })).json(); for (const t of ts.filter((x) => x.name === '휴가 신청서')) await fetch('/api/approval-settings/templates/' + t.id, { method: 'DELETE', headers: H }); location.reload(); return true })()",
+        "wait:1500",
+        "click:신규(F2)",
+        "setnear:양식명|휴가 신청서",
+        "click:저장(F8)",
+        "wait:900",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '원본 양식 불러오기')",
+        "click:원본 양식 불러오기",
+        "wait:300",
+        "expect:(() => { const ed = document.querySelector('[aria-label=\"기안내용\"][contenteditable]'); const ts = ed ? ed.querySelectorAll('table') : []; return ts.length === 2 && ed.innerText.includes('휴 가 신 청 서') && ed.innerText.includes('비상연락망') && ts[1].getBoundingClientRect().width >= 699 })()",
+        "expect:document.querySelector('select[aria-label=\"결재문서\"]').value === '근태관리'",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '저장(F8)').pop().click(); true",
+        "wait:900",
+        "expect:fetch('/api/approval-settings/templates', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((ts) => { const t = ts.find((x) => x.name === '휴가 신청서'); const b = t && t.fieldSchema.find((f) => f.key === '__body'); const d = t && t.fieldSchema.find((f) => f.key === '__doc'); return !!b && b.html.includes('비상연락망') && !!d && d.value === '근태관리' })",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.cells[1] && r.cells[1].textContent.trim() === '휴가 신청서' && r.cells[3].textContent.trim() === '근태관리')"
+      ]
+    },
+    {
+      "name": "기안서작성 — [근태입력] 창이 같이 뜬다",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.cells[1] && r.cells[1].textContent.trim() === '휴가 신청서' && r.cells[3].textContent.trim() === '근태관리')",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === '휴가 신청서').click(); true",
+        "wait:900",
+        "expect:(() => { const ws = [...document.querySelectorAll('.ec-modal-back')]; const att = ws.find((w) => w.innerText.includes('근태입력') && w.innerText.includes('근태(일')); return ws.length >= 2 && !!att && ['저장(F8)', '다시 작성', '닫기'].every((n) => [...att.querySelectorAll('button')].some((b) => b.textContent.trim() === n)) })()",
+        "js:(() => { const att = [...document.querySelectorAll('.ec-modal-back')].find((w) => w.innerText.includes('근태(일')); [...att.querySelectorAll('button')].filter((b) => b.textContent.trim() === '닫기').pop().click(); return true })()",
+        "wait:300",
+        "expect:![...document.querySelectorAll('.ec-modal-back')].some((w) => w.innerText.includes('근태(일')) && document.querySelector('[aria-label=\"본문\"][contenteditable]').innerText.includes('휴 가 신 청 서')"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ts = await (await fetch('/api/approval-settings/templates', { headers: H })).json(); let n = 0; for (const t of ts.filter((x) => x.name === '휴가 신청서')) { await fetch('/api/approval-settings/templates/' + t.id, { method: 'DELETE', headers: H }); n++ } return 'cleanup ' + n })()"
+  ]
+}

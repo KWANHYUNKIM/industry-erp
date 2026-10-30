@@ -17,7 +17,8 @@ import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../f
 import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
 import { shrinkImage } from '../../utils/imageResize'
 import RichBodyEditor from '../../features/approval/components/RichBodyEditor'
-import { bodyHtmlOf, formFieldsOf, looksLikeHtml, sanitizeHtml } from '../../features/approval/bodyTemplate'
+import { approvalDocOf, bodyHtmlOf, formFieldsOf, looksLikeHtml, sanitizeHtml } from '../../features/approval/bodyTemplate'
+import LeaveInputPage from '../hr/LeaveInputPage'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -50,6 +51,8 @@ export default function ApprovalDraftPage() {
   /** 원본 [구분] 코드도움의 후보 — '구분검색'(01 지출결의서 · 02 휴가신청서 …). */
   const [groups, setGroups] = useState<ApprovalGroup[]>([])
   const [selected, setSelected] = useState<ApprovalFormTemplate | null>(null)
+  /** 원본: 결재문서가 '근태관리' 인 양식(휴가신청서)을 열면 [근태입력] 창이 같이 뜬다(2026-10-30 실측). */
+  const [attendanceOpen, setAttendanceOpen] = useState(false)
   const sort = useTableSort(templates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
 
   const [draftDate, setDraftDate] = useState(today())
@@ -111,7 +114,7 @@ export default function ApprovalDraftPage() {
 
   // 버튼 라벨이 약속한 단축키들. 저장/결재는 처리 중이면 안 먹는다.
   useShortcut('F3', () => filterRows(search))
-  useShortcut('F7', () => void save(false), !saving)
+  useShortcut('F7', () => void save(false), !saving && !attendanceOpen)
 
   async function doExcel() {
     const table = findDataTable(bodyRef.current)
@@ -181,6 +184,7 @@ export default function ApprovalDraftPage() {
     // 공통양식 [기안내용] 서식(표)이 있으면 본문이 그 서식으로 열린다 — 원본은 양식이 본문 안의 표다.
     setBody(bodyHtmlOf(t.fieldSchema))
     setError('')
+    setAttendanceOpen(approvalDocOf(t.fieldSchema) === '근태관리')
   }
 
   const memberName = (id: number) => members.find((m) => m.id === id)?.name ?? `#${id}`
@@ -389,7 +393,7 @@ export default function ApprovalDraftPage() {
                 <td className="text-center">{t.sortOrder}</td>
                 <td className="text-ec-navy">{t.name}</td>
                 <td>{t.groupName ?? ''}</td>
-                <td />
+                <td>{approvalDocOf(t.fieldSchema)}</td>
               </tr>
             ))}
           </tbody>
@@ -641,6 +645,11 @@ export default function ApprovalDraftPage() {
               </div>
             </div>
         )}
+      </Modal>
+
+      {/* 결재문서 '근태관리' — 작성 창 위에 [근태입력] 창이 같이 뜬다(원본 캡처 12-휴가신청서-근태입력-같이뜸). */}
+      <Modal open={attendanceOpen} title="근태입력" width={1100} onClose={() => setAttendanceOpen(false)}>
+        {attendanceOpen && <LeaveInputPage onClose={() => setAttendanceOpen(false)} />}
       </Modal>
 
       {helpOpen && (

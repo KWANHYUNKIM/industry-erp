@@ -56,7 +56,11 @@ const emptyLine = (date: string): LineInput => ({
   key: nextKey++, employeeId: '', type: '연차', startDate: date, endDate: date, days: '1', reason: '',
 })
 
-export default function LeaveInputPage() {
+/**
+ * @param onClose 창으로 띄울 때(기안서작성 — 결재문서가 '근태관리' 인 휴가신청서를 열면 같이 뜬다, 원본 2026-10-30 실측).
+ *   주면 [리스트] 자리에 원본 창의 [닫기] 가 선다.
+ */
+export default function LeaveInputPage({ onClose }: { onClose?: () => void } = {}) {
   /** 원본 [리스트] — 넣은 근태를 보러 근태조회로 간다. */
   const navigate = useNavigate()
   /** 원본 [사원] 코드도움 — 사원등록의 재직 사원 */
@@ -232,7 +236,7 @@ export default function LeaveInputPage() {
          * 원본 [리스트] — 넣은 것을 보러 근태조회로 간다. 저장해도 이 화면에
          * 그대로 남아(줄만 비워진다) 방금 넣은 것을 확인할 길이 없었다.
          */
-        { label: '리스트', onClick: () => navigate('/hr/leave-list') },
+        onClose ? { label: '닫기', onClick: onClose } : { label: '리스트', onClick: () => navigate('/hr/leave-list') },
         // 우리에게만 있는 [줄 추가] — 원본 격자는 줄이 모자라면 스스로 늘린다. 차례상 맨 끝.
         { label: '줄 추가', onClick: () => setLines((p) => [...p, emptyLine(baseDate)]) },
       ]}

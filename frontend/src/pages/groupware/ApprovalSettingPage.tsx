@@ -11,7 +11,8 @@ import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../f
 import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
 import { UserPermissionModal, ViewTimingModal, type ViewTiming, type WithInputSettings } from '../../features/approval/components/FormInputSettings'
 import RichBodyEditor from '../../features/approval/components/RichBodyEditor'
-import { BODY_KEY, bodyHtmlOf, formFieldsOf, withBodyHtml } from '../../features/approval/bodyTemplate'
+import { APPROVAL_DOCS, BODY_KEY, DOC_KEY, approvalDocOf, bodyHtmlOf, formFieldsOf, withApprovalDoc, withBodyHtml } from '../../features/approval/bodyTemplate'
+import { originalFormFor } from '../../features/approval/templates'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../types/api'
@@ -175,7 +176,8 @@ export default function ApprovalSettingPage() {
                               onClick={() => setEditing(t)}>{t.name}{t.active ? '' : ' (사용중단)'}</button>
                     </td>
                     <td>{(t as WithGroup).groupName ?? ''}</td>
-                    <td />
+                    {/* 원본 [결재문서] — 휴가신청서는 '근태관리'. 양식 창 기본값목록 › 결재문서에서 고른다. */}
+                    <td>{approvalDocOf(t.fieldSchema)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -294,6 +296,16 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete, onCancel 
   const [showInputs, setShowInputs] = useState(false)
   /** 원본 오른쪽 아래 [기안내용] — 표로 된 본문 서식(휴 가 신 청 서 …). */
   const [bodyHtml, setBodyHtml] = useState(() => bodyHtmlOf(schema0))
+  /** 원본 [결재문서] — '근태관리' 면 기안서작성에서 이 양식을 열 때 [근태입력] 창이 같이 뜬다. 빈 값 = 기안서. */
+  const [approvalDoc, setApprovalDoc] = useState(() => approvalDocOf(schema0))
+  /** 개발 서버 전용 — 같은 이름의 원본 양식 본문(features/approval/templates)이 있으면 [원본 양식 불러오기] 를 보인다. */
+  const original = import.meta.env.DEV ? originalFormFor(name) : null
+  async function loadOriginal() {
+    if (!original) return
+    if (bodyHtml.trim() !== '' && !(await ecConfirm(`[기안내용] 을 원본 '${original.name}' 서식으로 바꿉니다. 지금 내용은 사라집니다.`))) return
+    setBodyHtml(original.html)
+    if (original.approvalDoc) setApprovalDoc(original.approvalDoc)
+  }
   useEffect(() => { fetchApprovalGroups().then(setGroups).catch(() => setGroups([])) }, [])
   const [fields, setFields] = useState<FieldRow[]>(
     schema0
@@ -315,11 +327,12 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete, onCancel 
     const keys = fields.map((f) => f.key)
     if (new Set(keys).size !== keys.length) return onError('입력항목의 키가 중복됩니다.')
     if (keys.includes(BODY_KEY)) return onError(`입력항목 키 '${BODY_KEY}' 는 기안내용이 씁니다. 다른 키를 쓰세요.`)
+    if (keys.includes(DOC_KEY)) return onError(`입력항목 키 '${DOC_KEY}' 는 결재문서가 씁니다. 다른 키를 쓰세요.`)
 
-    const schema: ApprovalField[] = withBodyHtml([
+    const schema: ApprovalField[] = withApprovalDoc(withBodyHtml([
       ...fields.map((f) => ({ key: f.key, label: f.label, type: f.type, required: f.required })),
       ...preserved,
-    ], bodyHtml)
+    ], bodyHtml), approvalDoc)
     setSaving(true)
     try {
       const body = { code: code.toUpperCase(), name, sortOrder: Number(sortOrder) || 0, active, fieldSchema: schema, groupCode: groupCode || null,
@@ -413,13 +426,27 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete, onCancel 
                 </td>
               </tr>
               <tr><td>출력양식</td><td>기안서</td></tr>
-              <tr><td>결재문서</td><td>기안서</td></tr>
+              <tr>
+                <td>결재문서</td>
+                <td>
+                  <select className="ec-input w-[150px]" aria-label="결재문서" value={approvalDoc} onChange={(e) => setApprovalDoc(e.target.value)}>
+                    <option value="">기안서</option>
+                    {APPROVAL_DOCS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </td>
+              </tr>
               <tr><td>첨부</td><td /></tr>
               <tr><td>라벨</td><td /></tr>
             </tbody>
           </table>
 
-          <div className="text-[12.5px] font-bold text-ec-label mb-[4px]">기안내용</div>
+          <div className="flex items-center gap-[6px] mb-[4px]">
+            <span className="text-[12.5px] font-bold text-ec-label">기안내용</span>
+            {original && (
+              <button type="button" className="ec-btn ec-btn-sm" title="개발용 — features/approval/templates 의 원본 이카운트 서식으로 채운다"
+                      onClick={() => void loadOriginal()}>원본 양식 불러오기</button>
+            )}
+          </div>
           <RichBodyEditor value={bodyHtml} onChange={setBodyHtml} />
         </div>
       </div>

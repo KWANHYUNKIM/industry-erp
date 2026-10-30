@@ -14,15 +14,41 @@ type BodyEntry = { key: string; label: string; type: string; html?: string }
 
 const isBody = (f: { key: string }) => f.key === BODY_KEY
 
+/**
+ * 원본 공통양식리스트의 [결재문서] — 휴가신청서는 '근태관리'(2026-10-30 실측). 이런 양식을 기안서작성에서 열면
+ * [근태입력] 창이 같이 뜬다. 본문 서식과 같은 까닭으로 field_schema 안의 키 `__doc` 항목(value)으로 싣는다.
+ */
+export const DOC_KEY = '__doc'
+/** 지금 고를 수 있는 결재문서 — 원본 목록에 보인 것만. 빈 값 = 기안서 */
+export const APPROVAL_DOCS = ['근태관리'] as const
+
+type DocEntry = { key: string; label: string; type: string; value?: string }
+
+const isReserved = (f: { key: string }) => f.key === BODY_KEY || f.key === DOC_KEY
+
+/** 양식의 [결재문서]. 없으면 ''(기안서). */
+export function approvalDocOf(schema: readonly ApprovalField[] | null | undefined): string {
+  const e = (schema ?? []).find((f) => f.key === DOC_KEY) as DocEntry | undefined
+  return typeof e?.value === 'string' ? e.value : ''
+}
+
+/** 칸 목록에 [결재문서] 를 붙인다(빈 값이면 뗀다). */
+export function withApprovalDoc(fields: ApprovalField[], doc: string): ApprovalField[] {
+  const rest = fields.filter((f) => f.key !== DOC_KEY)
+  if (!doc) return rest
+  const entry: DocEntry = { key: DOC_KEY, label: '결재문서', type: 'meta', value: doc }
+  return [...rest, entry as unknown as ApprovalField]
+}
+
 /** 양식의 본문 서식 HTML. 없으면 ''. */
 export function bodyHtmlOf(schema: readonly ApprovalField[] | null | undefined): string {
   const e = (schema ?? []).find(isBody) as BodyEntry | undefined
   return typeof e?.html === 'string' ? e.html : ''
 }
 
-/** 본문 서식을 뺀 진짜 입력 칸들. */
+/** 본문 서식 · 결재문서를 뺀 진짜 입력 칸들. */
 export function formFieldsOf(schema: readonly ApprovalField[] | null | undefined): ApprovalField[] {
-  return (schema ?? []).filter((f) => !isBody(f))
+  return (schema ?? []).filter((f) => !isReserved(f))
 }
 
 /** 칸 목록 뒤에 본문 서식을 붙인다(빈 서식이면 붙이지 않는다). */
