@@ -11,6 +11,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -302,11 +303,7 @@ export default function BankCardPage() {
           )}
           {/* 원본 예금출납장의 [기간] — 서버가 이 구간만 준다. */}
           <EcCond label="기간">
-            <input type="date" className="ec-input" value={txnFrom}
-                   onChange={(e) => setTxnFrom(e.target.value)} style={{ width: 140 }} />
-            <span className="text-ec-label">~</span>
-            <input type="date" className="ec-input" value={txnTo}
-                   onChange={(e) => setTxnTo(e.target.value)} style={{ width: 140 }} />
+            <EcDateRange from={{ className: "ec-input", value: txnFrom, onChange: (e) => setTxnFrom(e.target.value) }} to={{ className: "ec-input", value: txnTo, onChange: (e) => setTxnTo(e.target.value) }} />
           </EcCond>
           <EcCond label="검색창내용">
             <input className="ec-input" value={kw} placeholder="검색창내용"
@@ -822,7 +819,7 @@ function BankTxnForm({ accounts, glAccounts, partners, onError, onSaved }: {
     <Panel title="계좌 입출금" submitLabel="처리" onSubmit={submit}
       hint="※ 입금은 차)예금·대)상대계정, 출금은 그 반대로 분개됩니다. 잔액보다 많이 출금하면 거절됩니다.">
       <Field label="일자">
-        <input className="ec-input" type="date" value={form.txnDate} onChange={(e) => set('txnDate', e.target.value)} style={{ width: 140 }} />
+        <EcDateInput className="ec-input" value={form.txnDate} onChange={(e) => set('txnDate', e.target.value)} />
       </Field>
       <Field label="계좌 *">
         <select className="ec-input" value={form.bankAccountId} onChange={(e) => set('bankAccountId', e.target.value)} style={{ width: 200 }}>
@@ -903,7 +900,7 @@ function CardUsageForm({ cards, glAccounts, onError, onSaved }: {
     <Panel title="카드사용 등록" submitLabel="등록" onSubmit={submit}
       hint="※ 차)비용계정 / 대)미지급금으로 분개됩니다.">
       <Field label="사용일">
-        <input className="ec-input" type="date" value={form.usageDate} onChange={(e) => set('usageDate', e.target.value)} style={{ width: 140 }} />
+        <EcDateInput className="ec-input" value={form.usageDate} onChange={(e) => set('usageDate', e.target.value)} />
       </Field>
       <Field label="카드 *">
         <select className="ec-input" value={form.cardId} onChange={(e) => set('cardId', e.target.value)} style={{ width: 190 }}>

@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { IncomeType, WithholdingCodeItem, WithholdingPayee, WithholdingSlip } from '../../types/api'
 import { ymd } from '../../utils/periods'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 
@@ -275,7 +276,7 @@ export default function OtherWithholdingInputPage() {
 
       <ul className="ec-form mb-[8px]">
         <EcCond label="지급일자">
-          <input type="date" className="ec-input w-[150px]" value={payDate} disabled={!!editing} onChange={(e) => setPayDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[150px]" value={payDate} disabled={!!editing} onChange={(e) => setPayDate(e.target.value)} />
         </EcCond>
         <EcCond label="소득구분">
           <select className="ec-input w-full" value={kind} disabled={!!editing} onChange={(e) => changeKind(e.target.value as Kind)}>
@@ -410,8 +411,8 @@ export default function OtherWithholdingInputPage() {
                   {kind === 'INTEREST' && <>
                     <td><input className="ec-input w-full min-w-[100px]" maxLength={30} value={l.interest.securityCode} onChange={(e) => setInterest(i, { securityCode: e.target.value })} /></td>
                     <td><input className="ec-input w-[60px]" maxLength={2} value={l.interest.bondInterestCode} onChange={(e) => setInterest(i, { bondInterestCode: e.target.value })} /></td>
-                    <td><input type="date" className="ec-input w-[140px]" value={l.interest.periodFrom} onChange={(e) => setInterest(i, { periodFrom: e.target.value })} /></td>
-                    <td><input type="date" className="ec-input w-[140px]" value={l.interest.periodTo} onChange={(e) => setInterest(i, { periodTo: e.target.value })} /></td>
+                    <td><EcDateInput className="ec-input w-[140px]" value={l.interest.periodFrom} onChange={(e) => setInterest(i, { periodFrom: e.target.value })} /></td>
+                    <td><EcDateInput className="ec-input w-[140px]" value={l.interest.periodTo} onChange={(e) => setInterest(i, { periodTo: e.target.value })} /></td>
                     <td><input className="ec-input w-[80px] text-right" inputMode="decimal" min={0} value={l.interest.interestRate} onChange={(e) => setInterest(i, { interestRate: e.target.value.replace(/[^\d.]/g, '') })} /></td>
                     <td>
                       <select className="ec-input w-[150px]" value={l.interest.changeKind} onChange={(e) => setInterest(i, { changeKind: e.target.value })}>

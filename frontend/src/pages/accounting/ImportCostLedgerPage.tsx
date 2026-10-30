@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../types/api'
 import { money, type ImportCostItem, type ImportLedgerRow, type ImportLot } from '../../features/importcost/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월', '이번기수', '직전기수', '종료일', '최근30일'] as const
 
@@ -75,9 +76,7 @@ export default function ImportCostLedgerPage() {
                            items={lots.map((l) => ({ value: String(l.id), code: l.code, name: l.name }))} />
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="시작일" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="종료일" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "시작일", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "종료일", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
         </EcCond>
         <EcCond label="거래처" pick>

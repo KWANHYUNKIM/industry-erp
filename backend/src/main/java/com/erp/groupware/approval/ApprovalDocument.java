@@ -136,6 +136,12 @@ public class ApprovalDocument extends BaseTimeEntity {
     @Builder.Default
     private List<ApprovalDocumentVoucher> vouchers = new ArrayList<>();
 
+    /** [결재문서] › '전표 출력물' 로 붙인 출력물(V515) */
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder asc")
+    @Builder.Default
+    private List<ApprovalOutput> outputs = new ArrayList<>();
+
     public void addLine(ApprovalLine line) {
         line.setDocument(this);
         this.lines.add(line);
@@ -149,6 +155,11 @@ public class ApprovalDocument extends BaseTimeEntity {
     public void addVoucher(ApprovalDocumentVoucher v) {
         v.setDocument(this);
         this.vouchers.add(v);
+    }
+
+    public void addOutput(ApprovalOutput o) {
+        o.setDocument(this);
+        this.outputs.add(o);
     }
 
     /** 소프트 삭제 처리 */

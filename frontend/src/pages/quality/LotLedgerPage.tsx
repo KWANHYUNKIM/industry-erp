@@ -10,6 +10,7 @@ import { lotInOut } from '../../utils/lotQty'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../components/EcPeriodPicks'
 import { expiryDirectRange } from '../../utils/expiryRange'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.재고수불부</b>(E040620) — 2026-10-03 loginaa 실측(자료가 든 판).
@@ -165,11 +166,7 @@ export default function LotLedgerPage() {
           </div>
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <EcPeriodPicks labels={LOT_LEDGER_PICKS} currentFrom={from}
                          onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
         </EcCond>
@@ -188,9 +185,7 @@ export default function LotLedgerPage() {
             {EXPIRY_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
           {expiryOpt !== '사용안함' && (<>
-            <input type="date" className="ec-input" value={expFrom} onChange={(e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 140 }} />
-            <span className="text-ec-label">~</span>
-            <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 140 }} />
+            <EcDateRange from={{ className: "ec-input", value: expFrom, onChange: (e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') } }} to={{ className: "ec-input", value: expTo, onChange: (e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') } }} />
           </>)}
         </EcCond>
         <EcCond label="시리얼/로트No." pick>

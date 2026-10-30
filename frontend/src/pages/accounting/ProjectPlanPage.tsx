@@ -7,6 +7,7 @@ import type { Project } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import { PLAN_ITEMS, PlanHeadWindow, PlanLineListWindow, type PlanHead, type PlanItem } from '../../features/projectplan/components/ProjectPlanWindows'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II &gt; 계획관리 &gt; 프로젝트계획조회 / 프로젝트계획·실적현황
@@ -194,17 +195,9 @@ export default function ProjectPlanPage() {
                          items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
         {/* 원본 [시작일]·[종료일] 은 구간이다 — 한 칸씩만 두어 어느 달에 시작한 계획인지 못 좁혔다. */}
         <span className="text-[12.5px] text-ec-text font-semibold ml-[6px]">시작일</span>
-        <input type="date" className={inputCls} value={startFrom}
-               onChange={(e) => setStartFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className={inputCls} value={startTo}
-               onChange={(e) => setStartTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: inputCls, value: startFrom, onChange: (e) => setStartFrom(e.target.value) }} to={{ className: inputCls, value: startTo, onChange: (e) => setStartTo(e.target.value) }} />
         <span className="text-[12.5px] text-ec-text font-semibold ml-[6px]">종료일</span>
-        <input type="date" className={inputCls} value={endFrom}
-               onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className={inputCls} value={endTo}
-               onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: inputCls, value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: inputCls, value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
       </div>
 
       {/*

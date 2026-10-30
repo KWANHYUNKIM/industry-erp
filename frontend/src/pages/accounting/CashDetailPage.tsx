@@ -8,6 +8,7 @@ import type {
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -84,11 +85,7 @@ export default function CashDetailPage() {
       {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
-        <input type="date" className="ec-input" value={pFrom}
-               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input" value={pTo}
-               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: pFrom, onChange: (e) => setPFrom(e.target.value) }} to={{ className: "ec-input", value: pTo, onChange: (e) => setPTo(e.target.value) }} />
       </div>
 
 
@@ -164,7 +161,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
         <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">계좌간이동</div>
         <div className="flex gap-[12px] flex-wrap items-end">
           <Field label="일자">
-            <input className="ec-input" type="date" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} style={{ width: 140 }} />
+            <EcDateInput className="ec-input" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} />
           </Field>
           <Field label="출금 계좌 *">
             <select className="ec-input" value={form.fromAccountId} onChange={(e) => set('fromAccountId', e.target.value)} style={{ width: 230 }}>
@@ -317,7 +314,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
             </select>
           </Field>
           <Field label="결제일">
-            <input className="ec-input" type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} style={{ width: 140 }} />
+            <EcDateInput className="ec-input" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
           </Field>
           <button className="ec-btn ec-btn-primary" onClick={pay} disabled={saving}>{saving ? '결제 중…' : '카드대금 결제'}</button>
           <div className="text-[12.5px] pb-[5px]">

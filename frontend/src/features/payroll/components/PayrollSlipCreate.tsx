@@ -3,6 +3,7 @@ import Modal from '../../../components/Modal'
 import { api, extractErrorMessage } from '../../../api/client'
 import { ymd } from '../../../utils/periods'
 import type { Payslip } from '../../../types/api'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 interface Account { id: number; code: string; name: string }
 interface Ledger { payMonth: string; name: string }
@@ -67,7 +68,7 @@ export default function PayrollSlipCreate({ ledger, onClose, onSaved }: { ledger
         <ul className="ec-form mb-[8px]">
           <li className="wide">
             <span className="title">일자</span>
-            <div className="form"><input type="date" className="ec-input w-[160px]" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+            <div className="form"><EcDateInput className="ec-input w-[160px]" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           </li>
         </ul>
         <table className="w-full whitespace-nowrap">

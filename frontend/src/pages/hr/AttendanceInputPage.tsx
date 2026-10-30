@@ -6,6 +6,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /** 관리 > 근태입력 — 사원별 출퇴근 시간 입력 (백엔드 /api/hr/attendance 연동) */
 interface Row {
@@ -130,7 +131,7 @@ export default function AttendanceInputPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">일자 *</label>
-              <input type="date" className={inputCls} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+              <EcDateInput className={inputCls} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">출근</label>

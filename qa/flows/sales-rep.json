@@ -1,0 +1,26 @@
+{
+  "about": "재고 I › 기초등록 › 사원(담당)등록(E010110) — 관리 사원등록과 다른 마스터(묶음 U). [신규(F2)] 창이 다음 코드(다섯 자리)를 채워 열리고, 이름이 비면 이름 칸만 빨갛다. 저장하면 말 없이 닫히고 사원(담당)리스트에 뜬다. 관리 사원 목록(/employees/all)에는 안 나온다. 만든 담당은 지운다.",
+  "shots": [
+    {
+      "name": "사원(담당) 등록 → 목록 → 관리 사원과 따로 → 뒷정리",
+      "path": "/inventory/sales-reps",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: r.status === 204 ? null : await r.json().catch(() => null) })); true",
+        "expect:document.body.innerText.includes('사원(담당)리스트') && document.body.innerText.includes('담당자연락처')",
+        "click:신규(F2)",
+        "wait:800",
+        "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input[placeholder=\"사원(담당)코드\"]').value)",
+        "clicklast:저장(F8)",
+        "expect:!!document.querySelector('[role=dialog] input[placeholder=\"사원(담당)명\"].border-ec-danger')",
+        "set:[role=dialog] input[placeholder=\"사원(담당)명\"]|QA묶음U-담당",
+        "set:[role=dialog] input[placeholder=\"담당자연락처\"]|010-0000-0000",
+        "clicklast:저장(F8)",
+        "wait:800",
+        "expect:!document.querySelector('[role=dialog]') && document.querySelector('table').innerText.includes('QA묶음U-담당')",
+        "expect:(async()=>{const e=(await window.__api('GET','/employees/all')).body;const r=(await window.__api('GET','/sales-reps/all')).body;return !e.some(x=>x.name==='QA묶음U-담당')&&r.some(x=>x.name==='QA묶음U-담당'&&x.phone==='010-0000-0000')})()",
+        "js:(async()=>{const r=(await window.__api('GET','/sales-reps/all')).body;for(const x of r.filter(x=>x.name==='QA묶음U-담당'))await window.__api('DELETE','/sales-reps/'+x.id);return true})()",
+        "expect:(async()=>!(await window.__api('GET','/sales-reps/all')).body.some(x=>x.name==='QA묶음U-담당'))()"
+      ]
+    }
+  ]
+}

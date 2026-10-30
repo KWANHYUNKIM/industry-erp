@@ -193,7 +193,7 @@ export default function ReceiptStatusPage() {
          * 이 화면이 안 옮겨져 있었다.
          */
         api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
-        api.get<{ id: number; name: string }[]>('/employees'),
+        api.get<{ id: number; name: string }[]>('/sales-reps'),
       ])
       setEmployees(emps.data)
       setItems(it.data)

@@ -72,7 +72,7 @@ public class Shipment extends BaseTimeEntity {
     /** 담당자 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    private com.erp.hr.employee.Employee employee;
+    private com.erp.inventory.salesrep.SalesRep employee;
 
     /**
      * 배송지 — 연락처·우편번호·주소.

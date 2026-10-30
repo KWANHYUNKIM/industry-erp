@@ -10,6 +10,7 @@ import { ymd } from '../../utils/periods'
 import GridFindButton from '../../components/GridFindButton'
 import { ecConfirm } from '../../components/EcDialog'
 import { DailyWorkSlipHistory } from '../../features/dailypay/components/DailyWorkHistoryView'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface Worker { id: number; code: string; name: string; dailyWage: number | null; payAmounts?: { itemId: number; amount: number | null }[] }
 /** item: 수당항목('02' 일근무 — 원본도 사원을 골라도 비어 있고 따로 고른다). autoAmt: 금액이 일근무 × 근무기록으로 채워진 값(저장하지 않는다). */
@@ -172,7 +173,7 @@ export default function DailyWorkInputPage() {
           <span className="title">일자</span>
           <div className="form">
             {editDate ? <span>{slipDate.replace(/-/g, '/')} -{editNo}</span>
-              : <input type="date" className="ec-input w-[150px]" value={slipDate} onChange={(e) => setSlipDate(e.target.value)} />}
+              : <EcDateInput className="ec-input w-[150px]" value={slipDate} onChange={(e) => setSlipDate(e.target.value)} />}
           </div>
         </li>
       </ul>
@@ -214,8 +215,7 @@ export default function DailyWorkInputPage() {
               return (
               <tr key={i}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td><input type="date" className={`ec-input w-full ${badDate ? 'border-ec-danger' : ''}`} aria-invalid={badDate}
-                           value={r.workDate} onChange={(e) => edit(i, { workDate: e.target.value })} /></td>
+                <td><EcDateInput className={`ec-input w-full ${badDate ? 'border-ec-danger' : ''}`} aria-invalid={badDate} value={r.workDate} onChange={(e) => edit(i, { workDate: e.target.value })} /></td>
                 <td>
                   <CodePickerField label="사원" hideLabel fill placeholder="사원" emptyLabel="선택 해제"
                                    value={r.workerId} onChange={(v) => edit(i, { workerId: v })}

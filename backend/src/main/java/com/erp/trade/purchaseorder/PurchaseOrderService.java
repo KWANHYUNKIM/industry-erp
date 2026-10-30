@@ -6,7 +6,8 @@ import com.erp.trade.purchase.PurchaseService;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.partner.BusinessPartner;
-import com.erp.hr.employee.Employee;
+import com.erp.inventory.salesrep.SalesRep;
+import com.erp.inventory.salesrep.SalesRepService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.warehouse.Warehouse;
@@ -22,7 +23,6 @@ import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.PlanRequest;
 import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.erp.trade.purchaseorder.dto.PurchaseOrderDtos.ReceiveRequest;
 import com.erp.trade.partner.BusinessPartnerRepository;
-import com.erp.hr.employee.EmployeeRepository;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.warehouse.WarehouseService;
 import com.erp.trade.purchase.PurchaseLineRepository;
@@ -53,7 +53,7 @@ public class PurchaseOrderService {
     private final ProjectService projectService;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
-    private final EmployeeRepository employeeRepository;
+    private final SalesRepService salesRepService;
     private final WarehouseService warehouseService;
     private final PurchaseService purchaseService;
     private final PurchaseLineRepository purchaseLineRepository;
@@ -271,8 +271,7 @@ public class PurchaseOrderService {
     public PurchaseOrderResponse create(CreatePurchaseOrderRequest req, String username) {
         LocalDate orderDate = req.orderDate() != null ? req.orderDate() : LocalDate.now();
 
-        Employee employee = req.employeeId() == null ? null : employeeRepository.findById(req.employeeId())
-                .orElseThrow(() -> ApiException.notFound("담당자를 찾을 수 없습니다. id=" + req.employeeId()));
+        SalesRep employee = req.employeeId() == null ? null : salesRepService.getUsable(req.employeeId());
         Warehouse warehouse = req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId());
         String currency = (req.currency() == null || req.currency().isBlank()) ? "KRW" : req.currency().trim();
 
@@ -343,8 +342,7 @@ public class PurchaseOrderService {
         BusinessPartner partner = headPartner(req.partnerId(), po.getStatus());
         po.setPartner(partner);
         po.setDueDate(req.dueDate());
-        po.setEmployee(req.employeeId() == null ? null : employeeRepository.findById(req.employeeId())
-                .orElseThrow(() -> ApiException.notFound("담당자를 찾을 수 없습니다. id=" + req.employeeId())));
+        po.setEmployee(req.employeeId() == null ? null : salesRepService.getUsable(req.employeeId()));
         po.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         po.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
         po.setCurrency((req.currency() == null || req.currency().isBlank()) ? "KRW" : req.currency().trim());

@@ -1,0 +1,64 @@
+{
+  "about": "Self-Customizing 설정 틀(EcSettingSheet) 클릭 대조 2026-10-30 — 고정값 줄 이름도 원본 창 제목으로 창이 뜨고(국가 → 「국가 및 통화」, 재고-부가세 → 「부가세설정-재고」, 금액소수점 → 「소수점기본값」), 0값표시 → 「표시형태」 · 12/24시간제 → 「시간형식」 · 비밀번호설정 → 「비밀번호」, [입력 후 Enter] 는 거르지 않고 주황으로 칠하며 Enter 마다 다음 것으로, [도움말] 이 있다. 열고 닫기만 한다(저장 안 함).",
+  "shots": [
+    {
+      "name": "기능설정 고정값 줄 · 찾기 · 도움말",
+      "path": "/settings/preferences",
+      "steps": [
+        "wait:1500",
+        "click:국가",
+        "wait:400",
+        "expect:document.body.innerText.includes('ERP 사용시 표준이 되는 국가를 선택합니다.')",
+        "expect:document.body.innerText.includes('우리 ERP 에서는 고정값이라 바꿀 수 없습니다.')",
+        "click:닫기",
+        "wait:300",
+        "click:재고-부가세",
+        "wait:400",
+        "expect:document.body.innerText.includes('부가세설정-재고')",
+        "click:닫기",
+        "wait:300",
+        "js:{const i=document.querySelector('input[placeholder=\"입력 후 [Enter]\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'부가세'); i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}",
+        "wait:400",
+        "expect:document.querySelector('[data-find-hit]')?.textContent==='부가세' && document.body.innerText.includes('국가')",
+        "js:{const i=document.querySelector('input[placeholder=\"입력 후 [Enter]\"]'); i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}",
+        "wait:400",
+        "expect:document.querySelector('[data-find-hit]')?.textContent==='재고-부가세'",
+        "click:도움말",
+        "wait:300",
+        "expect:document.body.innerText.includes('기능설정 · 도움말')"
+      ]
+    },
+    {
+      "name": "기본값설정 · 보안설정 창 제목",
+      "path": "/settings/defaults",
+      "steps": [
+        "wait:1500",
+        "click:금액소수점",
+        "wait:400",
+        "expect:document.body.innerText.includes('소수점기본값')",
+        "click:닫기",
+        "wait:300",
+        "click:0값표시",
+        "wait:400",
+        "expect:document.body.innerText.includes('표시형태') && document.body.innerText.includes('천단위구분기호')",
+        "click:닫기",
+        "wait:300",
+        "click:12/24시간제",
+        "wait:400",
+        "expect:document.body.innerText.includes('시간형식')",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "보안설정 비밀번호 창",
+      "path": "/settings/security",
+      "steps": [
+        "wait:1500",
+        "click:비밀번호설정",
+        "wait:400",
+        "expect:[...document.querySelectorAll('*')].some(e=>e.children.length===0&&e.textContent.trim()==='비밀번호')",
+        "click:닫기"
+      ]
+    }
+  ]
+}

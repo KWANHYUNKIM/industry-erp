@@ -25,6 +25,7 @@ import { openPrintWindow } from '../../utils/print'
 import { purchaseSlipDocument } from '../../utils/tradeSlipDocument'
 import { ecConfirm } from '../../components/EcDialog'
 import { dateNo, shortDateNo } from '../../utils/dateNo'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -211,7 +212,7 @@ export default function PurchaseOrderPage() {
     api.get<Partner[]>('/partners').then((r) => setPartners(r.data.filter((p) => p.type !== 'CUSTOMER'))).catch(() => {})
     api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data)).catch(() => {})
     api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
-    api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+    api.get<EmployeeMaster[]>('/sales-reps').then((r) => setEmployees(r.data)).catch(() => {})
     api.get<Currency[]>('/currencies').then((r) => setCurrencies(r.data)).catch(() => {})
   }, [])
 
@@ -372,11 +373,7 @@ export default function PurchaseOrderPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 첫째 <b>[기준일자]</b> — 단추줄에 [말일]이 낀다(사본 실측). */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={ORDER_DOC_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -429,9 +426,7 @@ export default function PurchaseOrderPage() {
                            items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="납기일자">
-          <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: dueFrom, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, onChange: (e) => setDueTo(e.target.value) }} />
         </EcCond>
         <EcCond label="규격" pick>
           <CodePickerField label="규격" hideLabel width={170} emptyLabel="전체"
@@ -467,14 +462,10 @@ export default function PurchaseOrderPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="최종작업일자">
-          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
         </EcCond>
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">
@@ -788,13 +779,13 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 </td>
                 {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
                 <th className="w-[70px] bg-ec-page">일자</th>
-                <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></td>
               </tr>
               <tr>
                 {/* 원본 발주서입력의 이름은 [납기요청일]이 아니라 <b>[납기일자]</b> 다(사본 실측).
                     목록 열도 이미 [납기일자]라 <b>우리끼리도 어긋나</b> 있었다. */}
                 <th className="bg-ec-page">납기일자</th>
-                <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></td>
 {/* 원본 차례: 담당자 · 거래유형 · 통화 · 참조 — 담당자가 거래유형보다 앞이다. */}
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
                     사원·창고가 몇십 개만 돼도 드롭다운으로는 코드로 못 찾는다. */}

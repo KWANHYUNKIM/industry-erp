@@ -12,6 +12,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
 import { won } from '../../features/billingcontract/types'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /* 원본 버튼줄 글자 그대로(2026-10-13 실측). */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일'] as const
@@ -52,7 +53,7 @@ export default function ContractPriceChangePage() {
   const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const pickers = useCondPickers(['employees'])
+  const pickers = useCondPickers(['staff'])
   const dp = useDeptProjectItems()
   const tableRef = useRef<HTMLTableElement>(null)
 
@@ -70,7 +71,7 @@ export default function ContractPriceChangePage() {
     .filter((r) => r.foreignCurrency === foreign)
     .filter(() => progress !== 'done'), [rows, filter, foreign, progress])
   useTableColumnCheck(tableRef, '계약단가/수량일괄변경', [shown.length])
-  const empName = (id: number | null) => (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
+  const empName = (id: number | null) => (id == null ? '' : pickers.staff.find((e) => e.id === id)?.name ?? '')
   const deptName = (id: number | null) => (id == null ? '' : dp.departments.find((d) => d.value === String(id))?.name ?? '')
   const value = (r: PriceChangeLine, k: keyof Edit) => edits[r.lineId]?.[k] ?? String(Number(r[k]))
   const setEdit = (r: PriceChangeLine, patch: Partial<Edit>) =>
@@ -104,9 +105,7 @@ export default function ContractPriceChangePage() {
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
         <ul className="ec-cond mb-[8px]">
           <EcCond label="계약일자">
-            <input type="date" className="ec-input w-[145px]" aria-label="계약일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <span className="mx-[4px]">~</span>
-            <input type="date" className="ec-input w-[145px]" aria-label="계약일자 끝" value={to} onChange={(e) => setTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "계약일자 시작", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "계약일자 끝", value: to, onChange: (e) => setTo(e.target.value) }} />
             <span className="ml-[6px]"><EcPeriodPicks labels={PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
           </EcCond>
           <EcCond label="변경대상">{radio('price-target', 'price', () => {}, [['price', '단가변경']] as const)}</EcCond>

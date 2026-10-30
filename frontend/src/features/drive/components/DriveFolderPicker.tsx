@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { DriveDocument } from '../../../types/api'
 import Modal from '../../../components/Modal'
 import DriveFolderTree, { type DrivePlace } from './DriveFolderTree'
+import EcIcon from '../../../components/ui/EcIcon'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const stampText = (iso: string | null) => {
@@ -57,7 +58,7 @@ export default function DriveFolderPicker({
                   <td>📁 {f.name}</td>
                   <td>{stampText(f.updatedAt)}</td>
                   <td></td>
-                  <td className={`text-center ${f.important ? 'text-ec-star' : 'text-ec-off'}`}>{f.important ? '★' : '☆'}</td>
+                  <td className={`text-center ${f.important ? 'text-ec-star' : 'text-ec-off'}`}>{f.important ? <EcIcon name="star" glyph="★" /> : <EcIcon name="star-outline" glyph="☆" />}</td>
                 </tr>
               ))}
             </tbody>

@@ -8,6 +8,7 @@ import EcPeriodPicks, { HEADCOUNT_PICKS, periodOf, ymd } from '../../components/
 import { headcountRows } from '../../utils/headcount'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Emp { id: number; name: string; department: string | null; jobTitle: string | null; hireDate: string | null; resignDate: string | null; hireKind?: string | null; duty?: string | null; code?: string; projectId?: number | null }
 type Mode = '일별' | '월별' | '사용자지정집계'
@@ -131,9 +132,7 @@ export default function HeadcountPage() {
           <br />
           {mode === '일별' ? (
             <>
-              <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-              <span className="mx-1">~</span>
-              <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+              <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
             </>
           ) : (
             <>

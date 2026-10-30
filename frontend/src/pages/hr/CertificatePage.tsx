@@ -11,6 +11,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Form { kind: CertificateKind | ''; employeeId: string; purpose: string; issueDate: string }
 /** 원본 '====' 은 재직증명서 판으로 그린다(2026-10-14 실측). */
@@ -174,9 +176,7 @@ export default function CertificatePage() {
         <EcCond label="발행일">
           {useIssueDate && (
             <>
-              <input type="date" className="ec-input w-[150px]" aria-label="발행일 시작" value={issueRange.from} onChange={(e) => setIssueRange({ ...issueRange, from: e.target.value })} />
-              ~
-              <input type="date" className="ec-input w-[150px]" aria-label="발행일 끝" value={issueRange.to} onChange={(e) => setIssueRange({ ...issueRange, to: e.target.value })} />
+              <EcDateRange from={{ className: "ec-input w-[150px]", 'aria-label': "발행일 시작", value: issueRange.from, onChange: (e) => setIssueRange({ ...issueRange, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", 'aria-label': "발행일 끝", value: issueRange.to, onChange: (e) => setIssueRange({ ...issueRange, to: e.target.value }) }} />
             </>
           )}
           <label className="inline-flex items-center gap-[4px] ml-[6px]">
@@ -261,7 +261,7 @@ export default function CertificatePage() {
           </li>
           <li className="wide">
             <span className="title">발행일</span>
-            <div className="form"><input type="date" className="ec-input w-[150px]" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} /></div>
+            <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} /></div>
           </li>
         </ul>
         <button type="button" className="ec-btn ec-btn-pick mt-[8px]" onClick={() => setPreview((v) => !v)}>{preview ? '▾' : '▸'} 증명서 확인</button>
@@ -270,7 +270,7 @@ export default function CertificatePage() {
           {/* 원본 신규: 저장(F8)▴ · 다시 작성 · 닫기 / 수정: 저장(F8)▴ · 다시 작성 · 삭제 · 닫기. ▴ 메뉴는 '저장/전표(F7)' 하나. */}
           <span className="ec-btn-group relative">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
-            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기" onClick={() => setSaveMenu((v) => !v)}>▴</button>
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기" onClick={() => setSaveMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
             {saveMenu && (
               <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[120px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
                 <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"

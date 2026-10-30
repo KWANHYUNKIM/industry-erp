@@ -806,16 +806,202 @@ main table,
   color: var(--ec-icon);
 }
 
-/* 연/월/일 3분할 일자칸 (.wrapper-datepicker) */
-.ec-date {
+/* 연/월/일 3분할 일자칸 (.wrapper-datepicker) — components/ui/EcDateInput.
+   [2026 ▾] / [09 ▾] / [30] [달력]. 숨긴 진짜 date 칸(.ec-date-native)이 값 · 이벤트를 맡는다. */
+.ec-date,
+.ec-date-range {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  vertical-align: middle;
+  font-size: var(--ec-fs);
+  color: var(--ec-text-hint);
+}
+.ec-date-range { gap: 4px; }
+.ec-date-native {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.ec-date-sel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 0 4.5px 0 5.4px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--ec-text);
+}
+.ec-date-sel.y { width: var(--ec-date-year-w); }
+.ec-date-sel.m { width: var(--ec-date-month-w); }
+.ec-date-sel > .ec-icon { color: var(--ec-text-hint); }
+.ec-date-sel[aria-disabled],
+.ec-date-day:disabled,
+.ec-date.is-locked .ec-date-day { background: var(--ec-bg-disabled); cursor: default; }
+.ec-date-day {
+  width: var(--ec-date-day-w);
+  padding: 0;
+  text-align: center;
+}
+.ec-date-cal {
+  display: inline-flex;
+  align-items: center;
+  width: var(--ec-ctl-h);
+  padding: 0;
+  justify-content: center;
+  color: var(--ec-blue);
+  cursor: pointer;
+}
+.ec-date-cal[aria-disabled] { color: var(--ec-text-off); cursor: default; }
+
+/* 떠 있는 판(연 · 월 목록, 달력) — body 에 그린다. 자리는 실행 중에 재고 그때 보인다. */
+.ec-float {
+  position: fixed;
+  z-index: 1000;
+  visibility: hidden;
+  background: var(--ec-bg-panel);
+  box-shadow: var(--ec-shadow-pop);
+  font-size: var(--ec-fs);
+  color: var(--ec-text);
+}
+.ec-date-list {
+  max-height: calc(var(--ec-date-list-item-h) * 12 + 8px);
+  overflow-y: auto;
+  padding: 4px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius);
+}
+.ec-date-list > ul { margin: 0; padding: 0; list-style: none; }
+.ec-date-list li {
   display: flex;
   align-items: center;
-  gap: 2px;
-  font-size: 12px;
-  color: #5a626e;
+  height: var(--ec-date-list-item-h);
+  padding: 0 9px 0 3px;
+  border-radius: var(--ec-radius);
+  white-space: nowrap;
+  cursor: pointer;
 }
-.ec-date select.ec-input {
-  padding: 0 2px;
+.ec-date-list li > .mark { display: inline-flex; width: 13px; }
+.ec-date-list li:hover { background: var(--ec-bg-row-hover); }
+.ec-date-list li.on { background: var(--ec-blue); color: #fff; }
+
+/* 달력 판 — 둥글기 14 · 날 칸 31×27 · 둥글기 10 · 글자 12. 기간이면 두 달 나란히, 가운데 세로선. */
+.ec-cal {
+  padding: 9px 9px 6px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-cal-radius);
+  user-select: none;
+}
+.ec-cal-months { display: flex; }
+.ec-cal.two .ec-cal-month + .ec-cal-month {
+  margin-left: 9px;
+  padding-left: 9px;
+  border-left: var(--ec-hair) solid var(--ec-line);
+}
+.ec-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  margin-bottom: 4px;
+}
+.ec-cal-head > .nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--ec-radius);
+  background: none;
+  color: var(--ec-text-hint);
+  cursor: pointer;
+}
+.ec-cal-head > .nav:first-child { margin-right: auto; }
+.ec-cal-head > .nav:last-child { margin-left: auto; }
+.ec-cal-head > .nav[hidden] { display: inline-flex; visibility: hidden; }
+.ec-cal-head > .nav:hover { background: var(--ec-bg-row-hover); }
+.ec-cal-sel {
+  height: 22px;
+  padding: 0 2px 0 6px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-bg-panel);
+  font-size: var(--ec-fs);
+  color: var(--ec-text);
+}
+.ec-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, var(--ec-cal-cell-w));
+  grid-auto-rows: var(--ec-cal-cell-h);
+}
+.ec-cal-grid > .wd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ec-ink);
+}
+.ec-cal-grid > .day {
+  position: relative;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ec-radius);
+  background: none;
+  font-size: var(--ec-fs);
+  color: var(--ec-cal-weekday);
+  cursor: pointer;
+}
+.ec-cal-grid > .day.sun { color: var(--ec-cal-sun); }
+.ec-cal-grid > .day.sat { color: var(--ec-cal-sat); }
+.ec-cal-grid > .day.other { color: var(--ec-cal-other); }
+.ec-cal-grid > .day:hover { background: var(--ec-bg-row-hover); }
+.ec-cal-grid > .day.band { border-radius: 0; background: var(--ec-cal-range); }
+.ec-cal-grid > .day.band.other { background: none; }
+.ec-cal-grid > .day.on { background: var(--ec-blue); color: #fff; }
+.ec-cal-grid > .day:disabled { color: var(--ec-text-off); cursor: default; background: none; }
+.ec-cal-grid > .day.today::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ec-cal-today);
+}
+.ec-cal-foot {
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+}
+.ec-cal-today {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font-size: var(--ec-fs);
+  color: var(--ec-text);
+  cursor: pointer;
+}
+.ec-cal-today::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ec-cal-today);
 }
 
 /* 그리드 툴바 (.wrapper-toolbar.toolbar-collapse) */
@@ -910,39 +1096,171 @@ main table,
   background: #fffbe6;
 }
 
-/* 에디터 툴바 — 원본은 한 줄을 [글꼴][서식][삽입][레이아웃] 그룹으로 나누고
-   각 그룹 아래에 회색(#868d93) 12px 라벨을 단다. */
-.ec-editor-bar {
-  display: flex;
-  align-items: stretch;
-  flex-wrap: wrap;
-  gap: 0;
-  border: 1px solid var(--ec-border);
-  border-bottom: none;
-  background: #fff;
-  padding: 3px 0 0;
-}
-.ec-editor-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 0 10px;
-  border-right: 1px solid var(--ec-border);
-}
-.ec-editor-group:last-child { border-right: 0; }
-.ec-editor-group .row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 24px;
-}
-.ec-editor-group .name {
+/* 서식 본문(공통양식 [기안내용] · 기안서 본문) — 붙여 넣은 원본 표를 그 서식대로 그린다.
+   표에는 sanitizeHtml 이 no-ec 를 달아 전역 격자 규칙을 비켜 간다. preflight 가 border=1 속성을 0 으로
+   지우므로 테두리 속성이 있는 표만 검은 1px 선을 다시 준다(인라인 style 이 있으면 그쪽이 이긴다). */
+.ec-rich {
+  font-family: Dotum, 돋움, sans-serif;   /* 원본 본문 기본 돋움 12px(2026-10-30 실측) */
   font-size: 12px;
-  color: #868d93;
-  line-height: 1.2;
-  padding-bottom: 2px;
+  color: #000;
+  line-height: 1.5;
+  overflow-x: auto;
 }
+.ec-rich table { border-collapse: collapse; }
+.ec-rich table[border]:not([border="0"]) td,
+.ec-rich table[border]:not([border="0"]) th {
+  border: 1px solid #000;
+}
+.ec-rich td, .ec-rich th { padding: 3px 5px; vertical-align: middle; }
+.ec-rich hr { border: 0; border-top: 1px solid #000; }
+/* 편집 판 — 원본은 넓은 흰 판 가운데에 폭 700 본문을 놓는다. */
+.ec-rich-canvas {
+  border: var(--ec-hair) solid var(--ec-line);
+  border-top: 0;
+  background: var(--ec-bg-panel);
+  padding: 18px 0;
+  overflow: auto;
+}
+.ec-rich-edit {
+  width: 700px;
+  max-width: 100%;
+  margin: 0 auto;
+  outline: none;
+  overflow: visible;
+}
+.ec-rich-edit.selecting { user-select: none; }
+.ec-rich-edit td.ec-cell-sel,
+.ec-rich-edit th.ec-cell-sel { box-shadow: inset 0 0 0 999px var(--ec-blue-tint); }
+.ec-rich-edit .ec-obj-sel { outline: 1px dashed var(--ec-blue); outline-offset: 1px; }
+.ec-rich-source {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--ec-border);
+  padding: 8px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  resize: vertical;
+  outline: none;
+}
+
+/* 본문 편집 도구 모음 — 원본 기안서작성(2026-10-30 실측, 11-편집도구모음.png): 한 줄에 아이콘이 늘어서고
+   묶음 앞에 회색 이름표([글꼴][서식][삽입][레이아웃])가 붙는다. 아이콘 26 · ▾ 가 붙은 도구는 오른쪽에 작은 ▾. */
+.ec-ed-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1px;
+  padding: 4px 6px;
+  border: var(--ec-hair) solid var(--ec-line);
+  background: var(--ec-bg-panel);
+}
+.ec-ed-label {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 7px;
+  margin: 0 2px 0 6px;
+  border-radius: 4px;
+  background: var(--ec-bg-bookbar);
+  color: var(--ec-text-hint);
+  font-size: 12px;
+}
+.ec-ed-sep {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--ec-line);
+}
+.ec-ed-btn,
+.ec-ed-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  min-width: 22px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ec-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ec-ed-caret { min-width: 12px; padding: 0 1px; font-size: 10px; color: var(--ec-text-sub); }
+.ec-ed-btn:hover:not(:disabled),
+.ec-ed-caret:hover:not(:disabled) { background: var(--ec-bg-row-hover); }
+.ec-ed-btn:disabled,
+.ec-ed-caret:disabled { opacity: .4; cursor: default; }
+.ec-ed-ch { font-family: "Times New Roman", serif; font-size: 13px; line-height: 1; }
+b.ec-ed-ch { font-weight: 700; }
+.ec-ed-boxed { border: 1px solid currentColor; padding: 0 2px; font-size: 11px; }
+.ec-ed-svg { display: block; }
+.ec-ed-svg-front { fill: var(--ec-warn); stroke: currentColor; }
+.ec-ed-svg-back { fill: var(--ec-warn); stroke: currentColor; }
+.ec-ed-colorbtn { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
+.ec-ed-swatch { display: block; width: 14px; height: 14px; border: var(--ec-hair) solid var(--ec-line); }
+.ec-ed-swatch.bar { width: 14px; height: 3px; border: 0; }
+.ec-ed-select {
+  height: 26px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ec-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ec-ed-select:hover:not(:disabled) { background: var(--ec-bg-row-hover); }
+.ec-ed-drop { position: relative; display: inline-flex; align-items: center; }
+.ec-ed-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 60;
+  margin-top: 2px;
+  min-width: 150px;
+  padding: 4px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: 6px;
+  background: var(--ec-bg-panel);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+}
+.ec-ed-item {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ec-text);
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ec-ed-item:hover { background: var(--ec-bg-row-hover); }
+.ec-ed-form { display: flex; align-items: center; gap: 4px; padding: 4px; font-size: 12px; white-space: nowrap; }
+.ec-ed-radio { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; }
+.ec-ed-palette .grid { display: grid; grid-template-columns: repeat(8, 18px); gap: 2px; padding: 4px; }
+.ec-ed-color { display: block; width: 18px; height: 18px; padding: 1px; border: 0; background: transparent; cursor: pointer; }
+.ec-ed-color:hover { outline: 1px solid var(--ec-text); }
+.ec-ed-gridpick { padding: 4px; }
+.ec-ed-gridpick .row { display: flex; gap: 2px; margin-bottom: 2px; }
+.ec-ed-gridpick button {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: var(--ec-hair) solid var(--ec-line);
+  background: var(--ec-bg-panel);
+  cursor: pointer;
+}
+.ec-ed-gridpick button.on { background: var(--ec-blue-tint); border-color: var(--ec-blue); }
+.ec-ed-hint { padding-top: 2px; font-size: 12px; color: var(--ec-text-hint); text-align: center; }
+.ec-ed-linesample { display: block; width: 110px; height: 0; border-top: 1px solid var(--ec-ink); margin: 6px 0; }
+.ec-ed-linesample.dashed { border-top-style: dashed; }
+.ec-ed-linesample.dotted { border-top-style: dotted; }
+.ec-ed-linesample.double { border-top: 3px double var(--ec-ink); }
 
 /* ============================================================
    목록 화면의 상태 필터 — 이카운트 판매조회의 [전체][결재중][미확인][확인]
@@ -1140,46 +1458,128 @@ th.ec-empty {
 .ec-list-body { position: relative; }
 /* 창(Modal) 안의 .ec-cond 는 입력 칸이다 — 조건 판으로 접거나 띄우지 않는다(계약항목등록 창이 빈 채로 떴음) */
 .ec-list-body.conds-closed :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) { display: none !important; }
-.ec-list-body.conds-open :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) {
-  position: absolute !important;
-  top: 0;
+/*
+ * 2026-10-30 판매조회 E040206 재실측(.wrapper-header-search): 상자 <b>하나</b> — 1px #dee2e6 · 네 모서리 20 · 그림자,
+ * 제목 줄 바로 아래(머리 아래 6px 틈을 덮는다)에서 창 바닥 근처까지. 맨 위 탭 줄 36 · 조건(ul 여백 9 9 0, 줄 36, 이름표 114) ·
+ * 아래 줄 44.6(#f7f8f9, 여백 3.6 7.2). 예전에는 조건 판과 아래 줄이 따로 떠 그림자가 둘이었고 판이 60vh 에서 잘렸다.
+ * 셸이 상자(.ec-search-panel)를 깔고, 화면의 조건 · 셸의 탭 줄 · 아래 줄을 그 위에 얹는다(EcListShell).
+ */
+.ec-search-panel {
+  position: absolute;
+  top: -6px;
   left: 0;
   right: 0;
+  z-index: 29;
+  height: calc(var(--ec-sp-bar, 0px) + 6px + 45.6px);
+  background: var(--ec-bg-panel);
+  border: 1px solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+  box-shadow: var(--ec-shadow-pop);
+  pointer-events: none;
+}
+.ec-search-tabs {
+  position: absolute;
+  top: -5px;
+  left: 1px;
+  right: 1px;
+  z-index: 30;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px 0 0;
+  border-bottom: var(--ec-hair) solid var(--ec-line);
+}
+.ec-search-tabs > button {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ec-pill-text);
+}
+.ec-search-tabs > button.on {
+  height: 100%;
+  padding: 0 11.7px;
+  border-bottom: 1.5px solid var(--ec-blue);
+  color: var(--ec-blue);
+  font-weight: 700;
+}
+.ec-search-tabs > .ec-search-tab-add {
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border: 1px solid var(--ec-line);
+  border-radius: 50%;
+  line-height: 1;
+}
+.ec-list-body.conds-open :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) {
+  position: absolute !important;
+  top: -5px;
+  left: 1px;
+  right: 1px;
   z-index: 30;
   margin: 0 !important;
-  max-height: 60vh;
+  max-height: var(--ec-sp-max, 60vh);
   overflow-y: auto;
-  padding: 9px;
-  background: var(--ec-bg-panel);
-  border: var(--ec-hair) solid var(--ec-line);
-  border-bottom: 0;
+  padding: 9px 9px 0;
+  background: transparent;
+  border: 0;
   border-radius: var(--ec-radius-panel) var(--ec-radius-panel) 0 0;
-  box-shadow: var(--ec-shadow-pop);
+  box-shadow: none;
+}
+/* 셸이 탭 줄을 그리면 조건은 그 아래에서 시작한다 */
+.ec-list-body.conds-open.sp-tabs :is(.ec-cond, .ec-search-conds):not([role="dialog"] *) {
+  top: 31px;
+  border-radius: 0;
 }
 .ec-list-body.conds-open .ec-cond { grid-template-columns: minmax(0, 1fr); }
+/* 판 안의 조건 줄 — 한 줄 36 · li 여백 0 2.7 · 이름표 114(여백 2.7 2.7 2.7 9) · 칸 여백 2.7 (원본 실측). 휴대폰은 아래 @media 의 93 */
+.ec-list-body.conds-open .ec-cond > li:not(.ec-cond-tabs) {
+  min-height: 36px;
+  padding: 0 2.7px;
+}
+@media (min-width: 769px) {
+  .ec-list-body.conds-open .ec-cond > li > .title {
+    flex-basis: 114px;
+    padding: 2.7px 2.7px 2.7px 9px;
+  }
+}
+.ec-list-body.conds-open .ec-cond > li > .form { padding: 2.7px; }
 .ec-list-body.conds-open .ec-search-conds {
   display: flex !important;
   flex-wrap: wrap;
   justify-content: flex-start !important;
   gap: 8px 12px !important;
+  padding-bottom: 9px;
 }
-/* 판 아래의 [검색(F8)] 줄 — 회색 · 높이 44(원본 header-search-btn-group) */
+/* 판 아래의 [검색(F8)] 줄 — 회색 · 높이 44.6 · 여백 3.6 7.2 · 아래 모서리 20(원본 header-search-btn-group) */
 .ec-search-bar {
   position: absolute;
-  left: 0;
-  right: 0;
+  top: var(--ec-sp-bar, 0px);
+  left: 1px;
+  right: 1px;
   z-index: 30;
   display: flex;
   align-items: center;
   gap: 5px;
-  min-height: 44px;
-  padding: 0 9px;
+  height: 44.6px;
+  padding: 3.6px 7.2px;
   background: var(--ec-bg-page);
-  border: var(--ec-hair) solid var(--ec-line);
-  border-top: 0;
-  border-radius: 0 0 var(--ec-radius-panel) var(--ec-radius-panel);
-  box-shadow: var(--ec-shadow-pop);
+  border-radius: 0 0 calc(var(--ec-radius-panel) - 1px) calc(var(--ec-radius-panel) - 1px);
 }
+/* 아래 줄의 기간 빠른선택 · [설정] · [다시작성] — 테두리 없는 sm 단추(투명 · h21 · '금일' 폭 48) */
+.ec-search-bar .ec-btn-flat {
+  height: 21px;
+  padding: 0 11.7px;
+  background: transparent;
+  border-color: transparent;
+}
+/* 휴대폰(≤768): 늘어선 기간 빠른선택은 한 줄에 안 들어간다(폭 375 에서 868) — ▾ 펼침으로만 고른다 */
+@media (max-width: 768px) {
+  .ec-search-bar .ec-search-pick { display: none; }
+}
+/* 판이 열리면 머리의 빠른 검색칸은 사라진다 — [Search(F3)] [Option] [도움말] 만 남는다(원본) */
+.ec-page-head.conds-open .ec-quick { display: none; }
 /* 떠 있는 판에서는 셸의 줄이 [검색(F8)] · [다시작성] · 기간 빠른선택(▾)을 맡는다 — 화면이 판 안에 둔 같은 단추는 감춘다 */
 .ec-list-body.conds-open [data-shell-dup] { display: none !important; }
 /* ▾ 기간 빠른선택 — [검색(F8)] 아래로 펼친다 */
@@ -1251,6 +1651,8 @@ th.ec-empty {
   line-height: 1;
   white-space: nowrap;
 }
+/* 원본 'label label-light' — 밝은 색 라벨은 검정 글자(차량 증빙관리 · 진행현황 칸반 실측). 어느 색이 밝은 쪽인지는 features/board/labels.ts labelIsLight */
+.ec-label-chip.ec-label-light { color: var(--ec-ink); }
 /* 조직도현황(E090220) — 부서 상자 나무. 실측: 머리 rgb(27,61,161) 흰 12px 700 · 위 모서리 10 · 여백 6.3 4.5 · 상자 폭 161 · 사람 줄 여백 4.5 0 */
 .ec-org-chart { display: flex; gap: 27px; align-items: flex-start; }
 .ec-org-node { display: flex; flex-direction: column; align-items: center; }
@@ -1337,4 +1739,24 @@ th.ec-empty {
 .ec-taxform td.n { color: var(--ec-ink); text-align: right; }
 .ec-taxform td.c { color: var(--ec-ink); }
 .ec-taxform .tf-title { font-size: 24px; font-weight: 700; letter-spacing: 6px; }
+
+/* 선 아이콘(components/ui/EcIcon) — 글자 기준선에 얹고 색은 글자색을 따른다 */
+.ec-icon { display: inline-block; flex: none; vertical-align: -0.15em; }
+/* 예전 글자 기호(▾ · ✕)를 크기 0 글자로 남긴다 — 단추 글자로 찾는 흐름이 그대로 맞는다(보이지 않고 폭도 없다) */
+.ec-icon-glyph { font-size: 0; line-height: 0; }
+/* MyPage 위젯 [새창] — 그 메뉴 화면 하나를 메인 위 창(레이어)으로 띄운다(features/mypage/PageWindow, 원본 2026-10-30 실측) */
+.ec-pagewin { width: var(--ec-pagewin-w); }
+.ec-pagewin > .ec-modal-body { height: var(--ec-pagewin-h); overflow: auto; }
+.ec-pagewin.is-free > .ec-modal-body { height: auto; }
+/* MyPage 위젯 [펜] · 본문 클릭 — 화면의 입력 · 조회 창만 보이고 화면 자체는 숨긴다(features/mypage/PopupHost) */
+.ec-popup-host { position: fixed; inset: 0; z-index: 70; visibility: hidden; pointer-events: none; overflow: hidden; }
+.ec-popup-host .ec-modal-back { visibility: visible; pointer-events: auto; }
+/* 위젯 머리 ⋮ — 원본처럼 위젯을 끌어 옮기는 손잡이(누르기만 하면 [설정] [삭제]) */
+.ec-widget-head > .tools > .ec-widget-grip { cursor: move; }
+/* 위젯 본문의 누르는 글자(일정 · 제목 · 작성자 · R · 오더관리번호) */
+.ec-wlink { border: 0; padding: 0; background: none; color: var(--ec-navy); font: inherit; text-align: left; cursor: pointer; }
+.ec-wlink:hover { text-decoration: underline; }
+/* 일정관리 위젯 일정 글자(누르면 '일정조회' 창) — 단추라서 글자를 왼쪽에 붙인다 */
+.ec-wcal-ev { text-align: left; cursor: pointer; font: inherit; }
+.ec-pill > .ec-wlink { color: inherit; }
 } /* @layer components */

@@ -1,4 +1,5 @@
 import { buildFileName, tableToMatrix, type TableMatrix } from './tableExport'
+import { exportAllowed } from './exportGuard'
 
 const HEADER_FILL = 'FFEFF3F8'
 const BORDER_COLOR = 'FFD8DEE6'
@@ -26,6 +27,7 @@ function columnWidth(header: string, rows: (string | number)[][], index: number)
 }
 
 export async function matrixToXlsx(matrix: TableMatrix, title: string): Promise<void> {
+  if (!exportAllowed()) return
   const { headers, rows } = matrix
 
   // exceljs는 무겁다. Excel 버튼을 누른 순간에만 내려받는다.
@@ -77,6 +79,7 @@ export async function matrixToXlsx(matrix: TableMatrix, title: string): Promise<
 
 /** 화면의 테이블을 그대로 .xlsx로 내려받는다. 내보낼 행이 없으면 false. */
 export async function exportTableToXlsx(table: HTMLTableElement, title: string): Promise<boolean> {
+  if (!exportAllowed()) return true   // 외부전송 권한없음 — 알림은 문지기가 띄웠다
   const matrix = tableToMatrix(table)
   if (matrix.rows.length === 0) return false
   await matrixToXlsx(matrix, title)

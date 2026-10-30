@@ -13,6 +13,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업관리 > 미주문현황 (이카운트 E040211)
@@ -373,11 +374,7 @@ export default function UnorderedStatusPage() {
         </EcCond>
         {/* 원본 [유효기간] — 구간이다. 우리는 [기타]의 '지난 것만' 체크뿐이었다. */}
         <EcCond label="유효기간">
-          <input type="date" className="ec-input" value={filters.validFrom}
-                 onChange={(e) => setF({ validFrom: e.target.value })} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={filters.validTo}
-                 onChange={(e) => setF({ validTo: e.target.value })} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: filters.validFrom, onChange: (e) => setF({ validFrom: e.target.value }) }} to={{ className: "ec-input", value: filters.validTo, onChange: (e) => setF({ validTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="규격">
           <ItemSuggestInput field="spec" value={filters.spec} placeholder="규격 일부"

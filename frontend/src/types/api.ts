@@ -15,6 +15,10 @@ export interface User {
   employeeId: number | null
   enabled: boolean
   roles: string[]
+  /** 기본권한 — 업무모든권한(ALL) · 업무권한없음(NONE) · 권한그룹(GROUP) */
+  basePermission: 'ALL' | 'NONE' | 'GROUP'
+  /** 마스터(관리자설정) */
+  master: boolean
 }
 
 export interface Role {
@@ -745,6 +749,19 @@ export interface ApprovalDoc {
   lines: ApprovalLine[]
   participants: ApprovalParticipant[]
   vouchers: ApprovalVoucher[]
+  /** [결재문서] › '전표 출력물'(V515) */
+  outputs?: ApprovalOutput[]
+}
+
+/** 기안서에 붙인 출력물 — SNAPSHOT 은 적용한 때의 사본(html), AUTO 는 조건(conditions)으로 열 때 다시 조회. */
+export interface ApprovalOutput {
+  id?: number
+  menuName: string
+  /** 적용한 때 'YYYY-MM-DDTHH:mm:ss' */
+  appliedAt: string
+  mode: 'SNAPSHOT' | 'AUTO'
+  html: string | null
+  conditions: Record<string, unknown> | null
 }
 
 // ===== 그룹웨어: 업무일지 =====
@@ -1392,6 +1409,10 @@ export interface VoucherLine {
   settleAccountId?: number | null
   settleAccountCode?: string | null
   settleAccountName?: string | null
+  /** 입금보고서 격자 [수수료] — 남기기만 한다(분개 안 됨). */
+  fee?: number | null
+  /** 지출결의서 격자 [거래처명] 글자 — 거래처 코드 없이 친 것. */
+  payeeName?: string | null
 }
 
 export interface FastVoucher {
@@ -1710,6 +1731,8 @@ export interface StockAdjustmentSlip {
   projectName: string | null
   /** 불량처리의 [처리방법](폐기 · 품목대체 · 정상사용). */
   handling?: string | null
+  /** 자가사용 머리 [새로운 항목 추가](전표 비고). */
+  headerNote?: string | null
   lines: StockAdjustment[]
 }
 
@@ -1853,6 +1876,8 @@ export interface WorkPost {
   project?: string | null
   /** 간판제작 [칸반연결] — 📅 프로젝트 진행현황 칸반 글 id. 그 밖의 게시판은 null */
   kanbanPostId?: number | null
+  /** 답글(하위 글)이면 원글 id. 목록은 원글 제목 뒤에 '[답글 수]' 를 달고 [모두펼쳐보기] 로 그 아래에 편다. */
+  parentId?: number | null
 }
 
 // ===== ECDrive 문서 드라이브 =====
@@ -2070,6 +2095,8 @@ export interface EmployeeMaster {
   foreignName1: string | null
   foreignName2: string | null
   household: string | null
+  /** 원본 사원등록 [주민등록번호] — 필수 아님(급여를 못 보는 사람에게는 null) */
+  residentNo?: string | null
   /** 원본 사원등록 [우편번호] */
   zipcode: string | null
   address: string | null
@@ -3381,6 +3408,8 @@ export interface ChatMessage {
   sentAt: string
   /** 참여·퇴장 같은 시스템 안내 */
   system: boolean
+  /** [보기] 가 여는 화면 — 권한요청 알림처럼 서버가 보낸 메시지만 */
+  linkTo?: string | null
 }
 
 // ── 설문조사 (그룹웨어 > 공유정보 > 설문조사) ───────────────────────────────
@@ -3757,4 +3786,20 @@ export interface WithholdingPaymentStatement {
   smallCount: number
   smallGross: number
   rows: WithholdingStatementRow[]
+}
+
+/** 재고 I › 기초등록 › 사원(담당)등록(E010110) — 전표 [담당자] 마스터(/sales-reps). 관리 사원(EmployeeMaster)과 다른 마스터다. */
+export interface SalesRep {
+  id: number
+  code: string
+  name: string
+  searchKeyword: string | null
+  remark: string | null
+  phone: string | null
+  email: string | null
+  extra3: string | null
+  extra4: string | null
+  extra5: string | null
+  extra6: string | null
+  active: boolean
 }

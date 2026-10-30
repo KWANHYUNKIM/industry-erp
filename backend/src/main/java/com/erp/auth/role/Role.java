@@ -3,16 +3,12 @@ package com.erp.auth.role;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.HashSet;
-import java.util.Set;
 
 /**
- * 사용자 역할(권한 그룹).
- * 예: ADMIN(관리자), MANAGER(매니저), STAFF(사원)
+ * 권한그룹(원본 Self-Customizing › 사용자관리 › 권한그룹 설정). name = 권한코드, displayName = 권한명.
  * Spring Security 에서는 "ROLE_" + name 형태의 권한으로 매핑된다.
  * <p>
- * 역할이 접근할 수 있는 메뉴/기능은 {@link #permissions} 로 데이터로 관리한다.
- * ADMIN 은 부여 목록과 무관하게 전권(인가 계층에서 바이패스).
+ * <b>ADMIN 은 그룹이 아니라 마스터 표시</b>다 — ADMIN 역할을 가진 사용자가 마스터(관리자설정)이고 전권이다.
  */
 @Entity
 @Table(name = "roles")
@@ -38,18 +34,5 @@ public class Role {
     @Column(length = 255)
     private String description;
 
-    /**
-     * 이 역할이 접근할 수 있는 권한(메뉴) 집합.
-     * <p>
-     * LAZY 지만 인증 경로({@code CustomUserDetailsService.loadUserByUsername}, 트랜잭션 안)에서
-     * {@code UserPrincipal} 이 즉시 순회해 초기화하므로 새 EAGER 를 만들지 않는다(CLAUDE.md 5.2).
-     */
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "role_permissions",
-            joinColumns = @JoinColumn(name = "role_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_code")
-    )
-    @Builder.Default
-    private Set<Permission> permissions = new HashSet<>();
+    // 업무권한은 work_permissions(role_id) 가 든다(WorkPermissionService). 옛 role_permissions 표는 V516 이 옮기고 더는 읽지 않는다.
 }

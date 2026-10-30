@@ -1,4 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react'
+import EcIcon from './ui/EcIcon'
 
 /**
  * 화면 안 '알림' 창 — 브라우저 기본 alert · confirm 대신(원본 이카운트도 화면 안 창이다).
@@ -38,6 +39,10 @@ function stubbed(kind: Pending['kind']): ((m: string) => unknown) | null {
 function push(kind: Pending['kind'], message: unknown): Promise<boolean> {
   const stub = stubbed(kind)
   if (stub) return Promise.resolve(kind === 'confirm' ? Boolean(stub.call(window, String(message ?? ''))) : (stub.call(window, String(message ?? '')), true))
+  /* 같은 알림이 이미 떠 있으면 또 띄우지 않는다 — 권한 거부는 api/client 가 띄우고 화면도 같은 글을 띄운다. */
+  if (kind === 'alert' && queue.some((p) => p.kind === 'alert' && p.message === String(message ?? ''))) {
+    return Promise.resolve(true)
+  }
   return new Promise((resolve) => {
     queue = [...queue, { id: ++seq, kind, message: String(message ?? ''), resolve }]
     emit()
@@ -96,7 +101,7 @@ export function EcDialogHost() {
       <div role="alertdialog" aria-modal="true" aria-label="알림" className="ec-modal w-[385px]">
         <div className="ec-modal-bar">
           <span className="name">알림</span>
-          <button className="close" aria-label="닫기" onClick={() => close(top, top.kind === 'alert')}>✕</button>
+          <button className="close" aria-label="닫기" onClick={() => close(top, top.kind === 'alert')}><EcIcon name="close" size={12} glyph="✕" /></button>
         </div>
         <div className="ec-modal-body flex flex-col min-h-[229px]">
           <p className="flex-1 m-0 whitespace-pre-line break-words leading-[18px]">{top.message}</p>

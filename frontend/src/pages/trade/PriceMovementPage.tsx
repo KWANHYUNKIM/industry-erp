@@ -10,6 +10,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { periodOf } from '../../components/EcPeriodPicks'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업관리 > 단가변동표 (이카운트 E040819)
@@ -334,9 +335,7 @@ export default function PriceMovementPage() {
         <div className="flex items-center">
           {/* 원본 단가변동표는 이 줄을 <b>[기준일자]</b> 라고 부른다(사본 실측) — [기간]이 아니다. */}
           <span style={label}>기준일자</span>
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span className="my-0 mx-[6px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         </div>
         {/* 원본 조건 차례: 구분 · 기준일자 · <b>창고 · 거래처</b> · 품목 … */}
         <div className="flex items-center">

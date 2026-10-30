@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import UserPickModal from './UserPickModal'
+import EcIcon from '../../../components/ui/EcIcon'
 
 const split = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean)
 
@@ -18,7 +19,7 @@ export default function NameChips({ label, value, onChange, users }: {
   return (
     <div className="flex flex-1 items-center gap-[4px] min-w-0 ec-input h-auto min-h-[26px] flex-wrap">
       <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-icon" aria-label={`${label} 사용자검색`}
-              onClick={() => setPicking(true)}>🔍</button>
+              onClick={() => setPicking(true)}><EcIcon name="search" /></button>
       <input className="no-ec border-0 outline-none bg-transparent w-[110px]" placeholder={label} aria-label={label} list={listId} value={typing}
              onChange={(e) => setTyping(e.target.value)}
              onKeyDown={(e) => { if (e.key === 'Enter' && typing.trim()) { e.preventDefault(); set([...names, typing.trim()]); setTyping('') } }}
@@ -33,7 +34,7 @@ export default function NameChips({ label, value, onChange, users }: {
       ))}
       {names.length > 0 && (
         <button type="button" className="no-ec ml-auto bg-transparent border-0 p-0 cursor-pointer text-ec-hint" aria-label={`${label} 모두 지우기`}
-                onClick={() => set([])}>✕</button>
+                onClick={() => set([])}><EcIcon name="close" size={12} glyph="✕" /></button>
       )}
       {picking && <UserPickModal selected={names} onClose={() => setPicking(false)}
                                  onApply={(list) => { set(list); setPicking(false) }} />}

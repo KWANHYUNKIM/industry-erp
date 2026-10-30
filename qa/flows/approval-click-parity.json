@@ -1,0 +1,109 @@
+{
+  "about": "전자결재 클릭 대조(2026-10-30, plans/데이터이관/클릭대조/대조-전자결재.md) — 내결재관리 · 기안서통합관리 [라벨] 단추(라벨없음 · 쓰는 라벨로 거름) · [Option] 검색항목설정 · 양식설정 · 조건양식설정 · 조건 판 [검색(F8)] [다시 작성] · 하단 [My도장/서명] → '도장/서명올리기' 창 · [기안중] 알약엔 [보내기] [결재/검토완료] [인쇄] 없음, 기안서작성 [Option] 리스트설정 · Search(F3) 조건 판(양식명 · 정렬순서 · 구분 · 결재전표) · [구분] 머리 정렬, 공통양식리스트 [Option] 양식작성서비스 · 리스트설정 · Search(F3) 조건 판. 아무것도 저장하지 않는다. node qa/shot.mjs qa/flows/approval-click-parity.json",
+  "shots": [
+    {
+      "name": "내결재관리 — 라벨 · Option · 조건 판 · 하단 버튼 · My도장/서명",
+      "path": "/groupware/approval/my",
+      "steps": [
+        "wait:1200",
+        "js:window.__B=(t)=>[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()===t);true",
+        "expect:!!__B('라벨') && [...document.querySelectorAll('button')].findIndex((b)=>b.textContent.trim()==='라벨') < [...document.querySelectorAll('button')].findIndex((b)=>b.textContent.trim()==='Search(F3)')",
+        "js:__B('라벨').click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=menu] button')].map((b)=>b.textContent.trim())[0]==='라벨없음'",
+        "js:[...document.querySelectorAll('[role=menu] button')][0].click();true",
+        "wait:300",
+        "expect:!!__B('라벨없음') && [...document.querySelectorAll('tbody tr')].every((tr)=>!tr.querySelector('.ec-label-chip'))",
+        "js:__B('라벨없음').click();true",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=menu] button')][0].click();true",
+        "wait:300",
+        "expect:!!__B('라벨')",
+        "js:__B('Option').click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=menu] button')].map((b)=>b.textContent.trim()).join('|')==='검색항목설정|양식설정|조건양식설정'",
+        "js:__B('Option').click();true",
+        "js:__B('Search(F3)').click();true",
+        "wait:300",
+        "expect:!!__B('검색(F8)') && !!__B('다시 작성') && !!document.querySelector('[aria-label=\"기간 빠른선택\"]')",
+        "js:__B('검색(F8)').click();true",
+        "wait:300",
+        "expect:!__B('검색(F8)')",
+        "expect:['신규(F2)','My도장/서명','보내기','결재/검토완료','라벨변경','인쇄','Excel'].every((t)=>!!__B(t))",
+        "js:[...document.querySelectorAll('.ec-pill')].find((p)=>p.textContent.trim()==='기안중').click();true",
+        "wait:300",
+        "expect:!__B('보내기') && !__B('결재/검토완료') && !__B('인쇄') && !!__B('My도장/서명') && !!__B('Excel')",
+        "js:__B('My도장/서명').click();true",
+        "wait:500",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d?.innerText??'';return d?.getAttribute('aria-label')==='도장/서명올리기'&&['등록할 이미지를 선택한 후, 사용할 영역을 선택합니다.','Before :','원본사진','After','가로:','세로:'].every((x)=>t.includes(x))&&['이미지삽입','저장(F8)','삭제','닫기'].every((x)=>[...d.querySelectorAll('button')].some((b)=>b.textContent.trim()===x))})()",
+        "clicklast:닫기",
+        "wait:300",
+        "expect:![...document.querySelectorAll('[role=dialog]')].some((d)=>d.getAttribute('aria-label')==='도장/서명올리기')"
+      ]
+    },
+    {
+      "name": "기안서통합관리 — 라벨 · Option · [구분] 머리 정렬",
+      "path": "/groupware/approval/all",
+      "steps": [
+        "wait:1200",
+        "js:window.__B=(t)=>[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()===t);true",
+        "expect:!!__B('라벨') && !__B('My도장/서명') && !!__B('선택삭제')",
+        "js:__B('Option').click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=menu] button')].map((b)=>b.textContent.trim()).join('|')==='검색항목설정|양식설정|조건양식설정'",
+        "js:__B('Option').click();true",
+        "js:[...document.querySelectorAll('thead th')].find((th)=>th.textContent.trim().startsWith('구분')).click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('thead th')].find((th)=>th.textContent.trim().startsWith('구분')).textContent.includes('▲')"
+      ]
+    },
+    {
+      "name": "기안서작성 — Option 리스트설정 · Search(F3) 조건 판 · [구분] 정렬",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:1200",
+        "js:window.__B=(t)=>[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()===t);true",
+        "js:__B('Option').click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=menu] button')].map((b)=>b.textContent.trim()).join('|')==='리스트설정'",
+        "js:__B('Option').click();true",
+        "js:__B('Search(F3)').click();true",
+        "wait:300",
+        "expect:['양식명','정렬순서'].every((l)=>!!document.querySelector('.ec-search-conds [aria-label=\"'+l+'\"]')) && ['구분 선택','결재전표 선택'].every((t)=>!!document.querySelector('.ec-search-conds button[title=\"'+t+'\"]')) && !!__B('검색(F8)') && !!__B('다시 작성')",
+        "set:.ec-search-conds input[aria-label=양식명]|휴가",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr)=>!tr.classList.contains('bg-ec-basic')).every((tr)=>tr.cells[1].textContent.includes('휴가'))",
+        "js:__B('다시 작성').click();true",
+        "wait:300",
+        "expect:document.querySelector('.ec-search-conds input[aria-label=양식명]').value===''",
+        "js:__B('검색(F8)').click();true",
+        "wait:300",
+        "expect:!document.querySelector('.ec-search-conds')",
+        "js:[...document.querySelectorAll('thead th')].find((th)=>th.textContent.trim().startsWith('구분')).click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('thead th')].find((th)=>th.textContent.trim().startsWith('구분')).textContent.includes('▲')"
+      ]
+    },
+    {
+      "name": "공통양식리스트 — Option 양식작성서비스 · 리스트설정 · Search(F3) 조건 판",
+      "path": "/groupware/approval/settings?tab=공통양식등록",
+      "steps": [
+        "wait:1200",
+        "js:window.__B=(t)=>[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()===t);true",
+        "js:__B('Option').click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-menu button')].map((b)=>b.textContent.trim()).join('|')==='양식작성서비스|리스트설정'",
+        "js:__B('Option').click();true",
+        "js:__B('Search(F3)').click();true",
+        "wait:400",
+        "expect:(()=>{const t=document.querySelector('.ec-search-conds')?.innerText??'';return ['양식명','정렬순서','구분','결재전표','결재출력물','기타','수정일자순(정렬)'].every((x)=>t.includes(x))})() && !!__B('검색(F8)')",
+        "set:.ec-search-conds input[aria-label=양식명]|휴가",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tbody tr')].length>0 && [...document.querySelectorAll('tbody tr')].every((tr)=>tr.cells.length===1||tr.cells[1].textContent.includes('휴가'))",
+        "js:__B('다시작성').click();true",
+        "wait:300",
+        "expect:document.querySelector('.ec-search-conds input[aria-label=양식명]').value===''"
+      ]
+    }
+  ]
+}

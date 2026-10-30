@@ -10,6 +10,7 @@ import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { openBonds } from '../../features/bond/ledger'
 import { flatten, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
 import type { Partner } from '../../types/api'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '직전기수'] as const
 
@@ -177,7 +178,7 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+          <EcDateInput className="ec-input w-[145px]" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>

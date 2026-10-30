@@ -19,13 +19,42 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  /* 어느 화면이 부르나 — 서버 인가(AuthorizationInterceptor)가 업무권한 · 예외(메뉴)와 곁다리 조회를 이것으로 가린다.
+     공용 화면(대시보드 · 데이터센터)은 업무 '-'. */
+  const here = window.location.pathname
+  config.headers['X-Erp-Menu'] = here
+  config.headers['X-Erp-Work'] = hooks.workOf(here) ?? '-'
   return config
 })
+
+/**
+ * 화면 경로 → 업무, 권한 거부 알림 — 앱(AuthContext)이 끼운다. client 는 다른 모듈을 import 하지 않는다
+ * (node --test 가 client.test.ts 를 그대로 읽는다).
+ */
+const hooks: { workOf: (path: string) => string | null; onDenied: (message: string) => void } = {
+  workOf: () => null,
+  onDenied: () => {},
+}
+export function setPermissionHooks(h: Partial<typeof hooks>) {
+  Object.assign(hooks, h)
+}
+
+/** 업무권한 거부 본문(서버 PermissionDeniedException). */
+export interface PermissionDenied { work: string; workName: string; kind: string; action: string; menu: string | null }
+
+export function permissionDeniedOf(error: unknown): PermissionDenied | null {
+  if (!axios.isAxiosError(error) || error.response?.status !== 403) return null
+  return (error.response.data?.permission as PermissionDenied | undefined) ?? null
+}
 
 // 401 응답 시 토큰 제거 후 로그인 페이지로
 api.interceptors.response.use(
   (res) => res,
   (error) => {
+    /* 행위(입력 · 수정 · 삭제) 권한 거부 — 원본 알림 '권한이 없습니다. / 마스터에게 문의 바랍니다. / - 판매 업무권한 (삭제)'.
+       화면이 같은 글로 또 띄워도 EcDialog 가 하나만 띄운다. 조회 거부는 자물쇠 화면이 맡는다. */
+    const denied = permissionDeniedOf(error)
+    if (denied && denied.action !== '조회') hooks.onDenied(error.response.data.message)
     if (error.response?.status === 401) {
       tokenStore.clear()
       if (window.location.pathname !== '/login') {

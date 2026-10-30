@@ -176,7 +176,7 @@ export default function IssueStatusPage() {
          */
         api.get<MaterialIssue[]>('/material-issues', { params: period }),
         api.get<Warehouse[]>('/warehouses'),
-        api.get<{ id: number; name: string }[]>('/employees'),
+        api.get<{ id: number; name: string }[]>('/sales-reps'),
         /* 원본 [생산금액] = 수량 × 입고단가 — 생산입고/소모현황 I 의 소모품목단가와 같은 평가단가(마지막 입고단가 → 구매단가). */
         api.get<Item[]>('/items'),
         api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),

@@ -12,6 +12,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { journalNeighbors } from '../../utils/journalNav'
 import { hasEKind } from '../../utils/vatSlip'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /* 원본 [부가세유형] 목록 글자 그대로(2026-10-13 loginaa 매출전표 I 실측 — 세무 (세금)계산서발행/수령과 같은 목록). */
 const SALES_TYPES = [
@@ -455,7 +456,7 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
             {draft.items.map((it, i) => (
               <tr key={i}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td><input type="date" className="ec-input w-full" aria-label={`${i + 1}줄 월/일`} value={it.itemDate} onChange={(e) => setItem(i, { itemDate: e.target.value })} /></td>
+                <td><EcDateInput className="ec-input w-full" aria-label={`${i + 1}줄 월/일`} value={it.itemDate} onChange={(e) => setItem(i, { itemDate: e.target.value })} /></td>
                 <td><input className="ec-input w-full" aria-label={`${i + 1}줄 품명`} maxLength={100} value={it.name} onChange={(e) => setItem(i, { name: e.target.value })} /></td>
                 <td><input className="ec-input w-full" aria-label={`${i + 1}줄 규격`} maxLength={100} value={it.spec} onChange={(e) => setItem(i, { spec: e.target.value })} /></td>
                 <td><EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 수량`} value={it.qty} onValue={(v) => setItem(i, { qty: v })} /></td>

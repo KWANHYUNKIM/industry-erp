@@ -12,7 +12,7 @@
         "js:document.querySelector(\"td[data-date='2026-10-06']\").click(); true",
         "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '출/퇴근기록부'",
         "expect:document.querySelector('[role=dialog] input[aria-label=장소]').value === '사무실' && document.querySelector('[role=dialog]').innerText.includes('외근') && document.querySelector('[role=dialog]').innerText.includes('오전반차설정') && document.querySelector('[role=dialog]').innerText.includes('2026/10/06')",
-        "expect:[...document.querySelectorAll('[role=dialog] button')].map((b) => b.textContent.trim()).filter((t) => t !== '✕').join(',') === '출근,닫기'",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].map((b) => b.textContent.trim()).filter((t) => t !== '✕' && t !== '□').join(',') === '출근,닫기'",
         "set:select[aria-label=시]|9",
         "set:select[aria-label=분]|10",
         "set:input[aria-label=사유]|QA그룹웨어 지각",
@@ -25,7 +25,7 @@
         "click:퇴근",
         "expect:document.querySelector(\"td[data-date='2026-10-06']\")?.innerText.includes('09:10~18:10 (8시간 0분)')",
         "js:document.querySelector(\"td[data-date='2026-10-06']\").click(); true",
-        "expect:[...document.querySelectorAll('[role=dialog] button')].map((b) => b.textContent.trim()).filter((t) => t !== '✕').join(',') === '닫기'",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].map((b) => b.textContent.trim()).filter((t) => t !== '✕' && t !== '□').join(',') === '닫기'",
         "click:닫기"
       ]
     },

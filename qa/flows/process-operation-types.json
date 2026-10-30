@@ -1,0 +1,28 @@
+{
+  "about": "생산관리 > 공정등록 줄의 [작업코드등록 · 등록] — 그 공정의 작업코드 창이 열리고(공정 고정), 열 [공정명 · 작업코드 · 작업명 · 투입자원유형 · 작업기준품목 · 순서 · 관리]. 투입자원유형 기계 · 작업기준품목 소모품으로 작업코드를 더하면 줄에 그 값이 뜨고, 삭제하면 사라진다. 시험용 공정 하나를 API 로 만들었다 지운다.",
+  "shots": [
+    {
+      "name": "공정 → [작업코드등록] → 기계 / 소모품 작업코드 추가 → 열 확인 → 삭제",
+      "path": "/production/process",
+      "steps": [
+        "wait:1500",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const p=await A('POST','/processes',{code:'QAFLOWPRC',name:'QA흐름공정',workcenter:null,stdTimeMin:0,costPerHr:0,sortOrder:0});sessionStorage.setItem('qaPrc',String(p.id));location.reload();return true})()",
+        "wait:2500",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const row=[...document.querySelectorAll('tbody tr')].find((r)=>r.innerText.includes('QAFLOWPRC'));B('등록',row).click();await W(700);return true})()",
+        "expect:[...document.querySelectorAll('div')].some((x) => x.innerText && x.innerText.startsWith('작업코드등록 — QAFLOWPRC'))",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => x.innerText.includes('투입자원유형')); return [...t.tHead.rows[0].cells].map((c) => c.innerText.trim()).join('|') === '|공정명|작업코드|작업명|투입자원유형|작업기준품목|순서|관리' })()",
+        "setnear:작업코드|QAFLOWOP",
+        "setnear:작업명|QA흐름작업",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};const find=(t)=>[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.text===t));const a=find('기계');set(a,[...a.options].find((o)=>o.text==='기계').value);const b=find('소모품');set(b,[...b.options].find((o)=>o.text==='소모품').value);await W(200);return true})()",
+        "clicklast:추가",
+        "wait:1200",
+        "expect:(() => { const t = [...document.querySelectorAll('table')].find((x) => x.innerText.includes('투입자원유형')); const r = [...t.tBodies[0].rows].find((x) => x.innerText.includes('QAFLOWOP')); return !!r && r.cells[1].innerText.trim() === 'QA흐름공정' && r.cells[4].innerText.trim() === '기계' && r.cells[5].innerText.trim() === '소모품' })()",
+        "js:(async()=>{const W=(ms)=>new Promise((r)=>setTimeout(r,ms));const A=(m,u,b)=>fetch('/api'+u,{method:m,headers:{Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async(r)=>{const t=await r.text();try{return JSON.parse(t)}catch{return t}});const D=()=>[...document.querySelectorAll('[role=dialog]')].pop();const B=(t,root=document)=>[...root.querySelectorAll('button')].find((b)=>b.innerText.trim()===t);const set=(el,v)=>{Object.getOwnPropertyDescriptor(el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};window.confirm=()=>true;const t=[...document.querySelectorAll('table')].find((x)=>x.innerText.includes('투입자원유형'));const r=[...t.tBodies[0].rows].find((x)=>x.innerText.includes('QAFLOWOP'));B('삭제',r).click();await W(1200);return true})()",
+        "expect:![...document.querySelectorAll('table')].find((x) => x.innerText.includes('투입자원유형')).innerText.includes('QAFLOWOP')"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const ops=await (await fetch('/api/process-operations',{headers:H})).json();for(const o of ops.filter((x)=>x.code==='QAFLOWOP'))await fetch('/api/process-operations/'+o.id,{method:'DELETE',headers:H});const id=sessionStorage.getItem('qaPrc');if(id)await fetch('/api/processes/'+id,{method:'DELETE',headers:H});return true})()"
+  ]
+}

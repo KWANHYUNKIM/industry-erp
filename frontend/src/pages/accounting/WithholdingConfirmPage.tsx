@@ -4,6 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingReturn, WithholdingStatement } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -87,7 +88,7 @@ export default function WithholdingConfirmPage() {
           <input type="month" className="ec-input w-[150px]" value={month} onChange={(e) => setMonth(e.target.value)} />
         </EcCond>
         <EcCond label="신고일자">
-          <input type="date" className="ec-input w-[150px]" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[150px]" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
         </EcCond>
       </ul>
 

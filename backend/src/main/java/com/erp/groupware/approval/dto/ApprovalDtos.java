@@ -4,9 +4,12 @@ import com.erp.groupware.approval.ApprovalDocument;
 import com.erp.groupware.approval.ApprovalDocumentVoucher;
 import com.erp.groupware.approval.ApprovalLine;
 import com.erp.groupware.approval.ApprovalLineStatus;
+import com.erp.groupware.approval.ApprovalOutput;
+import com.erp.groupware.approval.ApprovalOutputMode;
 import com.erp.groupware.approval.ApprovalParticipant;
 import com.erp.groupware.approval.ApprovalParticipantRole;
 import com.erp.groupware.approval.ApprovalStatus;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
@@ -51,9 +54,33 @@ public final class ApprovalDtos {
             List<Long> approverIds,
             List<Long> referenceUserIds,
             List<Long> shareUserIds,
+            /** [결재문서] › '전표 출력물' — 붙인 출력물 전부(고칠 때는 통째로 다시 잡는다). null 이면 고칠 때 그대로 둔다. */
+            List<@Valid ApprovalOutputRequest> outputs,
             /** true 면 임시저장(기안중). 결재선 없이 저장할 수 있다. */
             boolean temporary
     ) {}
+
+    /**
+     * 기안서에 붙인 출력물 하나. html 은 적용한 때 찍은 사본(SNAPSHOT), conditions 는 다시 조회할 조건(AUTO).
+     */
+    public record ApprovalOutputRequest(
+            @NotBlank @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String menuName,
+            LocalDateTime appliedAt,
+            ApprovalOutputMode mode,
+            String html,
+            Map<String, Object> conditions
+    ) {}
+
+    public record ApprovalOutputResponse(
+            Long id, String menuName, LocalDateTime appliedAt, ApprovalOutputMode mode,
+            String html, Map<String, Object> conditions
+    ) {
+        public static ApprovalOutputResponse from(ApprovalOutput o) {
+            return new ApprovalOutputResponse(o.getId(), o.getMenuName(), o.getAppliedAt(), o.getMode(),
+                    o.getHtml(), o.getConditions());
+        }
+    }
 
     /** 기안서에 ERP 전표를 연결한다. 셋 중 정확히 하나만 지정한다. */
     public record LinkVoucherRequest(
@@ -145,7 +172,9 @@ public final class ApprovalDtos {
             int voucherCount,
             List<ApprovalLineResponse> lines,
             List<ApprovalParticipantResponse> participants,
-            List<ApprovalVoucherResponse> vouchers
+            List<ApprovalVoucherResponse> vouchers,
+            /** [결재문서] › '전표 출력물' */
+            List<ApprovalOutputResponse> outputs
     ) {
         public static ApprovalResponse from(ApprovalDocument d) {
             String currentApprover = d.getLines().stream()
@@ -192,7 +221,8 @@ public final class ApprovalDtos {
                     d.getVouchers().size(),
                     d.getLines().stream().map(ApprovalLineResponse::from).toList(),
                     d.getParticipants().stream().map(ApprovalParticipantResponse::from).toList(),
-                    d.getVouchers().stream().map(ApprovalVoucherResponse::from).toList());
+                    d.getVouchers().stream().map(ApprovalVoucherResponse::from).toList(),
+                    d.getOutputs().stream().map(ApprovalOutputResponse::from).toList());
         }
     }
 }

@@ -10,7 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.regex.Pattern;
 
-/** 일정관리 '라벨검색' — 라벨코드 · 라벨명 · 색상. 이름을 바꾸거나 지우면 그 이름이 붙은 일정도 따라간다. */
+/**
+ * 일정관리 '라벨검색' — 라벨코드 · 라벨명 · 색상. 일정은 코드로 붙어 있어 이름 · 색을 바꾸면 따로 손댈 것 없이 따라간다.
+ * 지우면 그 코드가 붙은 일정에서 라벨을 뗀다.
+ */
 @Service
 @RequiredArgsConstructor
 public class ScheduleLabelService {
@@ -37,10 +40,8 @@ public class ScheduleLabelService {
     @Transactional
     public ScheduleLabelResponse update(Long id, SaveScheduleLabelRequest req) {
         ScheduleLabel label = get(id);
-        String before = label.getName();
         label.setName(name(req));
         label.setColor(color(req));
-        if (!before.equals(label.getName())) rename(before, label.getName());
         return ScheduleLabelResponse.from(label);
     }
 
@@ -54,14 +55,8 @@ public class ScheduleLabelService {
     @Transactional
     public void delete(Long id) {
         ScheduleLabel label = get(id);
-        rename(label.getName(), null);
+        for (ScheduleEvent e : eventRepository.findByLabelCode(label.getCode())) e.setLabelCode(null);
         labelRepository.delete(label);
-    }
-
-    private void rename(String from, String to) {
-        for (ScheduleEvent e : eventRepository.findAll()) {
-            if (from.equals(e.getLabelText())) e.setLabelText(to);
-        }
     }
 
     private static String name(SaveScheduleLabelRequest req) {

@@ -10,6 +10,7 @@ import type { Lot, LotTransaction } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { expiryDirectRange } from '../../utils/expiryRange'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.재고현황</b> (이카운트 E040619)
@@ -250,8 +251,7 @@ export default function LotStockStatusPage() {
         </EcCond>
         <EcCond label="기준일자">
           <div className="flex items-center gap-[6px] flex-wrap">
-            <input type="date" className="ec-input" value={asOf}
-                   onChange={(e) => setAsOf(e.target.value)} style={{ width: 150 }} />
+            <EcDateInput className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
             {/* 한 날짜라 빠른선택은 끝날(to)만 받는다. */}
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={asOf}
                            onPick={(r) => setAsOf(r.to)} />
@@ -271,9 +271,7 @@ export default function LotStockStatusPage() {
             {EXPIRY_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
           {expiryOpt !== '사용안함' && (<>
-            <input type="date" className="ec-input" value={expFrom} onChange={(e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145, marginLeft: 6 }} />
-            <span className="my-0 mx-[4px]">~</span>
-            <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145 }} />
+            <EcDateRange from={{ className: "ec-input", value: expFrom, onChange: (e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') } }} to={{ className: "ec-input", value: expTo, onChange: (e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') } }} />
           </>)}
         </EcCond>
         <EcCond label="시리얼/로트No." pick>

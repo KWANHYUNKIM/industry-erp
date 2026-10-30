@@ -5,6 +5,8 @@ import { downloadStoredFile, formatBytes } from '../utils/fileDownload'
 import EcFileDrop from './EcFileDrop'
 import { ymd } from './EcPeriodPicks'
 import { ecConfirm } from './EcDialog'
+import { shrinkImage } from '../utils/imageResize'
+import EcDateInput from './ui/EcDateInput'
 
 /**
  * 전표 하나에 붙은 증빙(첨부파일)을 보고 등록·삭제하는 재사용 패널.
@@ -51,7 +53,7 @@ export default function EvidencePanel({
     setError(''); setBusy(true)
     try {
       const fd = new FormData()
-      if (file) fd.append('file', file)
+      if (file) fd.append('file', await shrinkImage(file, { maxEdge: 2400 }))
       await api.post('/evidence-attachments', fd, {
         params: {
           entityType, entityId,
@@ -120,7 +122,7 @@ export default function EvidencePanel({
         <select className="ec-input" value={method} onChange={(ev) => setMethod(ev.target.value as EvidenceMethod)} style={{ width: 120 }}>
           {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
         </select>
-        <input type="date" className="ec-input" value={evidenceDate} onChange={(ev) => setEvidenceDate(ev.target.value)} style={{ width: 140 }} />
+        <EcDateInput className="ec-input" value={evidenceDate} onChange={(ev) => setEvidenceDate(ev.target.value)} />
         <EcFileDrop
           hint="여기에 파일 놓기" disabled={busy}
           onFiles={(fs) => setFile(fs[0] ?? null)}

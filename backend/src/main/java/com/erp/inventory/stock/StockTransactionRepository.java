@@ -94,7 +94,7 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
             "from StockTransaction t " +
             "where t.transactionDate >= :from and t.transactionDate <= :to " +
             "and (:warehouseId is null or t.warehouse.id = :warehouseId) " +
-            "and (:excludeTransfers = false or t.note is null or t.note not like '창고이동%') " +
+            "and (:excludeTransfers = false or t.note is null or (t.note not like '창고이동%' and t.note not like '생산불출%')) " +
             "group by t.item.id")
     List<Object[]> aggregateMovement(@Param("from") LocalDate from,
                                      @Param("to") LocalDate to,

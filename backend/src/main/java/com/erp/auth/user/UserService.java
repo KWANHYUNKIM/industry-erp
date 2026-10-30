@@ -113,6 +113,33 @@ public class UserService {
     }
 
     /**
+     * 사람 그림 › [개인정보수정] — 본인 성명 · Email 을 고친다(원본 개인정보수정 창, 2026-10-30 loginaa 실측).
+     * 사용자등록 수정과 달리 권한 · 사용여부 · 부서는 건드리지 않는다.
+     */
+    @Transactional
+    public UserResponse updateOwnProfile(String username, String name, String email) {
+        User user = getByUsername(username);
+        if (!StringUtils.hasText(name)) throw ApiException.badRequest("성명을 입력하세요.");
+        user.setName(name.trim());
+        user.setEmail(StringUtils.hasText(email) ? email.trim() : null);
+        return UserResponse.from(user);
+    }
+
+    /** 사람 그림 › [개인정보수정] › 비밀번호 변경 — 지금 비밀번호가 맞아야 바꾼다. 보안정책(길이 · 최근 N개)은 사용자등록과 같다. */
+    @Transactional
+    public void changeOwnPassword(String username, String current, String next) {
+        User user = getByUsername(username);
+        if (current == null || !passwordEncoder.matches(current, user.getPassword())) {
+            throw ApiException.badRequest("현재 비밀번호가 맞지 않습니다.");
+        }
+        if (!StringUtils.hasText(next)) throw ApiException.badRequest("새 비밀번호를 입력하세요.");
+        requirePasswordPolicy(next);
+        requireNotRecentlyUsed(user, next);
+        user.setPassword(passwordEncoder.encode(next));
+        rememberPassword(user);
+    }
+
+    /**
      * 보안정책의 비밀번호 최소 길이를 지킨다. 예전엔 Self-Customizing > 보안정책에서 길이를 바꿔도 아무 데서도
      * 쓰지 않아, 화면은 지키는 것처럼 보이는데 4자 비밀번호가 그대로 만들어졌다(QA 20회차).
      */

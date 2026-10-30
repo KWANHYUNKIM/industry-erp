@@ -14,6 +14,7 @@ import com.erp.auth.user.User;
 import com.erp.groupware.approval.dto.ApprovalDtos.ApprovalActionRequest;
 import com.erp.groupware.approval.dto.ApprovalDtos.ApprovalResponse;
 import com.erp.groupware.approval.dto.ApprovalDtos.CreateApprovalRequest;
+import com.erp.groupware.approval.dto.ApprovalDtos.ApprovalOutputRequest;
 import com.erp.groupware.approval.dto.ApprovalDtos.LinkVoucherRequest;
 import com.erp.accounting.expense.ExpenseRepository;
 import com.erp.inventory.project.ProjectRepository;
@@ -162,6 +163,7 @@ public class ApprovalService {
         }
         addParticipants(doc, req.referenceUserIds(), ApprovalParticipantRole.REFERENCE);
         addParticipants(doc, req.shareUserIds(), ApprovalParticipantRole.SHARE);
+        addOutputs(doc, req.outputs());
 
         ApprovalDocument saved = approvalRepository.save(doc);
         // 임시저장이 아니면 생성과 동시에 상신된다(status=IN_PROGRESS) — 이때도 첫 결재자에게 알린다.
@@ -204,6 +206,7 @@ public class ApprovalService {
         // 결재선 · 참조 · 공유는 통째로 다시 잡는다 — 지운 줄을 먼저 내보내야 같은 차례 번호로 다시 넣을 수 있다.
         doc.getLines().clear();
         doc.getParticipants().clear();
+        if (req.outputs() != null) doc.getOutputs().clear();
         approvalRepository.saveAndFlush(doc);
         int step = 1;
         for (Long approverId : approverIds) {
@@ -215,6 +218,7 @@ public class ApprovalService {
         }
         addParticipants(doc, req.referenceUserIds(), ApprovalParticipantRole.REFERENCE);
         addParticipants(doc, req.shareUserIds(), ApprovalParticipantRole.SHARE);
+        addOutputs(doc, req.outputs());
         if (!req.temporary()) {
             doc.setStatus(ApprovalStatus.IN_PROGRESS);
             doc.setCurrentStep(1);
@@ -223,6 +227,26 @@ public class ApprovalService {
             notifyCurrentApprover(doc);
         }
         return ApprovalResponse.from(doc);
+    }
+
+    /** [결재문서] › '전표 출력물' — 받은 차례대로 붙인다. 모드를 안 주면 [적용](사본)이다. */
+    private void addOutputs(ApprovalDocument doc, List<ApprovalOutputRequest> outputs) {
+        if (outputs == null) return;
+        int order = 1;
+        for (ApprovalOutputRequest o : outputs) {
+            ApprovalOutputMode mode = o.mode() != null ? o.mode() : ApprovalOutputMode.SNAPSHOT;
+            if (mode == ApprovalOutputMode.SNAPSHOT && (o.html() == null || o.html().isBlank())) {
+                throw ApiException.badRequest("출력물 사본이 비어 있습니다: " + o.menuName());
+            }
+            doc.addOutput(ApprovalOutput.builder()
+                    .sortOrder(order++)
+                    .menuName(o.menuName().trim())
+                    .appliedAt(o.appliedAt() != null ? o.appliedAt() : LocalDateTime.now())
+                    .mode(mode)
+                    .html(o.html())
+                    .conditions(o.conditions())
+                    .build());
+        }
     }
 
     private void addParticipants(ApprovalDocument doc, List<Long> userIds, ApprovalParticipantRole role) {

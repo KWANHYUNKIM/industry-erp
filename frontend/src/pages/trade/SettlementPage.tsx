@@ -8,6 +8,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 type SettlementType = 'RECEIPT' | 'PAYMENT'
 
@@ -155,7 +156,7 @@ export default function SettlementPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs text-ec-label">일자</label>
-              <input type="date" className={inputCls} style={{ width: '100%' }} value={date} onChange={(e) => setDate(e.target.value)} />
+              <EcDateInput className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-xs text-ec-label">금액 *</label>

@@ -7,6 +7,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import EditStateMenu from '../../components/EditStateMenu'
 import { ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Vacation { id: number; code: string; name: string; periodFrom: string; periodTo: string; carryOver: boolean; carryFromId: number | null; remark: string | null; active: boolean }
 interface Form { code: string; name: string; periodFrom: string; periodTo: string; carryOver: boolean; carryFromId: string; remark: string }
@@ -206,9 +207,7 @@ export default function VacationKindListPage() {
           <li className="wide">
             <span className="title">기간</span>
             <div className="form flex items-center gap-[6px]">
-              <input type="date" className="ec-input w-[150px]" value={form.periodFrom} onChange={(e) => setForm({ ...form, periodFrom: e.target.value })} />
-              ~
-              <input type="date" className="ec-input w-[150px]" value={form.periodTo} onChange={(e) => setForm({ ...form, periodTo: e.target.value })} />
+              <EcDateRange from={{ className: "ec-input w-[150px]", value: form.periodFrom, onChange: (e) => setForm({ ...form, periodFrom: e.target.value }) }} to={{ className: "ec-input w-[150px]", value: form.periodTo, onChange: (e) => setForm({ ...form, periodTo: e.target.value }) }} />
             </div>
           </li>
           <li className="wide">

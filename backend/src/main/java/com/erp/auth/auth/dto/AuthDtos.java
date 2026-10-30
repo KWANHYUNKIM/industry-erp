@@ -23,4 +23,18 @@ public final class AuthDtos {
             String companyName,
             UserDtos.UserResponse user
     ) {}
+
+    /** 사람 그림 › [개인정보수정] — 본인 성명 · Email (아이디는 바꾸지 않는다) */
+    public record MyProfileResponse(String username, String name, String email) {}
+
+    public record MyProfileRequest(
+            @NotBlank(message = "성명을 입력하세요.") String name,
+            String email
+    ) {}
+
+    /** 사람 그림 › [개인정보수정] › [비밀번호 변경] */
+    public record MyPasswordRequest(
+            @NotBlank(message = "현재 비밀번호를 입력하세요.") String currentPassword,
+            @NotBlank(message = "새 비밀번호를 입력하세요.") String newPassword
+    ) {}
 }

@@ -3,6 +3,7 @@ package com.erp.common;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 메뉴 권한의 단일 소스.
@@ -54,6 +55,21 @@ public final class MenuPermissionCatalog {
     );
 
     /**
+     * 마스터만 쓰는 업무. 원본 사용자관리(사용자등록 · 권한그룹 설정 · 권한승인대기현황 · 관리자설정)는 마스터 전용이라
+     * 개별권한 · 권한그룹으로 줄 수 없고, 자물쇠 화면에 [권한요청] 도 없다(2026-10-30 loginaa 실측).
+     */
+    public static final Set<String> MASTER_ONLY = Set.of("USER_MANAGE");
+
+    /** 업무 이름(자물쇠 화면 '(업무명) 업무 권한이 없습니다.'). 모르는 코드는 코드 그대로. */
+    public static String nameOf(String code) {
+        return ALL.stream().filter(p -> p.code().equals(code)).map(Perm::name).findFirst().orElse(code);
+    }
+
+    public static boolean exists(String code) {
+        return ALL.stream().anyMatch(p -> p.code().equals(code));
+    }
+
+    /**
      * API base path → 관장 권한 코드. 최장 접두어 우선으로 매칭한다.
      * 여기에 없는 경로는 {@code null}(권한 불요, 인증만) 취급한다.
      *
@@ -71,7 +87,7 @@ public final class MenuPermissionCatalog {
         Map<String, String> m = new LinkedHashMap<>();
         // 재고 마스터
         put(m, "INV_MASTER", "/api/items", "/api/item-groups", "/api/warehouses",
-                "/api/management-items", "/api/lots");
+                "/api/management-items", "/api/lots", "/api/sales-reps");
         put(m, "PARTNER", "/api/partners", "/api/partner-groups", "/api/business-cards",
                 "/api/crm-activities");
         put(m, "SALES", "/api/sales", "/api/sales-orders", "/api/sales-plans", "/api/quotations", "/api/shipments", "/api/shipment-orders",
@@ -125,7 +141,10 @@ public final class MenuPermissionCatalog {
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
                 "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields",
                 "/api/collect-sources", "/api/collect-data");
-        put(m, "USER_MANAGE", "/api/users", "/api/roles", "/api/permissions", "/api/companies");
+        put(m, "USER_MANAGE", "/api/users", "/api/roles", "/api/permissions", "/api/companies",
+                "/api/work-permissions");
+        // /api/permission-requests 는 일부러 비워 둔다 — 권한이 없는 사람이 [권한요청] 을 보내는 곳이다.
+        // 목록 · 승인 · 반려는 서비스가 마스터인지 본다.
         return m;
     }
 

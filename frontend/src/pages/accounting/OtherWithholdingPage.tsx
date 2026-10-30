@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingSlip, WithholdingSlipListRow } from '../../types/api'
 import { ymd } from '../../utils/periods'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
 const ym = (s: string) => s.replace('-', '/')
@@ -115,9 +116,7 @@ export default function OtherWithholdingPage() {
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="지급일자">
-          <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="귀속연월">
           <label className="inline-flex items-center gap-[3px]"><input type="checkbox" checked={useAttr} onChange={(e) => setUseAttr(e.target.checked)} /> 사용</label>
@@ -258,7 +257,7 @@ function JournalModal({ draft, onClose }: { draft: JournalDraft; onClose: () => 
       {done && <p className="ec-alert mb-[8px]">{done}</p>}
       <ul className="ec-form mb-[8px]">
         <EcCond label="전표일자">
-          <input type="date" className="ec-input w-[150px]" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[150px]" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input w-full" maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} />

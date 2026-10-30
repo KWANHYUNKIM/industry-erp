@@ -8,6 +8,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업관리 > 현황누계표 (이카운트 E040709)
@@ -282,11 +283,7 @@ export default function MonthlyCumulativePage() {
         */}
         <span className="text-[12.5px] text-ec-label">기준일자</span>
         <span className="flex items-center gap-[4px]">
-          <input className="ec-input" type="date" style={{ width: 140 }} value={from}
-                 onChange={(e) => setFrom(e.target.value)} />
-          <span className="text-ec-hint">~</span>
-          <input className="ec-input" type="date" style={{ width: 140 }} value={to}
-                 onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         </span>
         {/* 원본 조건 차례: 창고 · 거래처 · 품목 · 프로젝트 */}
         <CodePickerField label="창고" width={150} emptyLabel="전체"

@@ -13,6 +13,7 @@ import { formatDays } from '../../utils/dayCount'
 import { vacationFetchRange } from '../../utils/vacationFetchRange'
 import { ecConfirm } from '../../components/EcDialog'
 import { periodOf } from '../../utils/periods'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 관리 > 근태관리 > 근태조회.
@@ -263,11 +264,7 @@ export default function LeaveListPage() {
           이쪽은 <b>신청한 기간</b>이다.
         */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={fromCond}
-                 onChange={(e) => setFromCond(e.target.value)} style={{ width: 140 }} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input" value={toCond}
-                 onChange={(e) => setToCond(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: fromCond, onChange: (e) => setFromCond(e.target.value) }} to={{ className: "ec-input", value: toCond, onChange: (e) => setToCond(e.target.value) }} />
           {PICKS.map((l) => (
             <button key={l} type="button" className="ec-btn-pick"
                     onClick={() => { const r = periodOf(l); if (r) { setFromCond(r.from); setToCond(r.to) } }}>{l}</button>
@@ -279,8 +276,7 @@ export default function LeaveListPage() {
           맨 뒤" 라고 적어 두었는데 <b>틀렸다</b> — 사본만 보고 적은 것이었다.
         */}
         <EcCond label="근태일자">
-          <input type="date" className="ec-input" value={dayCond}
-                 onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={dayCond} onChange={(e) => setDayCond(e.target.value)} />
         </EcCond>
         <EcCond label="사원">
           <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={emp} onChangeMulti={(v) => setEmp(v)}
@@ -382,10 +378,7 @@ export default function LeaveListPage() {
               <li className="wide"><span className="title">근태일자</span>
                 {/* 우리 근태는 기간(시작 ~ 끝) 한 줄이라 끝 날짜도 고친다 — 근태(일)는 기간 안이어야 한다 */}
                 <div className="form flex items-center gap-[6px]">
-                  <input type="date" className="ec-input w-[150px]" value={edit.startDate}
-                         onChange={(e) => setEdit({ ...edit, startDate: e.target.value, endDate: edit.endDate < e.target.value ? e.target.value : edit.endDate })} /> ~
-                  <input type="date" className="ec-input w-[150px]" value={edit.endDate}
-                         onChange={(e) => setEdit({ ...edit, endDate: e.target.value })} />
+                  <EcDateRange from={{ className: "ec-input w-[150px]", value: edit.startDate, onChange: (e) => setEdit({ ...edit, startDate: e.target.value, endDate: edit.endDate < e.target.value ? e.target.value : edit.endDate }) }} to={{ className: "ec-input w-[150px]", value: edit.endDate, onChange: (e) => setEdit({ ...edit, endDate: e.target.value }) }} />
                 </div></li>
               <li className="wide"><span className="title">사원</span>
                 <div className="form">

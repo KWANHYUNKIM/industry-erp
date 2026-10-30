@@ -4,6 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { IncomeSubmission } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (Number(n) ? Number(n).toLocaleString('ko-KR') : '')
 /** 정산 · 퇴직 서식은 자료가 있으면 0 도 찍는다(원본 2026 퇴직소득 ⑭ 법인세 · ⑮ 농어촌특별세 '0', 2025 ⑬ 소득세 '0'). */
@@ -95,7 +96,7 @@ export default function IncomeSubmissionPage() {
         <EcCond label="귀속연월" span="full">{range(attr, setAttr, SETTLEMENT.has(kind))}</EcCond>
         {!SETTLEMENT.has(kind) && <EcCond label="지급연월" span="full">{range(paid, setPaid)}</EcCond>}
         <EcCond label="제출일자" span="full">
-          <input type="date" className="ec-input w-[150px]" value={submitDate} onChange={(e) => setSubmitDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[150px]" value={submitDate} onChange={(e) => setSubmitDate(e.target.value)} />
         </EcCond>
         <EcCond label="출력구분" span="full">
           <select className="ec-input w-full" value={kind} onChange={(e) => setKind(e.target.value)}>

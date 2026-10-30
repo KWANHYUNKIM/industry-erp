@@ -11,6 +11,7 @@ import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import AccountingReflectionPage from './AccountingReflectionPage'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 판매일괄회계반영 (원본 E040215, 2026-10-22 loginaa 실측 — plans/재고1.md 97행).
@@ -428,8 +429,7 @@ function SalesBatch() {
         {cur && curAmt && <>
           <ul className="ec-form mb-[8px]">
             <EcCond label="일자-No." span={2}>
-              <input type="date" className="ec-input w-[150px]" aria-label="매출전표 일자" value={slipForm.date}
-                     onChange={(e) => setSlipForm((f) => ({ ...f, date: e.target.value }))} />
+              <EcDateInput className="ec-input w-[150px]" aria-label="매출전표 일자" value={slipForm.date} onChange={(e) => setSlipForm((f) => ({ ...f, date: e.target.value }))} />
             </EcCond>
             <EcCond label="연결거래" span={2}><span className="ec-link">없음</span></EcCond>
             <EcCond label="부가세유형" span={2}>

@@ -17,6 +17,7 @@ import type { Item, Production, ProductionEntryType, ProductionMaterial, Warehou
 import { subcontractCost, subcontractVat } from '../../utils/subcontractCost'
 import { ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
+import { shrinkImage } from '../../utils/imageResize'
 
 /**
  * 원본(이카운트) <b>생산입고 I · II · III</b> 입력 화면. 셋은 뼈대가 같고 소모를 정하는 법만 다르다.
@@ -126,7 +127,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     setUploading(true); setError('')
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', fd)
       setAttachment({ id: r.data.id, name: r.data.name })
     } catch (err) {
@@ -207,7 +208,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     void Promise.all([
       api.get<Item[]>('/items').then((r) => setItems(r.data.filter((i) => i.active))),
       api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data)),
-      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees')
+      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/sales-reps')
         .then((r) => setEmployees(r.data.filter((e) => e.active !== false))),
       api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)),
       api.get<{ id: number; code: string; name: string; active: boolean }[]>('/processes')

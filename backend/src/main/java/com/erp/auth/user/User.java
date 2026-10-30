@@ -70,6 +70,15 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private boolean enabled = true;
 
+    /**
+     * 기본권한(사용자등록 [권한] 탭) — 개별로 정하지 않은 업무가 따른다. GROUP 이면 ADMIN 아닌 역할(=권한그룹)들을 따른다.
+     * 기존 사용자는 V516 이 GROUP 으로 옮겼다(그 전에도 역할의 권한을 따랐다).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "base_permission", nullable = false, length = 10)
+    @Builder.Default
+    private BasePermission basePermission = BasePermission.GROUP;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",
@@ -82,4 +91,11 @@ public class User extends BaseTimeEntity {
     public void addRole(Role role) {
         this.roles.add(role);
     }
+
+    /** 마스터(관리자설정) = ADMIN 역할. 전권. */
+    public boolean isMaster() {
+        return roles.stream().anyMatch(r -> MASTER_ROLE.equals(r.getName()));
+    }
+
+    public static final String MASTER_ROLE = "ADMIN";
 }

@@ -15,6 +15,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { useSubmitting } from '../../utils/useSubmitting'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 출하지시서입력(E040220) — 원본 영업관리 &gt; 출하지시서 &gt; <b>출하지시서입력</b>(2026-10-28 데이터이관 루프 18 실측).
@@ -125,7 +126,7 @@ export default function ShipmentOrderEntry() {
   }
   useEffect(() => {
     api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
-    api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+    api.get<EmployeeMaster[]>('/sales-reps').then((r) => setEmployees(r.data)).catch(() => {})
     void loadMyItems()
     Promise.all([api.get<Partner[]>('/partners'), api.get<Warehouse[]>('/warehouses'), api.get<Item[]>('/items')])
       .then(([p, w, i]) => { setPartners(p.data); setWarehouses(w.data); setItems(i.data) })
@@ -461,7 +462,7 @@ export default function ShipmentOrderEntry() {
                         /* 원본: 품목을 고르면 품목명 칸이 글자 칸이 되어 줄마다 이름을 고쳐 쓴다(임의품목 Z00007). 고르기 전에는 검색 칸. */
                         <div className="flex">
                           <input className="cell" placeholder="품목 선택" value={l.name ?? it?.name ?? ''} maxLength={200} onChange={(e) => updateLine(idx, 'name', e.target.value)} />
-                          <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기" onClick={() => updateLine(idx, 'itemId', '')}>🔍</button>
+                          <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기" onClick={() => updateLine(idx, 'itemId', '')}><EcIcon name="search" /></button>
                         </div>
                       ) : (
                         <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제" value={l.itemId}
@@ -472,7 +473,7 @@ export default function ShipmentOrderEntry() {
                     <td><EcNumInput className="cell text-right" value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} /></td>
                     <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                     <td className="text-center">
-                      {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint">✕</button>}
+                      {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint"><EcIcon name="close" size={12} glyph="✕" /></button>}
                     </td>
                   </tr>
                 )

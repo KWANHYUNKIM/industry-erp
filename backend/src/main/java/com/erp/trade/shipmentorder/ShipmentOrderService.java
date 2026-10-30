@@ -2,7 +2,7 @@ package com.erp.trade.shipmentorder;
 
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
-import com.erp.hr.employee.EmployeeService;
+import com.erp.inventory.salesrep.SalesRepService;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.project.ProjectService;
@@ -51,7 +51,7 @@ public class ShipmentOrderService {
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
     private final WarehouseService warehouseService;
-    private final EmployeeService employeeService;
+    private final SalesRepService salesRepService;
     private final ProjectService projectService;
     private final ShipmentService shipmentService;
     private final ShipmentOrderLineRepository lineRepository;
@@ -269,7 +269,7 @@ public class ShipmentOrderService {
         BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
         o.setPartner(partner);
-        o.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
+        o.setEmployee(req.employeeId() != null ? salesRepService.getUsable(req.employeeId()) : null);
         o.setWarehouse(req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : null);
         o.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
         o.setContact(req.contact());

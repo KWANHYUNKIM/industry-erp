@@ -1092,7 +1092,7 @@ async function scenarioSalesPlanScope(f) {
    * 따라가는지가 요점이다 — 안 따라가면 담당자별로 쪼갠 순간 같은 판매가 모든 줄에 중복으로
    * 잡혀 달성률이 다 같이 부풀어 오른다(창고 때 실제로 그랬다).
    */
-  const emp = (await must('GET', '/employees'))[0]
+  const emp = (await must('GET', '/sales-reps'))[0]
   if (emp) {
     const planEmp = await must('POST', '/sales-plans', {
       itemId: f.product.id, planYear: year, planMonth: 5, planQty: 10, planAmount: 100000,
@@ -1250,7 +1250,7 @@ async function scenarioQuotationWarehouseProject(f) {
   const wh2 = await ensure('/warehouses', 'code', `${P}WH2`, null, {
     code: `${P}WH2`, name: 'QA창고2', location: 'QA동 2층',
   })
-  const emp = (await must('GET', '/employees'))[0]
+  const emp = (await must('GET', '/sales-reps'))[0]
   await must('POST', '/stock-adjustments', {
     type: 'SELF_USE', itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 1,
     adjustDate: '2026-03-02', projectId: proj.id, employeeId: emp?.id,
@@ -3389,7 +3389,7 @@ async function scenarioGroupwareShared() {
 async function scenarioPerformance(f) {
   section('■ 시나리오 25. 담당자별 실적 (전표 담당 사원 기준)')
 
-  const employees = (await must('GET', '/employees')).filter((e) => !String(e.code).startsWith('QA세무'))   // 중도정산 시나리오의 사원에 확정 명세를 달면 지워지지 않는다
+  const employees = (await must('GET', '/sales-reps')).filter((e) => !String(e.code).startsWith('QA세무'))   // 중도정산 시나리오의 사원에 확정 명세를 달면 지워지지 않는다
   if (employees.length === 0) {
     console.log('  ⏭  사원 마스터가 비어 있어 건너뜁니다.')
     return
@@ -3399,7 +3399,7 @@ async function scenarioPerformance(f) {
   const TO = '2026-03-31'
   const DATE = '2026-03-10'
 
-  const before = await must('GET', `/employees/performance?from=${FROM}&to=${TO}`)
+  const before = await must('GET', `/sales/rep-performance?from=${FROM}&to=${TO}`)
   const beforeMine = before.rows.find((r) => r.employeeId === emp.id)
   const beforeSales = Number(beforeMine?.salesAmount ?? 0)
   const beforeUnassigned = Number(before.rows.find((r) => r.employeeId === null)?.salesAmount ?? 0)
@@ -3420,7 +3420,7 @@ async function scenarioPerformance(f) {
   })
   isNull('담당자를 안 넣으면 비어 있음', noOwner.employeeId)
 
-  const after = await must('GET', `/employees/performance?from=${FROM}&to=${TO}`)
+  const after = await must('GET', `/sales/rep-performance?from=${FROM}&to=${TO}`)
   const mine = after.rows.find((r) => r.employeeId === emp.id)
   eq('담당자 실적에 판매 합계가 더해짐', Number(mine.salesAmount), beforeSales + Number(sale.totalAmount))
   eq('담당자 판매 건수도 증가', mine.salesCount >= 1, true)
@@ -3444,7 +3444,7 @@ async function scenarioPerformance(f) {
   })
   eq('구매 전표에도 담당자가 붙음', buy.employeeId, emp.id)
 
-  const afterBuy = (await must('GET', `/employees/performance?from=${FROM}&to=${TO}`))
+  const afterBuy = (await must('GET', `/sales/rep-performance?from=${FROM}&to=${TO}`))
     .rows.find((r) => r.employeeId === emp.id)
   eq('담당자 매입액이 증가', Number(afterBuy.purchaseAmount) >= Number(buy.totalAmount), true)
 
@@ -3452,7 +3452,7 @@ async function scenarioPerformance(f) {
   // 실제로 그렇게 개발 DB 의 전표가 통째로 QA 것이 되어 현황 화면을 실측할 수 없었다.
   for (const d of [sale, noOwner]) await must('DELETE', `/sales/${d.id}`)
   await must('DELETE', `/purchases/${buy.id}`)
-  const cleaned = await must('GET', `/employees/performance?from=${FROM}&to=${TO}`)
+  const cleaned = await must('GET', `/sales/rep-performance?from=${FROM}&to=${TO}`)
   eq('치우고 나면 실적이 원래대로',
     Number(cleaned.rows.find((r) => r.employeeId === emp.id)?.salesAmount ?? 0), beforeSales)
 }
@@ -4406,10 +4406,10 @@ async function scenarioPayrollReadGuard() {
   section('■ 급여 조회 권한')
 
   const P2 = `${P}READGUARD`
-  const asUser = async (username, password, path) => {
+  const asUser = async (username, password, path, extra = {}) => {
     const login = await call('POST', '/auth/login', { companyCode: '0001', username, password })
     if (!login.ok) return { status: login.status, data: login.data }
-    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${login.data.token}` } })
+    const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${login.data.token}`, ...extra } })
     return { status: res.status }
   }
 
@@ -4431,16 +4431,22 @@ async function scenarioPayrollReadGuard() {
   eq('PAYROLL 이 있으면 읽는다',
     (await asUser(`${P2.toLowerCase()}pay`, 'qatest1234', '/payslips?month=2027-01')).status, 200)
 
-  // 나머지 조회는 v1 정책대로 열려 있어야 한다 — 급여만 막은 것이지 전체를 막은 게 아니다
-  eq('다른 조회는 그대로 열려 있다',
-    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/items')).status, 200)
+  // 업무권한(2026-10-30): 조회도 그 업무에 들어갈 수 있어야 한다 — 화면 머리 없이 부르면 API 경로의 업무로 막힌다.
+  // 다만 들어갈 수 있는 화면(공용 화면 '-' 포함)이 곁다리로 읽는 것은 통과(판매입력의 품목 코드도움 같은 것).
+  eq('권한 없는 업무의 조회는 막힌다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/items')).status, 403)
+  eq('공용 화면이 곁다리로 읽는 조회는 통과한다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/items', { 'X-Erp-Menu': '/', 'X-Erp-Work': '-' })).status, 200)
+  eq('급여는 곁다리로도 못 읽는다',
+    (await asUser(`${P2.toLowerCase()}none`, 'qatest1234', '/payslips?month=2027-01', { 'X-Erp-Menu': '/', 'X-Erp-Work': '-' })).status, 403)
 
   // 사원 목록은 담당자 드롭다운으로 여기저기 쓰여 막을 수 없다. 대신 급여 칸만 가린다 —
   // 안 그러면 급여명세를 막아 놔도 사원 목록으로 기본급이 그대로 새어 나간다.
   const rowsOf = async (username) => {
     const login = await call('POST', '/auth/login', { companyCode: '0001', username, password: 'qatest1234' })
+    // 사원 목록은 담당자 드롭다운으로 곁다리로 읽는다 — 공용 화면 머리로 부른다(업무권한 곁다리 조회)
     const res = await fetch(`${BASE}/employees`, {
-      headers: { Authorization: `Bearer ${login.data.token}` },
+      headers: { Authorization: `Bearer ${login.data.token}`, 'X-Erp-Menu': '/', 'X-Erp-Work': '-' },
     })
     return res.json()
   }
@@ -5328,7 +5334,7 @@ async function scenarioProductionBatch(f) {
   const b = await wo(5)
 
   // 원본 머리의 [담당자]. 전표 하나에 한 사람이고 모든 줄에 같이 붙어야 한다.
-  const emp = (await must('GET', '/employees'))[0]
+  const emp = (await must('GET', '/sales-reps'))[0]
   const made = await must('POST', '/productions/batch', {
     productionDate: D,
     employeeId: emp?.id ?? null,
@@ -6408,13 +6414,6 @@ async function scenarioEmployeeMaster(f) {
   eq('기본급도 고쳐진다', Number(edited.baseSalary), 2700000)
   eq('고쳐도 사용중이다', edited.active, true)
 
-  // 담당자로 고를 수 있다.
-  const sale = await must('POST', '/sales', {
-    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2088-03-05',
-    employeeId: made.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
-  })
-  eq('담당자로 붙는다', sale.employeeId, made.id)
-
   // 퇴사 → 사용중단이 함께 켜진다.
   const resigned = await must('PUT', `/employees/${made.id}`, {
     name: `${P}신입`, jobTitle: '주임', departmentId: dept ? dept.id : null,
@@ -6422,17 +6421,6 @@ async function scenarioEmployeeMaster(f) {
   })
   eq('퇴사일을 넣으면 사용중단이 함께 켜진다', resigned.active, false)
   eq('퇴사일이 저장된다', resigned.resignDate, '2088-12-31')
-
-  const after = await call('POST', '/sales', {
-    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2088-03-06',
-    employeeId: made.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
-  })
-  eq('퇴사한 사원은 담당자로 못 고른다', after.status, 400)
-  eq('무엇이 막혔는지 말한다', /사용중지된 사원/.test(String(after.data?.message ?? '')), true)
-
-  // 이미 그 사람이 담당한 전표는 그대로다 — 퇴사했다고 지난 전표의 담당자가 사라지면 안 된다.
-  const kept = (await must('GET', '/sales')).find((x) => x.id === sale.id)
-  eq('지난 전표의 담당자는 그대로다', kept.employeeId, made.id)
 
   // 재직자 목록에서는 빠지고 전체 목록에는 남는다.
   eq('재직자 목록에서 빠진다',
@@ -6447,9 +6435,38 @@ async function scenarioEmployeeMaster(f) {
   eq('되살릴 수 있다', back.active, true)
   isNull('되살리면 퇴사일도 지워진다', back.resignDate)
 
-  await must('DELETE', `/sales/${sale.id}`)
   eq('시험이 끝나면 사원은 사용중으로 남는다',
     (await must('GET', '/employees/all')).find((x) => x.id === made.id).active, true)
+
+  /*
+   * 전표의 [담당자] 는 관리 사원이 아니라 <b>사원(담당)</b>(재고 I › 기초등록 › 사원(담당)등록, /sales-reps) 이다 — 원본처럼 두 마스터(묶음 U).
+   */
+  const REP = `${P}REP`
+  const rep = (await must('GET', '/sales-reps/all')).find((x) => x.code === REP)
+    ?? await must('POST', '/sales-reps', { code: REP, name: `${P}담당` })
+  await must('PUT', `/sales-reps/${rep.id}/active`, { active: true })
+  eq('사원(담당) 은 관리 사원 목록에 안 나온다',
+    (await must('GET', '/employees/all')).some((x) => x.code === REP), false)
+  eq('같은 사원(담당)코드는 거부', (await call('POST', '/sales-reps', { code: REP, name: '중복' })).status, 409)
+  const sale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2088-03-05',
+    employeeId: rep.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('사원(담당)이 담당자로 붙는다', sale.employeeId, rep.id)
+  eq('담당자 이름이 사원(담당)명이다', sale.employeeName, rep.name)
+  await must('PUT', `/sales-reps/${rep.id}/active`, { active: false })
+  const after = await call('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2088-03-06',
+    employeeId: rep.id, lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 1000 }],
+  })
+  eq('사용중단한 사원(담당)은 담당자로 못 고른다', after.status, 400)
+  eq('무엇이 막혔는지 말한다', /사용중단된 사원\(담당\)/.test(String(after.data?.message ?? '')), true)
+  eq('사용중단 사원(담당)은 코드도움 목록에서 빠진다',
+    (await must('GET', '/sales-reps')).some((x) => x.id === rep.id), false)
+  const kept = (await must('GET', '/sales')).find((x) => x.id === sale.id)
+  eq('지난 전표의 담당자는 그대로다', kept.employeeId, rep.id)
+  await must('PUT', `/sales-reps/${rep.id}/active`, { active: true })
+  await must('DELETE', `/sales/${sale.id}`)
   eq('시험용 전표는 남기지 않는다',
     (await must('GET', '/sales')).filter((x) => String(x.saleDate).startsWith('2088-03')).length, 0)
 }
@@ -11041,6 +11058,13 @@ async function main() {
   if (cmd === 'importcost') {   // 수입비용(輸入)만 빠르게
     await scenarioImportCost()
     console.log(`\n통과 ${pass} / 실패 ${fail}`)
+    await finish(fail ? 1 : 0)
+  }
+  if (cmd === 'work-permission') {   // 업무권한(조회 막기 · 곁다리 조회 · 쓰기 403)만 빠르게
+    await scenarioPayrollReadGuard()
+    await scenarioNoPermission()
+    console.log(`
+통과 ${pass} / 실패 ${fail}`)
     await finish(fail ? 1 : 0)
   }
   if (cmd === 'password-history') {

@@ -13,6 +13,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 구매관리 > 발주서현황 (이카운트 E040306)
@@ -542,11 +543,7 @@ function SearchPanel({
     >
       <div style={rowStyle}>
         <span style={label}>기준일자</span>
-        <input type="date" className="ec-input" value={draft.dateFrom}
-          onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span className="my-0 mx-[6px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={draft.dateTo}
-          onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+        <EcDateRange from={{ className: "ec-input", value: draft.dateFrom, onChange: (e) => onChange({ dateFrom: e.target.value }) }} to={{ className: "ec-input", value: draft.dateTo, onChange: (e) => onChange({ dateTo: e.target.value }) }} />
       </div>
       {/* 원본 발주서현황의 조건 차례는 <b>발주No. · 창고 · 거래처 · 품목</b> 이다(사본 실측).
           우리는 거래처를 맨 앞에 두어 눈으로 훑는 자리가 어긋나 있었다. */}
@@ -567,11 +564,7 @@ function SearchPanel({
       */}
       <div style={rowStyle}>
         <span style={label}>품목별납기일자</span>
-        <input type="date" className="ec-input" value={draft.dueFrom}
-          onChange={(e) => onChange({ dueFrom: e.target.value })} style={{ width: 150 }} />
-        <span className="my-0 mx-[6px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={draft.dueTo}
-          onChange={(e) => onChange({ dueTo: e.target.value })} style={{ width: 150 }} />
+        <EcDateRange from={{ className: "ec-input", value: draft.dueFrom, onChange: (e) => onChange({ dueFrom: e.target.value }) }} to={{ className: "ec-input", value: draft.dueTo, onChange: (e) => onChange({ dueTo: e.target.value }) }} />
       </div>
       <div style={rowStyle}>
         <span style={label}>창고</span>

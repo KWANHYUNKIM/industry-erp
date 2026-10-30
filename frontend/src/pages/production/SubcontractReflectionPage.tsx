@@ -56,7 +56,7 @@ export default function SubcontractReflectionPage() {
   /** 담당자 코드도움은 이름을 담는다 — 줄에는 사원 id 만 있어 이름을 붙여 견준다. */
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
   useEffect(() => {
-    api.get<{ id: number; name: string }[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+    api.get<{ id: number; name: string }[]>('/sales-reps').then((r) => setEmployees(r.data)).catch(() => {})
   }, [])
   const empName = (id: number | null) => (id == null ? '' : employees.find((e) => e.id === id)?.name ?? '')
   /* 구분(거래처별·전표별)에 따라 칸이 하나 늘었다 줄었다 한다 — 렌더된 표를 직접 잰다. */

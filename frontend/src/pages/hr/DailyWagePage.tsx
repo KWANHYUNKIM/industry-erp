@@ -7,6 +7,7 @@ import type { BankAccountRow, DailyWork, DailyWorkSummary, EmployeeMaster } from
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -255,7 +256,7 @@ function DailyWorkForm({ employees, onClose, onSaved }: {
               </tr>
               <tr>
                 <th className="bg-ec-page">근무일</th>
-                <td><input type="date" className="ec-input" value={workDate} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className="ec-input" value={workDate} onChange={(e) => setWorkDate(e.target.value)} /></td>
                 <th className="w-[80px] bg-ec-page">근무시간</th>
                 <td><input className="ec-input" type="number" value={workHours} onChange={(e) => setWorkHours(e.target.value)} style={{ width: 70, textAlign: 'right' }} /></td>
               </tr>

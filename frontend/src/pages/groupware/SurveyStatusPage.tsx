@@ -7,6 +7,7 @@ import { EcReportHead, EcReportFoot, reportPeriod, reportDate } from '../../comp
 import type { SurveyDoc } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
 import EcSortSubtotalModal, { emptySortSubtotal, sortBySubtotal, type SortSubtotal } from '../../components/EcSortSubtotalModal'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사현황 (이카운트 E070258)
@@ -177,9 +178,7 @@ export default function SurveyStatusPage() {
             <li className="wide">
               <div className="title">작성일</div>
               <div className="form">
-                <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-                <span className="text-ec-label">~</span>
-                <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+                <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
               </div>
             </li>
             <li className="wide">
@@ -197,9 +196,7 @@ export default function SurveyStatusPage() {
               <div className="form">
                 {useEnd && (
                   <>
-                    <input type="date" className="ec-input w-[140px]" value={endFrom} onChange={(e) => setEndFrom(e.target.value)} />
-                    <span className="text-ec-label">~</span>
-                    <input type="date" className="ec-input w-[140px]" value={endTo} onChange={(e) => setEndTo(e.target.value)} />
+                    <EcDateRange from={{ className: "ec-input w-[140px]", value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
                   </>
                 )}
                 <label className="text-[12px] inline-flex items-center gap-[4px]">

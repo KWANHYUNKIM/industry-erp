@@ -4,6 +4,8 @@ import EcAlert from '../../components/ui/EcAlert'
 import EcBadge from '../../components/ui/EcBadge'
 import EcButton from '../../components/ui/EcButton'
 import EcEmptyRow from '../../components/ui/EcEmptyRow'
+import EcIcon, { EC_ICON_NAMES } from '../../components/ui/EcIcon'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 디자인 시스템 견본 — 토큰과 부품을 한 화면에 모아 본다(큰 회사의 Storybook 자리).
@@ -80,6 +82,9 @@ export default function DesignSystemPage() {
   const v = useTokenValues(ALL)
   const [pill, setPill] = useState(0)
   const [modal, setModal] = useState(false)
+  const [day, setDay] = useState('2026-10-30')
+  const [from, setFrom] = useState('2026-10-01')
+  const [to, setTo] = useState('2026-10-30')
 
   return (
     <div>
@@ -114,6 +119,40 @@ export default function DesignSystemPage() {
         </table>
       </Section>
 
+      <Section title="아이콘 — EcIcon" note="이모지 · 글자 기호 대신 얇은 단색 선 그림. 색은 감싼 단추 · 칸의 글자색을 따른다(text-ec-icon · text-ec-blue). glyph 로 예전 기호를 크기 0 글자로 남기면 글자로 찾는 흐름이 그대로 맞는다."
+               code={`<button className="ec-btn" title="거래처 선택"><EcIcon name="search" /></button>
+<button className="ec-btn ec-btn-arrow"><EcIcon name="caret-up" size={10} glyph="▴" /></button>`}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-[8px]">
+          {EC_ICON_NAMES.map((n) => (
+            <div key={n} className="flex items-center gap-[8px] text-ec-text">
+              <EcIcon name={n} size={16} />
+              <span className="text-ec-label">{n}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-[8px] mt-[8px]">
+          <button className="ec-btn text-ec-icon" title="돋보기"><EcIcon name="search" /></button>
+          <button className="ec-btn text-ec-blue" title="달력"><EcIcon name="calendar" /></button>
+          <div className="ec-btn-group">
+            <EcButton>저장(F8)</EcButton>
+            <EcButton className="ec-btn-arrow"><EcIcon name="caret-up" size={10} glyph="▴" /></EcButton>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="일자칸 · 달력 — EcDateInput · EcDateRange" note="원본 [2026 ▾] / [09 ▾] / [30] [달력]. <input type=&quot;date&quot;> 자리에 그대로 끼운다(값 'YYYY-MM-DD', onChange 의 e.target.value). 달력: 일요일 --ec-cal-sun · 토요일 --ec-cal-sat · 평일 --ec-cal-weekday, 날 칸 31×27 · 둥글기 10, 기간은 두 달 나란히 + --ec-cal-range 띠, '오늘' 주황 점."
+               code={`<EcDateInput aria-label="일자" value={date} onChange={(e) => setDate(e.target.value)} />
+<EcDateRange from={{ 'aria-label': '시작', value: from, onChange: (e) => setFrom(e.target.value) }}
+             to={{ 'aria-label': '끝', value: to, onChange: (e) => setTo(e.target.value) }} />`}>
+        <div className="flex items-center flex-wrap gap-[12px]">
+          <EcDateInput aria-label="견본 일자" value={day} onChange={(e) => setDay(e.target.value)} />
+          <EcDateRange from={{ 'aria-label': '견본 시작', value: from, onChange: (e) => setFrom(e.target.value) }}
+                       to={{ 'aria-label': '견본 끝', value: to, onChange: (e) => setTo(e.target.value) }} />
+          <EcDateInput aria-label="막힌 일자" value={day} disabled />
+          <span className="text-ec-label">값: {day} · {from} ~ {to}</span>
+        </div>
+      </Section>
+
       <Section title="버튼 — EcButton · .ec-btn" note="h26 · 둥글기 10 · 머리카락 테두리. 붙은 묶음은 맞닿는 쪽 모서리만 각지다."
                code={`<EcButton primary onClick={save}>저장(F8)</EcButton>\n<EcButton small>찾기(F3)</EcButton>\n<div className="ec-btn-group"><EcButton>Email</EcButton><EcButton className="ec-btn-arrow">▴</EcButton></div>`}>
         <div className="flex items-center flex-wrap gap-[5px]">
@@ -123,7 +162,7 @@ export default function DesignSystemPage() {
           <EcButton small>찾기(F3)</EcButton>
           <div className="ec-btn-group">
             <EcButton>Email</EcButton>
-            <EcButton className="ec-btn-arrow">▴</EcButton>
+            <EcButton className="ec-btn-arrow"><EcIcon name="caret-up" size={10} glyph="▴" /></EcButton>
           </div>
         </div>
       </Section>
@@ -136,7 +175,7 @@ export default function DesignSystemPage() {
           <select className="ec-input"><option>부가세율 적용</option></select>
           <div className="ec-code w-[360px] flex-none">
             <input className="ec-input code" placeholder="거래처" />
-            <button className="ec-btn">🔍</button>
+            <button className="ec-btn" title="거래처 코드도움"><EcIcon name="search" /></button>
             <input className="ec-input name" placeholder="거래처명" />
           </div>
         </div>

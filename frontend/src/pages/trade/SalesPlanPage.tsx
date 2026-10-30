@@ -13,6 +13,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II > 계획관리 > 매출계획 / 매출계획비교표 (이카운트 E040624·E040625·E040626·E040640)
@@ -216,7 +217,7 @@ export default function SalesPlanPage() {
         api.get<CodeRow[]>('/warehouses'),
         api.get<CodeRow[]>('/partners'),
         api.get<CodeRow[]>('/projects'),
-        api.get<CodeRow[]>('/employees'),
+        api.get<CodeRow[]>('/sales-reps'),
       ])
       setRows(c.data)
       setItems(i.data)
@@ -463,14 +464,10 @@ export default function SalesPlanPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="최종작업일자">
-          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
         </EcCond>
         <EcCond label="설정">
           <div className="flex gap-[12px]">
@@ -763,8 +760,7 @@ function PlanForm({
         </div>
         {/* 정하면 <b>계획연월과 같은 달</b>이어야 한다 — 어긋나면 서버가 막는다. */}
         <label className="flex-1"><span style={lbl}>예상매출일자</span>
-          <input className={cls} type="date" value={expectedDate}
-                 onChange={(e) => setExpectedDate(e.target.value)} style={{ width: '100%' }} />
+          <EcDateInput className={cls} value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
         </label>
         <label className="flex-1"><span style={lbl}>월 *</span>
           <select className={cls} value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: '100%' }}>

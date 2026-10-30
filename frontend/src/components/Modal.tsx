@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import EcIcon from './ui/EcIcon'
 
 /** 이카운트풍 중앙 팝업(모달). 신규/등록 폼을 인라인 대신 이 안에 띄운다.
  *  배경 클릭·ESC 로 닫힌다.
@@ -90,6 +91,7 @@ export function ModalWindow({
   className = '',
   esc = false,
   onDragEnd,
+  tools,
 }: {
   title: string
   onClose: () => void
@@ -99,6 +101,8 @@ export function ModalWindow({
   /** ESC 로 닫히는 창이면 닫기 단추 풍선말에 그렇게 적는다(닫는 일은 부르는 쪽이 한다). */
   esc?: boolean
   onDragEnd?: () => void
+  /** 제목줄 [최대화] 앞에 더 둘 단추(앱바 창의 새창 · 고정 · 새로고침 — 단추에 className="tool"). */
+  tools?: ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [geo, setGeo] = useState<Geo | null>(null)
@@ -172,9 +176,10 @@ export function ModalWindow({
     >
       <div className="ec-modal-bar" onPointerDown={(e) => begin(e, 'move')}>
         <span className="name">{title}</span>
+        {tools}
         <button type="button" className="max" aria-label={restore !== undefined ? '이전 크기로' : '최대화'}
-                title={restore !== undefined ? '이전 크기로' : '최대화'} onClick={toggleMax}>{restore !== undefined ? '❐' : '□'}</button>
-        <button type="button" className="close" aria-label="닫기" title={esc ? '닫기(ESC)' : '닫기'} onClick={onClose}>✕</button>
+                title={restore !== undefined ? '이전 크기로' : '최대화'} onClick={toggleMax}>{restore !== undefined ? <EcIcon name="restore" size={12} glyph="❐" /> : <EcIcon name="maximize" size={12} glyph="□" />}</button>
+        <button type="button" className="close" aria-label="닫기" title={esc ? '닫기(ESC)' : '닫기'} onClick={onClose}><EcIcon name="close" size={12} glyph="✕" /></button>
       </div>
       <div className="ec-modal-body">{children}</div>
       {GRIPS.map((d) => <div key={d} className={`ec-modal-grip ${d}`} aria-hidden="true" onPointerDown={(e) => begin(e, d)} />)}

@@ -8,6 +8,7 @@ import type { NonCashTxn, NonCashType, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -131,11 +132,7 @@ export default function NonCashPage() {
       */}
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
-        <input type="date" className="ec-input" value={from2}
-               onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input" value={to2}
-               onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from2, onChange: (e) => setFrom2(e.target.value) }} to={{ className: "ec-input", value: to2, onChange: (e) => setTo2(e.target.value) }} />
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -244,7 +241,7 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
           </select>
         </Field>
         <Field label="일자">
-          <input className="ec-input" type="date" value={txnDate} onChange={(e) => setTxnDate(e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={txnDate} onChange={(e) => setTxnDate(e.target.value)} />
         </Field>
 
         {conf.debit === 'fixed' ? (

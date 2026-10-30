@@ -1,0 +1,62 @@
+{
+  "about": "Self-Customizing › 사용자관리 — 원본 LNB 사용자등록 · 권한그룹 설정 · 권한승인대기현황 · 관리자설정(원본 도움말 · 영상 0082 · 0083 · 2021 · 2531, plans/데이터이관/원본-업무권한-영상정리.md). 권한그룹 설정: 마스터(ADMIN)는 그룹이 아니라 목록에 없고, 사원 그룹의 업무권한 [설정] 창은 업무마다 권한있음/권한없음 · 예외(행위) · 예외(메뉴) [설정](사용자관리는 마스터 전용이라 줄이 없다). [신규] 권한코드 · 권한명 → 업무권한 없이 시작 → 삭제. 관리자설정: 마스터 칩, 로그인한 마스터는 뺄 수 없다. 옛 /roles 는 권한그룹 설정으로. 만드는 자료: 권한그룹 하나(같은 흐름에서 지움).",
+  "shots": [
+    {
+      "name": "권한그룹 설정 — 목록 · 사원 업무권한 창 · 예외(메뉴) 창",
+      "path": "/roles",
+      "steps": [
+        "wait:2500",
+        "expect:location.pathname === '/users/permission-groups'",
+        "expect:!!document.querySelector('tr[data-group=STAFF]') && !!document.querySelector('tr[data-group=MANAGER]') && !document.querySelector('tr[data-group=ADMIN]')",
+        "expect:[...document.querySelectorAll('.ec-lnb-leaf')].map((x) => x.textContent.trim()).join('|').includes('사용자등록|권한그룹 설정|권한승인대기현황|관리자설정')",
+        "js:document.querySelector('tr[data-group=STAFF] [aria-label$=\"업무권한 설정\"]').click()",
+        "wait:1200",
+        "expect:document.querySelectorAll('tr[data-work]').length === 22 && !document.querySelector('tr[data-work=USER_MANAGE]')",
+        "expect:document.querySelector('[aria-label=\"영업·판매·수주 권한있음\"]')?.checked === true",
+        "js:document.querySelector('[aria-label=\"영업·판매·수주 예외(메뉴)\"]').click()",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().textContent.includes('판매조회') && [...document.querySelectorAll('[role=dialog]')].pop().textContent.includes('판매입력')",
+        "clicklast:닫기",
+        "wait:300",
+        "clicklast:닫기",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "권한그룹 [신규] → 업무권한 없이 시작 → 삭제",
+      "path": "/users/permission-groups",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = (await fetch('/api/roles', { headers: H }).then((r) => r.json())).find((r) => r.name === 'QAPG'); if (g) { await fetch('/api/roles/' + g.id, { method: 'DELETE', headers: H }); location.reload() } return true })()",
+        "wait:2000",
+        "js:window.confirm = () => true",
+        "click:신규",
+        "wait:500",
+        "set:input[id=\"grp-code\"]|QAPG",
+        "set:input[id=\"grp-name\"]|QA권한그룹",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:/QA권한그룹/.test(document.querySelector('tr[data-group=QAPG]')?.textContent ?? '')",
+        "js:document.querySelector('tr[data-group=QAPG] [aria-label$=\"업무권한 설정\"]').click()",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tr[data-work] input[aria-label$=\"권한없음\"]')].every((r) => r.checked)",
+        "clicklast:닫기",
+        "wait:300",
+        "js:[...document.querySelector('tr[data-group=QAPG]').querySelectorAll('button')].find((b) => b.textContent === '삭제').click()",
+        "wait:1200",
+        "expect:!document.querySelector('tr[data-group=QAPG]')"
+      ]
+    },
+    {
+      "name": "관리자설정 — 마스터 칩, 로그인한 마스터는 뺄 수 없다",
+      "path": "/users/masters",
+      "steps": [
+        "wait:2500",
+        "expect:!!document.querySelector('.ec-master-chip[data-master=admin]') && !document.querySelector('.ec-master-chip[data-master=admin] .x')"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const g = (await fetch('/api/roles', { headers: H }).then((r) => r.json())).find((r) => r.name === 'QAPG'); if (g) await fetch('/api/roles/' + g.id, { method: 'DELETE', headers: H }); return true })()"
+  ]
+}

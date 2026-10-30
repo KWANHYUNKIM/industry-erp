@@ -8,6 +8,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { INQUIRY_PICKS } from '../../utils/periods'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { useNavigate } from 'react-router-dom'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업 > <b>결제내역조회</b> — 거래처별 수금/지급 결제 이력.
@@ -198,7 +199,8 @@ export default function PaymentHistoryPage() {
                  onReset={() => setCond(initCond)}
                  // 원본 [신규(F2)] — 결제는 수금/지급 입력에서 만든다. 그 화면을 연다.
                  onNew={() => navigate('/sales/settlement')}
-                 actions={[{ label: '입금보고서작성', onClick: () => navigate('/accounting/vouchers?type=DEPOSIT_REPORT') },
+                 /* 원본은 고른 줄이 없으면 '리스트에 선택된 자료가 없습니다.' 알림(2026-10-30 클릭 대조) — 바로 넘어가던 것. */
+                 actions={[{ label: '입금보고서작성', onClick: () => navigate('/accounting/vouchers?type=DEPOSIT_REPORT'), selected: picked.length },
                            { label: 'Excel' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
@@ -210,11 +212,7 @@ export default function PaymentHistoryPage() {
             <option value="">사용안함</option>
             <option value="Y">사용</option>
           </select>
-          <input type="date" className="ec-input w-[130px]" disabled={!cond.slipUse}
-                 value={cond.slipFrom} onChange={(e) => setC({ slipFrom: e.target.value })} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[130px]" disabled={!cond.slipUse}
-                 value={cond.slipTo} onChange={(e) => setC({ slipTo: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[130px]", disabled: !cond.slipUse, value: cond.slipFrom, onChange: (e) => setC({ slipFrom: e.target.value }) }} to={{ className: "ec-input w-[130px]", disabled: !cond.slipUse, value: cond.slipTo, onChange: (e) => setC({ slipTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="결제상태">
           <input className="ec-input w-[200px]" placeholder="결제상태" value={cond.status} onChange={(e) => setC({ status: e.target.value })} />

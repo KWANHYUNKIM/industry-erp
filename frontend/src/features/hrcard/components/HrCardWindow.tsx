@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import { bankItems, bankNameOf } from '../../../utils/bankCodes'
 import { ymd } from '../../../utils/periods'
 import type { EmployeeMaster } from '../../../types/api'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /** 인사카드 창 사원 곁 자료(서버 EmployeeProfileDtos.Profile) — 값은 모두 글자로 든다. */
 const PROFILE_KEYS = [
@@ -195,10 +196,10 @@ export default function HrCardWindow({ card, isNew, departments, projects, hrTab
     '모바일': <Field key="모바일" label="모바일">{text('mobile', '모바일')}</Field>,
     '여권번호': <Field key="여권번호" label="여권번호"><input className={inputCls} placeholder="여권번호" value={profile.passportNo} onChange={(e) => p({ passportNo: e.target.value })} /></Field>,
     'Email': <Field key="Email" label="Email">{text('email', 'Email')}</Field>,
-    '입사일자': <Field key="입사일자" label="입사일자"><input type="date" className={inputCls} value={form.hireDate} onChange={(e) => f({ hireDate: e.target.value })} /></Field>,
+    '입사일자': <Field key="입사일자" label="입사일자"><EcDateInput className={inputCls} value={form.hireDate} onChange={(e) => f({ hireDate: e.target.value })} /></Field>,
     '입사구분': <Field key="입사구분" label="입사구분"><CodePickerField label="입사구분" hideLabel fill placeholder="입사구분" emptyLabel="선택 해제" value={form.hireKind} onChange={(v) => f({ hireKind: v })}
       items={[{ value: '신입', code: '100', name: '신입' }, { value: '경력', code: '200', name: '경력' }, ...(form.hireKind && !['신입', '경력'].includes(form.hireKind) ? [{ value: form.hireKind, name: form.hireKind }] : [])]} /></Field>,
-    '퇴사일자': <Field key="퇴사일자" label="퇴사일자"><input type="date" className={inputCls} value={form.resignDate} onChange={(e) => f({ resignDate: e.target.value })} /></Field>,
+    '퇴사일자': <Field key="퇴사일자" label="퇴사일자"><EcDateInput className={inputCls} value={form.resignDate} onChange={(e) => f({ resignDate: e.target.value })} /></Field>,
     '퇴사사유': <Field key="퇴사사유" label="퇴사사유">{text('resignReason', '퇴사사유')}</Field>,
     '급여통장': <Field key="급여통장" label="급여통장" wide><div className="flex gap-[6px] w-full mobile:flex-col">
       <div className="flex-1"><CodePickerField label="은행" hideLabel fill pair placeholder="은행" emptyLabel="선택 해제" value={form.bankCode}
@@ -210,7 +211,7 @@ export default function HrCardWindow({ card, isNew, departments, projects, hrTab
     '주소': <Field key="주소" label="주소" wide><input className="ec-input w-[110px] mb-[4px]" value={form.zipcode} onChange={(e) => f({ zipcode: e.target.value })} placeholder="우편번호" maxLength={10} />
       <textarea className={inputCls} rows={2} value={form.address} onChange={(e) => f({ address: e.target.value })} placeholder="주소" /></Field>,
     '적요': <Field key="적요" label="적요" wide><textarea className={inputCls} rows={2} value={form.remark} onChange={(e) => f({ remark: e.target.value })} placeholder="적요" /></Field>,
-    '생년월일': <Field key="생년월일" label="생년월일"><input type="date" className="ec-input w-[150px]" value={profile.birthDate} onChange={(e) => p({ birthDate: e.target.value })} /></Field>,
+    '생년월일': <Field key="생년월일" label="생년월일"><EcDateInput className="ec-input w-[150px]" value={profile.birthDate} onChange={(e) => p({ birthDate: e.target.value })} /></Field>,
     '무주택자 여부': <Field key="무주택자 여부" label="무주택자 여부"><div className="flex gap-[12px]">
       {([['Y', '여(무주택자)'], ['N', '부(유주택자)']] as const).map(([v, l]) => (
         <label key={v} className="inline-flex items-center gap-[4px]"><input type="radio" name="hc-homeless" checked={profile.homeless === v} onChange={() => p({ homeless: v })} /> {l}</label>))}</div></Field>,
@@ -226,7 +227,7 @@ export default function HrCardWindow({ card, isNew, departments, projects, hrTab
         {t === 'yn' ? (
           <span className="inline-flex gap-[12px]">{['Y', 'N'].map((v) => (
             <label key={v} className="inline-flex items-center gap-[4px]"><input type="radio" name={`hc-${k}`} checked={profile[k] === v} onChange={() => p({ [k]: v } as Partial<Profile>)} /> {v}</label>))}</span>
-        ) : t === 'date' ? <input type="date" className="ec-input w-[150px]" value={profile[k]} onChange={(e) => p({ [k]: e.target.value } as Partial<Profile>)} />
+        ) : t === 'date' ? <EcDateInput className="ec-input w-[150px]" value={profile[k]} onChange={(e) => p({ [k]: e.target.value } as Partial<Profile>)} />
           : <input className={`${inputCls}${t === 'num' ? ' text-right' : ''}`} inputMode={t === 'num' ? 'decimal' : undefined} value={profile[k]}
                    onChange={(e) => p({ [k]: t === 'num' ? e.target.value.replace(/[^0-9.-]/g, '') : e.target.value } as Partial<Profile>)} />}
       </Field>
@@ -315,7 +316,7 @@ export default function HrCardWindow({ card, isNew, departments, projects, hrTab
           <ul className="ec-form">
             {sub && GROUP_FIELDS[sub].map((c) => (
               <Field key={c.key} label={c.label}>
-                {c.kind === 'date' ? <input type="date" className="ec-input w-[150px]" value={subDraft[c.key]} onChange={(e) => setSubDraft({ ...subDraft, [c.key]: e.target.value })} />
+                {c.kind === 'date' ? <EcDateInput className="ec-input w-[150px]" value={subDraft[c.key]} onChange={(e) => setSubDraft({ ...subDraft, [c.key]: e.target.value })} />
                   : c.kind === 'radio' ? <span className="inline-flex gap-[12px]">{c.options!.map(([v, l]) => (
                     <label key={v} className="inline-flex items-center gap-[4px]"><input type="radio" name={`sub-${c.key}`} checked={subDraft[c.key] === v} onChange={() => setSubDraft({ ...subDraft, [c.key]: v })} /> {l}</label>))}</span>
                   : <input className={`${inputCls}${c.kind === 'num' ? ' text-right' : ''}`} value={subDraft[c.key]}

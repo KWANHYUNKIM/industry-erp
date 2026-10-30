@@ -30,6 +30,8 @@ import { ErrTip } from '../../components/GridCode'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 import { isAnyPartner } from '../../utils/anyPartner'
+import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -575,7 +577,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   // ── 로딩 ──────────────────────────────────────────────
   async function loadRefs() {
     api.get<Project[]>('/projects').then((r) => setProjects(r.data)).catch(() => {})
-    api.get<EmployeeMaster[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+    api.get<EmployeeMaster[]>('/sales-reps').then((r) => setEmployees(r.data)).catch(() => {})
     api.get<CustomFieldDef[]>('/custom-fields/defs', { params: { entityType: cfg.entityType } })
       .then((r) => setCustomDefs(r.data.filter((d) => d.active)))
       .catch(() => setCustomDefs([]))
@@ -2209,7 +2211,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               type="button" className="ec-btn ec-btn-sm ec-btn-arrow"
               aria-label="My품목 목록" onClick={() => setMyItemsOpen((v) => !v)}
             >
-              ▾
+              <EcIcon name="caret-down" size={10} glyph="▾" />
             </button>
             {myItemsOpen && (
               <div
@@ -2235,7 +2237,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                       type="button" className="ec-btn ec-btn-sm" title="My품목에서 빼기"
                       onClick={() => void toggleMyItem(String(m.itemId), m.defaultQty)}
                     >
-                      ✕
+                      <EcIcon name="close" size={12} glyph="✕" />
                     </button>
                   </div>
                 ))}
@@ -2520,7 +2522,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                           <input className="cell" placeholder="품목 선택" value={l.name ?? it?.name ?? ''} maxLength={200}
                                  onChange={(e) => updateLine(idx, 'name', e.target.value)} />
                           <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기"
-                                  onClick={() => updateLine(idx, 'itemId', '')}>🔍</button>
+                                  onClick={() => updateLine(idx, 'itemId', '')}><EcIcon name="search" /></button>
                         </div>
                       ) : (
                         <CodePickerField
@@ -2657,7 +2659,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                       {l.itemId && (
                         <button type="button" onClick={() => removeLine(idx)} className="no-ec"
                                 style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}>
-                          ✕
+                          <EcIcon name="close" size={12} glyph="✕" />
                         </button>
                       )}
                     </td>
@@ -2775,7 +2777,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       <Modal error={cashMsg} open={cashOpen} title={mode === 'sales' ? '매출처로부터' : '매입처로'} width={520} onClose={() => setCashOpen(false)}>
         <div className="ec-form">
           <label className="block mb-[6px]">전표일자
-            <input className="ec-input ml-[8px]" type="date" value={cashForm.date} onChange={(e) => setCashForm((c) => ({ ...c, date: e.target.value }))} /></label>
+            <EcDateInput className="ec-input ml-[8px]" value={cashForm.date} onChange={(e) => setCashForm((c) => ({ ...c, date: e.target.value }))} /></label>
           {/* 원본 창 차례: 전표일자 · 부서 · 프로젝트 · 입금계좌 · 거래처 · 금액 · 수수료 · 적요(2026-10-06 실측). */}
           <div className="flex items-center gap-[8px] mb-[6px]">부서
             <CodePickerField

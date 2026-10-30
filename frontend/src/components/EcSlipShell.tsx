@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import EcIcon from './ui/EcIcon'
 
 /**
  * 전표입력 화면 셸 — 이카운트 `page page-fluid page-modal` 구조를 그대로 옮긴 것.
@@ -81,7 +82,7 @@ export function MenuButton({
         onClick={() => setOpen((v) => !v)}
         aria-label={`${typeof label === 'string' ? label : ''} 부가기능`}
       >
-        {up ? '▴' : '▾'}
+        {up ? <EcIcon name="caret-up" size={10} glyph="▴" /> : <EcIcon name="caret-down" size={10} glyph="▾" />}
       </button>
       {open && (
         <>
@@ -199,7 +200,7 @@ export default function EcSlipShell({
       onClick={() => { if (!t.disabled) { onFormTab?.(t.id); t.onSelect?.() } }}
     >
       {t.label}
-      {caret && <span className="caret">▾</span>}
+      {caret && <span className="caret"><EcIcon name="caret-down" size={10} glyph="▾" /></span>}
       {t.bang && (
         <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
       )}
@@ -217,7 +218,7 @@ export default function EcSlipShell({
           className="no-ec"
           style={{ border: 0, background: 'none', cursor: 'pointer', color: 'var(--ec-star)', fontSize: 14, padding: 0, marginRight: 2 }}
         >
-          {bookmarked ? '★' : '☆'}
+          {bookmarked ? <EcIcon name="star" glyph="★" /> : <EcIcon name="star-outline" glyph="☆" />}
         </button>
         <span className="name">{title}</span>
 

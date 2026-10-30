@@ -38,10 +38,20 @@ public final class FastVoucherDtos {
             /** 격자 [추가정보] — 부가세정보. 없으면 null. */
             @jakarta.validation.Valid LineVat vat,
             /** 돈 들어온(나간) 쪽이 계정인 줄(수금형태 어음 — 받을어음). 있으면 계좌 · 현금 대신 이 계정. */
-            Long settleAccountId
+            Long settleAccountId,
+            /** 입금보고서 격자 [수수료] — 줄마다. 분개에는 아직 넣지 않는다(원본 분개 못 잼). */
+            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal fee,
+            /** 지출결의서 격자 [거래처명] — 거래처 코드 없이 친 글자. partnerId 가 있으면 버린다. */
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String payeeName
     ) {
         public LineInput(Long accountId, BigDecimal amount, String description) {
             this(accountId, amount, description, null, null, null, null, null, null, null);
+        }
+
+        public LineInput(Long accountId, BigDecimal amount, String description, Long bankAccountId, Boolean cash,
+                         Long partnerId, Long employeeId, String employeeName, LineVat vat, Long settleAccountId) {
+            this(accountId, amount, description, bankAccountId, cash, partnerId, employeeId, employeeName, vat, settleAccountId, null, null);
         }
 
         public LineInput(Long accountId, BigDecimal amount, String description, Long bankAccountId, Boolean cash,
@@ -106,7 +116,9 @@ public final class FastVoucherDtos {
             String vatType, LocalDate vatDate, Long vatPartnerId, String vatPartnerCode, String vatPartnerName,
             BigDecimal vatSupply, BigDecimal vatAmount,
             /** 돈 들어온(나간) 쪽 계정(어음) — 없으면 null. */
-            Long settleAccountId, String settleAccountCode, String settleAccountName
+            Long settleAccountId, String settleAccountCode, String settleAccountName,
+            /** 입금보고서 [수수료] · 지출결의서 [거래처명] 글자(거래처 코드 없는 줄). */
+            BigDecimal fee, String payeeName
     ) {}
 
     public record VoucherResponse(
@@ -165,7 +177,8 @@ public final class FastVoucherDtos {
                                     l.getVatSupply(), l.getVatAmount(),
                                     l.getSettleAccount() != null ? l.getSettleAccount().getId() : null,
                                     l.getSettleAccount() != null ? l.getSettleAccount().getCode() : null,
-                                    l.getSettleAccount() != null ? l.getSettleAccount().getName() : null))
+                                    l.getSettleAccount() != null ? l.getSettleAccount().getName() : null,
+                                    l.getFee(), l.getPayeeName()))
                             .toList(),
                     v.getPayeeName(), v.getFee(),
                     v.getCounterBankAccount() != null ? v.getCounterBankAccount().getId() : null,

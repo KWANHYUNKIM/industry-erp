@@ -13,6 +13,7 @@ import EcRowCap, { capRows } from '../../components/EcRowCap'
 import { printDocuments } from '../../utils/printDocument'
 import { ecConfirm } from '../../components/EcDialog'
 import QualityInspectionForm from '../../features/quality/components/QualityInspectionForm'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const qty0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -190,9 +191,7 @@ export default function QualityInspectionPage() {
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

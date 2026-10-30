@@ -57,13 +57,21 @@ public class WorkPostService {
     public WorkPostResponse create(CreateWorkPostRequest req, String writer) {
         // 게시글번호는 게시판을 가로질러 하나의 줄기다. max+1 이라 두 사람이 동시에 쓰면
         // 같은 번호를 읽으므로 번호 공간에 락을 건다.
-        PostBoard board = req.board() != null ? req.board() : PostBoard.WORK;
+        // 답글은 원글의 게시판 · 번호를 따른다(업무일지 E070304 실측 '답글도 원글 번호'). 답글의 답글은 원글에 붙는다(한 단).
+        WorkPost parent = null;
+        if (req.parentId() != null) {
+            parent = getPost(req.parentId());
+            if (parent.getParentId() != null) parent = getPost(parent.getParentId());
+        }
+        PostBoard board = parent != null ? parent.getBoard() : req.board() != null ? req.board() : PostBoard.WORK;
         requireContent(board, req.content());
         // 새 게시판(통합게시판 · 팀별회의록 · 간판제작)은 번호를 혼자 센다 — PostBoard#ownNumbering.
         docNo.lockNumberSpace(board.ownNumbering() ? "WORK-POST-NO-" + board.name() : "WORK-POST-NO");
         WorkPost post = WorkPost.builder()
                 .board(board)
-                .postNo((board.ownNumbering() ? workPostRepository.maxPostNoOf(board) : workPostRepository.maxPostNo()) + 1)
+                .postNo(parent != null ? parent.getPostNo()
+                        : (board.ownNumbering() ? workPostRepository.maxPostNoOf(board) : workPostRepository.maxPostNo()) + 1)
+                .parentId(parent != null ? parent.getId() : null)
                 .postDate(req.postDate() != null ? req.postDate() : LocalDate.now())
                 .title(req.title())
                 .content(req.content() == null ? "" : req.content())
@@ -238,7 +246,12 @@ public class WorkPostService {
 
     @Transactional
     public void delete(Long id) {
-        workPostRepository.delete(getPost(id));
+        WorkPost post = getPost(id);
+        // 업무일지(E070304 2026-10-12 실측)와 같은 규칙 — 답글이 달린 글은 이 안내만 띄우고 지우지 않는다.
+        if (workPostRepository.existsByParentId(id)) {
+            throw ApiException.badRequest("답변이 있는 글은 삭제할 수 없습니다.\n\n답변 삭제 후 다시 시도 바랍니다.");
+        }
+        workPostRepository.delete(post);
     }
 
     private WorkPost getPost(Long id) {

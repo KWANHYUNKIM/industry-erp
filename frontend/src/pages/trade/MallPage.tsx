@@ -9,6 +9,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -364,7 +365,7 @@ function FulfillForm({ order, action, onClose, onSaved }: {
             )}
             <tr>
               <th className="bg-ec-page">{isShip ? '배송일' : '처리일'}</th>
-              <td><input className="ec-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
+              <td><EcDateInput className="ec-input" value={date} onChange={(e) => setDate(e.target.value)} /></td>
             </tr>
           </tbody></table>
         </div>
@@ -440,7 +441,7 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
           </tr>
           <tr>
             <th className="bg-ec-page">주문일</th>
-            <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
+            <td><EcDateInput className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></td>
             <th className="bg-ec-page">구매자<span className="text-ec-danger">*</span></th>
             <td><input className="ec-input" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} style={{ width: 160 }} /></td>
           </tr>

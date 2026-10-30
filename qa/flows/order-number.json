@@ -30,6 +30,41 @@
       ]
     },
     {
+      "name": "번호를 손으로 넣기(00023_202610 꼴) · 중복은 '이미 등록된 코드입니다.' · 수정 창은 번호를 글자로만 · 지우기",
+      "path": "/sales/order-stages",
+      "steps": [
+        "allowapi:409: /api/order-numbers",
+        "wait:1200",
+        "click:신규(F2)",
+        "wait:600",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; sessionStorage.setItem('onext', d.querySelector('input[placeholder=오더관리번호]').value); set(d.querySelector('input[placeholder=오더관리번호]'), S.s + '_202610'); set(d.querySelector('input[placeholder=오더관리명]'), 'QA재고2-손번호' + S.s); return true })()",
+        "js:([...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"오더관리유형 선택\"]').click(), true)",
+        "pickrow:@ocode",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const r = [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-손번호' + S.s)); return !!r && r.querySelector('a').textContent.trim() === S.s + '_202610' && ![...document.querySelectorAll('[role=dialog]')].length })()",
+        "expect:(async () => { const r = await fetch('/api/order-numbers/next-no', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((x) => x.json()); return /^\\d{5}$/.test(r.orderNo) && r.orderNo === sessionStorage.getItem('onext') })()",
+        "click:신규(F2)",
+        "wait:600",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(d.querySelector('input[placeholder=오더관리번호]'), S.s + '_202610'); set(d.querySelector('input[placeholder=오더관리명]'), 'QA재고2-중복' + S.s); return true })()",
+        "js:([...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[title=\"오더관리유형 선택\"]').click(), true)",
+        "pickrow:@ocode",
+        "click:저장(F8)",
+        "wait:1000",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return !!d && d.innerText.includes('이미 등록된 코드입니다.') })()",
+        "clicklast:닫기",
+        "wait:300",
+        "js:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA재고2-손번호' + S.s)).querySelector('a').click(); return true })()",
+        "wait:500",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); const d = [...document.querySelectorAll('[role=dialog]')].pop(); return !d.querySelector('input[placeholder=오더관리번호]') && d.innerText.includes(S.s + '_202610') })()",
+        "clicklast:사용중단/재사용 ▲",
+        "js:([...document.querySelectorAll('.ec-menu button')].find((b) => b.textContent.trim() === '삭제').click(), true)",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:(() => { const S = JSON.parse(sessionStorage.getItem('ono')); return !document.querySelector('tbody').innerText.includes('QA재고2-손번호' + S.s) })()"
+      ]
+    },
+    {
       "name": "번호 눌러 수정(유형 잠김) · 보기 · 전체단계완료 · 삭제",
       "path": "/sales/order-stages",
       "steps": [

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { exportTableToXlsx } from '../utils/excel'
 import { openPrintWindow, printTable, signModuleOf, type PrintSignLine } from '../utils/print'
@@ -7,6 +7,7 @@ import { findDataTable } from '../utils/tableExport'
 import Modal from './Modal'
 import TableContextMenu from './TableContextMenu'
 import { INQUIRY_PICKS, periodOf } from '../utils/periods'
+import EcIcon from './ui/EcIcon'
 
 /**
  * 인쇄 시점에 기본 결재란을 가져온다. 셸이 뜰 때마다 미리 부르면 인쇄하지 않는 화면에서도
@@ -69,7 +70,7 @@ function FooterButton({ a }: { a: BottomAction }) {
   return (
     <span className="ec-btn-group relative">
       <button className={cls} onClick={a.menuOnly ? () => setOpen((v) => !v) : a.onClick} disabled={a.disabled}>{a.label}</button>
-      <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} onClick={() => setOpen((v) => !v)}>▴</button>
+      <button className={`${cls} ec-btn-arrow`} aria-label={`${a.label} 더보기`} onClick={() => setOpen((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
       {open && (
         <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
           {a.menu.map((m) => (
@@ -92,6 +93,9 @@ const PRINT_LABELS = ['인쇄', '출력']
 const PREVIEW_LABELS = ['미리보기']
 
 const CONDS = '.ec-cond, .ec-search-conds'
+/** 떠 있는 조건 판의 맨 위 탭 줄 · 아래 줄 높이(원본 판매조회 E040206 2026-10-30 실측 36 · 44.6) — index.css .ec-search-panel 과 같은 값 */
+const SP_TABS_H = 36
+const SP_BAR_H = 44.6
 /** 조건 판 안에서 화면이 둔 [검색(F8)] · [다시작성] 단추를 알아보는 글자 */
 const SEARCH_RE = /^검색(\(F8\))?$/
 const RESET_RE = /^다시\s?작성$/
@@ -225,6 +229,10 @@ export default function EcListShell({
   const searchButtonOnly = !showSearch && !searchable && (collapseConditions === true || searchBtn)
   const [condOpen, setCondOpen] = useState(false)
   const [barTop, setBarTop] = useState<number | null>(null)
+  // 판 안 조건 칸의 최대 높이 — 원본은 판이 창 바닥 근처(하단 버튼줄 위)까지 내려오고 조건 칸만 스크롤한다
+  const [condMax, setCondMax] = useState(0)
+  // 화면이 판 맨 위 탭([기본][전체][+])을 이미 두었나 — 없으면 셸이 [기본][+] 를 그린다
+  const [ownTabs, setOwnTabs] = useState(false)
   const [picks, setPicks] = useState<string[]>([])   // ▾ 기간 빠른선택 — 판 안의 .ec-btn-pick, 없으면 날짜칸 둘에 INQUIRY_PICKS
   const [picksOpen, setPicksOpen] = useState(false)
   const firstValues = useRef(new WeakMap<Element, string | boolean>())
@@ -240,6 +248,12 @@ export default function EcListShell({
     const top = condOpen ? el.offsetTop + el.offsetHeight : null
     if (top !== barTop) setBarTop(top)
     if (condOpen) {
+      const tabs = Boolean(el.querySelector('.ec-cond-tabs'))
+      if (tabs !== ownTabs) setOwnTabs(tabs)
+      // 창 높이 − 판 맨 위 − 탭 줄 − 아래 줄(44.6) − 하단 버튼줄 자리(50) — 2026-10-30 판매조회 실측(판 아래끝 861 · 창 911)
+      const bodyTop = bodyRef.current?.getBoundingClientRect().top ?? 0
+      const max = Math.max(160, Math.floor(window.innerHeight - bodyTop - (tabs ? 0 : SP_TABS_H) - SP_BAR_H - 50))
+      if (max !== condMax) setCondMax(max)
       markOwnButtons(el)
       const labels = pickLabels(el)
       if (labels.join('|') !== picks.join('|')) setPicks(labels)
@@ -339,7 +353,8 @@ export default function EcListShell({
 
   const runSearch = () => {
     // 원본: 검색창이 비어 있으면 [Search(F3)] 는 조회 조건 판을 펼친다(닫는다)
-    if (collapse && !searchValue.trim()) { setCondOpen((v) => !v); setPicksOpen(false); return }
+    // 판이 열려 있으면 낱말과 상관없이 닫는다(열린 판에서는 머리 검색칸이 감춰진다 — 원본)
+    if (collapse && (condOpen || !searchValue.trim())) { setCondOpen((v) => !v); setPicksOpen(false); return }
     if (keywordLocal && localSearch.trim()) filterRows(localSearch)
     else if (searchHandledByPage) onSearch!()
     else filterRows(localSearch)
@@ -431,7 +446,7 @@ export default function EcListShell({
     // 틀 높이를 채우지 않는다 — min-h-100% 로 채우면 짧은 목록에서도 버튼줄이 틀 바닥으로 밀려났다(2026-10-13 6개 화면 실측).
     <div className="ec-list-shell flex flex-col">
       {/* 상단: ★제목 + 검색 (styles/shell.css .ec-page-head) */}
-      <div className={`ec-page-head${headMore ? ' more' : ''}`}>
+      <div className={`ec-page-head${headMore ? ' more' : ''}${condOpen ? ' conds-open' : ''}`}>
         {/* 원본 휴대폰 목록 화면은 제목을 감추고 검색 도구만 남긴다 */}
         <span className="ec-page-title m-hide">{title}</span>
         <div className="tools relative">
@@ -475,7 +490,9 @@ export default function EcListShell({
 
       {/* 그리드 본문 */}
       <div ref={bodyRef} data-conds={collapse ? (condOpen ? 'open' : 'closed') : undefined}
-           className={`flex-1 min-h-0 ec-list-body${collapse ? (condOpen ? ' conds-open' : ' conds-closed') : ''}`}
+           className={`flex-1 min-h-0 ec-list-body${collapse ? (condOpen ? ' conds-open' : ' conds-closed') : ''}${condOpen && !ownTabs ? ' sp-tabs' : ''}`}
+           // 판 상자 높이 · 조건 칸 최대 높이 — 판 높이는 화면마다 달라 그려진 뒤 잰 값을 CSS 변수로 준다
+           style={condOpen && barTop !== null ? { '--ec-sp-bar': `${barTop}px`, '--ec-sp-max': `${condMax}px` } as CSSProperties : undefined}
            onKeyDown={(e) => { if (e.key === 'Escape' && condOpen) setCondOpen(false) }}
            onClick={(e) => {
              // 검색칸 없는 화면: 펼쳐 둔 조건 판의 [검색(F8)] 을 누르면(화면이 먼저 찾고) 판이 접힌다
@@ -484,15 +501,28 @@ export default function EcListShell({
              if (b && b.closest(CONDS) && SEARCH_RE.test(b.textContent?.trim() ?? '')) setSearched(true)
            }}>
         {children}
-        {/* 원본 조건 판 아래 줄: [검색(F8)│▾ 기간 빠른선택] [다시작성] — [닫기] 는 없다(Search(F3) · Esc 로 닫는다) */}
+        {/*
+          원본 조건 판(판매조회 E040206 2026-10-30 실측): 상자 하나(1px 테두리 · 네 모서리 20 · 그림자) 안에
+          맨 위 탭 [기본][+] · 조건(한 줄에 하나) · 회색 아래 줄 [검색(F8)│▾] 금일 … 금년 [설정] [다시작성].
+          조건은 화면의 .ec-cond 를 그 자리에 둔 채 띄우므로, 셸은 상자(.ec-search-panel)와 탭 줄 · 아래 줄만 그려 겹친다.
+          [닫기] 는 없다(Search(F3) · Esc 로 닫는다).
+        */}
+        {condOpen && barTop !== null && <div className="ec-search-panel" aria-hidden />}
+        {condOpen && barTop !== null && !ownTabs && (
+          <div className="ec-search-tabs" aria-label="조건 탭">
+            <button type="button" className="on">기본</button>
+            <button type="button" className="ec-search-tab-add" aria-label="탭 추가"
+                    onClick={() => void ecAlert('My탭은 지원하지 않습니다.')}>+</button>
+          </div>
+        )}
         {condOpen && barTop !== null && (
-          <div className="ec-search-bar" style={{ top: barTop }}>
+          <div className="ec-search-bar">
             {formMenu && <FormPill current={formMenu.current} />}
             <span className="ec-btn-group relative">
               <button className="ec-btn ec-btn-primary ec-btn-sm" onClick={searchConds}>검색(F8)</button>
               {picks.length > 0 && (
                 <button className="ec-btn ec-btn-primary ec-btn-sm ec-btn-arrow" aria-label="기간 빠른선택"
-                        onClick={() => setPicksOpen((v) => !v)}>▾</button>
+                        onClick={() => setPicksOpen((v) => !v)}><EcIcon name="caret-down" size={10} glyph="▾" /></button>
               )}
               {picksOpen && (
                 <div className="ec-menu ec-search-picks">
@@ -500,7 +530,10 @@ export default function EcListShell({
                 </div>
               )}
             </span>
-            <button className="ec-btn ec-btn-sm" onClick={resetConds}>다시작성</button>
+            {/* 기간 빠른선택은 줄에 늘어서 있다(원본 — ▾ 안에만 있는 것이 아니다) */}
+            {picks.map((l) => <button key={l} type="button" className="ec-btn ec-btn-sm ec-btn-flat ec-search-pick" onClick={() => pickPeriod(l)}>{l}</button>)}
+            {picks.length > 0 && <button type="button" className="ec-btn ec-btn-sm ec-btn-flat ec-search-pick" onClick={() => void ecAlert('기간 빠른선택 설정은 지원하지 않습니다.')}>설정</button>}
+            <button className="ec-btn ec-btn-sm ec-btn-flat" onClick={resetConds}>다시작성</button>
           </div>
         )}
       </div>

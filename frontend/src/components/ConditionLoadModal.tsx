@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Modal from './Modal'
 import CodePickerField from './CodePickerField'
 import { ymd } from '../utils/periods'
+import { EcDateRange } from './ui/EcDateInput'
 
 export interface LoadOption { value: string; code: string; name: string }
 export interface LoadedLine { workDate: string; who: string; item: string; quantity: string }
@@ -71,9 +72,7 @@ export default function ConditionLoadModal({ open, people, items, onApply, onClo
           <li className="wide">
             <span className="title">근무기간</span>
             <div className="form flex items-center gap-[6px]">
-              <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-              ~
-              <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+              <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
             </div>
           </li>
           <li className="wide">

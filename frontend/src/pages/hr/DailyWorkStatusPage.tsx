@@ -8,6 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcSortSubtotalModal, { withSubtotals, type SortSubtotal } from '../../components/EcSortSubtotalModal'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
 import { api, extractErrorMessage } from '../../api/client'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Line { id: number; slipDate: string; slipNo: number; workDate: string; workerId: number; workerCode: string; workerName: string; payItem: string; quantity: number; amount: number }
 
@@ -146,9 +147,7 @@ export default function DailyWorkStatusPage() {
           {mode === '사용자지정집계' && <CustomAggregateConds dims={AGG_DIMS} targets={AGG_TARGETS} value={agg} onChange={setAgg} />}
         </EcCond>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: range.from, onChange: (e) => setRange({ ...range, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", value: range.to, onChange: (e) => setRange({ ...range, to: e.target.value }) }} />
         </EcCond>
         <EcCond label="부서" pick>
           <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}

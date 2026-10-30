@@ -9,6 +9,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -145,11 +146,7 @@ export default function CheckPage() {
       */}
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
-        <input type="date" className="ec-input" value={from2}
-               onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input" value={to2}
-               onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from2, onChange: (e) => setFrom2(e.target.value) }} to={{ className: "ec-input", value: to2, onChange: (e) => setTo2(e.target.value) }} />
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -266,7 +263,7 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
           <input className="ec-input" value={form.checkNo} onChange={(e) => set('checkNo', e.target.value)} style={{ width: 150 }} placeholder="가12345678" />
         </Field>
         <Field label={isIssued ? '발행일' : '수취일'}>
-          <input className="ec-input" type="date" value={form.issueDate} onChange={(e) => set('issueDate', e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={form.issueDate} onChange={(e) => set('issueDate', e.target.value)} />
         </Field>
         <Field label="금액 *">
           <input className="ec-input" type="number" step="any" value={form.amount} onChange={(e) => set('amount', e.target.value)} style={{ width: 130, textAlign: 'right' }} />

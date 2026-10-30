@@ -9,6 +9,7 @@ import { ecAlert } from '../../../components/EcDialog'
 import GridFindButton from '../../../components/GridFindButton'
 import type { BondMasters } from '../api'
 import { newBondNo, sideWord, won, type BondDirection, type BondEntry, type BondSide } from '../types'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 interface Line {
   accountId: string
@@ -281,8 +282,7 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
                   </td>
                   {inc && (
                     <td className="pad">
-                      <input type="date" className="ec-input w-full" aria-label={`${i + 1}줄 만기일자`}
-                             value={l.dueDate} onChange={(e) => setLine(i, { dueDate: e.target.value })} />
+                      <EcDateInput className="ec-input w-full" aria-label={`${i + 1}줄 만기일자`} value={l.dueDate} onChange={(e) => setLine(i, { dueDate: e.target.value })} />
                     </td>
                   )}
                   <td className="pad">

@@ -24,4 +24,6 @@ public interface WorkPostRepository extends JpaRepository<WorkPost, Long> {
     @Query("select p from WorkPost p where p.board = :board "
             + "order by p.notice desc, p.postDate desc, p.id desc")
     List<WorkPost> findByBoardOrdered(@Param("board") PostBoard board);
+
+    boolean existsByParentId(Long parentId);
 }

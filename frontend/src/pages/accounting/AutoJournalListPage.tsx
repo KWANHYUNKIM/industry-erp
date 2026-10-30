@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { ymd } from '../../components/EcPeriodPicks'
 import { ecAlert } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const PICKS = ['금월', '전월', '이번기수', '직전기수'] as const
 
@@ -48,9 +49,7 @@ export default function AutoJournalListPage() {
     >
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자" span={2}>
-          <input type="date" className="ec-input w-[145px]" aria-label="시작일" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="종료일" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "시작일", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "종료일", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <li className="full">
           <div className="form">

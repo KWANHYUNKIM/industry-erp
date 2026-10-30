@@ -13,7 +13,9 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
+import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -51,13 +53,14 @@ export default function QuotationPage() {
   const [genEmps, setGenEmps] = useState<{ id: number; code: string; name: string }[]>([])
   const [genCurrencies, setGenCurrencies] = useState<Currency[]>([])
   useEffect(() => {
-    api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees').then((r) => setGenEmps(r.data.filter((e) => e.active !== false))).catch(() => setGenEmps([]))
+    api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/sales-reps').then((r) => setGenEmps(r.data.filter((e) => e.active !== false))).catch(() => setGenEmps([]))
     api.get<Currency[]>('/currencies').then((r) => setGenCurrencies(r.data.filter((c) => c.active))).catch(() => setGenCurrencies([]))
   }, [])
   const [tab, setTab] = useState<Tab>('ALL')
   /** 빠른 검색칸(Search(F3) 옆) — 거래처명 · 일자-No. */
   const [keyword, setKeyword] = useState('')
   /** 하단 [진행상태변경 ▴] · [다른전표생성 ▴] 메뉴 — 버튼 위로 뜬다. */
+  const [historyWin, setHistoryWin] = useState(false)
   const [menuAt, setMenuAt] = useState<{ kind: 'status' | 'gen'; left: number; bottom: number } | null>(null)
   const [generated, setGenerated] = useState<{ quote: Quotation; rows: GeneratedRow[] } | null>(null)
   const [error, setError] = useState('')
@@ -344,6 +347,8 @@ export default function QuotationPage() {
   /** 원본 메뉴 '▾미확인 › 미확인', '▾확인 › 진행중 · 완료' — 고르면 말 없이 목록이 바뀐다. */
   async function changeStatus(status: QuotationStatus) {
     setMenuAt(null)
+    /* 원본은 고른 줄이 없어도 [진행상태변경] 메뉴를 먼저 띄운다 — 알림은 고를 때(2026-10-30 클릭 대조). */
+    if (!requireSelection(picked.size)) return
     const fails: string[] = []
     for (const id of picked) {
       try { await api.patch(`/quotations/${id}/status`, { status }) }
@@ -392,12 +397,17 @@ export default function QuotationPage() {
       onNew={() => navigate('/sales/quotation-entry')}
       /* 원본 차례(2026-10-14 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 다른전표생성 · 전자결재 · 선택삭제 · Excel(표시형식) · 이력조회 · 웹자료올리기 — 바깥 발송 · 결재는 뺀다. */
       actions={[
-        { label: '진행상태변경', onClick: () => openMenu('status', '진행상태변경'), selected: picked.size },
+        /* 2026-10-30 클릭 대조: [Email] 원본은 알림('데모에서는 …') · [바코드(품목)] 고른 줄 없으면 원본 알림 · [이력조회] '견적서 이력조회' 창. */
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
+        { label: '진행상태변경', onClick: () => openMenu('status', '진행상태변경') },
         { label: '인쇄' },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: picked.size },
         { label: '다른전표생성', onClick: () => openMenu('gen', '다른전표생성'), selected: picked.size },
         { label: '선택삭제', onClick: removeChecked, selected: picked.size },
         { label: 'Excel' },
+        { label: '이력조회', onClick: () => setHistoryWin(true) },
       ]}>
+      {historyWin && <SlipMenuHistoryModal menu="견적서" statusLabel="확인" onClose={() => setHistoryWin(false)} />}
       {menuAt && (
         <>
           <div className="ec-backdrop-clear" onClick={() => setMenuAt(null)} />
@@ -477,8 +487,8 @@ export default function QuotationPage() {
                 <td>
                   <label className="mr-[12px]"><input type="radio" name={`gen-${f}`} checked={!genDirect[f]} onChange={() => setGenDirect((d) => ({ ...d, [f]: false }))} /> 기본입력</label>
                   <label className="mr-[12px]"><input type="radio" name={`gen-${f}`} checked={!!genDirect[f]} onChange={() => setGenDirect((d) => ({ ...d, [f]: true }))} /> 직접입력</label>
-                  {genDirect[f] && f === '일자' && <input type="date" className="ec-input" value={genVal.date} onChange={(e) => setGenVal((v) => ({ ...v, date: e.target.value }))} />}
-                  {genDirect[f] && f === '납기일자' && <input type="date" className="ec-input" value={genVal.due} onChange={(e) => setGenVal((v) => ({ ...v, due: e.target.value }))} />}
+                  {genDirect[f] && f === '일자' && <EcDateInput className="ec-input" value={genVal.date} onChange={(e) => setGenVal((v) => ({ ...v, date: e.target.value }))} />}
+                  {genDirect[f] && f === '납기일자' && <EcDateInput className="ec-input" value={genVal.due} onChange={(e) => setGenVal((v) => ({ ...v, due: e.target.value }))} />}
                   {genDirect[f] && f === '거래처' && (
                     <CodePickerField label="거래처" hideLabel width={200} emptyLabel="" value={genVal.partner} onChange={(v) => setGenVal((x) => ({ ...x, partner: v }))}
                                      items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />)}
@@ -563,11 +573,7 @@ export default function QuotationPage() {
         </EcCond>
         {/* 원본 조건 차례의 첫째 <b>[기준일자]</b>. 단추는 원본대로 종료일 다음에 최근30일(+1개월). */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -635,8 +641,7 @@ export default function QuotationPage() {
         </EcCond>
         {/* 표에 [유효기간] 열을 찍으면서 "이 날짜까지 유효한 것" 을 고를 수가 없었다. */}
         <EcCond label="유효기간">
-          <input className="ec-input" type="date" style={{ width: 140 }} value={validCond}
-                 onChange={(e) => setValidCond(e.target.value)} />
+          <EcDateInput className="ec-input" value={validCond} onChange={(e) => setValidCond(e.target.value)} />
         </EcCond>
         {/* 원본 펼친 판의 뒤쪽 칸 — [진행상태] 다음이 [작성자]다(2026-09-09 실측). */}
         <EcCond label="작성자">
@@ -646,11 +651,7 @@ export default function QuotationPage() {
         {/* 원본 차례: [작성자] 다음이 [최종수정자]·[최초작성일자]·<b>[최종수정일시]</b> 다. */}
         <EcCond label="최종수정일시">
           <div className="flex items-center gap-[4px]">
-            <input className="ec-input" type="date" style={{ width: 140 }} value={upFrom}
-                   onChange={(e) => setUpFrom(e.target.value)} />
-            <span className="text-ec-hint">~</span>
-            <input className="ec-input" type="date" style={{ width: 140 }} value={upTo}
-                   onChange={(e) => setUpTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input", value: upFrom, onChange: (e) => setUpFrom(e.target.value) }} to={{ className: "ec-input", value: upTo, onChange: (e) => setUpTo(e.target.value) }} />
           </div>
         </EcCond>
         {/* 원본 차례: [발송여부] 다음이 [기타] 다(2026-09-07 실측). */}

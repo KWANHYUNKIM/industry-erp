@@ -15,6 +15,7 @@ import {
   ACCOUNT_KINDS, fetchAccounts, fetchAudit, saveAdjustment, saveAggregation, slashDate, won,
   type AccountBalanceRow, type AuditResponse,
 } from '../../features/balanceadjust/api'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const PICKS = ['금일', '전일', '말일', '전월', '직전기수'] as const
 
@@ -188,7 +189,7 @@ export default function BalanceAdjustPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="기준일자" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+          <EcDateInput className="ec-input w-[145px]" aria-label="기준일자" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
         </EcCond>
         <EcCond label="계정종류" span={2}>
           <label className="mr-[10px]"><input type="checkbox" checked={allKinds} onChange={(e) => setKinds(e.target.checked ? new Set(ACCOUNT_KINDS.map((k) => k.key)) : new Set())} /> 전체</label>

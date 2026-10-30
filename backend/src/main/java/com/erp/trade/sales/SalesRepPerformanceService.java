@@ -1,11 +1,11 @@
-package com.erp.hr.employee;
+package com.erp.trade.sales;
+
+import com.erp.inventory.salesrep.SalesRep;
 
 import com.erp.trade.purchase.Purchase;
-import com.erp.trade.sales.Sales;
-import com.erp.hr.employee.dto.EmployeePerformanceDtos.PerformanceRow;
-import com.erp.hr.employee.dto.EmployeePerformanceDtos.PerformanceSummary;
+import com.erp.trade.sales.dto.SalesRepPerformanceDtos.PerformanceRow;
+import com.erp.trade.sales.dto.SalesRepPerformanceDtos.PerformanceSummary;
 import com.erp.trade.purchase.PurchaseRepository;
-import com.erp.trade.sales.SalesRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +17,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import com.erp.hr.employee.dto.EmployeePerformanceDtos;
+import com.erp.trade.sales.dto.SalesRepPerformanceDtos;
 
 /**
- * 담당자별 실적. 전표에 붙은 담당 사원(employee)으로 판매·구매를 집계한다.
+ * 담당자별 실적. 전표에 붙은 사원(담당)으로 판매·구매를 집계한다.
  *
  * 입력 계정(createdBy)이 아니라 담당자로 센다 — 사무직원이 영업사원 대신 전표를 넣는 순간
  * 실적이 사무직원에게 붙으면 실적표는 아무 말도 하지 않는 표가 된다.
@@ -29,7 +29,7 @@ import com.erp.hr.employee.dto.EmployeePerformanceDtos;
  */
 @Service
 @RequiredArgsConstructor
-public class EmployeePerformanceService {
+public class SalesRepPerformanceService {
 
     /** 담당자가 없는 전표를 모으는 가상 행 */
     private static final Long UNASSIGNED_ID = null;
@@ -72,11 +72,10 @@ public class EmployeePerformanceService {
         return new PerformanceSummary(f, t, totalSales, totalPurchase, list);
     }
 
-    private Row row(Map<String, Row> rows, Employee e) {
+    private Row row(Map<String, Row> rows, SalesRep e) {
         String key = e != null ? String.valueOf(e.getId()) : "-";
         return rows.computeIfAbsent(key, k -> e != null
-                ? new Row(e.getId(), e.getCode(), e.getName(),
-                          e.getDepartment() != null ? e.getDepartment().getName() : null)
+                ? new Row(e.getId(), e.getCode(), e.getName(), null)
                 : new Row(UNASSIGNED_ID, "-", UNASSIGNED_NAME, null));
     }
 

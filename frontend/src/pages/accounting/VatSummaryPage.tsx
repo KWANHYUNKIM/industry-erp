@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { VatSummary } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -47,9 +48,7 @@ export default function VatSummaryPage() {
       <p className="mb-[8px] text-[11.5px] text-ec-hint">부가가치세 신고 기초자료 · 매출세액 − 매입세액(구매 + 비용 + 카드) = 납부(환급)세액</p>
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px]">
         <span className="text-ec-label">과세기간</span>
-        <input type="date" className="ec-input" value={period.from} onChange={(e) => setPeriod((p) => ({ ...p, from: e.target.value }))} style={{ width: 140 }} />
-        ~
-        <input type="date" className="ec-input" value={period.to} onChange={(e) => setPeriod((p) => ({ ...p, to: e.target.value }))} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: period.from, onChange: (e) => setPeriod((p) => ({ ...p, from: e.target.value })) }} to={{ className: "ec-input", value: period.to, onChange: (e) => setPeriod((p) => ({ ...p, to: e.target.value })) }} />
       </div>
 
       <table className="w-full text-left max-w-[720px]">

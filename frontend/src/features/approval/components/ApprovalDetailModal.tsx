@@ -1,4 +1,8 @@
-import type { ApprovalDoc, ApprovalField, ApprovalStatus } from '../../../types/api'
+import { useState } from 'react'
+import type { ApprovalDoc, ApprovalField, ApprovalOutput, ApprovalStatus } from '../../../types/api'
+import { OutputChips, OutputViewWindow } from './ApprovalOutputs'
+import { RichBodyView } from './RichBodyEditor'
+import { looksLikeHtml } from '../bodyTemplate'
 
 /**
  * 기안서 상세 팝업. 내결재관리·기안서통합관리(ApprovalListPage)와 주요전달사항(KeyNoticePage)이
@@ -96,6 +100,8 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
 }) {
   const refs = doc.participants.filter((p) => p.role === 'REFERENCE')
   const shares = doc.participants.filter((p) => p.role === 'SHARE')
+  /** [결재문서] › '전표 출력물' 칩을 눌러 연 '출력물' 창 */
+  const [viewOutput, setViewOutput] = useState<ApprovalOutput | null>(null)
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
@@ -121,6 +127,12 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
                 <th className="bg-ec-page">상태</th>
                 <td style={{ color: statusColor(doc.status), fontWeight: 700 }}>{doc.deleted ? '삭제' : STATUS_LABEL[doc.status]}</td>
               </tr>
+              {(doc.outputs?.length ?? 0) > 0 && (
+                <tr>
+                  <th className="bg-ec-page">결재문서</th>
+                  <td colSpan={3}><OutputChips outputs={doc.outputs ?? []} onOpen={setViewOutput} /></td>
+                </tr>
+              )}
               {(refs.length > 0 || shares.length > 0) && (
                 <tr>
                   <th className="bg-ec-page">수신참조</th>
@@ -134,8 +146,10 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
 
           <FormDataView data={doc.formData} fields={fields} />
 
-          {doc.content && (
-            <div className="whitespace-pre-wrap border border-ec-line border-solid p-[12px] min-h-[80px] text-[13px] mb-[14px]">{doc.content}</div>
+          {/* 공통양식 [기안내용] 서식으로 쓴 본문은 HTML(표)이라 그대로 그린다. 예전 본문은 맨 글자. */}
+          {doc.content && (looksLikeHtml(doc.content)
+            ? <RichBodyView html={doc.content} className="border border-ec-line border-solid p-[12px] min-h-[80px] mb-[14px]" />
+            : <div className="whitespace-pre-wrap border border-ec-line border-solid p-[12px] min-h-[80px] text-[13px] mb-[14px]">{doc.content}</div>
           )}
 
           <div className="font-bold text-[12.5px] text-ec-label mb-[6px]">결재선</div>
@@ -181,6 +195,8 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
           {canDelete && <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={() => onDelete(doc)}>삭제</button>}
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
+        {/* 이 판 안에 그려야 판(z 100) 위에 뜬다 — 바깥에 그리면 Modal(z 70)이 판 뒤로 숨는다. */}
+        {viewOutput && <OutputViewWindow output={viewOutput} onClose={() => setViewOutput(null)} />}
       </div>
     </div>
   )

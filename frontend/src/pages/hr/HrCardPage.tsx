@@ -8,6 +8,7 @@ import type { EmployeeMaster } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import HrCardWindow from '../../features/hrcard/components/HrCardWindow'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 type Category = 'EDUCATION' | 'CAREER' | 'LICENSE' | 'FAMILY' | 'LANGUAGE' | 'REWARD' | 'TRAINING' | 'TRIP' | 'MEMO' | 'WORK_STATUS' | 'GUARANTOR'
 type DateKey = 'fromDate' | 'toDate' | 'date3' | 'date4'
@@ -263,7 +264,7 @@ export default function HrCardPage() {
                         }
                         return (
                           <td key={c.label}>
-                            {c.kind === 'date' ? <input type="date" className="ec-input w-full" value={r[c.key]} onChange={(ev) => set(ev.target.value)} />
+                            {c.kind === 'date' ? <EcDateInput className="ec-input w-full" value={r[c.key]} onChange={(ev) => set(ev.target.value)} />
                               : c.kind === 'select' ? (
                                 <select className="ec-input w-full" value={r[c.key]} onChange={(ev) => set(ev.target.value)}>
                                   <option value=""></option>

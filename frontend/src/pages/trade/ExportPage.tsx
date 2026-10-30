@@ -11,6 +11,7 @@ import ExportSlipPickModal, { type PickedSlip } from '../../features/export/comp
 import ExportMappingModal, { type ExportMapping } from '../../features/export/components/ExportMappingModal'
 import { requireSelection } from '../../components/EcDialog'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const fx = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 })
 const today = () => ymd(new Date())
@@ -173,9 +174,7 @@ export default function ExportPage() {
       */}
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기준일자</span>
-        <input type="date" className="ec-input w-[140px]" value={pFrom} onChange={(e) => setPFrom(e.target.value)} />
-        <span>~</span>
-        <input type="date" className="ec-input w-[140px]" value={pTo} onChange={(e) => setPTo(e.target.value)} />
+        <EcDateRange from={{ className: "ec-input w-[140px]", value: pFrom, onChange: (e) => setPFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: pTo, onChange: (e) => setPTo(e.target.value) }} />
         <EcPeriodPicks labels={EXPORT_PICKS} currentFrom={pFrom} onPick={(r) => { setPFrom(r.from); setPTo(r.to) }} />
         <span className="ml-[6px]">거래처</span>
         <select className="ec-input w-[160px]" value={buyerCond} onChange={(e) => setBuyerCond(e.target.value)}>
@@ -376,7 +375,7 @@ function ExportForm({ initial, partners, currencies, items, mappings, onClose, o
   const date = (k: keyof typeof h, label: string) => (
     <label className="flex items-center gap-[8px]">
       <span className="w-[150px] shrink-0 text-ec-label">{label}</span>
-      <input type="date" className="ec-input w-[150px]" aria-label={label} value={h[k]} onChange={(e) => set({ [k]: e.target.value })} />
+      <EcDateInput className="ec-input w-[150px]" aria-label={label} value={h[k]} onChange={(e) => set({ [k]: e.target.value })} />
     </label>
   )
 

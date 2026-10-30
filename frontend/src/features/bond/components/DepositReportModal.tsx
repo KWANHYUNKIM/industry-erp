@@ -10,6 +10,7 @@ import { ymd } from '../../../components/EcPeriodPicks'
 import type { BankAccountRow } from '../../../types/api'
 import type { BondMasters } from '../api'
 import { won, type BondSide } from '../types'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /** 채권감소등록에서 고른 채권 한 줄 — 감소금액 · 채권번호 · 증가 줄의 적요를 들고 온다. */
 export interface DepositPick {
@@ -309,8 +310,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
                          onChange={(e) => { const v = e.target.value; setCheckNos((ns) => ns!.map((x, j) => (j === i ? v : x))); setCheckErr(new Set()) }} />
                 </td>
                 {collect === 'NOTE' && (
-                  <td><input type="date" className="ec-input w-full" aria-label={`${i + 1}줄 만기일자`} value={dues[i] ?? ''}
-                             onChange={(e) => { const v = e.target.value; setDues((ds) => ds.map((x, j) => (j === i ? v : x))) }} /></td>
+                  <td><EcDateInput className="ec-input w-full" aria-label={`${i + 1}줄 만기일자`} value={dues[i] ?? ''} onChange={(e) => { const v = e.target.value; setDues((ds) => ds.map((x, j) => (j === i ? v : x))) }} /></td>
                 )}
               </tr>
             ))}

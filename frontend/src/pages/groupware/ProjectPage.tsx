@@ -7,6 +7,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
@@ -149,9 +150,9 @@ export default function ProjectPage() {
               </tr>
               <tr>
                 <th style={th}>시작일</th>
-                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} /></td>
                 <th style={th}>종료(예정)</th>
-                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} /></td>
               </tr>
               <tr>
                 <th style={th}>상태</th>

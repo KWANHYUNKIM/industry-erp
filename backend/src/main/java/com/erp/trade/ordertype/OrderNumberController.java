@@ -34,6 +34,11 @@ public class OrderNumberController {
         return Map.of("orderNo", orderNumberService.nextNo());
     }
 
+    @GetMapping("/exists")
+    public Map<String, Boolean> exists(@RequestParam String orderNo) {
+        return Map.of("exists", orderNumberService.exists(orderNo));
+    }
+
     @PostMapping
     public OrderNumberResponse create(@Valid @RequestBody CreateOrderNumberRequest req) {
         return orderNumberService.create(req);

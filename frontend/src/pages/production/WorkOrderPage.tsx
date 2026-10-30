@@ -15,6 +15,7 @@ import { printDocuments } from '../../utils/printDocument'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 
 /**
@@ -183,7 +184,7 @@ export default function WorkOrderPage() {
     try {
       const [o, emp] = await Promise.all([
         api.get<WorkOrder[]>('/work-orders', { params: { from: from || undefined, to: to || undefined } }),
-        api.get<{ id: number; code: string; name: string }[]>('/employees'),
+        api.get<{ id: number; code: string; name: string }[]>('/sales-reps'),
       ])
       setOrders(o.data)
       setEmployees(emp.data)
@@ -276,11 +277,7 @@ export default function WorkOrderPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 첫째 <b>[기준일자]</b> — 단추는 조회 묶음(…·종료일)이다(사본 실측). */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -321,9 +318,7 @@ export default function WorkOrderPage() {
         </EcCond>
         {/* 원본 차례: (품목그룹2·3·계층 · 발송여부) · 납기일자 · (오더관리번호) · 담당자 · 거래처관리담당자 · 적요 · 규격 … */}
         <EcCond label="납기일자">
-          <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: dueFrom, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, onChange: (e) => setDueTo(e.target.value) }} />
         </EcCond>
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
@@ -354,14 +349,10 @@ export default function WorkOrderPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="최종작업일자">
-          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
         </EcCond>
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">

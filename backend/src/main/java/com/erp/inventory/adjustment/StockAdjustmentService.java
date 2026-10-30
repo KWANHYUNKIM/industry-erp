@@ -442,6 +442,7 @@ public class StockAdjustmentService {
                 .reason(line.reason())
                 .kind(line.kind())
                 .handling(req.handling())
+                .headerNote(req.headerNote() == null || req.headerNote().isBlank() ? null : req.headerNote().trim())
                 .createdBy(username)
                 .build());
     }

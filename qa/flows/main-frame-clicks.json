@@ -1,0 +1,78 @@
+{
+  "about": "메인(MyPage 첫 화면) 틀 클릭 — 원본 2026-10-30 loginaa 클릭 대조(.claude/skills/ecount-diff/plans/데이터이관/클릭대조/click-orig-main-틀.txt). 첫 화면은 1단 · 2단 · 왼쪽 메뉴 없이 위젯만, 머리 오른쪽엔 상호 없이 사람 그림 하나. 사람 그림 → 프로필 · 개인정보수정 · 개인기능설정 · 아이콘바 설정 · 로그인관리 · 보안점수 · 로그아웃 · 퇴근 & 로그아웃, [개인기능설정] › My Page설정 [설정] → 'MyPage설정' 창(주소는 그대로 /). [사이트맵] → 왼쪽 파란 1단 줄 + 1단 전부 · ✕ 로 닫힘. 앱바 [통합검색] → '도움말' 창(알약 7 · 분류 알약은 '검색결과가 없습니다.' · [온라인 문의하기(F2)]), [스마트지원] 아홉 줄, [Email] 원본 Webmail 안내. 북마크 줄 ★ 글 → 품목등록, 1단 [데이터센터] → 수집데이터등록. 자료는 만들지 않는다.",
+  "shots": [
+    {
+      "name": "첫 화면 틀 · 사람 그림 판 · 개인기능설정 › MyPage설정 창",
+      "path": "/",
+      "steps": [
+        "wait:2500",
+        "expect:location.pathname === '/' && document.querySelectorAll('.ec-gnb-item.active').length === 0 && !document.querySelector('.ec-subnav') && !document.querySelector('.ec-lnb') && !document.querySelector('.ec-company')",
+        "js:document.querySelector('.ec-avatar').click()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-user-menu > *')].map((e) => e.textContent).join(',') === '프로필,개인정보수정,개인기능설정,아이콘바 설정,로그인관리,보안점수,로그아웃,퇴근 & 로그아웃'",
+        "js:[...document.querySelectorAll('.ec-user-menu button')].find((b) => b.textContent === '개인기능설정').click()",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('개인기능설정') && d.innerText.includes('My Page설정'))",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === '설정').click()",
+        "wait:3000",
+        "expect:location.pathname === '/' && document.querySelector('.ec-pagewin .ec-modal-bar .name')?.textContent === 'MyPage설정'",
+        "js:document.querySelector('.ec-pagewin .ec-modal-bar .close').click()",
+        "wait:400",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === '닫기')?.click()",
+        "wait:300",
+        "js:document.querySelector('.ec-avatar').click()",
+        "wait:300",
+        "js:[...document.querySelectorAll('.ec-user-menu button')].find((b) => b.textContent === '보안점수').click()",
+        "wait:400",
+        "expect:/보안점수/.test(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
+        "clicklast:확인",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "사이트맵 · 도움말 · 스마트지원 · Email",
+      "path": "/",
+      "steps": [
+        "wait:2500",
+        "js:[...document.querySelectorAll('.ec-chip')].find((b) => b.textContent === '사이트맵').click()",
+        "wait:400",
+        "expect:document.querySelectorAll('.ec-sitemap-rail > button').length >= 10 && document.querySelectorAll('.ec-sitemap-top').length >= 10 && document.querySelector('.ec-sitemap-rail > button.on')?.textContent === 'MyPage'",
+        "js:document.querySelector('.ec-sitemap-close').click()",
+        "wait:300",
+        "expect:!document.querySelector('.ec-sitemap')",
+        "js:document.querySelector('[data-app=search]').click()",
+        "wait:500",
+        "expect:document.querySelector('.ec-appwin .ec-modal-bar .name')?.textContent === '도움말' && document.querySelector('.ec-appwin input')?.placeholder === '궁금한 점이 있다면 도움말을 검색해보세요'",
+        "js:[...document.querySelectorAll('.ec-appwin .ec-pill')][1].click()",
+        "wait:300",
+        "expect:document.querySelector('.ec-appwin .ec-search-none')?.textContent.includes('검색결과가 없습니다.')",
+        "js:document.querySelector('.ec-appwin .ec-modal-bar .close').click()",
+        "wait:300",
+        "js:document.querySelector('[data-app=smart]').click()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-smart-menu > button')].map((b) => b.textContent).join(',') === '온라인/동영상 문의,전화상담요청,원격지원,동영상 강좌,브라우저 최적화,방문교육,집체교육,서비스 신청/결제,정보변경'",
+        "js:document.querySelector('.ec-smart-back').click()",
+        "wait:200",
+        "js:document.querySelector('[data-app=email]').click()",
+        "wait:400",
+        "expect:/마스터ID만 신청이 가능합니다/.test(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
+        "clicklast:확인",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "북마크 줄 ★ 글 → 품목등록 · 1단 데이터센터 → 수집데이터등록",
+      "path": "/",
+      "steps": [
+        "wait:3500",
+        "expect:!!document.querySelector('.ec-bookbar-hint')",
+        "js:document.querySelector('.ec-bookbar-hint').click()",
+        "wait:1500",
+        "expect:location.pathname === '/inventory/items'",
+        "js:[...document.querySelectorAll('.ec-gnb-item')].find((b) => b.textContent.trim() === '데이터센터').click()",
+        "wait:1500",
+        "expect:location.pathname === '/datacenter/collect-sources'"
+      ]
+    }
+  ]
+}

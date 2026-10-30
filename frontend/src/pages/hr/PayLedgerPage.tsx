@@ -11,6 +11,7 @@ import DirectAmountInput from '../../features/payroll/components/DirectAmountInp
 import LedgerLabelMenu from '../../features/payroll/components/LedgerLabelMenu'
 import PayrollSlipCreate from '../../features/payroll/components/PayrollSlipCreate'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface Ledger { id: number; payMonth: string; name: string; payDate: string; headcount: number; grossTotal: number; confirmedCount: number; workConfirmCount: number; directAmountCount: number }
 interface ConfirmRow { employeeId: number; employeeCode: string; employeeName: string; payItemId: number; payItemName: string; quantity: number }
@@ -463,7 +464,7 @@ export default function PayLedgerPage() {
             </li>
             <li className="wide">
               <span className="title">지급일</span>
-              <div className="form"><input type="date" className="ec-input w-[160px]" value={form.payDate} onChange={(e) => setForm({ ...form, payDate: e.target.value })} /></div>
+              <div className="form"><EcDateInput className="ec-input w-[160px]" value={form.payDate} onChange={(e) => setForm({ ...form, payDate: e.target.value })} /></div>
             </li>
             <li className="wide">
               <span className="title">급여대장명칭</span>

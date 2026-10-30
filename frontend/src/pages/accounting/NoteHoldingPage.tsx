@@ -7,6 +7,7 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -92,15 +93,13 @@ export default function NoteHoldingPage({ type }: { type: NoteType }) {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 145 }} />
+          <EcDateInput className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>
         </EcCond>
         <EcCond label="만기일자">
-          <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: dueFrom, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, onChange: (e) => setDueTo(e.target.value) }} />
         </EcCond>
         {/* 원본 [계정] — 이 화면의 어음 계정은 하나뿐이다(받을어음 · 지급어음). */}
         <EcCond label="계정">

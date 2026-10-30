@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface Account { id: number; code: string; name: string; division: string }
 interface Partner { id: number; code: string; name: string }
@@ -69,7 +70,7 @@ export default function CashTxnPage({ mode }: { mode: 'deposit' | 'withdraw' }) 
         <tbody>
           <tr>
             <th className="w-[120px] bg-ec-page">전표일자</th>
-            <td><input type="date" className="ec-input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} style={{ width: 160 }} /></td>
+            <td><EcDateInput className="ec-input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} /></td>
           </tr>
           <tr>
             <th className="bg-ec-page">상대 계정<span className="text-ec-danger">*</span></th>

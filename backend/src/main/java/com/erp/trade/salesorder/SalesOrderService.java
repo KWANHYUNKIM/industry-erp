@@ -3,7 +3,7 @@ package com.erp.trade.salesorder;
 import com.erp.trade.VatAllocator;
 import com.erp.trade.TradeMasters;
 import com.erp.common.ApiException;
-import com.erp.hr.employee.EmployeeService;
+import com.erp.inventory.salesrep.SalesRepService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.warehouse.WarehouseService;
 import com.erp.common.DocumentNoGenerator;
@@ -53,7 +53,7 @@ public class SalesOrderService {
     /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
     private final WarehouseService warehouseService;
     private final ProjectService projectService;
-    private final EmployeeService employeeService;
+    private final SalesRepService salesRepService;
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
     private final SalesLineRepository salesLineRepository;
@@ -206,7 +206,7 @@ public class SalesOrderService {
                 .dueDate(req.dueDate())
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
-                .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
+                .employee(req.employeeId() == null ? null : salesRepService.get(req.employeeId()))
                 .currencyCode(req.currencyCode() == null || req.currencyCode().isBlank() ? null : req.currencyCode())
                 /* 원본은 저장하자마자 [진행상태] 가 '진행중' 이다(2026-10-13 실측 — 접수 단계가 없다). */
                 .status(SalesOrderStatus.IN_PROGRESS)
@@ -244,7 +244,7 @@ public class SalesOrderService {
         order.setDueDate(req.dueDate());
         order.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         order.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
-        order.setEmployee(req.employeeId() == null ? null : employeeService.get(req.employeeId()));
+        order.setEmployee(req.employeeId() == null ? null : salesRepService.get(req.employeeId()));
         /* 수정 화면은 통화 칸이 없어 안 보낸다 — 보내지 않으면(null) 정해 둔 통화를 그대로 둔다. */
         if (req.currencyCode() != null) order.setCurrencyCode(req.currencyCode().isBlank() ? null : req.currencyCode());
         order.setRemark(req.remark());
@@ -345,7 +345,9 @@ public class SalesOrderService {
         if (order.getOrderType() == null) {
             throw ApiException.badRequest("오더유형을 먼저 지정하세요. 유형이 있어야 다음 단계를 알 수 있습니다.");
         }
-        List<OrderTypeStep> steps = orderTypeStepRepository.findByTypeWithStage(order.getOrderType().getId());
+        /* 처리메뉴로 정한 단계(2026-10-30 원본처럼)에는 진행단계 마스터가 없다 — 수주의 진행단계로 짚을 수 있는 것만 센다. */
+        List<OrderTypeStep> steps = orderTypeStepRepository.findByTypeWithStage(order.getOrderType().getId())
+                .stream().filter(st -> st.getStage() != null).toList();
         if (steps.isEmpty()) {
             throw ApiException.badRequest(
                     "이 유형에 진행단계가 없습니다. 오더관리유형리스트에서 단계를 먼저 정하세요: "

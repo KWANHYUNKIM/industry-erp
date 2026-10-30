@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { DailyReceipt } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { Company } from './SimplePaymentPage'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
 /** 원본 목록은 0 을 빈칸으로 둔다(2026-10-14 총지급액 600,000 · 비과세 · 소득세 · 지방소득세 빈칸). */
@@ -76,7 +77,7 @@ export default function DailyReceiptPage() {
           </select>
         </EcCond>
         <EcCond label="제출일자" span="full">
-          <input type="date" className="ec-input w-[150px]" value={submitDate} onChange={(e) => setSubmitDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[150px]" value={submitDate} onChange={(e) => setSubmitDate(e.target.value)} />
         </EcCond>
         <EcCond label="출력용도" span="full">
           {(['지급자보관용', '소득자보관용'] as const).map((v) => (

@@ -5,6 +5,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import type { Attendance } from '../../types/api'
 import { useAuth } from '../../features/auth/AuthContext'
 import AttendanceRecordModal, { type AttendanceRecordBody } from '../../features/attendance/components/AttendanceRecordModal'
+import EcIcon from '../../components/ui/EcIcon'
 
 const TITLE = '출/퇴근기록부(ID)'
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
@@ -85,7 +86,7 @@ export default function AttendancePage() {
   return (
     <div className="flex flex-col min-h-[100%]">
       <div className="flex items-center mb-[8px]">
-        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-ec-star mr-[4px]"><EcIcon name="star-outline" size={13} glyph="☆" /></span>
         <span className="text-[15px] font-extrabold text-ec-text">출/퇴근기록부(ID)</span>
         <div className="ml-auto flex items-center gap-[4px]">
           {/* 원본 제목 줄에는 [Option][도움말] 뿐이다. Option 판(설정 화면)은 받쳐 줄 설정이 없어 모양만 둔다. */}
@@ -167,7 +168,7 @@ export default function AttendancePage() {
           <div role="dialog" aria-label={`${TITLE} · 도움말`} className="ec-modal w-[420px]" onClick={(e) => e.stopPropagation()}>
             <div className="ec-modal-bar">
               <span className="name">{TITLE} · 도움말</span>
-              <button className="close" aria-label="닫기" onClick={() => setHelpOpen(false)}>✕</button>
+              <button className="close" aria-label="닫기" onClick={() => setHelpOpen(false)}><EcIcon name="close" size={12} glyph="✕" /></button>
             </div>
             <ul className="pl-[16px] m-0 text-[12px] leading-[1.7]">
               <li>날짜 칸을 누르면 <b>출/퇴근기록부</b> 창이 뜹니다. 장소 · 시간 · 사유를 넣고 [출근] — 같은 날을 다시 누르면 [퇴근] 입니다.</li>

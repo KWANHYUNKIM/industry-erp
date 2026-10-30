@@ -139,7 +139,7 @@ export default function StockMovementPage() {
          */
         const led = await api.get<{ rows: BucketTx[] }>('/stock/ledger', { params: { ...params, all: 'true' } })
         const dropMoves = !withTransfers && !warehouseId
-        setBuckets(stockBuckets(openingTotal, dropMoves ? led.data.rows.filter((r) => !(r.note ?? '').startsWith('창고이동')) : led.data.rows, mode))
+        setBuckets(stockBuckets(openingTotal, dropMoves ? led.data.rows.filter((r) => !/^(창고이동|생산불출)/.test(r.note ?? '')) : led.data.rows, mode))
       }
     } catch (err) { setError(extractErrorMessage(err)); setRows([]); setBuckets([]) }
     finally { setLoading(false) }

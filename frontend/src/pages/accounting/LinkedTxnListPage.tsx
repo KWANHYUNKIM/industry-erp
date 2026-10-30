@@ -7,6 +7,7 @@ import EcPeriodPicks, { ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { dateNo } from '../../utils/dateNo'
 import type { BankAccountRow, BankTxn, CardUsage, Partner } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 회계 I › <b>계좌/카드</b> 네 화면 — 2026-10-14 loginaa 실측(입/출금계좌 조회 C001137 · 카드매입조회 E010206 ·
@@ -171,9 +172,7 @@ export default function LinkedTxnListPage({ kind }: { kind: LinkedKind }) {
   )
   const period = (
     <EcCond label={kind === 'cardBuy' || kind === 'cardSale' ? '조회일자' : '기준일자'} span={2}>
-      <input type="date" className="ec-input w-[145px]" aria-label="시작일" value={from} onChange={(e) => setFrom(e.target.value)} />
-      <span className="mx-[4px]">~</span>
-      <input type="date" className="ec-input w-[145px]" aria-label="종료일" value={to} onChange={(e) => setTo(e.target.value)} />
+      <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "시작일", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "종료일", value: to, onChange: (e) => setTo(e.target.value) }} />
     </EcCond>
   )
 

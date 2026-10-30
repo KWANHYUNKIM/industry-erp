@@ -11,6 +11,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { ecConfirm } from '../../components/EcDialog'
 import { minToHours, fmt2 } from '../../utils/workHours'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 작업 > 작업내역조회 (/api/work-results).
@@ -63,8 +64,6 @@ interface Row {
   /** 원본 [기타]의 수정일자순(정렬)이 쓰는 축. */
   updatedAt: string | null
 }
-
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 원본 작업내역조회 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 작업내역서로 찍는다.
@@ -197,7 +196,8 @@ export default function WorkResultInquiryPage() {
   const itemLabel = (ls: Row[]) => {
     const f = ls.find((x) => x.workItemName)
     if (!f) return ''
-    return `${f.workItemName}${f.workItemSpec ? `[${f.workItemSpec}]` : ''}${ls.length > 1 ? ` 외 ${ls.length - 1}건` : ''}`
+    // 원본 칸 이름은 '작업품목명[규격명]' 이지만 찍히는 값은 품목명뿐이다('인텔 코어 I7-3770K 외 1건', 2026-10-30 실측) — 규격은 붙이지 않는다
+    return `${f.workItemName}${ls.length > 1 ? ` 외 ${ls.length - 1}건` : ''}`
   }
 
   const totals = useMemo(() => shown.reduce(
@@ -251,9 +251,7 @@ export default function WorkResultInquiryPage() {
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본은 이 줄을 <b>[기준일자]</b> 라 부른다(2026-09-08 실측). [작업일자]는 우리가 붙인 이름이었다. */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px] inline-flex gap-[3px]">
             {STATUS_PICKS.slice(0, 4).map((label) => (
               <button key={label} type="button" className="ec-btn"
@@ -343,7 +341,7 @@ export default function WorkResultInquiryPage() {
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {slips.length}건
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        작업수량 <b className="text-ec-navy text-[14px]">{num(totals.qty)}</b>
+        작업수량 <b className="text-ec-navy text-[14px]">{fmt2(totals.qty)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
         작업시간 <b className="text-ec-navy text-[14px]">{fmt2(minToHours(totals.time))}</b>H
       </div>
@@ -366,28 +364,24 @@ export default function WorkResultInquiryPage() {
                 작업내역 한 줄을 가리킬 이름이 없어 "어느 작업내역을 고쳤다/지웠다" 고 말할
                 방법이 없었다(매출계획이 같은 까닭으로 SP- 를 얻었다). WR-yyyyMMdd-NNNN 으로
                 채번하고 열 이름을 원본대로 <b>[일자-No.]</b> 로 맞췄다(V214/V87).
-                [작업(공정)]·[생산품목명]·[자원명]·[담당자]·[적요]는 우리 열이다.
+                2026-10-30 다시 재 보니 원본은 이 일곱 열뿐이다 — 우리가 덧붙였던 [작업(공정)]·[생산품목명]·
+                [자원명]·[담당자]·[적요]는 뺐다(조건 판으로는 그대로 거른다).
               */}
               <th className="w-[170px]">일자-No.</th>
               <th className="w-[130px]">생산공장명</th>
-              <th className="w-[170px]">작업품목명[규격명]</th>
-              <th className="w-[120px]">작업(공정)</th>
-              <th>생산품목명</th>
-              <th className="w-[120px]">자원명</th>
-              <th className="w-[100px]">담당자</th>
+              <th>작업품목명[규격명]</th>
               <th className="w-[110px] text-right">작업수량</th>
               <th className="w-[110px] text-right">작업시간</th>
               <th className="w-[170px]">작업지시서</th>
-              <th className="w-[160px]">적요</th>
               {/* 원본 작업내역조회의 마지막 열 [인쇄] — 그 한 건을 작업내역서로 찍는다. */}
               <th className="w-[60px] text-center">인쇄</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : slips.map((ls) => {
               const r = ls[0]
               const ids = ls.map((x) => x.id)
@@ -399,16 +393,12 @@ export default function WorkResultInquiryPage() {
                 </td>
                 <td>{dateNo(r.workDate, r.resultNo)}</td>
                 <td className={r.warehouseName ? undefined : 'text-ec-off'}>{r.warehouseName ?? ''}</td>
-                {/* 원본은 '작업품목명[규격명]' + 줄이 여럿이면 ' 외 n건'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
+                {/* 원본은 작업품목명(규격 없이) + 줄이 여럿이면 ' 외 n건'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
                 <td>{label}</td>
-                <td>{r.operationName ?? r.process}</td>
-                <td>{r.productName ? `[${r.productCode}] ${r.productName}` : ''}</td>
-                <td className={r.resourceName ? undefined : 'text-ec-off'}>{r.resourceName ?? ''}</td>
-                <td>{r.worker ?? ''}</td>
-                <td className="text-right font-semibold text-ec-navy">{num(ls.reduce((n, x) => n + x.goodQty + x.defectQty, 0))}</td>
+                {/* 원본 작업수량은 소수 둘째 자리(27.00). */}
+                <td className="text-right">{fmt2(ls.reduce((n, x) => n + x.goodQty + x.defectQty, 0))}</td>
                 <td className="text-right">{fmt2(minToHours(ls.reduce((n, x) => n + x.workTimeMin, 0)))}</td>
-                <td className={`font-mono ${r.workOrderNo ? 'text-ec-label' : 'text-ec-off'}`}>{r.workOrderNo ?? ''}</td>
-                <td className="text-ec-hint">{r.note ?? ''}</td>
+                <td>{ls.find((x) => x.workOrderNo)?.workOrderNo ?? ''}</td>
                 <td className="text-center">
                   <button onClick={() => printOne(ls)} className="text-ec-blue bg-transparent border-0 cursor-pointer text-[12px]">인쇄</button>
                 </td>
@@ -418,11 +408,11 @@ export default function WorkResultInquiryPage() {
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
-              <td colSpan={8} className="text-right">합계 ({slips.length}건)</td>
-              <td className="text-right">{num(totals.qty)}</td>
+              <td colSpan={4} className="text-right">합계 ({slips.length}건)</td>
+              <td className="text-right">{fmt2(totals.qty)}</td>
               <td className="text-right">{fmt2(minToHours(totals.time))}</td>
-              {/* 작업지시서 · 적요 · 인쇄 */}
-              <td colSpan={3}></td>
+              {/* 작업지시서 · 인쇄 */}
+              <td colSpan={2}></td>
             </tr>
           </tfoot>
         </table>

@@ -12,6 +12,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 구매관리 > 단가요청진행단계 (이카운트 E040323) — 2026-10-21 loginaa 실측.
@@ -305,11 +306,7 @@ export default function PriceRequestProgressPage() {
         {/* 원본 차례는 <b>[유효기간]이 맨 앞</b>이다(사본 실측). */}
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). 유효기간과 다른 값이다 — 이건 요청한 날이다. */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -322,11 +319,7 @@ export default function PriceRequestProgressPage() {
           </select>
           {validUse === '기간지정' && (
             <>
-              <input type="date" className="ec-input" value={validFrom}
-                     onChange={(e) => setValidFrom(e.target.value)} style={{ width: 145 }} />
-              <span className="my-0 mx-[4px]">~</span>
-              <input type="date" className="ec-input" value={validTo}
-                     onChange={(e) => setValidTo(e.target.value)} style={{ width: 145 }} />
+              <EcDateRange from={{ className: "ec-input", value: validFrom, onChange: (e) => setValidFrom(e.target.value) }} to={{ className: "ec-input", value: validTo, onChange: (e) => setValidTo(e.target.value) }} />
             </>
           )}
         </EcCond>

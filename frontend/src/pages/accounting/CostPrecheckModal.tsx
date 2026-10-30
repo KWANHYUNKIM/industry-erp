@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import { ecAlert } from '../../components/EcDialog'
 import { EcReportHead, EcReportFoot } from '../../components/EcReportFrame'
 import { matrixToXlsx } from '../../utils/excel'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 원가생성/수정(E040802) [원가생성전 점검사항] — 2026-10-20 loginaa 실측.
@@ -138,7 +139,7 @@ export default function CostPrecheckModal({ onClose }: { onClose: () => void }) 
         <div className="flex gap-[4px] mt-[8px]">
           <span className="ec-btn-group relative">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
-            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="인쇄 메뉴" onClick={() => setPrintMenu((v) => !v)}>▴</button>
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="인쇄 메뉴" onClick={() => setPrintMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
             {printMenu && (
               <div className="ec-menu absolute bottom-full left-0 mb-[2px] min-w-[110px]">
                 <button type="button" onClick={() => { setPrintMenu(false); window.print() }}>PDF</button>

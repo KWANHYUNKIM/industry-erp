@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
 import { useShortcut } from '../../../utils/useShortcut'
 import { ecConfirm } from '../../../components/EcDialog'
+import EcIcon from '../../../components/ui/EcIcon'
 
 export interface ScheduleCategory { id: number; code: string; name: string; active: boolean }
 
@@ -11,7 +12,7 @@ function StopMenu({ active, onPick }: { active: boolean; onPick: (a: 'stop' | 'd
   const [open, setOpen] = useState(false)
   return (
     <span className="relative">
-      <button type="button" className="ec-btn" onClick={() => setOpen((v) => !v)}>사용중단/재사용 ▴</button>
+      <button type="button" className="ec-btn" onClick={() => setOpen((v) => !v)}>사용중단/재사용 <EcIcon name="caret-up" size={10} glyph="▴" /></button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />

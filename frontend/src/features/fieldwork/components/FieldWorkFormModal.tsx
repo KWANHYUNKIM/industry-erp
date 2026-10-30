@@ -7,6 +7,8 @@ import type { FieldWork } from '../../../types/api'
 import { useShortcut } from '../../../utils/useShortcut'
 import VehiclePicker from './VehiclePicker'
 import { ecConfirm } from '../../../components/EcDialog'
+import EcIcon from '../../../components/ui/EcIcon'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 export interface FieldWorkUser { id: number; name: string; username: string }
 
@@ -120,7 +122,7 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
       <ul className="ec-form mb-[10px]">
         <li>
           <div className="title">일자</div>
-          <div className="form"><input type="date" className="ec-input w-[150px]" value={form.workDate} onChange={(e) => set('workDate', e.target.value)} /></div>
+          <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.workDate} onChange={(e) => set('workDate', e.target.value)} /></div>
         </li>
         <li>
           <div className="title">이동시간</div>
@@ -141,7 +143,7 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
           <div className="title">이동수단</div>
           <div className="form">
             <input className="ec-input w-[160px]" placeholder="이동수단" value={form.vehicleNo} onChange={(e) => set('vehicleNo', e.target.value)} />
-            <button type="button" className="ec-btn ec-btn-sm" aria-label="이동수단검색" onClick={() => setPickerOpen(true)}>🔍</button>
+            <button type="button" className="ec-btn ec-btn-sm" aria-label="이동수단검색" onClick={() => setPickerOpen(true)}><EcIcon name="search" /></button>
             <input className="ec-input flex-1" placeholder="이동수단명" value={form.vehicleName} onChange={(e) => set('vehicleName', e.target.value)} />
           </div>
           {/*

@@ -5,6 +5,7 @@ import EcNumInput from '../../components/EcNumInput'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 회계기수마다 한 장을 저장하는 재무제표 — 현금흐름표(E010861) · 이익잉여금처분계산서(E010817). 2026-10-20 loginaa 실측.
@@ -229,8 +230,7 @@ export default function StatementSheetScreen({ config }: { config: SheetConfig }
               {config.settleDate && (
                 <li className="flex items-center gap-[6px] mb-[6px]">
                   <span className="w-[93px]">처분확정일</span>
-                  <input type="date" className="ec-input w-[145px]" aria-label="처분확정일" value={head.settleDate}
-                    onChange={(e) => setHead({ ...head, settleDate: e.target.value })} />
+                  <EcDateInput className="ec-input w-[145px]" aria-label="처분확정일" value={head.settleDate} onChange={(e) => setHead({ ...head, settleDate: e.target.value })} />
                 </li>
               )}
               {config.inputColumn && (

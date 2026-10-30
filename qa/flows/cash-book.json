@@ -30,11 +30,11 @@
       ]
     },
     {
-      "name": "계정별거래처별원장 — 외상매출금(108)을 고르면 거래처마다 표(일자-No. · 적요 · 차변금액 · 대변금액 · 잔액, 끝 [합계]), 거래처별집계는 한 표에 끝 [합계]",
+      "name": "계정별거래처별원장 — 외상매출금(1089)을 고르면 거래처마다 표(일자-No. · 적요 · 차변금액 · 대변금액 · 잔액, 끝 [합계]), 거래처별집계는 한 표에 끝 [합계]",
       "path": "/accounting/account-partner-ledger",
       "steps": [
         "wait:2000",
-        "pick:계정:108",
+        "pick:계정:1089",
         "click:검색(F8)",
         "wait:2500",
         "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|적요|차변금액|대변금액|잔액'&&last.cells[0].innerText.trim()==='합계'})()",
@@ -48,7 +48,7 @@
       "path": "/accounting/partner-account-ledger",
       "steps": [
         "wait:2000",
-        "pick:거래처:QA-CUST",
+        "pick:거래처:BOTH-001",
         "click:검색(F8)",
         "wait:2500",
         "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|적요|차변금액|대변금액|잔액'&&last.cells[0].innerText.trim()==='합계'})()",
@@ -58,11 +58,11 @@
       ]
     },
     {
-      "name": "계정별적요별원장 — 외상매출금(108)을 고르면 00(기 타) 한 표(일자-No. · 적요 · 거래처명 · 차변금액 · 대변금액, 끝 [합계]), 적요별은 적요 · 차변 · 대변",
+      "name": "계정별적요별원장 — 외상매출금(1089)을 고르면 00(기 타) 한 표(일자-No. · 적요 · 거래처명 · 차변금액 · 대변금액, 끝 [합계]), 적요별은 적요 · 차변 · 대변",
       "path": "/accounting/account-remark-ledger",
       "steps": [
         "wait:2000",
-        "pick:계정:108",
+        "pick:계정:1089",
         "click:검색(F8)",
         "wait:2500",
         "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|적요|거래처명|차변금액|대변금액'&&last.cells[0].innerText.trim()==='합계'})()",
@@ -72,11 +72,11 @@
       ]
     },
     {
-      "name": "계정증감내역 — 외상매출금(108)을 고르면 증가 · 감소 두 표(일자 · 적요 · 거래처코드 · 거래처명 · 금액, 끝 [합계])",
+      "name": "계정증감내역 — 외상매출금(1089)을 고르면 증가 · 감소 두 표(일자 · 적요 · 거래처코드 · 거래처명 · 금액, 끝 [합계])",
       "path": "/accounting/account-flow",
       "steps": [
         "wait:2000",
-        "pick:계정:108",
+        "pick:계정:1089",
         "click:전월",
         "wait:2500",
         "expect:(()=>{const ts=[...document.querySelectorAll('table')];return ts.length===2&&ts.every((t)=>[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자|적요|거래처코드|거래처명|금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계')})()"
@@ -245,11 +245,11 @@
       ]
     },
     {
-      "name": "채권/채무회수기간표 — 외상매출금(108)을 고르면 거래처코드 · 거래처명 · 잔액 · 미회수월수, 끝 [합계]",
+      "name": "채권/채무회수기간표 — 외상매출금(1089)을 고르면 거래처코드 · 거래처명 · 잔액 · 미회수월수, 끝 [합계]",
       "path": "/accounting/arap-aging",
       "steps": [
         "wait:2000",
-        "pick:계정:108",
+        "pick:계정:1089",
         "click:검색(F8)",
         "wait:2500",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='거래처코드|거래처명|잔액|미회수월수'&&last.cells[0].innerText.trim()==='합계'})()"

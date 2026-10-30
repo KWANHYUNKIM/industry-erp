@@ -10,6 +10,7 @@ import { fetchFundPlans, useFundPlanMasters } from '../../features/fundplan/api'
 import FundPlanModal from '../../features/fundplan/components/FundPlanModal'
 import { methodCell, won, type FundPlan } from '../../features/fundplan/types'
 import NumCheck from '../../components/NumCheck'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 회계 II › 자금계획 › <b>계획전표조회</b>(E020511) — 2026-10-12 loginaa 실측.
@@ -143,9 +144,7 @@ export default function FundPlanListPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

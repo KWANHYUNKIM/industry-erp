@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { ecAlert, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import { activeMenuAction } from '../../features/expensemaster/api'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 회계 I › 기초등록 › <b>추가항목유형등록</b>(원본 E010118, 제목 '추가항목유형리스트') — 2026-10-13 loginaa 실측(plans/회계1/E010118.md).
@@ -214,7 +215,7 @@ export default function ExtraFieldTypePage() {
           <div className="flex gap-[6px] mt-[12px]">
             <span className="ec-btn-group relative">
               <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
-              <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장(F8) 더보기" onClick={() => setSaveMenu((v) => !v)}>▴</button>
+              <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장(F8) 더보기" onClick={() => setSaveMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
               {saveMenu && (
                 <span className="ec-menu absolute bottom-full left-0 mb-[2px] z-[41]">
                   <button type="button" onClick={() => void save(undefined, 'keep')}>저장/내용유지</button>

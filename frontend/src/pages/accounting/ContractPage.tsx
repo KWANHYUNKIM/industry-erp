@@ -7,6 +7,7 @@ import type { BusinessContract, BusinessContractStatus, BusinessContractType, Pa
 import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -136,11 +137,7 @@ export default function ContractPage() {
       {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
-        <input type="date" className="ec-input" value={pFrom}
-               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input" value={pTo}
-               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: pFrom, onChange: (e) => setPFrom(e.target.value) }} to={{ className: "ec-input", value: pTo, onChange: (e) => setPTo(e.target.value) }} />
       </div>
 
 
@@ -314,10 +311,10 @@ export function ContractForm({ partners, onError, onSaved, initial }: {
                            items={partnerCodeItems(partners)} />
         </Field>
         <Field label="시작일 *">
-          <input className="ec-input" type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
         </Field>
         <Field label="종료일 *">
-          <input className="ec-input" type="date" value={form.endDate} onChange={(e) => set('endDate', e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={form.endDate} onChange={(e) => set('endDate', e.target.value)} />
         </Field>
         <Field label="계약금액">
           <input className="ec-input" type="number" step="any" value={form.amount} onChange={(e) => set('amount', e.target.value)} style={{ width: 140, textAlign: 'right' }} />

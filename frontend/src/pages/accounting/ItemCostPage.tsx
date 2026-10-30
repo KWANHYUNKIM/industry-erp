@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { ItemProfit } from '../../types/api'
 import EcPeriodPicks from '../../components/EcPeriodPicks'
 import { periodOf } from '../../utils/periods'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /* 금액은 원 단위로 — 평균 원가 × 수량이라 소수가 붙어 '28,695,516.08 원' 처럼 찍혔다(24회차). */
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -48,9 +49,7 @@ export default function ItemCostPage() {
       */}
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] flex-wrap">
         <span className="text-ec-label">기간</span>
-        <input type="date" className="ec-input" value={period.from} onChange={(e) => setPeriod((p) => ({ ...p, from: e.target.value }))} style={{ width: 140 }} />
-        ~
-        <input type="date" className="ec-input" value={period.to} onChange={(e) => setPeriod((p) => ({ ...p, to: e.target.value }))} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: period.from, onChange: (e) => setPeriod((p) => ({ ...p, from: e.target.value })) }} to={{ className: "ec-input", value: period.to, onChange: (e) => setPeriod((p) => ({ ...p, to: e.target.value })) }} />
         <EcPeriodPicks onPick={(r) => setPeriod(r)} currentFrom={period.from} />
       </div>
 

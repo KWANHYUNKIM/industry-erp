@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { ecAlert } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import { exportTableToXlsx } from '../../utils/excel'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -82,9 +83,7 @@ export default function UnusedCodeModal<R extends { id: number; code: string; na
         <EcCond label={codeLabel}><input className="ec-input w-full" value={code} onChange={(e) => setCode(e.target.value)} /></EcCond>
         <EcCond label={nameLabel}><input className="ec-input w-full" value={name} onChange={(e) => setName(e.target.value)} /></EcCond>
         <EcCond label="기준일자" span={2}>
-          <input type="date" className="ec-input w-[140px]" aria-label="기준일자 시작" value={from} onChange={(e) => setRange([e.target.value, to])} />
-          <span className="text-ec-label"> ~ </span>
-          <input type="date" className="ec-input w-[140px]" aria-label="기준일자 종료" value={to} onChange={(e) => setRange([from, e.target.value])} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", 'aria-label': "기준일자 시작", value: from, onChange: (e) => setRange([e.target.value, to]) }} to={{ className: "ec-input w-[140px]", 'aria-label': "기준일자 종료", value: to, onChange: (e) => setRange([from, e.target.value]) }} />
         </EcCond>
       </ul>
       <div className="my-[8px] flex gap-[4px]">

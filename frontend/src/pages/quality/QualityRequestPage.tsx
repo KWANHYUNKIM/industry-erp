@@ -14,6 +14,7 @@ import { printDocuments } from '../../utils/printDocument'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import QualityRequestScreen from '../../features/quality/components/QualityRequestForm'
 import { ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II &gt; 품질관리 &gt; 품질검사요청 — <b>품질검사요청조회</b>(E040629) · <b>품질검사요청입력</b>(E040628), 2026-10-04 loginaa 실측(입력 · 삭제).
@@ -184,9 +185,7 @@ export default function QualityRequestPage() {
     >
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label flex-wrap">
         <span>기준일자</span>
-        <input type="date" className="ec-input w-[140px]" value={pFrom} onChange={(e) => setPFrom(e.target.value)} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input w-[140px]" value={pTo} onChange={(e) => setPTo(e.target.value)} />
+        <EcDateRange from={{ className: "ec-input w-[140px]", value: pFrom, onChange: (e) => setPFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: pTo, onChange: (e) => setPTo(e.target.value) }} />
         <EcPeriodPicks labels={QUALITY_REQUEST_PICKS} currentFrom={pFrom}
                        onPick={(r) => { setPFrom(r.from); setPTo(r.to) }} />
       </div>

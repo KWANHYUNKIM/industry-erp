@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import Modal from './Modal'
 import type { CodeItem } from './CodePickerField'
 import { api } from '../api/client'
+import { EcDateRange } from './ui/EcDateInput'
 
 /**
  * 코드도움 창 — 원본 '거래처검색' · '창고검색' · '사원검색' 의 꼴(2026-10-13 loginaa 구매입력에서 실측, plans/공용.md).
@@ -31,7 +32,9 @@ const REGISTER: [RegExp, string][] = [
   [/거래처|납품처|구매처|매출처|매입처|외주처|고객/, '/sales/partners'],
   [/품목|제품|자재|원재료|부품/, '/inventory/items'],
   [/창고|공장|공정/, '/inventory/warehouses'],
-  [/사원|담당|직원/, '/hr/employees'],
+  // 원본 전표 [담당자] 코드도움의 [신규(F2)] 는 재고 I › 기초등록 › 사원(담당)등록을 연다(관리 사원등록과 다른 마스터)
+  [/담당/, '/inventory/sales-reps'],
+  [/사원|직원/, '/hr/employees'],
   [/계정/, '/accounting/accounts'],
   [/프로젝트/, '/inventory/projects'],
   [/부서/, '/hr/departments'],
@@ -287,8 +290,7 @@ function CodeSearchBody({
                 <li key={k}><span className="title">{l}</span>
                   <div className="form flex items-center gap-[6px]">
                     {draft[`${k}On` as 'hireOn'] && <>
-                      <input type="date" className="ec-input w-[130px]" aria-label={`${l} 시작`} value={draft[`${k}From` as 'hireFrom']} onChange={(e) => setDraft({ ...draft, [`${k}From`]: e.target.value })} />~
-                      <input type="date" className="ec-input w-[130px]" aria-label={`${l} 끝`} value={draft[`${k}To` as 'hireTo']} onChange={(e) => setDraft({ ...draft, [`${k}To`]: e.target.value })} />
+                      <EcDateRange from={{ className: "ec-input w-[130px]", 'aria-label': `${l} 시작`, value: draft[`${k}From` as 'hireFrom'], onChange: (e) => setDraft({ ...draft, [`${k}From`]: e.target.value }) }} to={{ className: "ec-input w-[130px]", 'aria-label': `${l} 끝`, value: draft[`${k}To` as 'hireTo'], onChange: (e) => setDraft({ ...draft, [`${k}To`]: e.target.value }) }} />
                     </>}
                     <label className="inline-flex items-center gap-[4px]"><input type="checkbox" checked={draft[`${k}On` as 'hireOn']} onChange={(e) => setDraft({ ...draft, [`${k}On`]: e.target.checked })} />사용</label>
                   </div></li>

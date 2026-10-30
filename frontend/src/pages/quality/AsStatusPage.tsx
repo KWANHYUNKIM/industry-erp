@@ -12,6 +12,7 @@ import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../comp
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine } from '../../features/as/AsAggregate'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 import { ecAlert } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II > A/S관리 > A/S접수현황 (이카운트 E040610). 데이터는 GET /api/as-requests 의 접수와 그 품목 줄.
@@ -402,11 +403,7 @@ function SearchPanel({
       </div>
       <div style={rowStyle}>
         <span style={label}>기준일자</span>
-        <input type="date" className="ec-input" value={draft.dateFrom}
-          onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span className="my-0 mx-[6px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={draft.dateTo}
-          onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+        <EcDateRange from={{ className: "ec-input", value: draft.dateFrom, onChange: (e) => onChange({ dateFrom: e.target.value }) }} to={{ className: "ec-input", value: draft.dateTo, onChange: (e) => onChange({ dateTo: e.target.value }) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={AS_PICKS} currentFrom={draft.dateFrom}
               onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
@@ -474,11 +471,7 @@ function SearchPanel({
       {/* 원본 [수리예정일자] — <b>언제 고쳐 주기로 했나</b> 다. 아래 [수리일자](실제로 고친 날)와 다르다. */}
       <div style={rowStyle}>
         <span style={label}>수리예정일자</span>
-        <input type="date" className="ec-input" value={draft.schedFrom}
-          onChange={(e) => onChange({ schedFrom: e.target.value })} style={{ width: 150 }} />
-        <span className="my-0 mx-[6px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={draft.schedTo}
-          onChange={(e) => onChange({ schedTo: e.target.value })} style={{ width: 150 }} />
+        <EcDateRange from={{ className: "ec-input", value: draft.schedFrom, onChange: (e) => onChange({ schedFrom: e.target.value }) }} to={{ className: "ec-input", value: draft.schedTo, onChange: (e) => onChange({ schedTo: e.target.value }) }} />
       </div>
       <div style={rowStyle}>
         <span style={label}>제목</span>

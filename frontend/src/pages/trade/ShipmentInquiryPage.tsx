@@ -12,9 +12,11 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import Modal from '../../components/Modal'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
+import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { useShipmentEntry, type ShipmentRes } from '../../features/shipment/useShipmentEntry'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업 > 출하조회 (E040226) — 전표(출하) 단위 조회. 행 클릭 시 품목 상세 펼침.
@@ -178,6 +180,7 @@ export default function ShipmentInquiryPage() {
   const [byUpdated, setByUpdated] = useState(false)
   /** 하단 [진행상태변경 ▴] 메뉴(▾ 미확인 › 미확인 / ▾ 확인 › 확인) · 누르면 나오는 '알림' 표(구분 · 메뉴 · 사유). */
   const [statusMenu, setStatusMenu] = useState<{ left: number; bottom: number } | null>(null)
+  const [menuHistory, setMenuHistory] = useState(false)
   const [blockedRows, setBlockedRows] = useState<string[][] | null>(null)
   const openStatusMenu = () => {
     const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === '진행상태변경')
@@ -186,6 +189,8 @@ export default function ShipmentInquiryPage() {
   }
   const blockStatusChange = () => {
     setStatusMenu(null)
+    /* 원본은 고른 줄이 없어도 메뉴를 먼저 띄운다 — 알림은 고를 때(2026-10-30 클릭 대조). */
+    if (!requireSelection(checked.size)) return
     setBlockedRows(rows.filter((x) => checked.has(x.id)).map((x) => [
       `${x.shipDate.replace(/-/g, '')}-${Number(x.shipNo.split('-').pop()) || x.shipNo}`, '',
       '전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.\n※ Self-Customizing > 환경설정 > 기능설정 > [응용] 탭 > 전표상태관리유형']))
@@ -258,11 +263,16 @@ export default function ShipmentInquiryPage() {
       newLabel="신규(F2)"
       onNew={() => navigate('/sales/shipment-entry')}
       actions={[
-        { label: '진행상태변경', selected: checked.size, onClick: openStatusMenu },
+        /* 2026-10-30 클릭 대조: [Email] · [바코드(품목)] 알림, [진행상태변경] 은 고른 줄 없어도 메뉴, [이력조회] '출하 이력조회' 창. */
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
+        { label: '진행상태변경', onClick: openStatusMenu },
         { label: '인쇄', selected: checked.size, onClick: () => { shown.filter((r) => checked.has(r.id)).forEach((r) => void printShipment(r, company)) } },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size },
         { label: '선택삭제', selected: checked.size, onClick: () => void remove([...checked]) },
         { label: 'Excel' },
+        { label: '이력조회', onClick: () => setMenuHistory(true) },
       ]}>
+      {menuHistory && <SlipMenuHistoryModal menu="출하" statusLabel="확인" onClose={() => setMenuHistory(false)} />}
 
       {/* 원본 조건 차례: 기준일자 · 출하No. · 창고 · 프로젝트 · 거래처 · 품목 · 발송여부 */}
       {/* 기준일자는 조건 판 안 첫 줄이다 — 2회차 #12. 다른 현황 화면과 같이 빠른선택(금일·전월…)도 붙는다. */}
@@ -339,14 +349,10 @@ export default function ShipmentInquiryPage() {
         </EcCond>
         {/* 원본 [최초작성일자]·[최종수정일시] — 이번에 응답에 실어 물을 수 있게 됐다. */}
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="최종수정일시">
-          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[6px] text-ec-label">~</span>
-          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
         </EcCond>
         {/* 원본 [기타] — 이 화면에서는 체크 하나뿐이다. 없는 것을 지어내지 않는다. */}
         <EcCond label="기타">

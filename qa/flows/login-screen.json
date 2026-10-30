@@ -1,0 +1,34 @@
+{
+  "_": "로그인 화면(원본 login.ecount.com 과 같게, plans/데이터이관/클릭대조/대조-로그인.md) — 빈 칸 [로그인] 은 빨간 칸만(글 없음) · 안 되는 링크는 안내 창 · 회사 0001 로 실제 로그인 · 저장 [Code, ID]",
+  "shots": [
+    {
+      "name": "로그인 화면 — 빈 칸 · 링크 안내 · 로그인 · 저장",
+      "path": "/login",
+      "steps": [
+        "js:localStorage.removeItem('erp_token'); localStorage.removeItem('erp_login_save'); localStorage.removeItem('erp_last_company_code'); location.reload(); true",
+        "wait:1500",
+        "expect:document.title === '로그인 | 제조 ERP' && document.querySelectorAll('.ec-login-field').length === 3",
+        "expect:[...document.querySelectorAll('.ec-login-field input')].map(i => i.placeholder).join() === '회사코드,아이디,비밀번호'",
+        "click:로그인",
+        "expect:document.querySelectorAll('.ec-login-field.has-error').length === 3 && document.activeElement.name === 'com_code' && location.pathname === '/login'",
+        "set:input[name=com_code]|0001",
+        "expect:document.querySelectorAll('.ec-login-field.has-error').length === 2",
+        "click:비밀번호 찾기",
+        "expect:document.body.innerText.includes('회사 관리자에게 초기화')",
+        "clicklast:확인",
+        "js:document.querySelector('.ec-login-lang').click(); true",
+        "wait:200",
+        "expect:document.querySelectorAll('.ec-login-lang-menu button').length === 13",
+        "js:document.body.click(); true",
+        "set:input[name=id]|admin",
+        "set:input[name=passwd]|admin1234",
+        "js:document.querySelector('.ec-login-check input').click(); true",
+        "click:로그인",
+        "wait:2500",
+        "expect:location.pathname === '/' && !!localStorage.getItem('erp_token')",
+        "expect:JSON.parse(localStorage.getItem('erp_login_save')).code === '0001' && JSON.parse(localStorage.getItem('erp_login_save')).id === 'admin'"
+      ]
+    }
+  ],
+  "finally": ["js:localStorage.removeItem('erp_login_save'); true"]
+}

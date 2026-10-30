@@ -79,7 +79,7 @@ export default function DailyReportPage() {
   const [signBox, setSignBox] = useState(false)
   useEffect(() => {
     api.get<{ id: number; code: string; name: string }[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
-    api.get<{ id: number; name: string }[]>('/employees').then((r) => setEmps(Object.fromEntries(r.data.map((e) => [e.id, e.name])))).catch(() => setEmps({}))
+    api.get<{ id: number; name: string }[]>('/sales-reps').then((r) => setEmps(Object.fromEntries(r.data.map((e) => [e.id, e.name])))).catch(() => setEmps({}))
   }, [])
   const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
   const req = useRequired()

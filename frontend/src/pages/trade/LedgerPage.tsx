@@ -13,6 +13,7 @@ import { dateText } from '../../utils/dateText'
 import type { LedgerBasis } from '../../utils/partnerRollup'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { Link, useNavigate } from 'react-router-dom'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -419,11 +420,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         </EcCond>
         {oneSide && (
           <EcCond label="기준일자">
-            <input type="date" className="ec-input" value={from}
-                   onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-            <span className="my-0 mx-[4px]">~</span>
-            <input type="date" className="ec-input" value={to}
-                   onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+            <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
             <span className="ml-[6px] inline-flex gap-[3px]">
               {PARTNER_LEDGER_PICKS.map((label) => (
                 <button key={label} type="button" className="ec-btn"

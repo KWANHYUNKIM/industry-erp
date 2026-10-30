@@ -39,7 +39,7 @@ public class SalesPlanService {
     private final PartnerService partnerService;
     private final SalesRepository salesRepository;   // 같은 모듈(trade)
     private final ItemService itemService;           // inventory 의 공개 API
-    private final com.erp.hr.employee.EmployeeService employeeService;
+    private final com.erp.inventory.salesrep.SalesRepService salesRepService;
     private final com.erp.common.DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
@@ -80,7 +80,7 @@ public class SalesPlanService {
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .partner(req.partnerId() == null ? null : partnerService.get(req.partnerId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
-                .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
+                .employee(req.employeeId() == null ? null : salesRepService.get(req.employeeId()))
                 .expectedDate(req.expectedDate())
                 .planYear(req.planYear())
                 .planMonth(req.planMonth())
@@ -140,7 +140,7 @@ public class SalesPlanService {
                     .planDate(d).planNo(no).lineNo(lineNo++)
                     .warehouse(warehouse).project(project)
                     .partner(l.partnerId() == null ? null : partnerService.get(l.partnerId()))
-                    .employee(l.employeeId() == null ? null : employeeService.get(l.employeeId()))
+                    .employee(l.employeeId() == null ? null : salesRepService.get(l.employeeId()))
                     .expectedDate(d).planYear(d.getYear()).planMonth(d.getMonthValue())
                     .planQty(qty).unitPrice(price).planAmount(amount)
                     .remark(l.remark()).createdBy(username)
@@ -315,7 +315,7 @@ public class SalesPlanService {
         if (o instanceof com.erp.inventory.warehouse.Warehouse w) return new String[]{w.getCode(), w.getName()};
         if (o instanceof com.erp.inventory.project.Project pr) return new String[]{pr.getCode(), pr.getName()};
         if (o instanceof com.erp.trade.partner.BusinessPartner bp) return new String[]{bp.getCode(), bp.getName()};
-        if (o instanceof com.erp.hr.employee.Employee e) return new String[]{e.getCode(), e.getName()};
+        if (o instanceof com.erp.inventory.salesrep.SalesRep e) return new String[]{e.getCode(), e.getName()};
         return new String[]{"", String.valueOf(o)};
     }
 
@@ -333,7 +333,7 @@ public class SalesPlanService {
         if (o instanceof com.erp.inventory.warehouse.Warehouse w) return w.getId();
         if (o instanceof com.erp.inventory.project.Project pr) return pr.getId();
         if (o instanceof com.erp.trade.partner.BusinessPartner bp) return bp.getId();
-        if (o instanceof com.erp.hr.employee.Employee e) return e.getId();
+        if (o instanceof com.erp.inventory.salesrep.SalesRep e) return e.getId();
         if (o instanceof Item it) return it.getId();
         throw new IllegalStateException("맞출 수 없는 축: " + o.getClass());
     }

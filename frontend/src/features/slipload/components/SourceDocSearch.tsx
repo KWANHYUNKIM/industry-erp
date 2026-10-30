@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import EcIcon from '../../../components/ui/EcIcon'
 
 /**
  * 원본 '…검색창(조회)' — 다른 전표를 불러오는 창의 전표 단위 꼴(2026-10-28 loginaa 실측).
@@ -124,7 +125,7 @@ export default function SourceDocSearch<T extends string>(p: Props<T>) {
         </div>
       )}
       <div className="flex items-center gap-[4px] mt-[9px]">
-        <button type="button" className={`ec-btn${p.byLine ? ' ec-btn-primary' : ''}`} onClick={p.onToggleByLine}>라인별 ▾</button>
+        <button type="button" className={`ec-btn${p.byLine ? ' ec-btn-primary' : ''}`} onClick={p.onToggleByLine}>라인별 <EcIcon name="caret-down" size={10} glyph="▾" /></button>
         <button type="button" className="ec-btn ec-btn-primary" onClick={p.onApply}>{p.applyLabel ?? '잔량적용(F8)'}</button>
         {p.applyAllTitle != null && <button type="button" className="ec-btn" disabled title={p.applyAllTitle}>전체적용</button>}
         <button type="button" className="ec-btn" onClick={p.onNew}>신규(F2)</button>

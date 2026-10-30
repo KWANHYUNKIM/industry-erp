@@ -121,7 +121,11 @@ public final class UserDtos {
             /** 연간 휴가 부여일수. 휴가잔여일수현황의 '휴가일수' 열이 이 값이다. */
             BigDecimal annualLeaveDays,
             boolean enabled,
-            List<String> roles
+            List<String> roles,
+            /** 기본권한(ALL · NONE · GROUP) — 사용자등록 [권한] 탭에서 바꾼다(PUT /api/work-permissions/users/{id}/base). */
+            String basePermission,
+            /** 마스터(관리자설정) — ADMIN 역할. */
+            boolean master
     ) {
         public static UserResponse from(User user) {
             List<String> roleNames = user.getRoles().stream()
@@ -137,7 +141,9 @@ public final class UserDtos {
                     user.getEmployeeId(),
                     user.getAnnualLeaveDays(),
                     user.isEnabled(),
-                    roleNames
+                    roleNames,
+                    user.getBasePermission().name(),
+                    user.isMaster()
             );
         }
     }

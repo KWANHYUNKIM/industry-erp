@@ -12,6 +12,7 @@ import com.erp.auth.user.User;
 import com.erp.auth.role.PermissionRepository;
 import com.erp.auth.role.RoleRepository;
 import com.erp.auth.user.UserRepository;
+import com.erp.auth.workpermission.WorkPermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +41,7 @@ public class TenantSeeder {
     private final AccountRepository accountRepository;
     private final CompanyInfoRepository companyInfoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final WorkPermissionService workPermissionService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void seed(String companyName, String adminUsername, String adminRawPassword, String adminName) {
@@ -53,12 +55,10 @@ public class TenantSeeder {
                             .code(p.code()).name(p.name()).category(p.category()).sort(p.sort())
                             .build()));
         }
-        // USER_MANAGE 제외 전체를 MANAGER·STAFF 에 부여(본사와 동일 규칙). ADMIN 은 바이패스.
-        List<Permission> defaults = permissionRepository.findAll().stream()
-                .filter(p -> !"USER_MANAGE".equals(p.getCode()))
-                .toList();
-        grantAll(manager, defaults);
-        grantAll(staff, defaults);
+        // 사용자관리 제외 전체를 MANAGER·STAFF 권한그룹에(본사와 동일 규칙). ADMIN 은 마스터라 줄이 필요 없다.
+        permissionRepository.flush();
+        workPermissionService.grantAllIfEmpty(manager);
+        workPermissionService.grantAllIfEmpty(staff);
 
         if (!userRepository.existsByUsername(adminUsername)) {
             userRepository.save(User.builder()
@@ -135,10 +135,5 @@ public class TenantSeeder {
         return roleRepository.findByName(name)
                 .orElseGet(() -> roleRepository.save(Role.builder()
                         .name(name).displayName(displayName).description(description).build()));
-    }
-
-    private void grantAll(Role role, List<Permission> perms) {
-        role.setPermissions(new HashSet<>(perms));
-        roleRepository.save(role);
     }
 }

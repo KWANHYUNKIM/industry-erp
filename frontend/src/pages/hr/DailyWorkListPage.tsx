@@ -10,6 +10,7 @@ import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
 import DailyWorkHistoryView from '../../features/dailypay/components/DailyWorkHistoryView'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Line { id: number; lineNo: number; workDate: string; workerId: number; workerCode: string; workerName: string; payItem: string; quantity: number }
 interface Row extends Line { slipDate: string; slipNo: number }
@@ -119,16 +120,12 @@ export default function DailyWorkListPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: range.from, onChange: (e) => setRange({ ...range, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", value: range.to, onChange: (e) => setRange({ ...range, to: e.target.value }) }} />
         </EcCond>
         <EcCond label="근무일자">
           {useWorkDate && (
             <>
-              <input type="date" className="ec-input w-[150px]" aria-label="근무일자 시작" value={workRange.from} onChange={(e) => setWorkRange({ ...workRange, from: e.target.value })} />
-              ~
-              <input type="date" className="ec-input w-[150px]" aria-label="근무일자 끝" value={workRange.to} onChange={(e) => setWorkRange({ ...workRange, to: e.target.value })} />
+              <EcDateRange from={{ className: "ec-input w-[150px]", 'aria-label': "근무일자 시작", value: workRange.from, onChange: (e) => setWorkRange({ ...workRange, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", 'aria-label': "근무일자 끝", value: workRange.to, onChange: (e) => setWorkRange({ ...workRange, to: e.target.value }) }} />
             </>
           )}
           <label className="inline-flex items-center gap-[4px] ml-[6px]">

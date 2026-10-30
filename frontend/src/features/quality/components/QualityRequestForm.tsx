@@ -8,6 +8,7 @@ import { ymd } from '../../../components/EcPeriodPicks'
 import { useShortcut } from '../../../utils/useShortcut'
 import { ecConfirm } from '../../../components/EcDialog'
 import { DocPullButton, type PullKind, type PulledLine } from '../DocPull'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /**
  * 품질검사요청 입력 폼 — 원본 <b>품질검사요청입력</b>(E040628) 의 머리 · 줄 · 단추.
@@ -115,8 +116,7 @@ export default function QualityRequestForm({ editing, items, projects, active = 
       {formError && <p className="ec-alert ec-alert-danger mb-[8px]">{formError}</p>}
       <ul className="ec-form">
         <li><div className="title">일자-No.</div><div className="form">
-          <input type="date" className="ec-input w-[150px]" aria-label="일자" value={f.requestDate} disabled={!!editing}
-                 onChange={(e) => setF((x) => ({ ...x, requestDate: e.target.value }))} />
+          <EcDateInput className="ec-input w-[150px]" aria-label="일자" value={f.requestDate} disabled={!!editing} onChange={(e) => setF((x) => ({ ...x, requestDate: e.target.value }))} />
         </div></li>
         <li><div className="title">담당자</div><div className="form">
           <input className="ec-input w-full" placeholder="담당자" aria-label="담당자" value={f.requester}

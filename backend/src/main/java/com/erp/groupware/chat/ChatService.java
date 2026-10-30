@@ -229,6 +229,27 @@ public class ChatService {
         return ChatMessageResponse.from(m);
     }
 
+    /**
+     * 서버가 보내는 알림 메시지(권한요청 · 권한승인 결과) — from 과 to 의 1:1 방에 from 이름으로 [보기] 단추({@code linkTo})와 함께 남긴다.
+     * 원본: 권한요청은 마스터에게 메신저로 가고 [보기] 로 내역을 연다(영상 1998 · 2000 · 1514).
+     */
+    @Transactional
+    public void notify(User from, User to, String content, String linkTo) {
+        if (from.getId().equals(to.getId())) return;
+        String key = ChatRoom.directKeyOf(from.getId(), to.getId());
+        ChatRoom room = roomRepository.findByDirectKey(key).orElseGet(() -> {
+            ChatRoom r = roomRepository.saveAndFlush(ChatRoom.builder().direct(true).directKey(key).createdBy(from).build());
+            join(r, from);
+            join(r, to);
+            return r;
+        });
+        LocalDateTime now = LocalDateTime.now();
+        messageRepository.save(ChatMessage.builder()
+                .room(room).sender(from).content(content).linkTo(linkTo).sentAt(now).build());
+        room.setLastMessageAt(now);
+        memberRepository.findByRoomIdAndUserId(room.getId(), from.getId()).ifPresent(m -> m.setLastReadAt(now));
+    }
+
     /** 여기까지 읽음. */
     @Transactional
     public ChatRoomResponse markRead(Long roomId, String username) {

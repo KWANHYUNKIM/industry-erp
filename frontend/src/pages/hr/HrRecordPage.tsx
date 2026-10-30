@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Assignment, AssignmentType, Department, EmployeeMaster } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 
@@ -232,7 +233,7 @@ function AssignmentForm({ employee, departments, onClose, onSaved }: {
               </tr>
               <tr>
                 <th className="bg-ec-page">발령일</th>
-                <td><input type="date" className="ec-input" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><EcDateInput className="ec-input" value={assignDate} onChange={(e) => setAssignDate(e.target.value)} /></td>
               </tr>
               <tr>
                 <th className="bg-ec-page">부서</th>

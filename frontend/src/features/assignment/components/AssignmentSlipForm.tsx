@@ -10,6 +10,7 @@ import GridFindButton from '../../../components/GridFindButton'
 import { ecConfirm } from '../../../components/EcDialog'
 import { EcHistoryModal } from '../../../components/EcHistory'
 import type { CodeColumn } from '../../../components/CodeSearchModal'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /** 사번 🔍 — 원본은 '사원검색' 창, 열 사원번호 · 성명 · 부서명(2026-10-14 실측) */
 const EMPLOYEE_COLUMNS: CodeColumn[] = [
@@ -191,7 +192,7 @@ export default function AssignmentSlipForm({
           <span className="title">일자</span>
           <div className="form">
             {editing ? <span>{slipDate.replace(/-/g, '/')} -{editNo}</span>
-              : <input type="date" className="ec-input w-[150px]" value={slipDate} onChange={(e) => setSlipDate(e.target.value)} />}
+              : <EcDateInput className="ec-input w-[150px]" value={slipDate} onChange={(e) => setSlipDate(e.target.value)} />}
           </div>
         </li>
       </ul>
@@ -226,7 +227,7 @@ export default function AssignmentSlipForm({
                     <input type="checkbox" aria-label={`${i + 1}줄 선택`} checked={checked.has(i)}
                            onChange={() => { const n = new Set(checked); if (n.has(i)) n.delete(i); else n.add(i); setChecked(n) }} /> {i + 1}
                   </td>
-                  <td><input type="date" className="ec-input w-full" value={r.assignDate} onChange={(e) => edit(i, { assignDate: e.target.value })} /></td>
+                  <td><EcDateInput className="ec-input w-full" value={r.assignDate} onChange={(e) => edit(i, { assignDate: e.target.value })} /></td>
                   <td>
                     <CodePickerField label="사번" hideLabel fill placeholder="사번" emptyLabel="선택 해제"
                                      popupTitle="사원검색" columns={EMPLOYEE_COLUMNS} employeeSearch

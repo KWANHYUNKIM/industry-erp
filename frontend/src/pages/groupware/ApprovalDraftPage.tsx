@@ -5,22 +5,43 @@ import ApprovalFormFields from '../../features/approval/components/ApprovalFormF
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
-import { exportTableToXlsx } from '../../utils/excel'
-import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
-import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../types/api'
+import type { ApprovalDoc, ApprovalFormTemplate, ApprovalOutput, ApprovalPreset, MemberOption } from '../../types/api'
+import { OutputChips, OutputLinkMenu, OutputMenuWindow, OutputReportWindow, OutputViewWindow, type OutputWindowState } from '../../features/approval/components/ApprovalOutputs'
 import { ymd } from '../../components/EcPeriodPicks'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
 import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
 import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
+import { shrinkImage } from '../../utils/imageResize'
+import RichBodyEditor from '../../features/approval/components/RichBodyEditor'
+import { APPROVAL_DOCS, approvalDocOf, bodyHtmlOf, formFieldsOf, looksLikeHtml, sanitizeHtml } from '../../features/approval/bodyTemplate'
+import LeaveInputPage from '../hr/LeaveInputPage'
+
+import EcDateField from '../../components/EcDateField'
+import { MenuButton } from '../../components/EcSlipShell'
+import EcIcon from '../../components/ui/EcIcon'
+import StampSignModal from '../../features/approval/components/StampSignModal'
+import { useAuth } from '../../features/auth/AuthContext'
 
 const TITLE = '기안서작성'
-// 글꼴 select 표시명 → 실제 CSS font-family 매핑
-const FONT_FAMILY: Record<string, string> = {
-  돋움: 'Dotum, 돋움, sans-serif',
-  '맑은 고딕': '"Malgun Gothic", 맑은 고딕, sans-serif',
+/** 원본 [출력양식] 고를 거리 — 처음 값은 '기본양식(결재문서 별도 인쇄)'(2026-10-30 실측). */
+const PRINT_FORMATS = ['기본양식(결재문서 별도 인쇄)', '기본양식(결재문서 함께 인쇄)']
+
+/** 예전 기안서의 맨 글자 본문을 편집기 HTML 로(줄바꿈 → <br>). */
+function toEditorHtml(s: string | null | undefined): string {
+  if (!s) return ''
+  if (looksLikeHtml(s)) return s
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+}
+
+/** 편집기 본문 → 저장할 글. 글자 · 표 · 그림이 하나도 없으면 빈 글. */
+function bodyForSave(html: string): string {
+  if (!looksLikeHtml(html)) return html
+  const clean = sanitizeHtml(html)
+  const empty = !/<(table|img|hr)\b/i.test(clean) && clean.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() === ''
+  return empty ? '' : clean
 }
 
 const today = () => ymd(new Date())
@@ -28,7 +49,7 @@ const today = () => ymd(new Date())
 /** 양식의 table 필드는 기본행(defaultRows)을 깔아준다. 예: 여비산정의 숙박비/교통비/… */
 function initialFormData(t: ApprovalFormTemplate): Record<string, unknown> {
   const data: Record<string, unknown> = {}
-  for (const f of t.fieldSchema) {
+  for (const f of formFieldsOf(t.fieldSchema)) {
     if (f.type === 'table') data[f.key] = f.defaultRows ? f.defaultRows.map((r) => ({ ...r })) : []
   }
   return data
@@ -47,7 +68,27 @@ export default function ApprovalDraftPage() {
   /** 원본 [구분] 코드도움의 후보 — '구분검색'(01 지출결의서 · 02 휴가신청서 …). */
   const [groups, setGroups] = useState<ApprovalGroup[]>([])
   const [selected, setSelected] = useState<ApprovalFormTemplate | null>(null)
-  const sort = useTableSort(templates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
+  /** 원본: 결재문서가 '근태관리' 인 양식(휴가신청서)을 열면 [근태입력] 창이 같이 뜬다(2026-10-30 실측). */
+  const [attendanceOpen, setAttendanceOpen] = useState(false)
+  /*
+   * 원본 [Search(F3)] 조건 판(2026-10-30 E070103 클릭 대조): 양식명 · 정렬순서 · 구분 · 결재전표 + [검색(F8)] [다시 작성].
+   * 검색칸이 빈 채로 [Search(F3)] 를 누르면 판이 펴진다(다른 목록과 같다). 조건은 고르는 즉시 걸린다.
+   */
+  const [condOpen, setCondOpen] = useState(false)
+  const { user, companyCode } = useAuth()
+  const [stampOpen, setStampOpen] = useState(false)
+  const [condName, setCondName] = useState('')
+  const [condOrder, setCondOrder] = useState('')
+  const [condGroup, setCondGroup] = useState('')
+  const [condDoc, setCondDoc] = useState('')
+  const resetConds = () => { setCondName(''); setCondOrder(''); setCondGroup(''); setCondDoc('') }
+  const condTemplates = templates.filter((t) =>
+    (!condName || t.name.includes(condName.trim()))
+    && (!condOrder.trim() || String(t.sortOrder) === condOrder.trim())
+    && (!condGroup || (t.groupName ?? '') === condGroup)
+    && (!condDoc || (approvalDocOf(t.fieldSchema) || '기안서') === condDoc))
+  const groupNames = [...new Set(templates.map((t) => t.groupName).filter(Boolean))].sort() as string[]
+  const sort = useTableSort(condTemplates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name, 구분: (t) => t.groupName ?? '' })
 
   const [draftDate, setDraftDate] = useState(today())
   const [title, setTitle] = useState('')
@@ -67,10 +108,13 @@ export default function ApprovalDraftPage() {
   const [presetId, setPresetId] = useState('')
   // 원본 폼에 있는데 우리에게 없던 칸들. 기안서No.·결재문서는 백엔드에 이미 있었고 화면만 안 쓰고 있었다.
   const [category, setCategory] = useState('')
-  const [printFormat, setPrintFormat] = useState('기안No.')
+  const [printFormat, setPrintFormat] = useState(PRINT_FORMATS[0])
   const [labelText, setLabelText] = useState('')
   const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
+  /** [결재문서] › '전표 출력물' — 붙인 출력물(칩)과 지금 떠 있는 출력물 창. */
+  const [outputs, setOutputs] = useState<ApprovalOutput[]>(() => editOf?.outputs ?? [])
+  const [outputWin, setOutputWin] = useState<OutputWindowState>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -79,12 +123,6 @@ export default function ApprovalDraftPage() {
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
-
-  const [fontFamily, setFontFamily] = useState('돋움')
-  const [fontSize, setFontSize] = useState('10')
-  const [bold, setBold] = useState(false)
-  const [italic, setItalic] = useState(false)
-  const [underline, setUnderline] = useState(false)
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -107,20 +145,9 @@ export default function ApprovalDraftPage() {
   }
 
   // 버튼 라벨이 약속한 단축키들. 저장/결재는 처리 중이면 안 먹는다.
-  useShortcut('F3', () => filterRows(search))
-  useShortcut('F7', () => void save(false), !saving)
-
-  async function doExcel() {
-    const table = findDataTable(bodyRef.current)
-    if (!table) return flash('이 화면에는 내보낼 표가 없습니다.')
-    if (!(await exportTableToXlsx(table, TITLE))) flash('내보낼 자료가 없습니다.')
-  }
-
-  function doPrint() {
-    const table = findDataTable(bodyRef.current)
-    if (!table) return flash('이 화면에는 인쇄할 표가 없습니다.')
-    if (!printTable(table, TITLE)) flash('인쇄할 자료가 없습니다.')
-  }
+  const searchF3 = () => (search.trim() ? filterRows(search) : setCondOpen((v) => !v))
+  useShortcut('F3', searchF3)
+  useShortcut('F7', () => void save(false), !saving && !attendanceOpen && !outputWin)
 
   useEffect(() => {
     api.get<MemberOption[]>('/meta/users').then((r) => setMembers(r.data)).catch(() => {})
@@ -142,9 +169,9 @@ export default function ApprovalDraftPage() {
           setTitle(editOf.title)
           setDraftDate(editOf.draftDate)
           setDepartment(editOf.department ?? '')
-          setBody(editOf.content ?? '')
+          setBody(toEditorHtml(editOf.content))
           setFormData({ ...initialFormData(e), ...(editOf.formData ?? {}) })
-          setPrintFormat(extra.printFormat ?? '기안No.')
+          setPrintFormat(extra.printFormat ?? PRINT_FORMATS[0])
           setLabelText(editOf.labelText ?? '')
           setAttachment(editOf.attachmentId ? { id: editOf.attachmentId, name: editOf.attachmentName ?? '' } : null)
           setApproverIds([...editOf.lines].sort((a, b) => a.stepOrder - b.stepOrder).map((l) => l.approverId))
@@ -160,7 +187,7 @@ export default function ApprovalDraftPage() {
         setCategory((copyFrom as { category?: string | null }).category ?? t.groupName ?? '')
         setTitle(`${copyFrom.title} (복사)`)
         setDepartment(copyFrom.department ?? '')
-        setBody(copyFrom.content ?? '')
+        setBody(toEditorHtml(copyFrom.content))
         setFormData({ ...initialFormData(t), ...(copyFrom.formData ?? {}) })
         flash(`'${copyFrom.title}' 을(를) 복사했습니다. 결재선을 다시 지정하세요.`)
       })
@@ -175,7 +202,11 @@ export default function ApprovalDraftPage() {
     // 원본: 양식의 기본값설정 › 구분(휴가신청서 → 02 휴가신청서)으로 [구분] 칸이 열린다.
     setCategory(t.groupName ?? '')
     setFormData(initialFormData(t))
+    setOutputs([])
+    // 공통양식 [기안내용] 서식(표)이 있으면 본문이 그 서식으로 열린다 — 원본은 양식이 본문 안의 표다.
+    setBody(bodyHtmlOf(t.fieldSchema))
     setError('')
+    setAttendanceOpen(approvalDocOf(t.fieldSchema) === '근태관리')
   }
 
   const memberName = (id: number) => members.find((m) => m.id === id)?.name ?? `#${id}`
@@ -196,7 +227,7 @@ export default function ApprovalDraftPage() {
   /** 필수 항목 검사. 서버도 막지만, 왕복 전에 알려준다. */
   const missing = useMemo(() => {
     if (!selected) return []
-    return selected.fieldSchema
+    return formFieldsOf(selected.fieldSchema)
       .filter((f) => f.required)
       .filter((f) => {
         const v = formData[f.key]
@@ -212,7 +243,7 @@ export default function ApprovalDraftPage() {
     setError('')
     try {
       const form = new FormData()
-      form.append('file', file)
+      form.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', form)
       setAttachment({ id: r.data.id, name: r.data.name })
     } catch (err) {
@@ -246,7 +277,7 @@ export default function ApprovalDraftPage() {
       const body0 = {
         formTemplateId: selected!.id,
         title,
-        content: body,
+        content: bodyForSave(body),
         formData,
         draftDate,
         department: department || undefined,
@@ -257,6 +288,7 @@ export default function ApprovalDraftPage() {
         approverIds,
         referenceUserIds: referenceIds,
         shareUserIds: shareIds,
+        outputs: outputs.map(({ menuName, appliedAt, mode, html, conditions }) => ({ menuName, appliedAt, mode, html, conditions })),
         temporary,
       }
       const res = editOf
@@ -284,6 +316,9 @@ export default function ApprovalDraftPage() {
       </div>
     )
 
+  /** 양식에 [기안내용] 서식(표)이 있나 — 있으면 그 표 자체가 문서라 칸 표를 따로 그리지 않는다. */
+  const hasBodyForm = !!selected && bodyHtmlOf(selected.fieldSchema) !== ''
+
   const memberItems = useMemo(
     () => members.map((m) => ({ value: String(m.id), code: m.department ?? '', name: m.name, sub: m.department })),
     [members],
@@ -300,7 +335,7 @@ export default function ApprovalDraftPage() {
     placeholder: string,
   ) => (
     <CodePickerField
-      label={placeholder} hideLabel multiple placeholder={placeholder} width={260}
+      label={placeholder} hideLabel multiple fill placeholder={placeholder}
       values={ids.map(String)}
       onChangeMulti={(vals) => setIds(() => vals.map(Number))}
       items={memberItems}
@@ -310,7 +345,7 @@ export default function ApprovalDraftPage() {
   return (
     <div className="flex flex-col min-h-[100%]">
       <div className="flex items-center mb-[8px]">
-        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-ec-star mr-[4px]"><EcIcon name="star-outline" size={13} glyph="☆" /></span>
         <span className="text-[15px] font-extrabold text-ec-text">{TITLE}</span>
         <div className="ml-auto flex items-center gap-[4px] relative">
           <input
@@ -321,26 +356,40 @@ export default function ApprovalDraftPage() {
             onKeyDown={(e) => { if (e.key === 'Enter') filterRows(search) }}
             style={{ width: 140 }}
           />
-          <button className="ec-btn ec-btn-primary" onClick={() => filterRows(search)}>Search(F3)</button>
+          <button className="ec-btn ec-btn-primary" onClick={searchF3}>Search(F3)</button>
           <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
           <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
 
+          {/* 원본 [Option] 은 [리스트설정] 하나(2026-10-30 E070103 클릭 대조) — 목록 열 디자이너는 두지 않아 안내만 한다. */}
           {optionOpen && (
             <>
-              <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
-                {[
-                  { label: 'Excel 내려받기', run: () => { void doExcel() } },
-                  { label: '인쇄', run: () => doPrint() },
-                  { label: '검색조건 초기화', run: () => { setSearch(''); filterRows('') } },
-                ].map((m) => (
-                  <button key={m.label} onClick={() => { setOptionOpen(false); m.run() }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', fontSize: 12, background: 'none', border: 0, cursor: 'pointer' }}>{m.label}</button>
-                ))}
+              <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
+              <div className="ec-menu" role="menu">
+                <button type="button" onClick={() => { setOptionOpen(false); void ecAlert('리스트설정은 지원하지 않습니다.') }}>리스트설정</button>
               </div>
             </>
           )}
         </div>
       </div>
+
+      {condOpen && (
+        <div className="ec-search-conds flex items-center flex-wrap gap-[4px] mb-[6px]">
+          <label className="text-[12.5px] text-ec-label">양식명</label>
+          <input className="ec-input w-[160px]" aria-label="양식명" value={condName} onChange={(e) => setCondName(e.target.value)} />
+          <label className="text-[12.5px] text-ec-label ml-[8px]">정렬순서</label>
+          <input className="ec-input w-[70px] text-right" aria-label="정렬순서" inputMode="numeric" value={condOrder} onChange={(e) => setCondOrder(e.target.value.replace(/\D/g, ''))} />
+          <label className="text-[12.5px] text-ec-label ml-[8px]">구분</label>
+          <CodePickerField label="구분" hideLabel width={150} emptyLabel="전체" value={condGroup} onChange={setCondGroup}
+                           items={groupNames.map((g) => ({ value: g, name: g }))} />
+          <label className="text-[12.5px] text-ec-label ml-[8px]">결재전표</label>
+          <CodePickerField label="결재전표" hideLabel width={130} emptyLabel="전체" value={condDoc} onChange={setCondDoc}
+                           items={['기안서', ...APPROVAL_DOCS].map((d) => ({ value: d, name: d }))} />
+          <div className="basis-full flex items-center gap-[4px] mt-[4px]">
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-sm" onClick={() => setCondOpen(false)}>검색(F8)</button>
+            <button type="button" className="ec-btn ec-btn-sm" onClick={resetConds}>다시 작성</button>
+          </div>
+        </div>
+      )}
 
       {error && !selected && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
@@ -362,7 +411,7 @@ export default function ApprovalDraftPage() {
               <th className="w-[90px] text-center cursor-pointer text-ec-navy" onClick={() => sort.toggle('정렬순서')}>정렬순서 {sort.mark('정렬순서')}</th>
               <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('양식명')}>양식명 {sort.mark('양식명')}</th>
               {/* 원본은 [구분] 200 · [결재문서] 150 이다. */}
-              <th className="w-[200px] cursor-pointer text-ec-navy">구분 ▼</th>
+              <th className="w-[200px] cursor-pointer text-ec-navy" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
               <th className="w-[150px]">결재문서</th>
             </tr>
           </thead>
@@ -381,7 +430,7 @@ export default function ApprovalDraftPage() {
                 <td className="text-center">{t.sortOrder}</td>
                 <td className="text-ec-navy">{t.name}</td>
                 <td>{t.groupName ?? ''}</td>
-                <td />
+                <td>{approvalDocOf(t.fieldSchema)}</td>
               </tr>
             ))}
           </tbody>
@@ -392,7 +441,7 @@ export default function ApprovalDraftPage() {
       <Modal
         open={!!selected}
         title={TITLE}
-        width={1180}
+        width={1440}
         onClose={() => setSelected(null)}
       >
         {selected && (
@@ -404,32 +453,29 @@ export default function ApprovalDraftPage() {
                 </span>
               </div>
 
-              <table className="w-full text-left mb-[12px]">
-                <tbody>
-                  <tr>
-                    <th className="w-[130px] bg-ec-page">일자</th>
-                    <td><input className="ec-input" type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} style={{ width: 150 }} /></td>
-                  </tr>
-                  <tr>
-                    <th className="bg-ec-page">제목<span className="text-ec-danger ml-[2px]">*</span></th>
-                    <td><input className="ec-input" placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} /></td>
-                  </tr>
-                  <tr>
-                    <th className="bg-ec-page">부서</th>
-                    <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="예: 부설연구소" style={{ width: 240 }} /></td>
-                  </tr>
-                  {/*
-                    원본은 결재라인·결재자·참조자·공유자를 [결재라인] 라벨 하나 아래 4줄로 묶는다.
-                    우리는 넷을 각각 별도 행으로 두어 같은 라벨이 네 번 나왔다.
-                  */}
-                  <tr>
-                    <th className="bg-ec-page">결재라인</th>
-                    <td>
-                      <div className="grid gap-[4px]">
-                        <div className="flex items-center gap-[8px] flex-wrap">
-                          <span className="ec-line-tag">결재라인</span>
+              {/*
+                머리 — 원본(2026-10-30 실측, 10-기안서작성-창.jpg): 흰 판에 이름표 + 칸. 일자는 YYYY ▾ / MM ▾ / DD 📅,
+                결재라인 이름표 하나 아래 [결재라인 · 결재자 · 참조자 · 공유자] 네 줄, [구분] 과 [출력양식] 이 한 줄.
+                우리는 회색 이름표 격자에 부서 · 기안서No. 줄이 더 있었다(원본에 없음 — 부서는 고쳐 열 때 그대로 넘긴다).
+              */}
+              <ul className="ec-form mb-[8px]">
+                <li className="wide">
+                  <div className="title">일자</div>
+                  <div className="form"><EcDateField value={draftDate} onChange={setDraftDate} /></div>
+                </li>
+                <li className="wide">
+                  <div className="title">제목<span className="req">*</span></div>
+                  <div className="form"><input className="ec-input w-full" placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+                </li>
+                <li className="wide">
+                  <div className="title">결재라인</div>
+                  <div className="form">
+                    <div className="grid gap-[3px] w-full">
+                      <div className="flex items-center gap-[6px]">
+                        <span className="ec-line-tag">결재라인</span>
+                        <div className="flex-1 min-w-0">
                           <CodePickerField
-                            label="결재라인" hideLabel placeholder="결재라인 선택" emptyLabel="선택 해제" width={260}
+                            label="결재라인" hideLabel fill placeholder="결재라인" emptyLabel="선택 해제"
                             value={presetId}
                             onChange={(v) => applyPreset(v)}
                             items={presets.map((p) => ({
@@ -439,70 +485,59 @@ export default function ApprovalDraftPage() {
                               sub: p.steps.map((st) => st.approverName).join(' → '),
                             }))}
                           />
-                          <span className="text-[11.5px] text-ec-hint">
-                            {presets.length === 0
-                              ? '저장된 결재선이 없습니다. [공통양식·결재선 설정]에서 만들 수 있습니다.'
-                              : '고르면 아래 결재자가 그 순서대로 채워집니다.'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-[8px] flex-wrap">
-                          <span className="ec-line-tag">결재자</span>
-                          {picker(approverIds, setApproverIds, '결재자 선택')}
-                          <span className="text-[11.5px] text-ec-hint">선택 순서대로 결재 진행</span>
-                          {chips(approverIds, setApproverIds, true)}
-                        </div>
-                        <div className="flex items-center gap-[8px] flex-wrap">
-                          <span className="ec-line-tag">참조자</span>
-                          {picker(referenceIds, setReferenceIds, '참조자 선택')}
-                          {chips(referenceIds, setReferenceIds, false)}
-                        </div>
-                        <div className="flex items-center gap-[8px] flex-wrap">
-                          <span className="ec-line-tag">공유자</span>
-                          {picker(shareIds, setShareIds, '공유자 선택')}
-                          {chips(shareIds, setShareIds, false)}
                         </div>
                       </div>
-                    </td>
-                  </tr>
-                  {/* 원본은 [구분]과 [출력양식]이 한 줄에 좌우로 놓인다. */}
-                  <tr>
-                    <th className="bg-ec-page">구분</th>
-                    <td>
-                      <div className="flex items-center gap-[24px] flex-wrap">
-                        {/* 원본 [구분] 코드도움 — '구분검색' 창(그룹코드 · 그룹명, [신규(F2)][수정])에서 고른다. 양식의 기본 구분으로 열린다. */}
-                        <ApprovalGroupField
-                          value={category ? { code: groups.find((g) => g.name === category)?.code, name: category } : null}
-                          onChange={(g) => { setCategory(g?.name ?? ''); if (g && !groups.some((x) => x.id === g.id)) setGroups([...groups, g]) }} />
-                        <span className="flex items-center gap-[8px]">
-                          <span className="text-ec-label text-[12px]">출력양식</span>
-                          <select className="ec-input" value={printFormat} onChange={(e) => setPrintFormat(e.target.value)} style={{ width: 200 }}>
-                            <option>기안No.</option>
-                            <option>기안서No.</option>
-                          </select>
-                        </span>
+                      <div className="flex items-center gap-[6px] flex-wrap">
+                        <span className="ec-line-tag">결재자</span>
+                        <div className="flex-1 min-w-0">{picker(approverIds, setApproverIds, '결재자 선택')}</div>
+                        {chips(approverIds, setApproverIds, true)}
                       </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th className="bg-ec-page">기안서No.</th>
-                    <td>
-                      <input className="ec-input" value="" readOnly placeholder="(저장 시 자동채번)"
-                             style={{ width: '100%', background: '#f7f8f9', color: 'var(--ec-text-hint)' }} />
-                    </td>
-                  </tr>
-                  <tr>
-                    <th className="bg-ec-page">결재문서</th>
-                    <td className="text-[12px] text-ec-hint">
-                      전표 · 출력물 —{' '}
-                      <span style={{ color: '#62677e' }}>
-                        저장한 뒤 [내결재관리]에서 판매·구매·비용 전표를 연결합니다.
-                      </span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th className="bg-ec-page">첨부</th>
-                    <td>
-                      {/* 원본 기안서작성의 [여기에 파일 놓기]. 한 건만 붙는 자리다. */}
+                      <div className="flex items-center gap-[6px] flex-wrap">
+                        <span className="ec-line-tag">참조자</span>
+                        <div className="flex-1 min-w-0">{picker(referenceIds, setReferenceIds, '참조자 선택')}</div>
+                        {chips(referenceIds, setReferenceIds, false)}
+                      </div>
+                      <div className="flex items-center gap-[6px] flex-wrap">
+                        <span className="ec-line-tag">공유자</span>
+                        <div className="flex-1 min-w-0">{picker(shareIds, setShareIds, '공유자 선택')}</div>
+                        {chips(shareIds, setShareIds, false)}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div className="title">구분</div>
+                  <div className="form">
+                    {/* 원본 [구분] 코드도움 — '구분검색' 창(그룹코드 · 그룹명, [신규(F2)][수정])에서 고른다. 양식의 기본 구분으로 열린다. */}
+                    <ApprovalGroupField
+                      value={category ? { code: groups.find((g) => g.name === category)?.code, name: category } : null}
+                      onChange={(g) => { setCategory(g?.name ?? ''); if (g && !groups.some((x) => x.id === g.id)) setGroups([...groups, g]) }} />
+                  </div>
+                </li>
+                <li>
+                  <div className="title">출력양식</div>
+                  <div className="form">
+                    <select className="ec-input w-full" aria-label="출력양식" value={printFormat} onChange={(e) => setPrintFormat(e.target.value)}>
+                      {[...PRINT_FORMATS, ...(PRINT_FORMATS.includes(printFormat) ? [] : [printFormat])].map((f) => <option key={f}>{f}</option>)}
+                    </select>
+                  </div>
+                </li>
+                <li className="wide">
+                  <div className="title">결재문서</div>
+                  <div className="form text-[12px]">
+                    {/* 원본(2026-10-30): 붙인 출력물 칩이 링크 위에 쌓이고, 링크는 그대로 남아 더 붙일 수 있다. */}
+                    <div>
+                      <OutputChips outputs={outputs} onOpen={(o) => setOutputWin({ kind: 'view', output: o })}
+                                   onRemove={(i) => setOutputs((a) => a.filter((_, j) => j !== i))} />
+                      <OutputLinkMenu onPick={(m) => setOutputWin({ kind: 'report', menuName: m })} onAll={() => setOutputWin({ kind: 'menu' })} />
+                    </div>
+                  </div>
+                </li>
+                <li className="wide">
+                  <div className="title">첨부</div>
+                  <div className="form">
+                    <div className="w-full">
+                      {/* 원본 기안서작성의 넓은 첨부 자리(+). 한 건만 붙는 자리다. */}
                       <EcFileDrop
                         disabled={uploading} busy={uploading}
                         onFiles={(fs) => { if (fs[0]) void uploadAttachment(fs[0]) }}
@@ -514,82 +549,33 @@ export default function ApprovalDraftPage() {
                           </span>
                         )}
                       </EcFileDrop>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th className="bg-ec-page">라벨</th>
-                    <td>
-                      <input className="ec-input" value={labelText} onChange={(e) => setLabelText(e.target.value)}
-                             placeholder="문서를 묶어 보는 꼬리표" style={{ width: 360 }} />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div className="title">라벨</div>
+                  <div className="form">
+                    <input className="ec-input w-full" aria-label="라벨" value={labelText} onChange={(e) => setLabelText(e.target.value)}
+                           placeholder="라벨" />
+                  </div>
+                </li>
+              </ul>
 
               {/*
-                원본 에디터 툴바는 한 줄을 [글꼴][서식][삽입][레이아웃] 그룹으로 나누고
-                각 그룹 아래에 회색(#868d93) 12px 라벨을 단다(실측). 우리는 라벨 없는 평평한 한 줄이었다.
-                지금 실제로 동작하는 것만 제자리에 둔다 — 눌러도 아무 일 없는 버튼을 늘리는 건
-                원본을 닮은 게 아니라 거짓말이다.
+                본문 — 원본은 머리 아래 편집 도구 모음 + 폭 700 본문 판이다. 양식이 본문 안의 표로 들어가고 그 아래 자유 서술이 이어진다.
+                칸이 있는 양식(예전 우리 양식)은 칸 표를 본문 위에 그대로 둔다.
               */}
-              <div className="ec-editor-bar">
-                <div className="ec-editor-group">
-                  <div className="row">
-                    <select className="ec-input" style={{ height: 24 }} value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}>
-                      <option>돋움</option><option>맑은 고딕</option>
-                    </select>
-                    <select className="ec-input" style={{ height: 24, width: 60 }} value={fontSize} onChange={(e) => setFontSize(e.target.value)}>
-                      <option>10</option><option>12</option><option>14</option>
-                    </select>
-                  </div>
-                  <div className="name">글꼴</div>
+              {(formFieldsOf(selected.fieldSchema).length > 0 || !hasBodyForm) && (
+                <div className="mb-[8px]">
+                  <ApprovalFormFields
+                    title={selected.name.split('').join(' ')}
+                    fields={formFieldsOf(selected.fieldSchema)}
+                    value={formData}
+                    onChange={setFormData}
+                  />
                 </div>
-                <div className="ec-editor-group">
-                  <div className="row">
-                    <span title="굵게" onClick={() => setBold((v) => !v)}
-                      style={{ fontWeight: 700, cursor: 'pointer', padding: '2px 7px', borderRadius: 3, fontSize: 12,
-                        background: bold ? 'var(--ec-blue-light)' : undefined, color: bold ? 'var(--ec-blue-dark)' : undefined }}>B</span>
-                    <span title="기울임" onClick={() => setItalic((v) => !v)}
-                      style={{ fontStyle: 'italic', cursor: 'pointer', padding: '2px 7px', borderRadius: 3, fontSize: 12,
-                        background: italic ? 'var(--ec-blue-light)' : undefined, color: italic ? 'var(--ec-blue-dark)' : undefined }}>I</span>
-                    <span title="밑줄" onClick={() => setUnderline((v) => !v)}
-                      style={{ textDecoration: 'underline', cursor: 'pointer', padding: '2px 7px', borderRadius: 3, fontSize: 12,
-                        background: underline ? 'var(--ec-blue-light)' : undefined, color: underline ? 'var(--ec-blue-dark)' : undefined }}>U</span>
-                  </div>
-                  <div className="name">서식</div>
-                </div>
-              </div>
-
-              {/*
-                본문. 원본은 **양식이 본문 안의 표**로 들어가고 그 아래 자유 서술이 이어진다.
-                우리는 양식 필드를 에디터 위에 따로 두고 본문은 자유 텍스트뿐이었다 — 모델이 달랐다.
-              */}
-              <div style={{
-                border: '1px solid var(--ec-border)', background: '#fff', padding: 14,
-                maxHeight: 420, overflow: 'auto',
-                fontFamily: FONT_FAMILY[fontFamily] ?? undefined,
-              }}>
-                <ApprovalFormFields
-                  title={selected.name.split('').join(' ')}
-                  fields={selected.fieldSchema}
-                  value={formData}
-                  onChange={setFormData}
-                />
-                <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  placeholder="본문(자유서식)을 입력하세요."
-                  style={{
-                    width: 621, maxWidth: '100%', marginTop: 10, minHeight: 90,
-                    border: '1px solid var(--ec-border)', padding: 8, resize: 'vertical', outline: 'none',
-                    fontFamily: 'inherit',
-                    fontSize: Number(fontSize) || 12,
-                    fontWeight: bold ? 700 : 400,
-                    fontStyle: italic ? 'italic' : 'normal',
-                    textDecoration: underline ? 'underline' : 'none',
-                  }}
-                />
-              </div>
+              )}
+              <RichBodyEditor label="본문" value={body} onChange={setBody} minHeight="min-h-[320px]" />
 
               {/*
                 작성창이 열려 있으면 오류도 창 안에 띄운다. 예전엔 창 뒤(목록 위)에만 떠서, 필수 항목을 빠뜨리고
@@ -599,7 +585,12 @@ export default function ApprovalDraftPage() {
 
               <div className="flex gap-[6px] mt-[12px] pt-[8px] border-t border-t-ec-line-soft border-solid items-center">
                 {/* 원본 푸터: 저장/결재(F7)▴ · 임시저장/미리보기 · 양식샘플보기 · My도장/서명 · 닫기 */}
-                <button className="ec-btn ec-btn-primary" onClick={() => void save(false)} disabled={saving}>{saving ? '처리 중…' : '저장/결재(F7)'}</button>
+                <MenuButton up className="ec-btn ec-btn-primary" disabled={saving} label={saving ? '처리 중…' : '저장/결재(F7)'}
+                            onMain={() => void save(false)}
+                            items={[
+                              { label: '저장/결재(F7)', onClick: () => void save(false) },
+                              { label: '임시저장', onClick: () => void save(true) },
+                            ]} />
                 <button className="ec-btn" onClick={() => void save(true)} disabled={saving}>임시저장/미리보기</button>
                 {/* 원본: 임시저장 문서를 다시 연 창에는 [삭제] 가 더 있다(2026-10-14 E070105 실측 — [H] 는 이력 표가 없어 두지 않음) */}
                 {editOf && <button className="ec-btn" onClick={() => void removeDraft()} disabled={saving}>삭제</button>}
@@ -607,18 +598,13 @@ export default function ApprovalDraftPage() {
                   className="ec-btn"
                   title="이 양식이 어떤 항목을 요구하는지 미리 봅니다."
                   onClick={() => setNotice(
-                    `${selected.name} — 입력항목: ${selected.fieldSchema.map((f) => f.label).join(' · ') || '없음'}`,
+                    `${selected.name} — 입력항목: ${formFieldsOf(selected.fieldSchema).map((f) => f.label).join(' · ') || '없음'}`,
                   )}
                 >
                   양식샘플보기
                 </button>
-                <button
-                  className="ec-btn"
-                  title="도장·서명 이미지는 아직 없습니다. 인쇄 결재란은 [인쇄용결재라인등록]에서 씁니다."
-                  disabled
-                >
-                  My도장/서명
-                </button>
+                {/* 원본 [My도장/서명] → '도장/서명올리기' 창(내결재관리 하단과 같은 창) */}
+                <button className="ec-btn" onClick={() => setStampOpen(true)}>My도장/서명</button>
                 <button className="ec-btn" onClick={() => setSelected(null)}>닫기</button>
                 {missing.length > 0 && (
                   <span className="text-[11.5px] text-ec-danger ml-[4px]">미입력 필수: {missing.join(', ')}</span>
@@ -626,6 +612,23 @@ export default function ApprovalDraftPage() {
               </div>
             </div>
         )}
+      </Modal>
+
+      {/* [결재문서] › '전표 출력물' 창들 — 작성 창 위에 겹쳐 뜬다. */}
+      {outputWin?.kind === 'report' && (
+        <OutputReportWindow menuName={outputWin.menuName} onClose={() => setOutputWin(null)}
+                            onApply={(o) => { setOutputs((a) => [...a, o]); setOutputWin(null) }} />
+      )}
+      {outputWin?.kind === 'menu' && (
+        <OutputMenuWindow onClose={() => setOutputWin(null)} onPick={(m) => setOutputWin({ kind: 'report', menuName: m })} />
+      )}
+      {outputWin?.kind === 'view' && <OutputViewWindow output={outputWin.output} onClose={() => setOutputWin(null)} />}
+
+      {stampOpen && user && <StampSignModal user={`${companyCode ?? ''}:${user.username}`}onClose={() => setStampOpen(false)} />}
+
+      {/* 결재문서 '근태관리' — 작성 창 위에 [근태입력] 창이 같이 뜬다(원본 캡처 12-휴가신청서-근태입력-같이뜸). */}
+      <Modal open={attendanceOpen} title="근태입력" width={1100} onClose={() => setAttendanceOpen(false)}>
+        {attendanceOpen && <LeaveInputPage onClose={() => setAttendanceOpen(false)} />}
       </Modal>
 
       {helpOpen && (

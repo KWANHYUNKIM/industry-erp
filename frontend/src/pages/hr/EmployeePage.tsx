@@ -19,6 +19,7 @@ import EmployeePayrollSettingPanel, {
 import { ecConfirm } from '../../components/EcDialog'
 import { ymd } from '../../utils/periods'
 import { useRequired } from '../../utils/useRequired'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const inputCls = 'ec-input w-full'
 
@@ -29,7 +30,7 @@ const JOB_POSITIONS: [string, string][] = [
 
 interface DeptRow { id: number; name: string; code?: string | null }
 
-type FormTab = '기본' | '급여지급사항' | '추가정보' | '기타설정'
+type FormTab = '기본' | '사원정보' | '급여지급사항' | '추가정보' | '기타설정'
 
 /**
  * 관리 &gt; 급여관리 &gt; 기본사항등록 &gt; <b>사원등록</b> (원본 E090101, 화면 제목 '사원리스트').
@@ -45,8 +46,8 @@ type FormTab = '기본' | '급여지급사항' | '추가정보' | '기타설정'
  *       전표 · 급여 · 근태가 물고 있는 사원은 서버가 막는다 — 그런 사원은 퇴사일을 넣어 퇴사자로 내린다.</li>
  * </ul>
  *
- * <p>원본 폼에 있으나 담을 자리가 없어 그리지 않은 것: 외국어성명 · 주민등록번호 · 세대주여부 · 입사구분 · 직책 ·
- * 여권번호 · 프로젝트 · UserPay비밀번호 · 급여통장 · 우편번호 · 사진 · 첨부, [사원정보] 탭(기본 탭과 같은 칸).
+ * <p>원본 폼에 있으나 아직 그리지 않은 것: UserPay비밀번호 · 사진 · 첨부 · 근무시간[설정] · [급여지급사항] 지급구분.
+ * [사원정보] 탭은 기본 탭과 같은 칸이다. 생년월일 · 여권번호는 인사카드 곁 자료(/employees/{id}/profile)에 저장한다(묶음 U, 2026-10-30).
  *
  * <p>[기타설정] 은 4대보험 계산 여부 · 국민연금 기준소득월액 · 공제대상가족 · 간이세액표 적용방법
  * (features/employee/components/EmployeePayrollSettingPanel). 저장하면 /pay-settings/employees/{id}/settings — 급여계산이 쓴다.
@@ -76,13 +77,15 @@ export default function EmployeePage() {
   const [paySetting, setPaySetting] = useState<PayrollSettingForm>(emptyPayrollSetting)
   /** 원본 '자동계산' 을 고르면 뜨는 알림 창 */
   const [notice, setNotice] = useState('')
+  /** 인사카드 곁 자료 — [생년월일] · [여권번호] 만 이 창에서 고치고 나머지는 그대로 돌려 보낸다 */
+  const profileRef = useRef<Record<string, unknown> | null>(null)
 
   const empty = {
     code: '', name: '', departmentId: '', jobTitle: '',
     // 오늘(이 컴퓨터 시각) — toISOString 은 UTC 라 새벽 0~9시에 어제가 들어갔다(2026-10-14 01:40 원본은 2026/10/14)
     hireDate: ymd(new Date()), resignDate: '', resignReason: '',
     phone: '', mobile: '', email: '', zipcode: '', address: '', remark: '',
-    foreignName1: '', foreignName2: '', household: '세대주',
+    foreignName1: '', foreignName2: '', household: '세대주', residentNo: '', birthDate: '', passportNo: '',
     payType: 'FIXED' as EmployeePayType, baseSalary: '',
     bankCode: '', bankName: '', accountNo: '', accountHolder: '', hireKind: '', duty: '', projectId: '',
   }
@@ -127,10 +130,15 @@ export default function EmployeePage() {
       phone: e.phone ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
       zipcode: e.zipcode ?? '', address: e.address ?? '', remark: e.remark ?? '',
       foreignName1: e.foreignName1 ?? '', foreignName2: e.foreignName2 ?? '', household: e.household ?? '세대주',
+      residentNo: e.residentNo ?? '', birthDate: '', passportNo: '',
       payType: e.payType, baseSalary: e.baseSalary == null ? '' : String(e.baseSalary),
       bankCode: e.bankCode ?? '', bankName: e.bankName ?? '', accountNo: e.accountNo ?? '', accountHolder: e.accountHolder ?? '',
     })
     setPayVals(new Map())
+    profileRef.current = null
+    api.get<Record<string, unknown>>(`/employees/${e.id}/profile`)
+      .then((r) => { profileRef.current = r.data; setForm((f) => ({ ...f, birthDate: String(r.data.birthDate ?? ''), passportNo: String(r.data.passportNo ?? '') })) })
+      .catch(() => undefined)
     api.get<{ payItemId: number; amount: number }[]>(`/pay-settings/employees/${e.id}/items`)
       .then((r) => setPayVals(new Map(r.data.map((x) => [x.payItemId, String(Number(x.amount))]))))
       .catch((err) => setFormError(extractErrorMessage(err)))
@@ -167,6 +175,7 @@ export default function EmployeePage() {
       resignReason: form.resignReason.trim() || null,
       zipcode: form.zipcode.trim(),
       foreignName1: form.foreignName1.trim(), foreignName2: form.foreignName2.trim(), household: form.household,
+      residentNo: form.residentNo.trim(),
       address: form.address.trim() || null,
       bankCode: form.bankCode.trim() || null,
       bankName: form.bankName.trim() || null,
@@ -192,6 +201,10 @@ export default function EmployeePage() {
       const cells = [...payVals.entries()].filter(([, v]) => v !== '').map(([payItemId, v]) => ({ payItemId, amount: Number(v) || 0 }))
       if (id) await api.put(`/pay-settings/employees/${id}/items`, cells)
       if (id) await api.put(`/pay-settings/employees/${id}/settings`, payrollSettingBody(paySetting))
+      const prof = profileRef.current ?? {}
+      if (id && (form.birthDate || form.passportNo.trim() || prof.birthDate || prof.passportNo)) {
+        await api.put(`/employees/${id}/profile`, { ...prof, birthDate: form.birthDate || null, passportNo: form.passportNo.trim() || null })
+      }
       setShowForm(false)
       load()
     } catch (err) {
@@ -344,13 +357,13 @@ export default function EmployeePage() {
         <form onSubmit={submit}>
           {/* 원본 폼 탭은 알약이다: 기본 · 사원정보 · 급여지급사항 · 추가정보 · 기타설정 (사원정보 · 기타설정은 위 주석) */}
           <div className="ec-pills mb-[8px]">
-            {(['기본', '급여지급사항', ...(editId ? ['추가정보'] : []), '기타설정'] as FormTab[]).map((t) => (
+            {(['기본', '사원정보', '급여지급사항', ...(editId ? ['추가정보'] : []), '기타설정'] as FormTab[]).map((t) => (
               <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
                       onClick={() => setTab(t)}>{t}</button>
             ))}
           </div>
 
-          {tab === '기본' && (
+          {(tab === '기본' || tab === '사원정보') && (
             <ul className="ec-form">
               <Field label="사원번호">
                 {editId
@@ -360,15 +373,17 @@ export default function EmployeePage() {
               <Field label="성명">
                 <input className={inputCls} value={form.name} onChange={set('name')} placeholder="성명" autoFocus />
               </Field>
-              {/* 원본 성명 아래 차례(2026-10-04 실측): 외국어성명2 · 외국어성명1 · 주민등록번호 · 세대주여부. 주민등록번호는 개인정보라 두지 않는다. */}
+              {/* 원본 성명 아래 차례(2026-10-04 실측): 외국어성명2 · 외국어성명1 · 주민등록번호 · 세대주여부.  */}
               <Field label="외국어성명2">
                 <input className={inputCls} value={form.foreignName2} onChange={set('foreignName2')} placeholder="외국어성명2" />
               </Field>
               <Field label="외국어성명1">
                 <input className={inputCls} value={form.foreignName1} onChange={set('foreignName1')} placeholder="외국어성명1" />
               </Field>
-              {/* 원본은 두 칸씩 짝을 맞춘다 — 주민등록번호(개인정보라 두지 않는다) 자리를 비워 [세대주여부]가 오른쪽에 온다 */}
-              <li className="mobile:hidden" aria-hidden />
+              {/* 원본 [주민등록번호] — 필수 아님(묶음 U 2026-10-29 실측) */}
+              <Field label="주민등록번호">
+                <input className={inputCls} value={form.residentNo} onChange={set('residentNo')} placeholder="주민등록번호" maxLength={20} />
+              </Field>
               <Field label="세대주여부">
                 <div className="flex flex-wrap gap-[10px]">
                   {['세대주', '세대원', '세대주의 배우자'].map((h) => (
@@ -378,8 +393,11 @@ export default function EmployeePage() {
                   ))}
                 </div>
               </Field>
+              <Field label="생년월일">
+                <EcDateInput className={inputCls} value={form.birthDate} onChange={set('birthDate')} />
+              </Field>
               <Field label="입사일자">
-                <input type="date" className={inputCls} value={form.hireDate} onChange={set('hireDate')} />
+                <EcDateInput className={inputCls} value={form.hireDate} onChange={set('hireDate')} />
               </Field>
               {/* 원본 [입사구분] 코드도움 — 100 신입 · 200 경력 */}
               <Field label="입사구분">
@@ -403,7 +421,7 @@ export default function EmployeePage() {
                                    ...(form.duty && !['팀원', '팀장'].includes(form.duty) ? [{ value: form.duty, name: form.duty }] : [])]} />
               </Field>
               <Field label="퇴사일자">
-                <input type="date" className={inputCls} value={form.resignDate} onChange={set('resignDate')} />
+                <EcDateInput className={inputCls} value={form.resignDate} onChange={set('resignDate')} />
               </Field>
               <Field label="퇴사사유">
                 <input className={inputCls} value={form.resignReason} onChange={set('resignReason')} placeholder="퇴사사유" />
@@ -414,8 +432,9 @@ export default function EmployeePage() {
               <Field label="모바일">
                 <input className={inputCls} value={form.mobile} onChange={set('mobile')} placeholder="모바일" />
               </Field>
-              {/* 여권번호(개인정보) 자리 — 비워 [Email]이 오른쪽 칸 */}
-              <li className="mobile:hidden" aria-hidden />
+              <Field label="여권번호">
+                <input className={inputCls} value={form.passportNo} onChange={set('passportNo')} placeholder="여권번호" maxLength={30} />
+              </Field>
               <Field label="Email">
                 <input className={inputCls} value={form.email} onChange={set('email')} placeholder="Email" />
               </Field>

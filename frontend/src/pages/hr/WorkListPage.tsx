@@ -10,6 +10,7 @@ import type { EmployeeMaster, PayItem } from '../../types/api'
 import WorkHistoryView from '../../features/workrecord/components/WorkHistoryView'
 import { ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface SlipLine { employeeId: number; payItemId: number }
 interface SlipRow { slipDate: string; slipNo: number; employeeLabel: string; payItemLabel: string; quantity: number; lines: SlipLine[] }
@@ -102,9 +103,7 @@ export default function WorkListPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: range.from, onChange: (e) => setRange({ ...range, from: e.target.value }) }} to={{ className: "ec-input w-[150px]", value: range.to, onChange: (e) => setRange({ ...range, to: e.target.value }) }} />
         </EcCond>
         <EcCond label="사원">
           <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={empCond} onChangeMulti={(v) => setEmpCond(v)}

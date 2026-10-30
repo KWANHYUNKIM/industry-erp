@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface CardUsage { id: number; usageDate: string; cardNo: string | null; merchant: string | null; supplyAmount: number; vatAmount: number; totalAmount: number }
 type Basis = '전체' | 'ERP' | '국세청' | '공제여부'
@@ -82,9 +83,7 @@ export default function BizCardComparePage() {
       {!usages && (
         <ul className="ec-cond mb-[8px]">
           <EcCond label="조회일자">
-            <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-            ~
-            <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           </EcCond>
           <EcCond label="카드번호">
             <input className="ec-input w-full" placeholder="카드번호" value={cardNo} onChange={(e) => setCardNo(e.target.value)} />

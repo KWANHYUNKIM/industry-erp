@@ -13,6 +13,7 @@ import DriveVersionModal, { DriveLinksModal } from '../../features/drive/compone
 import DriveDetailModal from '../../features/drive/components/DriveDetailModal'
 import { driveSize, driveStamp } from '../../features/drive/driveFormat'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
 
 const TREE = [
   { key: 'my', label: 'My Drive', icon: '📁', drive: 'MY' },
@@ -535,7 +536,7 @@ export default function EcDrivePage() {
                 {uploading ? '올리는 중…' : 'File'}
               </button>
               <button className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="File 펼치기" disabled={uploading || !inDrive}
-                      onClick={() => setFileMenu((v) => !v)}>▴</button>
+                      onClick={() => setFileMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
               {fileMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setFileMenu(false)} />

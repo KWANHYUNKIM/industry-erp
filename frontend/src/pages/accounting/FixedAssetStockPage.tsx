@@ -9,6 +9,7 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import { EcReportHead, reportDate, reportPeriod } from '../../components/EcReportFrame'
 import { useAuth } from '../../features/auth/AuthContext'
 import { dateNo } from '../../utils/dateNo'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 interface Asset {
   id: number; assetNo: string; name: string; assetAccountId: number; assetAccountName: string
@@ -119,9 +120,7 @@ export default function FixedAssetStockPage() {
           ))}
         </EcCond>
         <EcCond label="조회일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-1">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-1.5">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

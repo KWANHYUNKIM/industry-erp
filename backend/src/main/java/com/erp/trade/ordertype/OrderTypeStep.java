@@ -40,7 +40,32 @@ public class OrderTypeStep extends BaseTimeEntity {
     @Column(length = 50)
     private String charge;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "order_stage_id", nullable = false)
+    /**
+     * 옛 방식의 단계 — 진행단계 이름 마스터. 2026-10-30 부터 새 줄은 비운다(처리메뉴로 정한다).
+     * 처리메뉴가 없는 옛 줄만 이 이름으로 보인다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_stage_id")
     private OrderStage stage;
+
+    /**
+     * 원본 [처리메뉴] — 이 단계가 <b>어느 입력 화면</b>인가(구매 · 판매(거래명세서) · 주문서 …).
+     * 화면 경로를 글자로 든다(예: /sales/buy). 메뉴는 테이블이 아니라 참조할 곳이 없다.
+     */
+    @Column(name = "proc_menu", length = 200)
+    private String procMenu;
+
+    /** 처리메뉴의 원본 이름(구매 · 판매(거래명세서)). 목록 · 진행단계 화면이 이 이름을 찍는다. */
+    @Column(name = "proc_menu_name", length = 50)
+    private String procMenuName;
+
+    /** 원본 [불러오기 기준] — 같은 유형의 <b>앞 단계</b> 순번. 없으면 null. */
+    @Column(name = "source_seq")
+    private Integer sourceSeq;
+
+    /** 화면에 보일 단계 이름 — 처리메뉴 이름, 없으면(옛 줄) 진행단계 마스터 이름. */
+    public String displayName() {
+        if (procMenuName != null && !procMenuName.isBlank()) return procMenuName;
+        return stage != null ? stage.getName() : null;
+    }
 }

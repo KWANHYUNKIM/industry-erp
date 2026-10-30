@@ -9,6 +9,7 @@ import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPer
 import { dateText } from '../../utils/dateText'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 소계 · 누계줄 모양(2026-10-02 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -116,9 +117,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

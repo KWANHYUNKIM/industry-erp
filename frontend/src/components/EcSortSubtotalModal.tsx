@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Modal from './Modal'
 import { useShortcut } from '../utils/useShortcut'
 import EcSubtotalDetailModal from './EcSubtotalDetailModal'
+import EcIcon from './ui/EcIcon'
 
 /** 정렬/소계기준 한 줄 — key 가 '' 이면 '없음'. */
 export interface SortLine { key: string; desc: boolean; subtotal: boolean; /** 페이지분할 — 인쇄에서 그 기준이 바뀔 때 쪽을 넘긴다. */ pageBreak?: boolean }
@@ -174,7 +175,7 @@ export default function EcSortSubtotalModal({ keys, itemCols, pageSplit, totalLo
       <div className="flex gap-[6px] mt-[14px]">
         <span className="ec-btn-group relative">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => onApply(v)}>적용(F8)</button>
-          <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="적용 더보기" onClick={() => setMenu((m) => !m)}>▴</button>
+          <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="적용 더보기" onClick={() => setMenu((m) => !m)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
           {menu && (
             <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
               <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"

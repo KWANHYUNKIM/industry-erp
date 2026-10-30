@@ -16,10 +16,13 @@ import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/Slip
 import { useRequired } from '../../utils/useRequired'
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
+import EcDateInput from '../../components/ui/EcDateInput'
+import GridSortModal from '../../components/GridSortModal'
 
-type Line = { itemId: string; quantity: string; kind: string }
+/** reason = 줄 [새로운 항목 추가](줄 적요 — 원본 '다양한 내역을 입력해보세요'). */
+type Line = { itemId: string; quantity: string; kind: string; reason: string }
 type Grid = 'defect' | 'normal'
-const blank = (): Line => ({ itemId: '', quantity: '', kind: '' })
+const blank = (): Line => ({ itemId: '', quantity: '', kind: '', reason: '' })
 /** 원본 격자는 빈 줄 셋으로 뜬다. */
 const blankLines = () => [blank(), blank(), blank()]
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -53,7 +56,7 @@ const LABEL: Record<MoveKind, { name: string; list: string; warehouse: string; k
 /** 원본 불량처리입력 [처리방법] 후보 — 차례도 원본 그대로, 기본은 폐기. */
 const HANDLINGS = ['폐기', '품목대체', '정상사용'] as const
 
-export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF_USE' }: {
+export default function SelfUseInputPage({ adjustNo: openedNo, onDone: onDoneProp, onNav, kind = 'SELF_USE' }: {
   adjustNo?: string; onDone?: () => void; kind?: MoveKind
   /** 수정 창 [이전] · [다음] — 목록이 일자 차례로 한 장 앞 · 뒤 전표를 연다. */
   onNav?: (dir: -1 | 1) => void
@@ -61,6 +64,13 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   const navigate = useNavigate()
   /* [복사] — 원본은 같은 머리 · 줄을 든 채 입력 창이 된다(저장하면 새 번호). */
   const [copied, setCopied] = useState(false)
+  /*
+   * 원본 [저장(F8)▲] › [저장/내용유지] — 저장한 그 전표의 수정 화면으로 바뀐다(판매입력과 같은 메뉴, 2026-10-30 클릭 대조).
+   * 입력 화면에서 그렇게 바뀐 전표 번호를 들고, [닫기] 는 빈 입력 화면으로 돌아온다.
+   */
+  const [keptNo, setKeptNo] = useState<string | null>(null)
+  const adjustNo = openedNo ?? keptNo ?? undefined
+  const onDone = onDoneProp ?? (keptNo ? () => { setKeptNo(null); setSlip(null); reset(); setPartnerId(''); setHeaderNote('') } : undefined)
   const editing = !!adjustNo && !copied
   const L = LABEL[kind]
   const selfUse = kind === 'SELF_USE'
@@ -71,6 +81,8 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   const [employeeId, setEmployeeId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [projectId, setProjectId] = useState('')
+  /* 원본 자가사용입력 머리 [새로운 항목 추가] — 전표 비고(2026-10-30 클릭 대조: 수정 창에 저장한 글이 그대로 든다). */
+  const [headerNote, setHeaderNote] = useState('')
   const [lines, setLines] = useState<Line[]>(blankLines())
   /* 품목대체의 [정상품목] 격자 — 발견창고로 들어오는 품목. */
   const [normals, setNormals] = useState<Line[]>(blankLines())
@@ -89,6 +101,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
   const [slip, setSlip] = useState<StockAdjustmentSlip | null>(null)
   const [printSlip, setPrintSlip] = useState<StockAdjustmentSlip | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [sortOpen, setSortOpen] = useState(false)
 
   /* 공통코드 그룹(사용유형 · 불량유형) — [신규(F2)] 가 같은 그룹에 코드를 더한다(Self-Customizing 공통코드와 같은 API). */
   const [kindGroupId, setKindGroupId] = useState<number | null>(null)
@@ -125,7 +138,8 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
         setWarehouseId(String(s.warehouseId))
         setProjectId(s.projectId != null ? String(s.projectId) : '')
         if (s.handling) setHandling(s.handling)
-        const toLine = (l: StockAdjustmentSlip['lines'][number]) => ({ itemId: String(l.itemId), quantity: String(Math.abs(Number(l.quantityChange))), kind: l.kind ?? '' })
+        setHeaderNote(s.headerNote ?? '')
+        const toLine = (l: StockAdjustmentSlip['lines'][number]) => ({ itemId: String(l.itemId), quantity: String(Math.abs(Number(l.quantityChange))), kind: l.kind ?? '', reason: l.reason ?? '' })
         setLines([...s.lines.filter((l) => !l.normal).map(toLine), blank()])
         /* 정상사용의 정상품목 줄은 서버가 불량 줄을 따라 붙인 것이라 격자로 펴지 않는다. */
         if (s.handling === '품목대체') setNormals([...s.lines.filter((l) => l.normal).map(toLine), blank()])
@@ -161,7 +175,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
     req.reset()
   }
 
-  async function save(andPrint = false) {
+  async function save(andPrint = false, keep = false) {
     setError(''); setNotice('')
     const filled = lines.filter((l) => l.itemId || l.quantity)
     const filledNormal = substitute ? normals.filter((l) => l.itemId || l.quantity) : []
@@ -174,12 +188,13 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
       type: kind, date,
       partnerId: selfUse && partnerId ? Number(partnerId) : null,
       handling: selfUse ? null : handling,
+      headerNote: selfUse && headerNote.trim() ? headerNote.trim() : null,
       employeeId: employeeId ? Number(employeeId) : null,
       warehouseId: Number(warehouseId),
       projectId: projectId ? Number(projectId) : null,
       lines: [
-        ...filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), kind: l.kind || null })),
-        ...filledNormal.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), kind: l.kind || null, normal: true })),
+        ...filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), kind: l.kind || null, reason: l.reason.trim() || null })),
+        ...filledNormal.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), kind: l.kind || null, reason: l.reason.trim() || null, normal: true })),
       ],
     }
     try {
@@ -187,9 +202,16 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
         ? await api.put<StockAdjustmentSlip>(`/stock-adjustments/slips/${encodeURIComponent(adjustNo!)}`, body)
         : await api.post<StockAdjustmentSlip>('/stock-adjustments/slips', body)
       if (andPrint) setPrintSlip(data)
+      if (keep && !editing) { setCopied(false); setKeptNo(data.adjustNo); return }
       if (editing || copied) { if (!andPrint) onDone?.(); return }
-      /* 원본 자가사용입력 · 불량처리입력은 저장하면 말 없이 일자 · 창고를 둔 채 격자만 비운다(2026-10-21 실측). */
+      /*
+       * 원본 자가사용입력 · 불량처리입력은 저장하면 말 없이 일자 · 창고를 둔 채 격자를 비운다(2026-10-21 실측).
+       * 머리 [거래처] · [새로운 항목 추가] 도 비운다 — 판매 · 구매입력과 같은 저장 뒤 모양(TradeEntry, 2026-10-22 · 10-28 실측):
+       * 예전엔 거래처가 남아 '저장했는데 화면이 그대로' 로 보였다(데이터이관 루프 110).
+       */
       reset()
+      setPartnerId('')
+      setHeaderNote('')
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -240,7 +262,15 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
               { label: 'H', onClick: () => setShowHistory(true) },
             ]
         : [
-            { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
+            {
+              label: '저장(F8)', primary: true, submit: true, onClick: () => void save(),
+              /* 원본 [저장(F8)▲] 메뉴(2026-10-30 자가사용입력 E040503 실측): 저장/전자결재 · 저장/내용유지 · 저장/신규. */
+              menu: [
+                { label: '저장/전자결재', onClick: () => setNotice('전자결재 상신은 [그룹웨어 › 전자결재]에서 이 전표를 첨부해 올립니다(입력 화면에서 바로 올리는 길은 아직 없습니다).') },
+                { label: '저장/내용유지', onClick: () => void save(false, true) },
+                { label: '저장/신규', onClick: () => void save() },
+              ],
+            },
             { label: '저장/전표(F7)', onClick: () => void save(true) },
             { label: '다시 작성', onClick: reset },
             copied ? { label: '닫기', onClick: () => onDone?.() } : { label: '리스트', onClick: () => navigate(L.list) },
@@ -251,8 +281,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
 
         <ul className="ec-form mb-[8px]">
           <EcCond label="일자">
-            <input type="date" className="ec-input w-[150px]" value={date} disabled={editing}
-                   onChange={(e) => setDate(e.target.value)} />
+            <EcDateInput className="ec-input w-[150px]" value={date} disabled={editing} onChange={(e) => setDate(e.target.value)} />
             {editing && adjustNo && <span className="ml-[6px]">-{Number(adjustNo.split('-').pop()) || ''}</span>}
           </EcCond>
           {selfUse && (
@@ -280,6 +309,12 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
             <CodePickerField label="프로젝트" hideLabel fill pair placeholder="프로젝트" value={projectId}
                              onChange={setProjectId} items={pickers.projects} />
           </EcCond>
+          {selfUse && (
+            <EcCond label="새로운 항목 추가">
+              <input className="ec-input w-full" aria-label="새로운 항목 추가" placeholder="새로운 항목 추가" maxLength={300}
+                     value={headerNote} onChange={(e) => setHeaderNote(e.target.value)} />
+            </EcCond>
+          )}
         </ul>
 
         {substitute && (
@@ -292,13 +327,24 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
           </div>
         )}
         <EcGridToolbar tableRef={tableRef} slipKinds={selfUse ? ['주문', '구매'] : ['판매', '구매', '생산', '이동']}
-                       onMyItems={myItems.pick} myItemsBusy={myItems.busy}>
+                       onMyItems={myItems.pick} myItemsBusy={myItems.busy} onSort={() => setSortOpen(true)}
+                       onPull={(pulled) => setRows((ls) => {
+                         /* 원본: 고른 전표의 품목 · 수량이 빈 줄 자리에 들어온다. */
+                         const next = ls.filter((l) => l.itemId || l.quantity)
+                         for (const p of pulled) next.push({ ...blank(), itemId: String(p.itemId), quantity: String(p.quantity) })
+                         next.push(blank())
+                         return next
+                       })}>
           <button type="button" className="ec-btn ec-btn-sm" disabled={picked.size === 0}
                   onClick={() => { setRows((ls) => { const n = ls.filter((_, i) => !picked.has(i)); return n.length ? n : blankLines() }); setPicked(new Set()) }}>
             선택삭제
           </button>
           <MyItemsNote note={myItems.note} />
         </EcGridToolbar>
+        <GridSortModal open={sortOpen} error={error} keys={['품목코드', '품목명', '규격'] as const} initial={['품목코드', '품목명']} rows={rows}
+                       keyOf={(r, k) => { const it = itemById.get(r.itemId); return (k === '품목코드' ? it?.code : k === '품목명' ? it?.name : it?.sub) ?? '' }}
+                       isFilled={(r) => !!(r.itemId || r.quantity)}
+                       onApply={(sorted) => { setRows(sorted); setSortOpen(false) }} onClose={() => setSortOpen(false)} />
         <div className="overflow-x-auto">
           <table ref={tableRef} className="w-full">
             <thead>
@@ -311,8 +357,9 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                 <th className="w-[194px]">품목명</th>
                 <th className="w-[133px]">규격</th>
                 <th className="w-[101px] text-right">수량</th>
-                <th>{selfUse ? '사용유형' : '불량유형'}</th>
-                <th className="w-[110px]">새로운 항목 추가</th>
+                {/* 원본 폭(2026-10-30 실측): 사용유형 182 · 새로운 항목 추가가 남은 폭 전부. */}
+                <th className="w-[182px]">{selfUse ? '사용유형' : '불량유형'}</th>
+                <th>새로운 항목 추가</th>
               </tr>
             </thead>
             <tbody>
@@ -346,7 +393,11 @@ export default function SelfUseInputPage({ adjustNo, onDone, onNav, kind = 'SELF
                                        onChange={(v) => setLine(i, { kind: v })} items={kindItems}
                                        onNew={kindGroupId == null ? undefined : () => setNewKind({ line: i, code: '', name: '' })} />
                     </td>
-                    <td />
+                    <td>
+                      {/* 줄 [새로운 항목 추가] — 원본은 글칸(줄 적요). 예전엔 빈 칸이라 칠 수 없었다(루프 107). */}
+                      <input className="ec-input w-full" aria-label={`${i + 1}줄 새로운 항목 추가`} maxLength={300}
+                             value={l.reason} onChange={(e) => setLine(i, { reason: e.target.value })} />
+                    </td>
                   </tr>
                 )
               })}

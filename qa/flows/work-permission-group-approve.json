@@ -1,0 +1,106 @@
+{
+  "about": "업무권한 — 권한그룹으로 승인하는 길 · 메뉴는 숨기지 않는다 · 사용중지 아이디 로그인(2026-10-30 대조-업무권한.md). 원본(영상 1514): 권한승인대기현황 [승인] 에 마우스 › 권한그룹 = 요청자가 속한 권한그룹 자체의 권한을 준다. 시험 사용자 qaperm(기본권한 권한그룹 '사원', 판매만 개별 권한없음)이 판매입력을 열면 자물쇠 — 왼쪽 메뉴는 판매조회 · 판매입력 · 판매현황 … 그대로 보인다(원본 영상 1998: 권한 없는 사용자에게도 메뉴가 보이고 누르면 자물쇠, 앱바 [권한있는메뉴만보기] 는 기본 꺼짐) → [권한요청] → 마스터가 [승인 › 권한그룹(사원)] → 개별 '권한없음' 줄이 그룹보다 이기던 것을 지워 요청자가 실제로 열린다(전에는 승인으로 표시되는데 여전히 막혔다). 기본권한이 업무권한없음인 사람은 [권한그룹] 이 잠긴다. 회사 0001 만. 만드는 자료: 시험 사용자 qaperm(끝에 사용중지) · 권한요청(끝에 지움) · admin↔qaperm 메신저 알림 몇 줄. '사원' 그룹의 판매는 원래 권한있음 — 승인도 권한있음이라 그대로다.",
+  "shots": [
+    {
+      "name": "준비 — qaperm: 기본권한 권한그룹(사원) · 판매만 개별 권한없음, 남은 권한요청 지움",
+      "path": "/users",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.status === 204 ? null : r.json()); const us = await A('GET', '/users'); let u = us.find((x) => x.username === 'qaperm'); if (!u) u = await A('POST', '/users', { username: 'qaperm', password: 'qaperm1234', name: 'QA권한시험', roleNames: ['STAFF'] }); else await A('PATCH', '/users/' + u.id, { enabled: true }); const staff = (await A('GET', '/roles')).find((r) => r.name === 'STAFF'); await A('PUT', '/work-permissions/users/' + u.id + '/base', { basePermission: 'GROUP', groupId: staff.id }); await A('PUT', '/work-permissions/users/' + u.id + '/works', { rows: [{ workCode: 'SALES', mode: 'DENY' }] }); const g = await A('GET', '/work-permissions/groups/' + staff.id); sessionStorage.setItem('qa-staff-sales', g.works.find((w) => w.workCode === 'SALES').mode); for (const r of await A('GET', '/permission-requests?user=qaperm')) await A('DELETE', '/permission-requests/' + r.id); sessionStorage.setItem('ec-perm-req-seen', '0'); return !!u.id })()",
+        "expect:sessionStorage.getItem('qa-staff-sales') === 'ALLOW'"
+      ]
+    },
+    {
+      "name": "요청자 — 판매입력 자물쇠, 왼쪽 메뉴는 숨지 않는다 → [권한요청]",
+      "as": "qaperm|qaperm1234",
+      "path": "/sales/sell",
+      "steps": [
+        "wait:2500",
+        "expect:!!document.querySelector('.ec-noperm') && document.title === '권한없음'",
+        "expect:((t) => ['판매조회', '판매입력', '판매현황'].every((x) => t.includes(x)))([...document.querySelectorAll('.ec-lnb-leaf')].map((x) => x.textContent.trim()))",
+        "click:권한요청",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().textContent.includes('권한요청사유')",
+        "clicklast:확인",
+        "wait:900",
+        "clicklast:확인",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "마스터 — [승인 › 권한그룹(사원)] 저장",
+      "path": "/users/permission-requests",
+      "steps": [
+        "wait:2500",
+        "set:input.ec-quick|qaperm",
+        "click:Search(F3)",
+        "wait:1200",
+        "expect:document.querySelectorAll('tr[data-request]').length === 1",
+        "expect:!document.querySelector('tr[data-request] .ec-approve-menu button:nth-child(2)').disabled && /권한그룹\\(사원\\)/.test(document.querySelector('tr[data-request] .ec-approve-menu').textContent)",
+        "js:document.querySelector('tr[data-request] .ec-approve-menu button:nth-child(2)').click()",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().textContent.includes('권한그룹설정') && document.querySelector('[data-testid=approve-target]')?.textContent === '설정대상 : 사원'",
+        "click:저장(F8)",
+        "wait:1000",
+        "expect:/저장되었습니다/.test(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:/승인\\(권한그룹\\)/.test(document.querySelector('tr[data-request]').textContent)"
+      ]
+    },
+    {
+      "name": "요청자 — 권한그룹 승인 뒤 판매입력이 열린다(개별 권한없음 줄이 지워졌다)",
+      "as": "qaperm|qaperm1234",
+      "path": "/sales/sell",
+      "steps": [
+        "wait:2500",
+        "expect:!document.querySelector('.ec-noperm') && document.title !== '권한없음'",
+        "js:(async () => { const p = await fetch('/api/me/permissions', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()); sessionStorage.setItem('qa-perm-ok', String(p.works.SALES.mode === 'ALLOW')); return true })()",
+        "expect:sessionStorage.getItem('qa-perm-ok') === 'true'"
+      ]
+    },
+    {
+      "name": "예외(행위) 외부전송 권한없음 — 구매조회 [Excel] 이 원본 알림으로 막힌다(Excel · 인쇄는 화면에서 만들어 서버가 못 막는다)",
+      "as": "qaperm|qaperm1234",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "js:(async () => { const L = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyCode: '0001', username: 'admin', password: 'admin1234' }) }).then((r) => r.json()); const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + L.token, 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const u = (await A('GET', '/users')).find((x) => x.username === 'qaperm'); await A('PUT', '/work-permissions/users/' + u.id + '/works', { rows: [{ workCode: 'PURCHASE', mode: 'EXC_ACTION', create: true, update: true, delete: true, export: false, menus: {} }] }); location.reload(); return true })()",
+        "wait:3500",
+        "expect:!document.querySelector('.ec-noperm')",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Excel').click()",
+        "wait:800",
+        "expect:((t) => t.includes('권한이 없습니다.') && t.includes('마스터에게 문의 바랍니다.') && t.includes('- 구매·발주 업무권한 (외부전송)'))(document.querySelector('[role=alertdialog]')?.textContent ?? '')",
+        "clicklast:확인",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "기본권한 업무권한없음 — 권한그룹 승인은 잠기고, 서버도 거절한다",
+      "path": "/users/permission-requests",
+      "steps": [
+        "allowapi:400: /api/permission-requests/",
+        "wait:2000",
+        "js:(async () => { const L = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyCode: '0001', username: 'qaperm', password: 'qaperm1234' }) }).then((r) => r.json()); const A = (t, m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }); const me = localStorage.getItem('erp_token'); const u = (await A(me, 'GET', '/users').then((r) => r.json())).find((x) => x.username === 'qaperm'); await A(me, 'PUT', '/work-permissions/users/' + u.id + '/base', { basePermission: 'NONE' }); const req = await A(L.token, 'POST', '/permission-requests', { workCode: 'PURCHASE', menuPath: '/sales/purchase-list', menuName: '구매조회' }).then((r) => r.json()); const res = await A(me, 'POST', '/permission-requests/' + req.id + '/approve', { kind: 'GROUP', row: { workCode: 'PURCHASE', mode: 'ALLOW', create: true, update: true, delete: true, export: true, menus: {} } }); sessionStorage.setItem('qa-perm-ok', String(res.status === 400)); return true })()",
+        "expect:sessionStorage.getItem('qa-perm-ok') === 'true'",
+        "set:input.ec-quick|qaperm",
+        "choose:[aria-label=\"승인여부\"]|대기",
+        "click:Search(F3)",
+        "wait:1200",
+        "expect:document.querySelectorAll('tr[data-request]').length === 1 && document.querySelector('tr[data-request] .ec-approve-menu button:nth-child(2)').disabled"
+      ]
+    },
+    {
+      "name": "사용중지한 아이디 로그인 — 500 이 아니라 401 안내",
+      "path": "/users",
+      "steps": [
+        "allowapi:401: /api/auth/login",
+        "wait:1500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const u = (await A('GET', '/users')).find((x) => x.username === 'qaperm'); await A('PATCH', '/users/' + u.id, { enabled: false }); const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyCode: '0001', username: 'qaperm', password: 'qaperm1234' }) }); const j = await r.json(); sessionStorage.setItem('qa-perm-ok', String(r.status === 401 && /사용이 중지된 아이디/.test(j.message))); return true })()",
+        "expect:sessionStorage.getItem('qa-perm-ok') === 'true'"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const L = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyCode: '0001', username: 'admin', password: 'admin1234' }) }).then((r) => r.json()); const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + L.token, 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.status === 204 ? null : r.json()); const u = (await A('GET', '/users')).find((x) => x.username === 'qaperm'); if (u) { for (const r of await A('GET', '/permission-requests?user=qaperm')) await A('DELETE', '/permission-requests/' + r.id); const staff = (await A('GET', '/roles')).find((r) => r.name === 'STAFF'); await A('PUT', '/work-permissions/users/' + u.id + '/base', { basePermission: 'GROUP', groupId: staff.id }); await A('PUT', '/work-permissions/users/' + u.id + '/works', { rows: [] }); await A('PATCH', '/users/' + u.id, { enabled: false }) } return true })()"
+  ]
+}

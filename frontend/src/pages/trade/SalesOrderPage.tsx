@@ -13,7 +13,9 @@ import EcPeriodPicks, { ORDER_LIST_PICKS, periodOf } from '../../components/EcPe
 import { EcCond } from '../../components/EcStatusPanel'
 import { dateText } from '../../utils/dateText'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
+import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 /**
@@ -75,6 +77,7 @@ export default function SalesOrderPage() {
   const [keyword, setKeyword] = useState('')
   const [tab, setTab] = useState<Tab>('ALL')
   /** 하단 [진행상태변경 ▴] 메뉴 — 원본처럼 버튼 위로 뜬다. */
+  const [historyWin, setHistoryWin] = useState(false)
   const [statusMenu, setStatusMenu] = useState<{ left: number; bottom: number } | null>(null)
   /** [생성한전표] 의 '조회' 창. */
   const [generated, setGenerated] = useState<{ order: SalesOrder; rows: GeneratedRow[] } | null>(null)
@@ -144,14 +147,15 @@ export default function SalesOrderPage() {
    * 하단 [진행상태변경] — 버튼 위에 상태 메뉴를 띄운다. 원본은 안 고르고 누르면 '리스트에 선택된 자료가 없습니다.' 를 띄우지만
    * 우리 셸은 고른 줄이 있어야 도는 버튼을 미리 잠근다(ui-check 1-s13). 문구는 잠금이 풀린 채 불릴 때를 위해 남긴다.
    */
+  /* 원본은 고른 줄이 없어도 메뉴를 먼저 띄우고, 알림은 고를 때 낸다(2026-10-30 클릭 대조). */
   function openStatusMenu() {
-    if (checked.size === 0) return ecAlert('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.')
     const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === '진행상태변경')
     const r = btn?.getBoundingClientRect()
     setStatusMenu({ left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 })
   }
   async function changeStatus(status: OrderStatus) {
     setStatusMenu(null)
+    if (!requireSelection(checked.size)) return
     const fails: string[] = []
     for (const id of checked) {
       try { await api.patch(`/sales-orders/${id}/status`, { status }) }
@@ -219,9 +223,13 @@ export default function SalesOrderPage() {
       newLabel="신규(F2)"
       onNew={() => navigate('/sales/order-entry')}
       /* 원본 차례: 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드 · 다른전표생성 · 전자결재 · 선택삭제 · Excel · 이력조회 — 바깥 발송 · 결재는 뺀다. */
-      actions={[{ label: '진행상태변경', onClick: openStatusMenu, selected: checked.size }, { label: '인쇄' },
-        { label: '선택삭제', onClick: removeChecked, selected: checked.size }, { label: 'Excel' }]}
+      actions={[{ label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
+        { label: '진행상태변경', onClick: openStatusMenu }, { label: '인쇄' },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size },
+        { label: '선택삭제', onClick: removeChecked, selected: checked.size }, { label: 'Excel' },
+        { label: '이력조회', onClick: () => setHistoryWin(true) }]}
     >
+      {historyWin && <SlipMenuHistoryModal menu="주문서" statusLabel="확인" onClose={() => setHistoryWin(false)} />}
       {statusMenu && (
         <>
           <div className="ec-backdrop-clear" onClick={() => setStatusMenu(null)} />
@@ -274,9 +282,7 @@ export default function SalesOrderPage() {
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={ORDER_LIST_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>

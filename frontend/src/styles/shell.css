@@ -75,6 +75,7 @@
   margin: 0 6px 0 12px;
   color: var(--ec-text-sub);
   white-space: nowrap;
+  text-decoration: none;
 }
 .ec-bookmark {
   height: 18px;
@@ -115,17 +116,19 @@
   padding: 0 9px 0 8px;
   background: var(--ec-bg-shell);
 }
+/* 왼쪽 위 글자 표지 — 원본 머리 로고 자리 · 높이에 맞춘 평범한 글자(그림 · 그러데이션 · 기울임 없음).
+   원본 로고(그림)는 베끼지 않는다. 회사 로고 그림을 올리면 그 그림, 없으면 상호, 그것도 없으면 '제조 ERP'. */
 .ec-logo {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   margin-right: 14px;
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
+  font-size: var(--ec-logo-fs);
+  font-weight: 700;
+  line-height: var(--ec-logo-h);
   text-decoration: none;
-  color: #222;
+  white-space: nowrap;
+  color: var(--ec-blue);
 }
-.ec-logo > b { color: var(--ec-blue); font-weight: 900; }
 /* 회사 로고 그림 — 머리 줄 높이에 맞춰 줄인다(가로는 비율대로, 너무 긴 그림은 상호 칸 폭까지) */
 .ec-logo > .ec-logo-img {
   display: block;
@@ -144,8 +147,7 @@
 .ec-logo > .ec-logo-name {
   max-width: 260px;
   overflow: hidden;
-  font-size: 17px;
-  white-space: nowrap;
+  font-weight: 700;
   text-overflow: ellipsis;
 }
 .ec-gnb-menu {
@@ -203,6 +205,74 @@
   font-size: 13px;
   cursor: pointer;
 }
+/* 사이트맵 — 원본 2026-10-30: 머리 아래를 거의 덮는 흰 판 · 왼쪽 파란 세로 줄(1단) · 오른쪽 1단마다 회색 제목 줄과 2단 열 */
+.ec-sitemap-back { position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, .35); }
+.ec-sitemap {
+  position: absolute;
+  top: 52px; left: 110px; right: 110px; bottom: 52px;
+  display: flex;
+  background: var(--ec-bg-panel);
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow-pop);
+}
+.ec-sitemap-close {
+  position: absolute; top: -12px; right: -12px;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: var(--ec-hair) solid var(--ec-line); background: var(--ec-bg-panel); color: var(--ec-text); cursor: pointer;
+}
+.ec-sitemap-rail {
+  width: 116px; flex-shrink: 0; padding: 4px 0;
+  background: var(--ec-blue); border-radius: var(--ec-radius) 0 0 var(--ec-radius); overflow-y: auto;
+}
+.ec-sitemap-rail > button {
+  display: block; width: 100%; padding: 7px 8px; border: 0; background: none; text-align: left;
+  color: #fff; font-size: var(--ec-fs); cursor: pointer; opacity: .85;
+}
+.ec-sitemap-rail > button.on { font-weight: 700; opacity: 1; background: rgba(0, 0, 0, .18); }
+.ec-sitemap-rail > button.on::after { content: '›'; float: right; }
+.ec-sitemap-body { flex: 1; overflow-y: auto; }
+.ec-sitemap-top { padding: 6px 4px; background: var(--ec-bg-page); font-weight: 700; color: var(--ec-text); }
+.ec-sitemap-cols { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.ec-sitemap-col { padding: 6px 4px 10px; border-right: var(--ec-hair) solid var(--ec-line-soft); min-width: 0; }
+.ec-sitemap-tab { font-weight: 700; color: var(--ec-text); margin-bottom: 6px; }
+.ec-sitemap-group > .name { margin: 4px 0 2px 8px; color: var(--ec-text); }
+.ec-sitemap-col button {
+  display: block; width: 100%; padding: 2px 6px 2px 14px; border: 0; border-radius: 3px; background: none;
+  text-align: left; color: var(--ec-text-sub); font-size: var(--ec-fs); cursor: pointer;
+}
+.ec-sitemap-col button.leaf { padding-left: 8px; }
+.ec-sitemap-col button:hover:not(:disabled) { background: var(--ec-bg-row-hover); color: var(--ec-text); }
+.ec-sitemap-col button:disabled { color: var(--ec-text-hint); cursor: default; }
+
+/* 사람 그림 → 작은 판(원본 2026-10-30: 프로필 머리 + 일곱 줄, 흰 판 · 둥근 모서리 · 그림자) */
+.ec-user-back { position: fixed; inset: 0; z-index: 59; }
+.ec-user-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 112px;
+  padding: 6px;
+  background: var(--ec-bg-panel);
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow-pop);
+}
+.ec-user-menu > .head { padding: 2px 6px 6px; text-align: center; color: var(--ec-text-hint); }
+.ec-user-menu > button {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ec-text);
+  font-size: var(--ec-fs);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ec-user-menu > button:hover { background: var(--ec-bg-row-hover); }
 .ec-popover {
   position: absolute;
   top: calc(100% + 6px);
@@ -432,14 +502,19 @@
   line-height: 21px;
   color: var(--ec-ink);
 }
+/* ★ 는 글자가 아니라 채운 별 그림(EcIcon star 와 같은 모양) — 폭 22 = 별 13 + 여백 9 */
 .ec-page-title::before {
-  content: "★";
-  width: 22px;
-  font-size: 13px;
-  color: var(--ec-star);
+  content: "";
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin-right: 9px;
+  background: var(--ec-star);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .ec-page-title.off::before {
-  color: var(--ec-line);
+  background: var(--ec-line);
 }
 .ec-page-head > .tools {
   margin-left: auto;
@@ -649,12 +724,119 @@
 }
 
 /* ── MyPage 위젯 — ec56 MyPage 실측 ──
-   흰 판 · 머리카락 테두리 · 둥글기 20 · 사이 9 / 제목 15px 700(구분선 없음) · 머리 여백 8.1 13.5 4.5 · 본문 여백 9 13.5 13.5 */
-.ec-widgets {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+   흰 판 · 머리카락 테두리 · 둥글기 20 / 제목 15px 700(구분선 없음) · 머리 여백 8.1 13.5 4.5 · 본문 여백 9 13.5 13.5
+   격자는 원본 gridstack(2026-10-30): 한 칸 60 · 사이 10 · 자리는 --gx/--gy/--gw/--gh(칸 수)로 받는다 */
+.ec-wpage {
+  display: flex;
+  align-items: flex-start;
 }
+.ec-wgrid {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--rows) * var(--ec-grid-unit));
+}
+.ec-wgrid.dragging { user-select: none; }
+.ec-wgrid-item,
+.ec-wgrid-ph {
+  position: absolute;
+  left: calc(var(--gx) * var(--ec-grid-unit));
+  top: calc(var(--gy) * var(--ec-grid-unit));
+  width: calc(var(--gw) * var(--ec-grid-unit) - var(--ec-grid-gap));
+  height: calc(var(--gh) * var(--ec-grid-unit) - var(--ec-grid-gap));
+}
+.ec-wgrid-item { transition: left .15s, top .15s, width .15s, height .15s; }
+.ec-wgrid-item.active { z-index: 5; opacity: .85; transition: none; }
+.ec-wgrid-item > .ec-widget { height: 100%; min-height: 0; }
+.ec-wgrid-ph {
+  border: 1px dashed var(--ec-blue);
+  border-radius: var(--ec-radius-panel);
+  background: var(--ec-blue-wash);
+}
+.ec-wgrid-empty {
+  padding: 40px;
+  border: 1px dashed var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+  color: var(--ec-text-hint);
+  text-align: center;
+}
+/* 크기 손잡이 e · se · s · sw · w — 원본 ui-resizable-autohide: 마우스를 올려야 보인다 */
+.ec-wgrid-grip { position: absolute; z-index: 2; display: none; }
+.ec-wgrid-item:hover > .ec-wgrid-grip,
+.ec-wgrid-item.active > .ec-wgrid-grip { display: block; }
+.ec-wgrid-grip.e, .ec-wgrid-grip.w { top: 0; bottom: 0; width: var(--ec-modal-grip); cursor: e-resize; }
+.ec-wgrid-grip.w { left: var(--ec-modal-grip-out); cursor: w-resize; }
+.ec-wgrid-grip.e { right: var(--ec-modal-grip-out); }
+.ec-wgrid-grip.s { left: 0; right: 0; bottom: var(--ec-modal-grip-out); height: var(--ec-modal-grip); cursor: s-resize; }
+.ec-wgrid-grip.sw { left: var(--ec-modal-grip-out); bottom: var(--ec-modal-grip-out); width: var(--ec-modal-grip-corner); height: var(--ec-modal-grip-corner); cursor: sw-resize; z-index: 3; }
+.ec-wgrid-grip.se {
+  right: 4px;
+  bottom: 4px;
+  width: var(--ec-grid-grip-se);
+  height: var(--ec-grid-grip-se);
+  z-index: 3;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 0 50%, var(--ec-icon) 50% 58%, transparent 58% 70%, var(--ec-icon) 70% 78%, transparent 78% 90%, var(--ec-icon) 90%);
+}
+/* My위젯선택 — 원본처럼 <b>왼쪽</b> 판(본문 왼쪽 가장자리 손잡이로 연다). 항목을 끌어 격자에 놓는다 */
+.ec-wpick-handle {
+  flex: none;
+  align-self: stretch;
+  width: 14px;
+  margin-right: 4px;
+  padding: 0;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-bg-panel);
+  color: var(--ec-icon);
+  font-size: 11px;
+  cursor: pointer;
+}
+.ec-wpick-handle:hover { color: var(--ec-navy); background: var(--ec-blue-wash); }
+.ec-wpick {
+  flex: none;
+  order: -1;
+  width: var(--ec-wpick-w);
+  margin-right: var(--ec-grid-gap);
+  padding: 9px 13.5px 13.5px;
+  background: var(--ec-bg-panel);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+}
+.ec-wpick-head { display: flex; align-items: center; margin-bottom: 6px; }
+.ec-wpick-head > .name { font-size: 15px; font-weight: 700; line-height: 28px; color: var(--ec-ink); }
+.ec-wpick-head > .ec-btn { margin-left: auto; }
+.ec-wpick-hint { margin-bottom: 9px; color: var(--ec-text-hint); font-size: var(--ec-fs); }
+.ec-wpick-group { margin-bottom: 9px; }
+.ec-wpick-group > .name {
+  display: flex;
+  width: 100%;
+  margin-bottom: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ec-navy);
+  font-size: var(--ec-fs);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.ec-wpick-group > .name > span { margin-left: auto; color: var(--ec-icon); }
+.ec-wpick-group > .none { padding: 3px 9px; color: var(--ec-text-off); font-size: var(--ec-fs); }
+.ec-wpick-item {
+  display: block;
+  width: 100%;
+  padding: 4.5px 9px;
+  border: 0;
+  border-radius: var(--ec-radius);
+  background: none;
+  color: var(--ec-text);
+  font-size: var(--ec-fs);
+  text-align: left;
+  cursor: grab;
+}
+.ec-wpick-item:hover { background: var(--ec-blue-wash); }
+.ec-wpick-item.on { color: var(--ec-blue); font-weight: 700; cursor: pointer; }
 .ec-widget {
   display: flex;
   flex-direction: column;
@@ -663,13 +845,11 @@
   border: var(--ec-hair) solid var(--ec-line);
   border-radius: var(--ec-radius-panel);
 }
-.ec-widget.editing {
-  border: 1px dashed var(--ec-blue);
-}
 .ec-widget-head {
   display: flex;
   align-items: center;
   padding: 8.1px 13.5px 4.5px;
+  cursor: move;
 }
 .ec-widget-head > .name {
   font-size: 15px;
@@ -679,6 +859,7 @@
 }
 .ec-widget-head > .tools {
   position: relative;
+  cursor: default;
   margin-left: auto;
   display: flex;
   align-items: center;
@@ -703,8 +884,68 @@
 .ec-widget-head > .tools > .spin { color: var(--ec-blue); transform: rotate(360deg); transition: transform .6s; }
 .ec-widget-body {
   flex: 1;
+  min-height: 0;
+  overflow: auto;
   padding: 9px 13.5px 13.5px;
 }
+/* 위젯 본문 부품 — 전자결재 '◎ 내 기안문서' 줄 · 게시판 '공지' 딱지(공지 글 줄은 노란 바탕) */
+.ec-widget-caption { margin-bottom: 4.5px; color: var(--ec-navy); font-size: var(--ec-fs); font-weight: 700; }
+.ec-widget-tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  border-radius: var(--ec-radius);
+  background: var(--ec-warn);
+  color: var(--ec-bg-panel);
+  font-size: 11px;
+  line-height: 16px;
+}
+.ec-widget-body tr.notice > td { background: var(--ec-warn-bg); }
+/* 일정관리 위젯 — 월 달력(일~토), 칸마다 일정 알약 */
+.ec-wcal { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ec-wcal-nav { display: flex; align-items: center; gap: 6px; margin-bottom: 4.5px; font-size: var(--ec-fs); }
+.ec-wcal-nav > button { width: 22px; height: 22px; border: 0; border-radius: var(--ec-radius); background: none; color: var(--ec-icon); cursor: pointer; }
+.ec-wcal-nav > button:hover { color: var(--ec-navy); background: var(--ec-blue-wash); }
+.ec-wcal-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+  border-top: var(--ec-hair) solid var(--ec-line);
+  border-left: var(--ec-hair) solid var(--ec-line);
+}
+.ec-wcal-dow, .ec-wcal-day { border-right: var(--ec-hair) solid var(--ec-line); border-bottom: var(--ec-hair) solid var(--ec-line); }
+.ec-wcal-dow { padding: 3px 0; background: var(--ec-bg-page); font-size: var(--ec-fs); text-align: center; }
+.ec-wcal-dow.sun, .ec-wcal-day.sun > .n { color: var(--ec-danger); }
+.ec-wcal-dow.sat { color: var(--ec-blue); }
+.ec-wcal-day { display: flex; flex-direction: column; gap: 1px; min-width: 0; min-height: 0; overflow: hidden; padding: 2px 3px; font-size: 11px; }
+.ec-wcal-day.out { color: var(--ec-text-off); }
+.ec-wcal-day.today { background: var(--ec-blue-wash); }
+.ec-wcal-day > .n { font-size: var(--ec-fs); }
+/* 원본 위젯 일정 줄(2026-10-30 실측 'A.text-bold') — 바탕 없이 굵은 링크색 글자, 앞에 라벨 칩 */
+.ec-wcal-ev {
+  overflow: hidden;
+  color: var(--ec-navy);
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+.ec-wcal-day > .more { color: var(--ec-text-hint); }
+/* 플로우차트 위젯 — 업무 흐름 칸, 누르면 그 메뉴 */
+.ec-wflow { display: flex; flex-direction: column; gap: 6px; font-size: var(--ec-fs); }
+.ec-wflow-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.ec-wflow-step { display: inline-flex; align-items: center; gap: 4px; }
+.ec-wflow-step > .arrow { color: var(--ec-icon); }
+.ec-wflow-step > a {
+  padding: 4px 9px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-bg-page);
+  color: var(--ec-navy);
+  text-decoration: none;
+}
+.ec-wflow-step > a:hover { background: var(--ec-blue-wash); }
 .danger,
 .ec-menu > button.danger { color: var(--ec-danger); }
 .ec-menu > button:disabled { color: var(--ec-text-off); cursor: default; }
@@ -732,8 +973,7 @@
   .ec-subnav,
   .ec-lnb,
   .ec-appbar,
-  .ec-company,
-  .ec-logo > .tail {
+  .ec-company {
     display: none;
   }
   .ec-gnb {
@@ -964,10 +1204,20 @@
     flex-wrap: wrap;
   }
 
-  /* MyPage 위젯 — 한 줄에 하나 */
-  .ec-widgets {
-    grid-template-columns: minmax(0, 1fr);
+  /* MyPage 위젯 — 한 줄에 하나, 폭 전부. 크기 조절 · 끌기 없음(높이는 칸 수 그대로) */
+  .ec-wpage { flex-direction: column; align-items: stretch; }
+  .ec-wgrid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ec-grid-gap);
+    height: auto;
   }
+  .ec-wgrid-item { position: static; width: auto; transition: none; }
+  .ec-wgrid-grip,
+  .ec-wgrid-ph { display: none !important; }
+  .ec-widget-head { cursor: default; }
+  .ec-wpick { width: auto; margin: 0 0 var(--ec-grid-gap); }
+  .ec-wpick-handle { align-self: flex-start; width: auto; height: 22px; padding: 0 9px; margin: 0 0 var(--ec-grid-gap); }
 
   /* 팝업창 — 화면 폭에 맞춘다 */
   .ec-modal-back {
@@ -1025,3 +1275,335 @@
     padding: 0;
   }
 }
+
+/* ============================================================
+ *  오른쪽 앱바 · 앱바 창 · Messenger — features/appbar
+ *  2026-10-30 loginaa 캡처(.claude/skills/ecount-diff/plans/데이터이관/오른쪽앱바-메신저)
+ * ============================================================ */
+.ec-appbar-btn > svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.ec-appbar-btn[data-tone="ink"] { color: var(--ec-app-ink); }
+.ec-appbar-btn[data-tone="blue"] { color: var(--ec-app-blue); }
+.ec-appbar-btn[data-tone="sky"] { color: var(--ec-app-sky); }
+.ec-appbar-btn[data-tone="teal"] { color: var(--ec-app-teal); }
+.ec-appbar-btn[data-tone="green"] { color: var(--ec-app-green); }
+.ec-appbar-btn[data-tone="orange"] { color: var(--ec-app-orange); }
+.ec-appbar-btn[data-tone="red"] { color: var(--ec-app-red); }
+.ec-appbar-btn.on { background: var(--ec-bg-pill); }
+/* 마우스를 올리면 왼쪽에 흰 말풍선으로 이름 */
+.ec-appbar-tip {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  padding: 4px 10px;
+  white-space: nowrap;
+  background: var(--ec-bg-panel);
+  color: var(--ec-text);
+  font-size: var(--ec-fs);
+  font-weight: 400;
+  border-radius: var(--ec-radius-pill);
+  box-shadow: var(--ec-shadow-pop);
+  pointer-events: none;
+  z-index: 75;
+}
+.ec-appbar-btn:hover > .ec-appbar-tip,
+.ec-appbar-btn:focus-visible > .ec-appbar-tip { display: block; }
+/* E Note 하위 메뉴 — 앱바 왼쪽에 붙는 작은 판 */
+.ec-appbar-item { position: relative; }
+.ec-appbar-sub {
+  position: absolute;
+  right: calc(100% - 2px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  min-width: 96px;
+  padding: 6px;
+  background: var(--ec-bg-panel);
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow-pop);
+  z-index: 75;
+}
+.ec-appbar-item:hover > .ec-appbar-sub { display: block; }
+.ec-appbar-item:hover > .ec-appbar-btn > .ec-appbar-tip { display: none; }
+.ec-appbar-sub > .head { padding: 2px 6px 4px; text-align: center; color: var(--ec-text-hint); }
+.ec-appbar-sub > button,
+.ec-smart-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ec-text);
+  font-size: var(--ec-fs);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ec-appbar-sub > button:hover,
+.ec-smart-menu > button:hover { background: var(--ec-bg-row-hover); }
+/* 스마트지원 — 앱바 옆 작은 메뉴(아이콘 + 글, 두 줄) */
+.ec-smart-back { position: fixed; inset: 0; z-index: 74; }
+.ec-smart-menu {
+  position: fixed;
+  right: 56px;
+  top: 255px;      /* 앱바 [스마트지원] 높이 옆 */
+  z-index: 75;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 2px 8px;
+  padding: 8px;
+  background: var(--ec-bg-panel);
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow-pop);
+}
+/* 도움말(통합검색) 창 — 원본 '검색결과가 없습니다.' + 안내 네 줄 */
+.ec-search-none { padding: 24px 12px; color: var(--ec-text-sub); }
+.ec-search-none ul { list-style: disc; padding-left: 18px; line-height: 1.8; }
+.ec-smart-menu > button > svg { width: 14px; height: 14px; color: var(--ec-app-teal); }
+
+/* 앱바 창 — 원본처럼 뒤를 어둡게 하지 않고 뒤 화면도 그대로 쓸 수 있다 */
+.ec-appwin-back { pointer-events: none; }
+.ec-appwin-back > .ec-modal { pointer-events: auto; }
+.ec-appwin-back.front { z-index: 71; }   /* 마지막에 열거나 누른 창이 위 */
+.ec-appwin-back.pinned { z-index: 72; }  /* [고정] 한 창은 늘 위 */
+.ec-appwin-back.at-side { justify-content: flex-end; padding-right: 64px; padding-top: 120px; }
+.ec-modal-bar > .tool {
+  width: 26px;
+  height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  opacity: .8;
+}
+.ec-modal-bar > .tool:hover,
+.ec-modal-bar > .tool.on { opacity: 1; }
+.ec-modal-bar > .tool > svg { width: 13px; height: 13px; }
+.ec-appwin { width: var(--ec-appwin-w); }
+.ec-appwin > .ec-modal-body {
+  height: var(--ec-appwin-h);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+.ec-appwin.is-free > .ec-modal-body { height: auto; }
+.ec-appwin-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px;
+  background: var(--ec-bg-panel);
+  border-radius: var(--ec-radius-panel);
+  overflow: hidden;
+}
+.ec-appwin-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ec-appwin-head > .title { font-size: var(--ec-fs-menu); font-weight: 700; color: var(--ec-text); margin-right: auto; }
+.ec-appwin-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.ec-appwin-foot { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.ec-appwin-empty { padding: 24px 8px; text-align: center; color: var(--ec-text-hint); }
+.ec-appwin-hint { color: var(--ec-text-hint); }
+.ec-appwin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-pill);
+  margin-bottom: 4px;
+  background: var(--ec-bg-panel);
+  cursor: pointer;
+}
+.ec-appwin-row:hover { background: var(--ec-bg-row-hover); }
+.ec-appwin-row > .sub { margin-left: auto; color: var(--ec-text-hint); white-space: nowrap; }
+.ec-appwin-row.warn { border-color: var(--ec-danger); }
+/* 북마크 줄의 메뉴 이름 — 파란 테두리 알약, 공지는 노란 알약 */
+.ec-tag-menu {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--ec-blue);
+  border-radius: var(--ec-radius-pill);
+  color: var(--ec-blue);
+  white-space: nowrap;
+}
+.ec-tag-menu.notice { border-color: var(--ec-star); background: var(--ec-bg-pinned); color: var(--ec-text); }
+.ec-big-search {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-pill);
+  background: var(--ec-bg-panel);
+}
+.ec-big-search > input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 13px; color: var(--ec-text); }
+.ec-big-search > button { display: flex; border: 0; background: none; color: var(--ec-text-sub); cursor: pointer; }
+.ec-big-search > button > svg { width: 16px; height: 16px; }
+.ec-search-group { margin-bottom: 12px; }
+.ec-search-group > .name { font-weight: 700; color: var(--ec-navy); margin-bottom: 4px; }
+.ec-search-group > .name > span { color: var(--ec-text-hint); font-weight: 400; margin-left: 4px; }
+
+/* 업무지원AI — 왼쪽 목록 · 오른쪽 안내 */
+.ec-ai { flex: 1; min-height: 0; display: flex; border-radius: var(--ec-radius-panel); overflow: hidden; background: var(--ec-bg-panel); }
+.ec-ai > .side { width: 200px; flex: 0 0 auto; padding: 10px; background: var(--ec-bg-bookbar); }
+.ec-ai > .side > button { display: block; width: 100%; padding: 6px 4px; border: 0; border-bottom: var(--ec-hair) solid var(--ec-line); background: none; text-align: left; color: var(--ec-text); font-size: var(--ec-fs); cursor: pointer; }
+.ec-ai > .side > button.on { font-weight: 700; color: var(--ec-blue); }
+.ec-ai > .main { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: var(--ec-text-hint); font-size: 14px; line-height: 1.8; white-space: pre-line; }
+
+/* SMS — 위 경고띠 · 휴대폰 모양 입력판 · 발신번호 검색 목록 */
+.ec-sms-warn { padding: 8px 12px; border-radius: var(--ec-radius); background: var(--ec-sms-warn-bg); color: var(--ec-danger); font-weight: 700; }
+.ec-sms-warn > small { display: block; font-weight: 400; }
+.ec-sms { flex: 1; min-height: 0; display: flex; gap: 10px; }
+.ec-sms-phone { width: 200px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; padding: 14px 10px; border: 2px solid var(--ec-line); border-radius: 24px; background: var(--ec-bg-panel); overflow: auto; }
+.ec-sms-phone textarea { height: 110px; resize: none; }
+.ec-sms-phone .count { text-align: right; color: var(--ec-text-hint); }
+.ec-sms-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 9px; background: var(--ec-bg-panel); border-radius: var(--ec-radius-panel); overflow: hidden; }
+
+/* E Note — 위 탭 */
+.ec-appwin-tabs { display: flex; gap: 14px; border-bottom: var(--ec-hair) solid var(--ec-line); }
+.ec-appwin-tabs > button { padding: 4px 2px 6px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ec-text-hint); font-size: var(--ec-fs); cursor: pointer; }
+.ec-appwin-tabs > button.on { color: var(--ec-text); font-weight: 700; border-bottom-color: var(--ec-blue); }
+.ec-todo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius); margin-bottom: 4px; }
+.ec-todo > .body { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+.ec-todo > .date { color: var(--ec-text-hint); white-space: nowrap; }
+.ec-todo.done > .body { color: var(--ec-text-hint); text-decoration: line-through; }
+
+/* ── Messenger ── */
+.ec-messenger { width: var(--ec-messenger-w); }
+.ec-messenger > .ec-modal-body,
+.ec-chat > .ec-modal-body {
+  height: var(--ec-messenger-h);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ec-bg-panel);
+  border-radius: 0 0 var(--ec-radius-panel) var(--ec-radius-panel);
+}
+.ec-messenger.is-free > .ec-modal-body,
+.ec-chat.is-free > .ec-modal-body { height: auto; }
+.ec-msg-top { display: flex; align-items: center; gap: 6px; height: 34px; flex: 0 0 auto; padding: 0 10px; background: var(--ec-bg-bookbar); }
+.ec-msg-top > .me { width: 22px; height: 22px; border-radius: 50%; background: var(--ec-app-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.ec-msg-top > select { height: 22px; border: 0; background: none; color: var(--ec-text); font-size: var(--ec-fs); cursor: pointer; }
+.ec-msg-top > .icons { margin-left: auto; display: flex; gap: 2px; }
+.ec-msg-top > .icons > button { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: none; color: var(--ec-text-sub); cursor: pointer; }
+.ec-msg-top > .icons > button:hover,
+.ec-msg-top > .icons > button.on { background: var(--ec-bg-panel); }
+.ec-msg-top > .icons > button > svg { width: 14px; height: 14px; }
+.ec-msg-search { padding: 6px 10px 0; }
+.ec-msg-search > input { width: 100%; }
+.ec-msg-list { flex: 1; min-height: 0; overflow: auto; padding: 6px 10px 10px; }
+.ec-msg-co { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-weight: 700; color: var(--ec-text); cursor: pointer; }
+.ec-msg-co > svg { width: 13px; height: 13px; color: var(--ec-app-blue); }
+.ec-msg-sep { height: 0; border-top: var(--ec-hair) solid var(--ec-line); margin: 8px 0; }
+.ec-msg-sect { display: flex; align-items: center; gap: 6px; padding: 4px 0; color: var(--ec-text); font-weight: 700; cursor: pointer; user-select: none; }
+.ec-msg-sect > .fold { margin-left: auto; color: var(--ec-text-hint); }
+.ec-msg-grp { display: flex; align-items: center; gap: 4px; padding: 4px 0 2px 6px; font-weight: 700; color: var(--ec-text); cursor: pointer; user-select: none; }
+.ec-msg-user,
+.ec-msg-room { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 20px; color: var(--ec-text); cursor: pointer; border-radius: 6px; }
+.ec-msg-room { padding-left: 6px; }
+.ec-msg-user:hover,
+.ec-msg-room:hover { background: var(--ec-bg-row-hover); }
+.ec-msg-user.off { color: var(--ec-text-off); }
+.ec-msg-user > .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ec-ok); }
+.ec-msg-room > .name { white-space: nowrap; }
+.ec-msg-room > .last { flex: 1; min-width: 0; color: var(--ec-text-hint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ec-msg-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--ec-app-orange);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.ec-msg-sect > .ec-msg-count { margin-left: 0; }
+.ec-msg-pick { display: flex; align-items: center; gap: 6px; padding: 4px 0 4px 20px; cursor: pointer; }
+.ec-msg-foot { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: var(--ec-hair) solid var(--ec-line); }
+.ec-msg-foot > .ec-btn-primary { margin-left: auto; }
+.ec-msg-set { padding: 8px 10px; border-bottom: var(--ec-hair) solid var(--ec-line); display: flex; flex-direction: column; gap: 4px; }
+
+/* 1:1 대화 창(원본 미실측 — 메신저와 같은 틀) */
+.ec-chat { width: var(--ec-chat-w); }
+.ec-chat-who { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--ec-bg-bookbar); }
+.ec-chat-who > .members { flex: 1; min-width: 0; color: var(--ec-text-hint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ec-chat-log { flex: 1; min-height: 0; overflow: auto; padding: 10px; background: var(--ec-bg-page); }
+.ec-chat-day,
+.ec-chat-sys { text-align: center; color: var(--ec-text-hint); margin: 6px 0; font-size: 11px; }
+.ec-chat-msg { display: flex; flex-direction: column; align-items: flex-start; margin: 4px 0; }
+.ec-chat-msg.mine { align-items: flex-end; }
+.ec-chat-msg > .from { font-size: 11px; color: var(--ec-text-hint); margin-bottom: 2px; }
+.ec-chat-msg > .line { display: flex; align-items: flex-end; gap: 5px; max-width: 86%; }
+.ec-chat-msg.mine > .line { flex-direction: row-reverse; }
+.ec-chat-msg .bubble { padding: 6px 10px; border-radius: var(--ec-radius); background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); white-space: pre-wrap; word-break: break-word; color: var(--ec-ink); }
+.ec-chat-msg.mine .bubble { background: var(--ec-blue); border-color: var(--ec-blue); color: #fff; }
+.ec-chat-msg .time { font-size: 10px; color: var(--ec-text-hint); white-space: nowrap; }
+.ec-chat-input { display: flex; gap: 6px; padding: 8px 10px; border-top: var(--ec-hair) solid var(--ec-line); }
+.ec-chat-input > textarea { flex: 1; height: 52px; padding: 6px; resize: none; }
+
+/* 다크모드로보기(원본 미실측) — 색이 화면마다 아직 인라인으로 남아 토큰만 바꾸면 절반만 어두워진다.
+   그래서 화면 전체를 뒤집고(그림은 다시 뒤집어 제 색) 어두운 바탕 · 밝은 글자를 만든다. */
+html.ec-dark { filter: invert(0.9) hue-rotate(180deg); background: #fff; }
+html.ec-dark img,
+html.ec-dark video,
+html.ec-dark canvas { filter: invert(1) hue-rotate(180deg); }
+
+@media (max-width: 768px) {
+  .ec-m-apps-grid > .ec-appbar-btn > svg { width: 28px; height: 28px; }
+  .ec-appwin, .ec-messenger, .ec-chat { width: 100% !important; }
+  .ec-appwin > .ec-modal-body { height: auto; max-height: calc(100vh - 80px); }
+  .ec-appwin-back.at-side { justify-content: center; padding: 10px 6px; }
+  .ec-sms { flex-direction: column; }
+  .ec-sms-phone { width: auto; }
+  .ec-ai > .side { width: 120px; }
+}
+
+/* ── 막힌 화면(업무 권한 없음) — 원본 2026-10-30 loginaa 실측(plans/데이터이관/원본-업무권한.md §1) ── */
+.ec-noperm { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  min-height: 420px; padding: 48px 20px; color: var(--ec-text); }
+/* 크기 · 간격은 원본 영상 2000(1280px 녹화, 100%) 프레임을 픽셀로 잰 값: 자물쇠 95×116 rgb(180,186,196) · 아래 23 ·
+   첫 줄 15px · 줄 간격 25 · 마스터 줄 22px 굵게(위 30) · [권한요청] 단추 38 높이 · 좌우 22 · 16px 굵게 · 글 가운데 · 각진 모서리.
+   2026-10-30 [권한요청] 이 깨져 보였다 — 이 묶음이 휴대폰 @media 안에 들어가 PC 에서 하나도 안 먹고(.ec-btn 이 flex 라 글이 왼쪽에 붙음) */
+.ec-noperm-lock { width: 95px; height: 116px; margin-bottom: 23px; fill: var(--ec-lock); stroke: var(--ec-lock); }
+.ec-noperm-lock .hole { fill: var(--ec-bg-panel); stroke: none; }
+.ec-noperm-title { font-size: 15px; font-weight: 400; line-height: 25px; margin: 0; }
+.ec-noperm-title .work { color: var(--ec-blue); font-weight: 700; }
+.ec-noperm-sub { font-size: 14px; line-height: 25px; color: var(--ec-text); margin: 0 0 19px; }
+.ec-noperm-masters { font-size: 22px; font-weight: 700; margin: 0 0 30px; }
+.ec-noperm-masters .names { color: var(--ec-blue); }
+.ec-noperm .ec-noperm-ask { height: 38px; padding: 0 22px; justify-content: center; font-size: 16px; font-weight: 700; border-radius: 0; }
+/* 관리자설정 — 마스터 이름 칩, 오른쪽 (−) 로 뺀다(원본 영상 2531) */
+.ec-master-chip { display: inline-flex; align-items: center; gap: 4px; height: var(--ec-ctl-h); padding: 0 9px;
+  border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius); color: var(--ec-blue); }
+.ec-master-chip .x { border: 0; background: none; color: var(--ec-danger); cursor: pointer; font-weight: 700; }
+/* 권한승인대기현황 [승인] — 마우스를 올리면 개별권한 / 권한그룹(원본 영상 1514) */
+.ec-approve-hover { position: relative; display: inline-block; }
+.ec-approve-menu { display: none; position: absolute; top: 100%; left: 0; z-index: 20; min-width: 130px; padding: 4px 0;
+  background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius); text-align: left; }
+.ec-approve-hover:hover .ec-approve-menu, .ec-approve-hover:focus-within .ec-approve-menu { display: block; }
+.ec-approve-menu > button { display: block; width: 100%; padding: 4px 10px; border: 0; background: none; text-align: left; cursor: pointer; }
+.ec-approve-menu > button:hover { background: var(--ec-bg-row-hover); }
+.ec-approve-menu > button:disabled { color: var(--ec-text-off); cursor: default; }
+.ec-chat-view { display: block; margin-top: 6px; }
+/* 권한요청 알림 — 마스터 화면 오른쪽 아래에 뜨는 작은 알림창(원본 영상 1998 · 1514) */
+.ec-perm-toast { position: fixed; right: 64px; bottom: 20px; z-index: 60; width: 280px; padding: 12px 14px;
+  background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius-panel); }
+.ec-perm-toast .head { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 6px; }
+.ec-perm-toast .head button { border: 0; background: none; cursor: pointer; color: var(--ec-text-hint); }
+.ec-perm-toast .body { margin-bottom: 8px; }

@@ -1,18 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { api, extractErrorMessage } from '../../api/client'
 import { printDocuments } from '../../utils/printDocument'
 import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
-import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import SlipLoadModal, { type LoadedSlip } from '../../features/slipload/components/SlipLoadModal'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
 /** 원본 탭 [전체 · 결재중 · 미확인 · 확인] — 진행상태. */
@@ -63,61 +61,7 @@ interface MaterialIssue {
   createdAt: string | null
   updatedAt: string | null
 }
-/** searchKeyword 는 원본 [검색창내용] — 코드도움이 이 값으로도 찾는다. */
-interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null; lotManaged?: boolean }
-/** 구분(창고·공장·외주)까지 받는다 — 받는 쪽은 대개 공장이라 앞에 세운다. */
-interface Warehouse { id: number; code: string; name: string; kind: string }
-interface Project { id: number; code: string; name: string }
-interface WorkOrder { id: number; orderNo: string; productName: string }
 interface EmployeeLite { id: number; code: string; name: string }
-
-const inputCls = 'ec-input w-full'
-const today = () => ymd(new Date())
-/**
- * 원본 생산불출입력 머리 실측(사본): 일자 · <b>담당자</b> · 보내는창고 · 받는공장 ·
- * <b>생산품목</b>. 생산불출현황 조건에도 [담당자] 가 있다 — 세 화면에서 나온 항목이다.
- *
- * <p>담당자가 없어 "누가 낸 불출인지" 를 적을 자리도, 그걸로 거를 자리도 없었다.
- * 생산품목은 작업지시를 고르면 따라온다 — 원본처럼 따로 고르게 하면 둘이 어긋날 수 있다.
- */
-const emptyForm = {
-  itemId: '', warehouseId: '', toWarehouseId: '', workOrderId: '',
-  employeeId: '', issueDate: today(),
-  /** 원본 생산불출입력 머리의 [프로젝트]. 안 정할 수 있다. */
-  projectId: '',
-}
-
-/**
- * 격자 한 줄. 원본 생산불출입력은 <b>한 전표에 자재를 여러 줄</b> 넣는다 —
- * 같은 날 같은 작업지시로 자재 다섯 개를 내보내면서 다섯 번 저장할 일이 아니다.
- */
-interface FormLine {
-  key: number; itemId: string; qty: string; note: string
-  /** [시리얼/로트No.] — 로트관리 품목이면 꼭 넣는다. */
-  lotNo?: string
-  /** 원본 [작업지시서] 로 불러온 줄이면 그 지시. 줄마다 다른 지시에 묶일 수 있다. */
-  workOrderId?: string
-  workOrderNo?: string
-}
-
-/** GET /material-issues/wo-requirements 한 줄 — 작업지시서의 소요자재·기불출·잔량. */
-interface WoRequirement {
-  workOrderId: number; workOrderNo: string; orderDate: string
-  productCode: string; productName: string; plannedQty: number
-  employeeId: number | null
-  componentId: number; requiredQty: number; issuedQty: number; remainingQty: number
-}
-
-/** 작업지시서 고르기 창에 쓸 지시(전체 목록). */
-interface WorkOrderFull {
-  id: number; orderNo: string; orderDate: string; partnerName: string | null; employeeId: number | null
-  productCode: string; productName: string; productSpec: string | null
-  plannedQty: number; status: string
-}
-/** GET /api/stock 한 줄 — 원본 [재고불러오기]가 격자의 수량 칸 셋을 채우는 자료다. */
-interface StockRow { itemId: number; warehouseId: number; quantity: number }
-let nextLineKey = 1
-const emptyLine = (): FormLine => ({ key: nextLineKey++, itemId: '', qty: '', note: '' })
 
 /*
  * 원본 생산불출조회는 <b>[최근30일(+1개월)]</b> 로 열린다(사본 실측 — 달 스핀박스가
@@ -129,14 +73,6 @@ const initP = periodOf('최근30일(+1개월)')!
 
 export default function IssuePage() {
   const [rows, setRows] = useState<MaterialIssue[]>([])
-  const [items, setItems] = useState<Item[]>([])
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  /*
-   * <b>고르는 칸에 쓸 것만 받는다.</b> 이 화면이 작업지시로 하는 일은 &lt;select&gt; 에
-   * 지시번호와 품목을 그리는 것뿐인데, 여태 작업지시 목록을 통째로 받았다
-   * (2026-09-24 실측 937KB). /work-orders/options 는 네 칸만 낸다.
-   */
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   /** 원본은 일자와 번호를 '2026/08/29 -1' 로 한 칸에 적는다(판매조회·견적서와 같은 규칙). */
   const dateNo = (r: { issueDate: string; issueNo: string }) => {
     const seq = r.issueNo.split('-').pop() ?? ''
@@ -144,7 +80,6 @@ export default function IssuePage() {
   }
   /** 담당자 이름은 서버가 못 붙여서 화면이 붙인다. */
   const [employees, setEmployees] = useState<EmployeeLite[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
   /**
    * 원본은 목록 첫 칸에서 줄을 골라 [선택삭제] 한다(사본 실측: CHK_H 열).
    * 우리는 줄마다 [삭제]뿐이라, 잘못 넣은 열 건을 지우려면 열 번 눌러 열 번 확인해야 했다.
@@ -166,16 +101,6 @@ export default function IssuePage() {
   }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  /**
-   * 원본 격자 툴바의 <b>[전표불러오기]</b> → 메뉴검색(주문서 · 판매 · 발주서 · 구매 · 작업지시서 · 생산불출)에서 전표를 골라
-   * 그 품목 줄을 불출 자재 줄로 붓는다(수량 그대로). 불출은 자재든 제품이든 낼 수 있어 품목을 가리지 않는다.
-   */
-  const [slipLoadOpen, setSlipLoadOpen] = useState(false)
-  function applyLoadedSlips(slips: LoadedSlip[]) {
-    const added = slips.flatMap((x) => x.lines).filter((l) => l.itemId > 0 && l.quantity > 0)
-    setLines((ls) => [...ls.filter((l) => l.itemId),
-      ...added.map((l) => ({ ...emptyLine(), itemId: String(l.itemId), qty: String(l.quantity) })), emptyLine()])
-  }
   const [keyword, setKeyword] = useState('')
   const [from, setFrom] = useState(initP.from)
   const [to, setTo] = useState(initP.to)
@@ -198,55 +123,12 @@ export default function IssuePage() {
   /** 원본 [품목그룹1]. 품목 마스터에 붙는 값이라 마스터를 받아 itemId 로 잇는다. */
   const mgmt = useItemMgmt()
   const condPickers = useCondPickers(['warehouses', 'items', 'employees'])
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState(emptyForm)
-  const [lines, setLines] = useState<FormLine[]>([emptyLine()])
-  const setLine = (key: number, patch: Partial<FormLine>) =>
-    setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
-  /** 원본 격자 툴바의 [My품목]. 불출은 <b>단가를 안 든다</b> — 품목과 수량만 붓는다. */
-  const myItems = useMyItemsPick((picked) => setLines((ls) => {
-    const kept = ls.filter((l) => l.itemId)
-    const added = picked.map((m) => ({ ...emptyLine(), itemId: String(m.itemId), qty: String(m.defaultQty) }))
-    return [...kept, ...added, emptyLine()]
-  }))
-  /**
-   * 원본 격자 툴바의 <b>[재고불러오기]</b>.
-   *
-   * <p>불출은 <b>있는 것을 빼는 일</b>이다. 재고가 모자라면 서버가 거절하는데, 그걸
-   * <b>[등록]을 누른 뒤에야</b> 알았다 — 다섯 줄을 채워 넣고 세 번째 줄에서 막히는 식이다.
-   * 원본 격자에는 <b>전체수량 · 보내는창고수량 · 받는창고수량</b> 세 칸이 있고
-   * (qa/fixtures/ecount-column-width.json 의 생산불출입력 — 각 67), 이 단추가 그것을 채운다.
-   *
-   * <p>화면을 열 때마다 전 품목 재고를 끌어오지 않는다 — 누를 때만 부른다(TradeEntry 와 같다).
-   * 부르기 전에는 칸을 <b>비워 두지 않고 '-' 로</b> 둔다. 0 으로 채우면 "재고가 없다" 로 읽힌다.
+  /*
+   * 생산불출입력은 따로 있는 화면이다(/production/issue-entry — 원본 E040404 실측). [신규(F2)] 와 옛 주소 ?new=1 은 그리로 보낸다.
    */
-  const [stocks, setStocks] = useState<StockRow[]>([])
-  const [stockLoaded, setStockLoaded] = useState(false)
-  const [stockBusy, setStockBusy] = useState(false)
-  async function loadStocks() {
-    setStockBusy(true)
-    try {
-      const r = await api.get<StockRow[]>('/stock')
-      setStocks(r.data)
-      setStockLoaded(true)
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setStockBusy(false)
-    }
-  }
-  /** 그 품목의 전 창고 합계. 재고를 아직 안 불러왔으면 null 이다(0 이 아니다). */
-  const stockAllOf = (itemId: string): number | null => {
-    if (!stockLoaded || !itemId) return null
-    return stocks.filter((s) => String(s.itemId) === itemId).reduce((a, s) => a + s.quantity, 0)
-  }
-  /** 그 품목의 <b>한 창고</b> 수량. 창고를 안 골랐으면 잴 것이 없어 null 이다. */
-  const stockAtOf = (itemId: string, warehouseId: string): number | null => {
-    if (!stockLoaded || !itemId || !warehouseId) return null
-    const hit = stocks.find((s) => String(s.itemId) === itemId && String(s.warehouseId) === warehouseId)
-    return hit ? hit.quantity : 0
-  }
-  const qtyCell = (n: number | null) => (n === null ? '-' : n.toLocaleString())
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  useEffect(() => { if (params.get('new') === '1') navigate('/production/issue-entry', { replace: true }) }, [params, navigate])
 
   async function load() {
     setLoading(true)
@@ -269,20 +151,11 @@ export default function IssuePage() {
 
   async function loadRefs() {
     try {
-      const [it, wh, wo, emp, pj] = await Promise.all([
-        api.get<Item[]>('/items'),
-        api.get<Warehouse[]>('/warehouses'),
-        api.get<WorkOrder[]>('/work-orders/options'),
-        api.get<EmployeeLite[]>('/employees'),
-        api.get<Project[]>('/projects'),
-      ])
-      setItems(it.data)
-      setWarehouses(wh.data)
-      setWorkOrders(wo.data)
+      /* 입력은 생산불출입력 화면이 맡는다 — 목록은 담당자 이름만 붙인다. */
+      const emp = await api.get<EmployeeLite[]>('/sales-reps')
       setEmployees(emp.data)
-      setProjects(pj.data)
     } catch {
-      /* 참조 데이터 로딩 실패는 폼 사용에만 영향 */
+      /* 담당자 이름만 '-' 로 남는다 */
     }
   }
 
@@ -296,92 +169,6 @@ export default function IssuePage() {
   const empName = (id: number | null) =>
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
-  /*
-   * 원본 생산불출입력 툴바의 <b>[작업지시서]</b>. 받는공장을 먼저 정해야 열린다(원본: "받는공장을 입력바랍니다.").
-   * 지시를 고르고 [잔량으로BOM풀기] 를 누르면 BOM 소요량 × 지시수량 − 이미 낸 불출이,
-   * [BOM풀기] 를 누르면 BOM 소요량 × 지시수량이 격자에 들어간다. 줄마다 그 지시가 붙는다.
-   */
-  const [woPickOpen, setWoPickOpen] = useState(false)
-  const [woList, setWoList] = useState<WorkOrderFull[]>([])
-  const [woPicked, setWoPicked] = useState<number[]>([])
-  /** 원본 BOM풀기 갈래 — 1단계(바로 아래 자재) · 전체(반제품을 끝까지 풀어 원재료로). */
-  const [bomLevel, setBomLevel] = useState<'ONE' | 'ALL'>('ONE')
-  async function openWoPick() {
-    if (!form.toWarehouseId) { setError('받는공장을 입력바랍니다.'); return }
-    setError('')
-    try {
-      // 원본 작업지시서조회 창도 기간(지시일)을 달고 뜬다 — 목록의 기간을 그대로 쓴다.
-      const r = await api.get<WorkOrderFull[]>('/work-orders', { params: { from, to } })
-      setWoList(r.data.filter((w) => w.status !== 'COMPLETED'))
-      setWoPicked([])
-      setWoPickOpen(true)
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
-  }
-  async function applyWo(remainOnly: boolean) {
-    if (woPicked.length === 0) { setWoPickOpen(false); return }
-    try {
-      const r = await api.get<WoRequirement[]>('/material-issues/wo-requirements', {
-        params: { workOrderIds: woPicked.join(','), level: bomLevel },
-      })
-      const added: FormLine[] = r.data
-        .map((q) => ({ q, qty: remainOnly ? Number(q.remainingQty) : Number(q.requiredQty) }))
-        .filter(({ qty }) => qty > 0)
-        .map(({ q, qty }) => ({
-          ...emptyLine(), itemId: String(q.componentId), qty: String(qty),
-          workOrderId: String(q.workOrderId), workOrderNo: q.workOrderNo,
-        }))
-      const none = woPicked.filter((id) => !r.data.some((q) => q.workOrderId === id))
-      setLines((ls) => [...ls.filter((l) => l.itemId), ...added, emptyLine()])
-      // 원본처럼 비어 있는 담당자를 지시서에서 채운다.
-      const firstEmp = woList.find((w) => w.id === woPicked[0])?.employeeId
-      if (!form.employeeId && firstEmp != null) setForm((f) => ({ ...f, employeeId: String(firstEmp) }))
-      if (none.length > 0) setError(`BOM 이 없는 지시는 풀 자재가 없습니다: ${woList.filter((w) => none.includes(w.id)).map((w) => w.orderNo).join(', ')}`)
-      else if (added.length === 0) setError(remainOnly ? '고른 지시는 이미 다 불출했습니다(잔량 0).' : '풀 자재가 없습니다.')
-      setWoPickOpen(false)
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
-  }
-
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    try {
-      /*
-       * 줄을 <b>한 번에</b> 보낸다. 서버가 한 트랜잭션으로 넣고, 한 줄이라도 막히면
-       * 전부 되돌린다 — 재고가 모자라 세 줄 중 둘만 들어가면 창고 수량도 전표도
-       * 반쪽이 되고, 사람은 무엇이 들어갔는지 모른다.
-       */
-      const filled = lines.filter((l) => l.itemId && l.qty !== '')
-      if (filled.length === 0) { setError('자재를 한 줄 이상 넣으세요.'); return }
-      /* 로트관리 품목은 로트No. 가 있어야 한다 — 서버도 거절한다(판매·구매와 같은 규칙). 어느 줄인지 먼저 알린다. */
-      const noLot = filled.find((l) => !(l.lotNo ?? '').trim() && items.find((i) => String(i.id) === l.itemId)?.lotManaged)
-      if (noLot) {
-        const it = items.find((i) => String(i.id) === noLot.itemId)!
-        setError(`${it.code} ${it.name} 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.`); return
-      }
-      await api.post('/material-issues/batch', {
-        warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
-        toWarehouseId: form.toWarehouseId === '' ? null : Number(form.toWarehouseId),
-        workOrderId: form.workOrderId === '' ? null : Number(form.workOrderId),
-        issueDate: form.issueDate || null,
-        employeeId: form.employeeId === '' ? null : Number(form.employeeId),
-        projectId: form.projectId === '' ? null : Number(form.projectId),
-        lines: filled.map((l) => ({
-          itemId: Number(l.itemId), qty: Number(l.qty), note: l.note, lotNo: (l.lotNo ?? '').trim() || null,
-          workOrderId: l.workOrderId ? Number(l.workOrderId) : null,
-        })),
-      })
-      setForm(emptyForm)
-      setLines([emptyLine()])
-      setShowForm(false)
-      load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
-  }
 
   /**
    * 원본 생산불출조회 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 불출증으로 찍는다.
@@ -479,7 +266,7 @@ export default function IssuePage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      onNew={() => setShowForm(true)}
+      onNew={() => navigate('/production/issue-entry')}
       actions={[{ label: '검색(F8)', onClick: load },
                 { label: '진행상태변경', onClick: () => setStatusPick((v) => !v), selected: checked.size },
                 { label: '인쇄' },
@@ -501,195 +288,12 @@ export default function IssuePage() {
         ))}
       </div>
 
-      <Modal error={error} open={showForm} title="생산불출 등록" onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); e.currentTarget.requestSubmit() } }} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">새 불출 등록</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {/* 원본은 [보내는창고] → [받는공장] 으로 옮기는 전표다. 재고가 그만큼 실제로 움직인다. */}
-            <div>
-              {/* 원본 머리의 이름은 [일자]다(사본 실측). */}
-              <label className="mb-1 block text-sm text-ec-label">일자</label>
-              <input type="date" className={inputCls} value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">담당자</label>
-              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
-                  몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
-              <CodePickerField label="담당자" hideLabel fill placeholder="담당자" emptyLabel="선택 안 함"
-                               value={form.employeeId} onChange={(v) => setForm({ ...form, employeeId: v })}
-                               items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">보내는창고</label>
-              {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
-                  몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
-              <CodePickerField label="보내는창고" hideLabel fill placeholder="보내는창고" emptyLabel="선택"
-                               value={form.warehouseId} onChange={(v) => setForm({ ...form, warehouseId: v })}
-                               items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">받는공장</label>
-              {/* 원본은 이 칸도 <b>코드도움</b>이다. 구분이 공장인 창고를 앞에 두고,
-                  보내는 창고와 같은 곳은 뺀다 — 제 창고로 보낼 수는 없다. */}
-              <CodePickerField label="받는공장" hideLabel fill placeholder="받는공장" emptyLabel="선택"
-                               value={form.toWarehouseId} onChange={(v) => setForm({ ...form, toWarehouseId: v })}
-                               items={[...warehouses]
-                                 .sort((a, b) => (a.kind === '공장' ? -1 : 1) - (b.kind === '공장' ? -1 : 1))
-                                 .filter((w) => String(w.id) !== form.warehouseId)
-                                 .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind !== '창고' ? w.kind : null }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">작업지시</label>
-              {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
-              <CodePickerField label="작업지시" hideLabel fill placeholder="작업지시" emptyLabel="선택 안 함"
-                               value={form.workOrderId} onChange={(v) => setForm({ ...form, workOrderId: v })}
-                               items={workOrders.map((w) => ({ value: String(w.id), code: w.orderNo, name: w.productName }))} />
-            </div>
-            <div>
-              {/* 원본 생산불출입력 머리의 [프로젝트]. 프로젝트별 원가에 이 불출이 잡힌다. */}
-              <label className="mb-1 block text-sm text-ec-label">프로젝트</label>
-              <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 해제"
-                               value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
-                               items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
-            </div>
-          </div>
-
-          {/*
-            원본 생산불출입력의 격자. 머리(일자·담당자·창고·작업지시·프로젝트)는 한 번만
-            정하고, 자재는 여러 줄 넣는다. 한 줄이라도 막히면 서버가 전부 되돌린다.
-          */}
-          <div className="flex items-center gap-[8px] mt-[12px] mb-[4px]">
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>자재</span>
-            <button type="button" className="ec-btn" onClick={() => setLines([...lines, emptyLine()])}>줄 추가</button>
-            {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
-            <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
-            <MyItemsNote note={myItems.note} />
-            <button type="button" className="ec-btn" onClick={() => void openWoPick()}>작업지시서</button>
-            <button type="button" className="ec-btn" onClick={() => setSlipLoadOpen(true)}>전표불러오기</button>
-            <button type="button" className="ec-btn" disabled={stockBusy} onClick={loadStocks}>재고불러오기</button>
-          </div>
-          {woPickOpen && (
-            <div className="border border-ec-line border-solid bg-white p-[8px] mb-[8px]">
-              <div className="font-bold text-[12.5px] mb-[6px]">작업지시서조회</div>
-              <div className="max-h-[220px] overflow-y-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr>
-                      <th className="w-[30px]" />
-                      <th>작업지시서일자</th>
-                      <th>거래처명</th>
-                      <th>품목코드</th>
-                      <th>품목명[규격]</th>
-                      <th className="text-right">수량</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {woList.length === 0 ? (
-                      <tr><td colSpan={6} className="text-center text-ec-hint p-[12px]">등록된 데이터가 없습니다.</td></tr>
-                    ) : woList.map((w) => (
-                      <tr key={w.id} className="cursor-pointer"
-                          onClick={() => setWoPicked((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))}>
-                        <td className="text-center"><input type="checkbox" readOnly checked={woPicked.includes(w.id)} /></td>
-                        <td>{dateText(w.orderDate)} {w.orderNo}</td>
-                        <td>{w.partnerName ?? ''}</td>
-                        <td>{w.productCode}</td>
-                        <td>{w.productName}{w.productSpec ? ` [${w.productSpec}]` : ''}</td>
-                        <td className="text-right">{Number(w.plannedQty).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex gap-[4px] mt-[6px]">
-                <button type="button" className="ec-btn ec-btn-primary" onClick={() => void applyWo(true)}>잔량으로BOM풀기</button>
-                <button type="button" className="ec-btn" onClick={() => void applyWo(false)}>BOM풀기</button>
-                <select className="ec-input" value={bomLevel} title="BOM풀기 단계"
-                        onChange={(e) => setBomLevel(e.target.value as 'ONE' | 'ALL')} style={{ width: 70 }}>
-                  <option value="ONE">1단계</option>
-                  <option value="ALL">전체</option>
-                </select>
-                <button type="button" className="ec-btn" onClick={() => setWoPickOpen(false)}>닫기</button>
-              </div>
-            </div>
-          )}
-          <table className="w-full text-left">
-            <thead>
-              <tr>
-                <th className="w-[34px]"></th>
-                <th>품목명</th>
-                <th className="w-[130px]">시리얼/로트No.</th>
-                <th className="w-[130px] text-right">수량</th>
-                {/*
-                  원본 격자의 수량 칸 셋(각 67). [재고불러오기]를 눌러야 찬다 —
-                  차례도 원본 그대로 [수량] 뒤 · [적요] 앞이다.
-                */}
-                <th className="w-[67px] text-right">전체수량</th>
-                <th className="w-[67px] text-right">보내는창고수량</th>
-                <th className="w-[67px] text-right">받는창고수량</th>
-                <th className="w-[200px]">적요</th>
-                <th className="w-[60px] text-center">삭제</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((l, idx) => (
-                <tr key={l.key}>
-                  <td className="text-center text-ec-hint">{idx + 1}</td>
-                  <td>
-                    <CodePickerField label="자재" hideLabel fill emptyLabel="선택 해제"
-                                     value={l.itemId} onChange={(v) => setLine(l.key, { itemId: v })}
-                                     items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
-                    {l.workOrderNo && <div className="text-[11px] text-ec-hint">작업지시 {l.workOrderNo}</div>}
-                  </td>
-                  <td>
-                    <input className={inputCls} value={l.lotNo ?? ''} maxLength={60} aria-label="시리얼/로트No."
-                           onChange={(e) => setLine(l.key, { lotNo: e.target.value })} />
-                  </td>
-                  <td>
-                    <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
-                           value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
-                  </td>
-                  <td className="text-right text-ec-label">{qtyCell(stockAllOf(l.itemId))}</td>
-                  <td className="text-right text-ec-label">{qtyCell(stockAtOf(l.itemId, form.warehouseId))}</td>
-                  <td className="text-right text-ec-label">{qtyCell(stockAtOf(l.itemId, form.toWarehouseId))}</td>
-                  <td>
-                    <input className={inputCls} value={l.note} onChange={(e) => setLine(l.key, { note: e.target.value })} />
-                  </td>
-                  <td className="text-center">
-                    <button type="button" onClick={() => setLines(lines.length > 1 ? lines.filter((x) => x.key !== l.key) : [emptyLine()])}
-                            style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={3} className="text-right font-bold">합계</td>
-                <td className="text-right font-bold">
-                  {lines.reduce((a2, l) => a2 + (Number(l.qty) || 0), 0).toLocaleString()}
-                </td>
-                {/* 열이 다섯에서 여덟이 됐다 — 합계행도 같이 늘린다(2 + 1 + 5 = 8). */}
-                <td colSpan={5}></td>
-              </tr>
-            </tfoot>
-          </table>
-
-          {/* 원본 아래 단추: 저장(F8) · 저장/전표(F7) · 다시 작성 · 리스트 — [리스트] 는 입력 창을 닫고 목록으로 간다. */}
-          <div className="mt-[12px] flex justify-start gap-[4px]">
-            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
-            <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>리스트</button>
-          </div>
-        </form>
-      )}</Modal>
 
       {/* 원본 조건 차례: 창고 · 품목 · 프로젝트 · 담당자 · 적요 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
@@ -746,14 +350,10 @@ export default function IssuePage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         </EcCond>
         <EcCond label="최종작업일자">
-          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-hint">~</span>
-          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
         </EcCond>
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">
@@ -858,16 +458,16 @@ export default function IssuePage() {
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={7} className="text-right font-bold">합계</td>
+              {/* 수량은 열째 칸이다(체크 · 일자-No. · 담당자 · 보내는 · 받는 · 불러온일자 · 작업지시품목코드 · 품목코드 · 품목명 = 9). */}
+              <td colSpan={9} className="text-right font-bold">합계</td>
               <td className="text-right font-bold">
                 {shown.reduce((a, r) => a + r.qty, 0).toLocaleString()}
               </td>
-              <td colSpan={7}></td>
+              <td colSpan={5}></td>
             </tr>
           </tfoot>
         )}
       </table>
-      <SlipLoadModal open={slipLoadOpen} onClose={() => setSlipLoadOpen(false)} onApply={applyLoadedSlips} />
     </EcListShell>
   )
 }

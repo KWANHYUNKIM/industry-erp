@@ -55,12 +55,12 @@ public class ScheduleEvent extends BaseTimeEntity {
     private String attendees;
 
     /**
-     * 원본 일정관리의 [라벨]. <b>[일정구분]과 다른 축</b>이다 —
-     * 구분은 '회의·출장' 처럼 일정의 갈래이고, 라벨은 '급함·대외비' 처럼 <b>가로지르는 표시</b>다.
-     * 공용품(SupplyUsage.labelText)이 이미 같은 것을 들고 있어 이름과 길이를 맞춘다.
+     * 원본 일정관리의 [라벨] — 라벨 마스터({@link ScheduleLabel})의 <b>코드</b>로 붙는다(2026-10-30 실측).
+     * 이름 · 색은 읽을 때 마스터에서 가져오므로 '라벨수정'에서 바꾸면 이미 넣은 일정의 칩도 따라 바뀐다.
+     * [일정구분]과 다른 축이다 — 구분은 일정의 갈래, 라벨은 달력 칸의 색 칩이다.
      */
-    @Column(name = "label_text", length = 100)
-    private String labelText;
+    @Column(name = "label_code", length = 20)
+    private String labelCode;
 
     @Column(length = 500)
     private String remark;

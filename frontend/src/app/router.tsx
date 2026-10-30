@@ -1,11 +1,13 @@
 import { Suspense, lazy } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, type Location } from 'react-router-dom'
 import ProtectedRoute from '../features/auth/components/ProtectedRoute'
 import EcountLayout from './layout/EcountLayout'
 import LoginPage from '../pages/LoginPage'
 const MyPageDashboard = lazy(() => import('../pages/MyPageDashboard'))
 const UsersPage = lazy(() => import('../pages/UsersPage'))
-const RolesPage = lazy(() => import('../pages/RolesPage'))
+const PermissionGroupsPage = lazy(() => import('../pages/PermissionGroupsPage'))
+const PermissionRequestsPage = lazy(() => import('../pages/PermissionRequestsPage'))
+const MastersPage = lazy(() => import('../pages/MastersPage'))
 const CompaniesPage = lazy(() => import('../pages/CompaniesPage'))
 const ItemsPage = lazy(() => import('../pages/inventory/ItemsPage'))
 const WarehousesPage = lazy(() => import('../pages/inventory/WarehousesPage'))
@@ -277,6 +279,7 @@ const ExportStatusPage = lazy(() => import('../pages/trade/ExportStatusPage'))
 const MallPage = lazy(() => import('../pages/trade/MallPage'))
 const PlanningPage = lazy(() => import('../pages/production/PlanningPage'))
 const TransferPage = lazy(() => import('../pages/inventory/TransferPage'))
+const TransferEntryPage = lazy(() => import('../pages/inventory/TransferEntryPage'))
 const StockMoveListPage = lazy(() => import('../pages/inventory/StockMoveListPage'))
 const SelfUseInputPage = lazy(() => import('../pages/inventory/SelfUseInputPage'))
 const AdjustListPage = lazy(() => import('../pages/inventory/AdjustListPage'))
@@ -299,6 +302,7 @@ const BorPage = lazy(() => import('../pages/production/BorPage'))
 const WoStatusPage = lazy(() => import('../pages/production/WoStatusPage'))
 const WoEfficiencyPage = lazy(() => import('../pages/production/WoEfficiencyPage'))
 const IssuePage = lazy(() => import('../pages/production/IssuePage'))
+const IssueEntryPage = lazy(() => import('../pages/production/IssueEntryPage'))
 const WorkResultPage = lazy(() => import('../pages/production/WorkResultPage'))
 const WorkProcessPage = lazy(() => import('../pages/production/WorkProcessPage'))
 const CostBuildPage = lazy(() => import('../pages/accounting/CostBuildPage'))
@@ -371,6 +375,7 @@ const PayItemListPage = lazy(() => import('../pages/hr/PayItemListPage'))
 const PayGroupListPage = lazy(() => import('../pages/hr/PayGroupListPage'))
 const DepartmentListPage = lazy(() => import('../pages/hr/DepartmentListPage'))
 const ProjectListPage = lazy(() => import('../pages/inventory/ProjectListPage'))
+const SalesRepPage = lazy(() => import('../pages/inventory/SalesRepPage'))
 const WorkInputPage = lazy(() => import('../pages/hr/WorkInputPage'))
 const WorkListPage = lazy(() => import('../pages/hr/WorkListPage'))
 const PayLedgerPage = lazy(() => import('../pages/hr/PayLedgerPage'))
@@ -452,19 +457,22 @@ const OrderStagePage = lazy(() => import('../pages/trade/OrderStagePage'))
 const ReceiptInquiryPage = lazy(() => import('../pages/production/ReceiptInquiryPage'))
 
 /** 좌측 사이드바는 EcountLayout이 활성 탭 기준으로 그린다.
- *  그래서 모듈별 레이아웃 래퍼 없이 모든 화면이 EcountLayout 아래 평평하게 붙는다. */
-export default function AppRouter() {
+ *  그래서 모듈별 레이아웃 래퍼 없이 모든 화면이 EcountLayout 아래 평평하게 붙는다.
+ *
+ *  <p>{@code location} 을 주면 브라우저 주소 대신 그 주소의 화면 하나만 틀(EcountLayout) 없이 그린다 —
+ *  MyPage 위젯 [새창] 이 원본처럼 그 메뉴 화면을 메인 위의 창(레이어)으로 띄울 때 쓴다(features/mypage/PageWindow). */
+export default function AppRouter({ location }: { location?: Partial<Location> } = {}) {
   return (
     <Suspense fallback={<div className="p-[24px] text-ec-hint text-[13px]">화면을 불러오는 중…</div>}>
-      <Routes>
+      <Routes location={location}>
       <Route path="/login" element={<LoginPage />} />
 
       <Route
-        element={
+        element={location ? <Outlet /> : (
           <ProtectedRoute>
             <EcountLayout />
           </ProtectedRoute>
-        }
+        )}
       >
         <Route path="/" element={<MyPageDashboard />} />
 
@@ -506,6 +514,7 @@ export default function AppRouter() {
         <Route path="/inventory/disposal-status" element={<StockMoveStatusPage kind="DISPOSAL" />} />
         <Route path="/inventory/adjust-status" element={<StockMoveStatusPage kind="ADJUST" />} />
         <Route path="/inventory/transfer" element={<TransferPage />} />
+        <Route path="/inventory/transfer-entry" element={<TransferEntryPage />} />
         <Route path="/inventory/stocktake" element={<StocktakePage />} />
         <Route path="/inventory/wms" element={<WmsPage />} />
         {/* WMS — 바깥 WMS 연동 화면들(틀만, WmsFramePage 머리말) */}
@@ -548,6 +557,7 @@ export default function AppRouter() {
         <Route path="/production/wo-status" element={<WoStatusPage />} />
         <Route path="/production/wo-efficiency" element={<WoEfficiencyPage />} />
         <Route path="/production/issue" element={<IssuePage />} />
+        <Route path="/production/issue-entry" element={<IssueEntryPage />} />
         <Route path="/production/issue-status" element={<IssueStatusPage />} />
         <Route path="/production/work-result" element={<WorkResultPage />} />
         <Route path="/production/work-result-list" element={<WorkResultInquiryPage />} />
@@ -1071,6 +1081,7 @@ export default function AppRouter() {
         <Route path="/hr/pay-groups" element={<PayGroupListPage />} />
         <Route path="/hr/departments" element={<DepartmentListPage />} />
         <Route path="/inventory/projects" element={<ProjectListPage />} />
+        <Route path="/inventory/sales-reps" element={<SalesRepPage />} />
         <Route path="/hr/work-input" element={<WorkInputPage />} />
         <Route path="/hr/work-list" element={<WorkListPage />} />
         <Route path="/hr/records" element={<HrRecordPage />} />
@@ -1102,7 +1113,11 @@ export default function AppRouter() {
         <Route path="/hr/daily-wage" element={<DailyWagePage />} />
 
         <Route path="/users" element={<UsersPage />} />
-        <Route path="/roles" element={<RolesPage />} />
+        {/* 옛 역할·권한관리 → 원본 사용자관리 LNB(사용자등록 · 권한그룹 설정 · 권한승인대기현황 · 관리자설정) */}
+        <Route path="/roles" element={<Navigate to="/users/permission-groups" replace />} />
+        <Route path="/users/permission-groups" element={<PermissionGroupsPage />} />
+        <Route path="/users/permission-requests" element={<PermissionRequestsPage />} />
+        <Route path="/users/masters" element={<MastersPage />} />
         <Route path="/companies" element={<CompaniesPage />} />
       </Route>
 

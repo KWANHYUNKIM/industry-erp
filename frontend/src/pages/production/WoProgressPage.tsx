@@ -10,6 +10,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { dateText } from '../../utils/dateText'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 작업지시서별진행현황 — 작업지시 하나가 어디까지 갔는지 네 갈래로 본다.
@@ -197,7 +198,7 @@ export default function WoProgressPage() {
         api.get<Production[]>('/productions', { params: period }),
         api.get<WorkResult[]>('/work-results'),
         api.get<Bom[]>('/boms'),
-        api.get<{ id: number; name: string }[]>('/employees'),
+        api.get<{ id: number; name: string }[]>('/sales-reps'),
         api.get<{ name: string; manager: string | null }[]>('/partners'),
         /* 원본 격자의 [생산공정]·[현재고]. 둘 다 이미 있는 자료인데 안 받아 오고 있었다. */
         api.get<BorRow[]>('/bor'),
@@ -586,11 +587,7 @@ export default function WoProgressPage() {
           이 화면이 받아 두지 않아 걸 수가 없었다.
         */}
         <EcCond label="납기일자">
-          <input type="date" className="ec-input" value={dueFrom}
-                 onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input" value={dueTo}
-                 onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: dueFrom, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, onChange: (e) => setDueTo(e.target.value) }} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={remarkCond}

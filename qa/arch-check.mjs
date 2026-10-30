@@ -30,8 +30,6 @@ const ALLOWED = [
 ]
 /** 표에 없는데 지금 있는 간선(부채). 끊으면 여기서 지운다 — 남아 있는데 없어지면 지우라고 알려 준다. */
 const KNOWN = {
-  'trade→hr': '판매·구매·주문의 담당자가 Employee 엔티티 — hr↔trade, hr→accounting→trade 순환',
-  'hr→trade': '사원 실적이 판매·구매를 읽는다(EmployeePerformanceService)',
   'hr→auth': '근태가 User 를 든다',
   'accounting→hr': '급여이체 분개·원천징수가 Payslip·PayrollTransfer 를 읽는다 — accounting↔hr 순환',
   'groupware→accounting': '전자결재 첨부 전표가 지출(Expense)을 든다',

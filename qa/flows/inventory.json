@@ -24,15 +24,15 @@
       ]
     },
     {
-      "name": "창고이동 — 보내는창고 · 받는창고를 같게 하면 그 말을 창 안에(15회차까지 창 뒤)",
+      "name": "창고이동입력 — 보내는창고 · 받는창고를 같게 하면 그 말을 입력 화면 안에(15회차까지 창 뒤 · 2026-10-30 창에서 화면으로)",
       "path": "/inventory/transfer",
       "steps": [
         "wait:1500",
         "click:창고이동 등록",
         "wait:800",
-        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const d = () => [...document.querySelectorAll('[role=dialog]')].pop(); const code = async (n, v) => { const el = d().querySelectorAll('input.ec-input.code')[n]; el.focus(); set(el, v); await W(150); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await W(300) }; await code(0, 'QA-WH2'); await code(1, 'QA-WH2'); await code(2, 'QA-MAT'); set(d().querySelector('input[aria-label=\"1번째 줄 수량\"]'), '1'); await W(200); return true })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const d = () => document.querySelector('.ec-slip'); const code = async (n, v) => { const el = d().querySelectorAll('input.ec-input.code')[n]; el.focus(); set(el, v); await W(150); el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await W(300) }; /* 코드칸 차례: 담당자 · 보내는창고 · 받는창고 · 프로젝트 · 품목… */ await code(1, 'QA-WH2'); await code(2, 'QA-WH2'); await code(4, 'QA-MAT'); set(d().querySelector('input[aria-label=\"1번째 줄 수량\"]'), '1'); await W(200); return true })()",
         "click:저장(F8)",
-        "expect:document.querySelector('[role=dialog]')?.innerText.includes('보내는창고와 받는창고가 같을 수 없습니다.')"
+        "expect:location.pathname === '/inventory/transfer-entry' && document.querySelector('.ec-slip')?.innerText.includes('보내는창고와 받는창고가 같을 수 없습니다.')"
       ]
     }
   ]

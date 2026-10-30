@@ -4,6 +4,7 @@ import EcDateField from './EcDateField'
 import EcPeriodPicks, {
   COMPARE_PERIODS, INQUIRY_PICKS, comparePeriodOf, type ComparePeriod, type PeriodRange,
 } from './EcPeriodPicks'
+import EcDateInput from './ui/EcDateInput'
 
 /**
  * 현황 화면의 조회 조건 패널 — 이카운트 현황류가 공통으로 쓰는 그 판이다.
@@ -212,17 +213,15 @@ export default function EcStatusPanel({
         {ecDate && single ? (
           <EcDateField value={from} max={maxDate} onChange={(v) => { setPickedLabel(''); onPeriod({ from: v, to: v }) }} />
         ) : (
-        <input type="date" className="ec-input" value={from}
-               onChange={(e) => {
+        <EcDateInput className="ec-input" value={from} onChange={(e) => {
                  setPickedLabel('')
                  onPeriod(single ? { from: e.target.value, to: e.target.value } : { from: e.target.value, to })
-               }} style={{ width: 140 }} />
+               }} />
         )}
         {!single && (
           <>
             <span className="text-ec-label">~</span>
-            <input type="date" className="ec-input" value={to}
-                   onChange={(e) => { setPickedLabel(''); onPeriod({ from, to: e.target.value }) }} style={{ width: 140 }} />
+            <EcDateInput className="ec-input" value={to} onChange={(e) => { setPickedLabel(''); onPeriod({ from, to: e.target.value }) }} />
           </>
         )}
         <EcPeriodPicks

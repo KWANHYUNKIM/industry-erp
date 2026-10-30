@@ -36,6 +36,7 @@
 
   --ec-text-hint: #868d93;                  /* 안내·빈 목록 글자(= 꺼진 쪽번호 색) */
   --ec-text-off: #c5cbd3;                   /* 0 · 없음처럼 흐리게 둘 값(원본 미측정 — 옛 값 유지) */
+  --ec-lock: rgb(180, 186, 196);            /* 업무 권한 없음 화면의 자물쇠(원본 영상 2000 프레임 실측) */
   --ec-text-danger: rgb(215, 62, 62);       /* 원본 .text-danger 글자 — 조직도등록 [부서장] 열의 '부서장'(E090222 실측) */
 
   /* ── 역할색 — 원본에서 아직 못 쟀다. 옛 값 그대로 이름만 붙였다(값을 바꿀 때는 원본을 재고) ── */
@@ -130,6 +131,7 @@
   --ec-bookbar-h: 26px;
   --ec-gnb-h: 46px;
   --ec-logo-h: 30px;                        /* 머리 로고 그림 높이(회사 로고 — 머리 줄 46 안) */
+  --ec-logo-fs: 16px;                       /* 로고 자리 글자 표지(상호 · '제조 ERP') — 1단 메뉴 14px 보다 한 단 크게, 굵기 700 */
   --ec-lnb-w: 209px;
   --ec-footer-h: 38px;
   --ec-footer-gap: 9px;                     /* 격자 끝 → 하단 버튼줄 (원본 .contents 아래 여백) */
@@ -141,6 +143,56 @@
   --ec-modal-grip-corner: 9px;
   --ec-modal-grip-out: -5px;
   --ec-modal-keep: 40px;                    /* 창을 옆으로 밀어도 화면 안에 남기는 폭 — 제목줄을 다시 잡을 수 있게(원본 미실측) */
+
+  /* ── MyPage 위젯 격자(원본 gridstack — 2026-10-30 loginaa 홈 실측) ── */
+  --ec-grid-unit: 60px;                     /* 한 칸 — 가로 w15 → 900 · 세로 h10 → 590(사이 포함) */
+  --ec-grid-gap: 10px;                      /* 위젯 사이 — 높이 h·60 − 10 */
+  --ec-grid-grip-se: 12px;                  /* 오른쪽 아래 빗금 손잡이(원본 ui-icon-gripsmall-diagonal-se) */
+  --ec-wpick-w: 240px;                      /* My위젯선택 판 폭(원본 미실측) */
+
+  /* ── 오른쪽 앱바 · 앱바 창(2026-10-30 loginaa 캡처 — 색은 캡처에서 눈으로 뽑았다, getComputedStyle 미실측) ── */
+  --ec-app-ink: #142444;                    /* 다크모드 · UserPay · 숨김 */
+  --ec-app-blue: #2f6fe4;                   /* 통합검색 · 메신저 · 권한 · 원격 · 타임라인 */
+  --ec-app-sky: #3fa9f5;                    /* 업무지원AI */
+  --ec-app-teal: #12a39a;                   /* 스마트지원 */
+  --ec-app-green: #2fa84f;                  /* 새창열기 · 쪽지 · SMS */
+  --ec-app-orange: #f08a24;                 /* 알림 · Email · 북마크 · 메신저 '대화방' 배지 */
+  --ec-find-hit: #f6882d;                   /* 설정 화면 [입력 후 Enter] 찾은 이름(원본 text-warning-inverse · 둥글기 6) */
+  --ec-app-red: #e2533b;                    /* E Note */
+  --ec-appwin-w: 780px;                     /* 앱바 창 폭(쪽지 · 북마크 · 타임라인 …) */
+  --ec-appwin-h: 470px;
+  --ec-pagewin-w: 1100px;                   /* MyPage 위젯 [새창] 이 띄우는 메뉴 화면 창(원본 미실측 — 본문 틀에 가깝게) */
+  --ec-pagewin-h: 78vh;
+  --ec-messenger-w: 330px;                  /* Messenger 창 */
+  --ec-messenger-h: 395px;
+  --ec-chat-w: 360px;                       /* 1:1 대화 창(원본 미실측) */
+  --ec-sms-warn-bg: rgb(253, 224, 224);     /* SMS 창 위 경고띠 */
+
+  /* ── 일자칸 · 달력 판(원본 .wrapper-datepicker · 달력 단추 — 2026-10-30 loginaa 판매조회 조건 판 실측, plans/데이터이관/원본-아이콘-달력.md) ── */
+  --ec-date-year-w: 64px;                   /* [2026 ▾] */
+  --ec-date-month-w: 48px;                  /* [09 ▾] */
+  --ec-date-day-w: 28px;                    /* [30] 일 칸(원본 ~24 + 여백) */
+  --ec-date-list-item-h: 17px;              /* 연 · 월 펼침 목록 한 줄 */
+  --ec-cal-radius: 14px;                    /* 달력 판 둥글기 */
+  --ec-cal-cell-w: 31px;                    /* 날 칸 31×27 · 둥글기 10 · 글자 12 */
+  --ec-cal-cell-h: 27px;
+  --ec-cal-weekday: #666666;                /* 평일 */
+  --ec-cal-sun: #ff3c3c;                    /* 일요일 */
+  --ec-cal-sat: #049cdb;                    /* 토요일 */
+  --ec-cal-other: #c5cbd3;                  /* 앞뒤 달 날짜(옅은 회색) */
+  --ec-cal-range: #dbeafe;                  /* 기간 사이 날 띠 */
+  --ec-cal-today: rgb(246, 136, 45);        /* '오늘' 앞 주황 점 */
+
+  /* ── 로그인 화면(login.ecount.com 2026-10-30 실측, plans/데이터이관/클릭대조/대조-로그인.md) ── */
+  --ec-login-bg: rgb(251, 252, 253);        /* 화면 바탕 */
+  --ec-login-blue: rgb(50, 80, 185);        /* [로그인] · 체크칸 테두리 · 칸 그림 · 오른쪽 알약 — 틀의 --ec-blue 보다 짙다 */
+  --ec-login-w: 400px;                      /* 가운데 판 폭 */
+  --ec-login-field-h: 42px;                 /* 칸 한 줄(밑줄까지) — 줄 사이 10 */
+  --ec-login-ph: rgb(206, 212, 218);        /* 칸 안 흐린 글자(회사코드 · 아이디 · 비밀번호) */
+  --ec-login-err: rgb(169, 68, 66);         /* 빈 칸으로 [로그인] — 칸 그림 */
+  --ec-login-err-line: rgb(219, 170, 169);  /*   밑줄 */
+  --ec-login-err-bg: rgba(169, 68, 66, 0.05); /* 바탕 */
+  --ec-login-err-ph: rgba(169, 68, 66, 0.3);  /* 흐린 글자 */
 
   /* ── 옛 이름(화면 코드가 아직 쓴다) → 새 토큰 ── */
   --ec-blue-dark: var(--ec-navy);

@@ -17,6 +17,7 @@ import { useRequired } from '../../utils/useRequired'
 import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, asReceiptCheck, blankAsDraft, emptyAsLine, emptyAsLines,
   type AsFormLine, type AsReceiptDraft, type AsStatus } from '../../features/as/AsReceiptForm'
 import { ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II › A/S관리 › A/S접수조회(E040602) · A/S접수입력(E040601) · A/S접수수정
@@ -307,13 +308,9 @@ export default function AsManagePage() {
       <div className="ec-search-conds flex flex-wrap items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         {/* 원본 첫 줄은 <b>[기준일자]</b>(접수한 날)고 [수리예정일자]는 둘째 줄이다(2026-09-08 실측). */}
         <span>기준일자</span>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         <span className="ml-[8px]">수리예정일자</span>
-        <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: schedFrom, onChange: (e) => setSchedFrom(e.target.value) }} to={{ className: "ec-input", value: schedTo, onChange: (e) => setSchedTo(e.target.value) }} />
         {/* 원본 차례: 수리예정일자 · <b>창고</b> · 거래처 · 품목 · 프로젝트 · 담당자 · 제목. */}
         <span className="ml-[8px]">창고</span>
         <CodePickerField label="창고" hideLabel width={140} emptyLabel="전체"
@@ -369,13 +366,9 @@ export default function AsManagePage() {
                          items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
                            .map((n) => ({ value: n, name: n }))} />
         <span className="ml-[8px]">최초작성일자</span>
-        <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
         <span className="ml-[8px]">최종작업일자</span>
-        <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
       </div>
 
       {/* 원본 알약: 전체 · 확인 · 접수 – 수리중 – 완료. [접수]로 연다. */}

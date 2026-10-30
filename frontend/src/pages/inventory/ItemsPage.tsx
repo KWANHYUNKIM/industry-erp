@@ -18,6 +18,9 @@ import { clearItemSuggestCache } from '../../features/item/api/itemSuggest'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
 import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
+import { shrinkImage } from '../../utils/imageResize'
+import EcIcon from '../../components/ui/EcIcon'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const inputCls = 'ec-input w-full'
 
@@ -37,8 +40,12 @@ const CATEGORY_NAME: Record<string, string> = {
 
 /** 원본 [품목정보] 탭 품목유형(C000029 실측). */
 const ITEM_TYPES = ['양산품', '모델품', '모델부품', '공통부품']
-/** 품질검사 유형. 품질 모듈이 쓰는 값과 같다. 방법은 원본 라디오 전수 · 샘플링(%) 중 전수가 기본. */
-const QC_TYPES = ['수입검사', '공정검사', '출하검사']
+/**
+ * 품질검사유형 — 원본처럼 재고 II › 품질관리 › 품질검사유형등록 마스터에서 고른다(2026-10-30 실측: 유형 100
+ * '출하대기검사' 의 [품목설정] 에 A001 이 있으면 A001 의 이 칸이 '출하대기검사'). 그 마스터의 [품목설정] 과
+ * 같은 연결이라, 고르면 그 유형의 품목설정에 들어가고 앞 유형에서 빠진다. 품목의 qcType 글자에는 유형명을 같이 적는다.
+ */
+type QcTypeOption = { id: number; code: string; name: string; active: boolean }
 
 const ZERO_GRADES = GRADE_LABELS.map(() => '0')
 
@@ -152,6 +159,27 @@ export default function ItemsPage() {
   /** 원본 [생산공정] 후보 — 공정등록. inventory 는 production 을 모르므로 이름은 이 목록에서 붙인다. */
   const [processes, setProcesses] = useState<{ id: number; code: string; name: string; active: boolean }[]>([])
 
+  /** 품질검사유형 마스터와 품목 → 유형 연결(유형마다 [품목설정] 을 읽어 만든다). 한 품목은 한 유형에만 붙는다. */
+  const [qcTypes, setQcTypes] = useState<QcTypeOption[]>([])
+  const [qcTypeOf, setQcTypeOf] = useState<Map<number, number>>(new Map())
+  /** 창에서 고른 유형 id('' = 없음). 품목 저장 요청에는 안 싣고 저장 뒤 [품목설정] 으로 옮긴다. */
+  const [qcTypeId, setQcTypeId] = useState('')
+
+  async function loadQcTypes() {
+    try {
+      const t = await api.get<QcTypeOption[]>('/quality-types')
+      const lists = await Promise.all(t.data.map((x) => api.get<{ itemId: number }[]>(`/quality-types/${x.id}/items`)))
+      const m = new Map<number, number>()
+      t.data.forEach((x, k) => lists[k].data.forEach((it) => m.set(it.itemId, x.id)))
+      setQcTypes(t.data)
+      setQcTypeOf(m)
+      return m
+    } catch {
+      /* 품질 화면 권한이 없거나 실패해도 품목등록은 그대로 쓴다 — 칸만 비어 보인다. */
+      return null
+    }
+  }
+
   async function load() {
     // 등록·수정·삭제 뒤 load() 를 부른다 — 그때 품목명·규격 자동완성의 옛 후보도 버린다.
     clearItemSuggestCache()
@@ -171,6 +199,7 @@ export default function ItemsPage() {
       setMgmtItems(m.data)
       setItemGroups(g.data)
       setPartners(pt.data)
+      loadQcTypes()
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -193,6 +222,7 @@ export default function ItemsPage() {
     setInvalid(false)
     setEditMenu(false)
     setForm({ ...emptyForm, code: nextItemCode(items) })
+    setQcTypeId('')
     setGrades(ZERO_GRADES)
     setImage(null)
     setShowForm(true)
@@ -204,7 +234,7 @@ export default function ItemsPage() {
     setError('')
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await shrinkImage(file))
       const r = await api.post<{ id: number; name: string }>('/files', fd)
       setImage({ id: r.data.id, name: r.data.name })
     } catch (err) {
@@ -266,7 +296,10 @@ export default function ItemsPage() {
     setInvalid(false)
     setEditMenu(false)
     setGrades(GRADE_LABELS.map((_, i) => String(item.gradePrices?.[i] ?? 0)))
-    setForm(formOf(item))
+    /* 품질검사유형은 마스터 [품목설정] 이 정한다 — 품목의 qcType 글자(옛 고정값 수입 · 공정 · 출하검사)는 따르지 않는다. */
+    const qt = qcTypes.find((x) => x.id === qcTypeOf.get(item.id))
+    setForm({ ...formOf(item), qcType: (qt?.name ?? '').slice(0, 20) })
+    setQcTypeId(qt ? String(qt.id) : '')
     setImage(item.imageFileId != null ? { id: item.imageFileId, name: item.imageFileName ?? '' } : null)
     setShowForm(true)
   }
@@ -284,6 +317,7 @@ export default function ItemsPage() {
   function resetForm() {
     setInvalid(false)
     setForm((f) => ({ ...emptyForm, code: f.code, active: f.active }))
+    setQcTypeId('')
     setGrades(ZERO_GRADES)
     setImage(null)
   }
@@ -336,11 +370,24 @@ export default function ItemsPage() {
       autoProductionOnSales: form.autoProductionOnSales === 'Y',
       autoProductionOnTransfer: form.autoProductionOnTransfer === 'Y',
     }
+    let savedId: number | null = editId
     try {
       if (editId) {
         await api.put(`/items/${editId}`, payload)
       } else {
-        await api.post('/items', payload)
+        savedId = (await api.post<{ id: number }>('/items', payload)).data.id
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err))
+      return
+    }
+    try {
+      /* 품질검사유형 — 품질검사유형등록 [품목설정] 과 같은 연결. 앞 유형에서 빼고 새 유형에 넣는다. */
+      const before = savedId != null ? qcTypeOf.get(savedId) : undefined
+      const after = qcTypeId ? Number(qcTypeId) : undefined
+      if (savedId != null && before !== after) {
+        if (before != null) await api.post(`/quality-types/${before}/items/remove`, { itemIds: [savedId] })
+        if (after != null) await api.post(`/quality-types/${after}/items`, { itemIds: [savedId] })
       }
       /* 원본은 저장하면 말 없이 창을 닫고 목록만 다시 그린다(신규 · 수정 둘 다). */
       closeForm()
@@ -705,14 +752,10 @@ export default function ItemsPage() {
           <label><input type="checkbox" checked={cond.shared} onChange={(e) => setC({ shared: e.target.checked })} /> C-Portal공유</label>
         </EcCond>
         <EcCond label="최초작성일자">
-          <input type="date" className="ec-input w-[140px]" value={cond.createdFrom} onChange={(e) => setC({ createdFrom: e.target.value })} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={cond.createdTo} onChange={(e) => setC({ createdTo: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.createdFrom, onChange: (e) => setC({ createdFrom: e.target.value }) }} to={{ className: "ec-input w-[140px]", value: cond.createdTo, onChange: (e) => setC({ createdTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="최종수정일자">
-          <input type="date" className="ec-input w-[140px]" value={cond.updatedFrom} onChange={(e) => setC({ updatedFrom: e.target.value })} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input w-[140px]" value={cond.updatedTo} onChange={(e) => setC({ updatedTo: e.target.value })} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.updatedFrom, onChange: (e) => setC({ updatedFrom: e.target.value }) }} to={{ className: "ec-input w-[140px]", value: cond.updatedTo, onChange: (e) => setC({ updatedTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="사용구분">
           {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
@@ -809,9 +852,14 @@ export default function ItemsPage() {
                 <input className={inputCls} placeholder="적요" value={form.remark} onChange={(e) => set('remark', e.target.value)} />
               </Field>
               <Field label="품질검사유형">
-                <select className={inputCls} value={form.qcType} onChange={(e) => set('qcType', e.target.value)}>
+                <select className={inputCls} value={qcTypeId} aria-label="품질검사유형"
+                        onChange={(e) => {
+                          setQcTypeId(e.target.value)
+                          set('qcType', (qcTypes.find((x) => String(x.id) === e.target.value)?.name ?? '').slice(0, 20))
+                        }}>
                   <option value="">선택</option>
-                  {QC_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
+                  {qcTypes.filter((x) => x.active || String(x.id) === qcTypeId)
+                    .map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                 </select>
               </Field>
               <Field label="품질검사방법">
@@ -952,7 +1000,7 @@ export default function ItemsPage() {
                 <button type="button" className="ec-btn" onClick={copyAsNew}>복사</button>
                 <span className="ec-btn-group relative">
                   <button type="button" className="ec-btn" onClick={() => toggleOne()}>사용중단/재사용</button>
-                  <button type="button" className="ec-btn ec-btn-arrow" aria-label="사용중단/재사용 더보기" onClick={() => setEditMenu((v) => !v)}>▴</button>
+                  <button type="button" className="ec-btn ec-btn-arrow" aria-label="사용중단/재사용 더보기" onClick={() => setEditMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
                   {editMenu && (
                     <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[110px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
                       <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"

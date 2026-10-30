@@ -4,6 +4,7 @@ import { useShortcut } from '../../../utils/useShortcut'
 import {
   ORDINALS, UNIT_LABEL, WEEKDAYS, repeatProblem, repeatSummary, type RepeatRule, type RepeatUnit,
 } from '../../../utils/scheduleRepeat'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /**
  * 원본 일정관리등록의 [반복설정] 이 여는 '반복설정' 창(E070201, 2026-10-13 실측).
@@ -45,8 +46,7 @@ export default function RepeatModal({ value, onApply, onRemove, onClose }: {
       <div className="ec-form">
         <div className="grid grid-cols-[100px_1fr] gap-y-[8px] items-center text-[12px]">
           <span>시작일자</span>
-          <span><input type="date" className="ec-input w-[150px]" aria-label="시작일자" value={r.startDate}
-                       onChange={(e) => set('startDate', e.target.value)} /></span>
+          <span><EcDateInput className="ec-input w-[150px]" aria-label="시작일자" value={r.startDate} onChange={(e) => set('startDate', e.target.value)} /></span>
 
           <span>반복설정</span>
           <span className="flex flex-col gap-[6px]">
@@ -112,7 +112,7 @@ export default function RepeatModal({ value, onApply, onRemove, onClose }: {
             {r.endType === 'DATE' ? (
               <span className="flex items-center gap-[6px]">
                 <span className="rounded-ec bg-ec-page py-[2px] px-[6px] whitespace-nowrap">종료일자</span>
-                <input type="date" className="ec-input w-[150px]" aria-label="종료일자" value={r.endDate} onChange={(e) => set('endDate', e.target.value)} />
+                <EcDateInput className="ec-input w-[150px]" aria-label="종료일자" value={r.endDate} onChange={(e) => set('endDate', e.target.value)} />
               </span>
             ) : (
               <span className="relative flex items-center gap-[6px]">

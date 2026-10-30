@@ -9,7 +9,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import com.erp.common.BaseTimeEntity;
-import com.erp.hr.employee.Employee;
+import com.erp.inventory.salesrep.SalesRep;
 import com.erp.inventory.project.Project;
 import com.erp.inventory.warehouse.Warehouse;
 
@@ -61,7 +61,7 @@ public class PurchaseOrder extends BaseTimeEntity {
     /** 담당자 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    private Employee employee;
+    private SalesRep employee;
 
     /** 입고예정 창고 */
     @ManyToOne(fetch = FetchType.LAZY)

@@ -4,6 +4,7 @@ import { ecAlert, requireSelection } from '../../../components/EcDialog'
 import { extractErrorMessage } from '../../../api/client'
 import { won, yearEndApi, type Deduction, type DeductionKind, type PrevEmployer, type Settlement } from '../api'
 import { NumInput } from './parts'
+import { EcDateRange } from '../../../components/ui/EcDateInput'
 
 const today = new Date()
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -92,9 +93,7 @@ export function PrevEmployerModal({ s, onClose, onSaved }: { s: Settlement; onCl
             <tr><th>(10) 사업자등록번호</th><td><input className="ec-input w-[200px]" aria-label="사업자등록번호" value={p.bizNo} onChange={(e) => set({ bizNo: e.target.value })} /></td>
               <th>건강보험료</th><td><NumInput label="건강보험료" value={p.healthInsurance} onChange={(v) => set({ healthInsurance: v })} /></td></tr>
             <tr><th>(11) 근무기간</th><td>
-                <input type="date" className="ec-input w-[140px]" aria-label="근무기간 시작" value={p.periodFrom ?? ''} onChange={(e) => set({ periodFrom: e.target.value || null })} />
-                <span className="mx-1">~</span>
-                <input type="date" className="ec-input w-[140px]" aria-label="근무기간 끝" value={p.periodTo ?? ''} onChange={(e) => set({ periodTo: e.target.value || null })} />
+                <EcDateRange from={{ className: "ec-input w-[140px]", 'aria-label': "근무기간 시작", value: p.periodFrom ?? '', onChange: (e) => set({ periodFrom: e.target.value || null }) }} to={{ className: "ec-input w-[140px]", 'aria-label': "근무기간 끝", value: p.periodTo ?? '', onChange: (e) => set({ periodTo: e.target.value || null }) }} />
               </td>
               <th>고용보험료</th><td><NumInput label="고용보험료" value={p.employmentInsurance} onChange={(v) => set({ employmentInsurance: v })} /></td></tr>
             <tr><th>(13) 급여</th><td><NumInput label="급여" value={p.salary} onChange={(v) => set({ salary: v })} /></td>

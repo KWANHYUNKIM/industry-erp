@@ -10,6 +10,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateNo } from '../../utils/dateNo'
 import { ecAlert } from '../../components/EcDialog'
 import { useSubmitting } from '../../utils/useSubmitting'
+import EcIcon from '../../components/ui/EcIcon'
 
 /**
  * 출하입력(E040225) · 출하입력(수정) 창이 같이 쓰는 머리 · 격자 · [출하지시] — 2026-10-21 재고1 출하 바퀴.
@@ -78,7 +79,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
     Promise.all([
       api.get<Partner[]>('/partners'), api.get<Item[]>('/items'),
       api.get<{ id: number; code: string; name: string }[]>('/warehouses'),
-      api.get<{ id: number; name: string; code?: string }[]>('/employees'),
+      api.get<{ id: number; name: string; code?: string }[]>('/sales-reps'),
       api.get<{ id: number; code: string; name: string }[]>('/projects'),
     ]).then(([p, i, w, e, pj]) => { setPartners(p.data); setItems(i.data); setWarehouses(w.data); setEmployees(e.data); setProjects(pj.data) })
       .catch((err) => void ecAlert(extractErrorMessage(err)))
@@ -277,7 +278,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
                     /* 원본 출하입력: 품목을 고르면 품목명 칸이 글자 칸이 되어 줄마다 이름을 고쳐 쓴다. 고르기 전에는 검색 칸. */
                     <div className="flex">
                       <input className="ec-input w-full" placeholder="품목" value={l.name ?? it?.name ?? ''} maxLength={200} onChange={(e) => updateLine(idx, 'name', e.target.value)} />
-                      <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기" onClick={() => updateLine(idx, 'itemId', '')}>🔍</button>
+                      <button type="button" className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint" title="품목 다시 고르기" onClick={() => updateLine(idx, 'itemId', '')}><EcIcon name="search" /></button>
                     </div>
                   ) : (
                     <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제" value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)} items={codeItems} />

@@ -16,6 +16,7 @@ import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { releaseSlipHtml, type ReleaseSlip } from '../../utils/releaseSlipDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 주문서출고처리(원본 E040230 · 재고 I › 영업관리 › 주문서). 2026-10-13 loginaa 직접 써 보며 잰 것:
@@ -265,9 +266,7 @@ export default function OrderReleasePage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -392,7 +391,7 @@ export default function OrderReleasePage() {
           <div className="grid grid-cols-2 gap-[6px] items-center">
             <label className="flex items-center gap-[10px]">
               <span className="w-[93px] text-ec-label">일자</span>
-              <input type="date" className="ec-input w-[160px]" value={regDate} onChange={(e) => setRegDate(e.target.value)} />
+              <EcDateInput className="ec-input w-[160px]" value={regDate} onChange={(e) => setRegDate(e.target.value)} />
             </label>
             <span />
             <span className="flex items-center gap-[10px]"><span className="w-[93px] text-ec-label">거래처</span></span>

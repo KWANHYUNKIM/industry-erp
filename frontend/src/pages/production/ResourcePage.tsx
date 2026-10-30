@@ -55,6 +55,8 @@ export default function ResourcePage() {
   const [keyword, setKeyword] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  /** 고치는 자원 — 원본처럼 자원코드를 누르면 같은 창이 수정으로 열린다(코드는 못 바꾼다). null 이면 신규. */
+  const [editing, setEditing] = useState<ProductionResource | null>(null)
   const [warehouses, setWarehouses] = useState<WarehouseRow[]>([])
   const [operations, setOperations] = useState<OperationRow[]>([])
   /**
@@ -101,8 +103,7 @@ export default function ResourcePage() {
     e.preventDefault()
     setError('')
     try {
-      await api.post('/resources', {
-        code: form.code,
+      const body = {
         name: form.name,
         type: form.type,
         capacity: form.capacity === '' ? 0 : Number(form.capacity),
@@ -110,8 +111,11 @@ export default function ResourcePage() {
         costPerHr: form.costPerHr === '' ? 0 : Number(form.costPerHr),
         warehouseId: form.warehouseId ? Number(form.warehouseId) : null,
         operationIds: form.operationIds,
-      })
+      }
+      if (editing) await api.put(`/resources/${editing.id}`, { ...body, active: editing.active })
+      else await api.post('/resources', { code: form.code, ...body })
       setForm(emptyForm)
+      setEditing(null)
       setShowForm(false)
       load()
     } catch (err) {
@@ -191,7 +195,7 @@ export default function ResourcePage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      onNew={() => setShowForm(true)}
+      onNew={() => { setEditing(null); setForm(emptyForm); setShowForm(true) }}
       actions={[
         { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
         { label: '새로고침', onClick: load },
@@ -228,11 +232,11 @@ export default function ResourcePage() {
 
       <Modal error={error} open={showForm} title="자원등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">새 자원 등록</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">{editing ? '자원 수정' : '새 자원 등록'}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
             <div>
               <label className="mb-1 block text-sm text-ec-label">자원코드 *</label>
-              <input className={inputCls} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="RES-003" />
+              <input className={inputCls} value={form.code} disabled={!!editing} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="RES-003" />
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">자원명 *</label>
@@ -287,7 +291,7 @@ export default function ResourcePage() {
             </div>
           </div>
           <div className="mt-[12px] flex justify-end">
-            <button type="submit" className="ec-btn ec-btn-primary">등록</button>
+            <button type="submit" className="ec-btn ec-btn-primary">{editing ? '저장' : '등록'}</button>
           </div>
         </form>
       )}</Modal>
@@ -323,7 +327,16 @@ export default function ResourcePage() {
               <td className="text-center">
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
               </td>
-              <td>{r.code}</td>
+              <td>
+                <button type="button" className="no-ec ec-link" onClick={() => {
+                  setEditing(r)
+                  setForm({
+                    code: r.code, name: r.name, type: r.type, capacity: String(r.capacity ?? ''), unit: r.unit ?? '',
+                    costPerHr: String(r.costPerHr ?? ''), warehouseId: r.warehouseId ? String(r.warehouseId) : '', operationIds: r.operationIds,
+                  })
+                  setShowForm(true)
+                }}>{r.code}</button>
+              </td>
               <td>{r.name}</td>
               <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? '안 정함'}</td>
               <td className={r.operationNames.length ? undefined : 'text-ec-off'}>{r.operationNames.length ? r.operationNames.join(', ') : '안 정함'}</td>

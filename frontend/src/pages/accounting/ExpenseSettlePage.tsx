@@ -11,6 +11,7 @@ import NumCheck from '../../components/NumCheck'
 import { groupSlips, slipNo, type ExpenseRow } from '../../features/expense/types'
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { EmployeeMaster } from '../../types/api'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -129,9 +130,7 @@ export default function ExpenseSettlePage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="기준일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="기준일자 끝" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "기준일자 시작", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "기준일자 끝", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="비용그룹" pick>
           <CodePickerField label="비용그룹" hideLabel width={180} emptyLabel="전체" value={group} onChange={setGroup}
@@ -214,7 +213,7 @@ export default function ExpenseSettlePage() {
           <ul className="ec-form mb-[8px]">
             <li>
               <span className="title">일자</span>
-              <div className="form"><input type="date" className="ec-input w-[145px]" aria-label="일자" value={vDate} onChange={(e) => setVDate(e.target.value)} /></div>
+              <div className="form"><EcDateInput className="ec-input w-[145px]" aria-label="일자" value={vDate} onChange={(e) => setVDate(e.target.value)} /></div>
             </li>
             <li>
               <span className="title">첨언내용</span>

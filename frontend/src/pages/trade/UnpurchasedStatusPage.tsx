@@ -9,6 +9,7 @@ import EcPeriodPicks, { INQUIRY_FULL_PICKS, periodOf } from '../../components/Ec
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 구매관리 > 미구매현황 (이카운트 E040307)
@@ -502,11 +503,7 @@ function SearchPanel({
     >
       <div style={rowStyle}>
         <span style={label}>기준일자(영업주기)</span>
-        <input type="date" className="ec-input" value={draft.dateFrom}
-          onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span className="my-0 mx-[6px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={draft.dateTo}
-          onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+        <EcDateRange from={{ className: "ec-input", value: draft.dateFrom, onChange: (e) => onChange({ dateFrom: e.target.value }) }} to={{ className: "ec-input", value: draft.dateTo, onChange: (e) => onChange({ dateTo: e.target.value }) }} />
         {/* 원본 기간 단추(사본 실측): 금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·종료일 */}
         <span className="ml-[8px]">
           <EcPeriodPicks labels={INQUIRY_FULL_PICKS} currentFrom={draft.dateFrom}
@@ -525,11 +522,7 @@ function SearchPanel({
       </div>
       <div style={rowStyle}>
         <span style={label}>납기일자</span>
-        <input type="date" className="ec-input" value={draft.dueFrom}
-          onChange={(e) => onChange({ dueFrom: e.target.value })} style={{ width: 150 }} />
-        <span className="my-0 mx-[6px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={draft.dueTo}
-          onChange={(e) => onChange({ dueTo: e.target.value })} style={{ width: 150 }} />
+        <EcDateRange from={{ className: "ec-input", value: draft.dueFrom, onChange: (e) => onChange({ dueFrom: e.target.value }) }} to={{ className: "ec-input", value: draft.dueTo, onChange: (e) => onChange({ dueTo: e.target.value }) }} />
       </div>
       <div style={rowStyle}>
         <span style={label}>창고</span>

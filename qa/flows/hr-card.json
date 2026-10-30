@@ -59,7 +59,7 @@
         "js:[...document.querySelectorAll('[role=dialog] .ec-pill')].find(b=>b.textContent.trim()==='인사자료').click();true",
         "js:[...document.querySelectorAll('[role=dialog] button')].filter(b=>b.textContent==='입력')[1].click();true",
         "wait:1500",
-        "set:[role=dialog]:last-of-type table input.ec-input:not([type=date])#0|QA관리-화면시험회사",
+        "set:[role=dialog]:last-of-type table input.ec-input:not([type=date]):not(.ec-date-day)#0|QA관리-화면시험회사",
         "clicklast:저장(F8)",
         "wait:1500",
         "expect:[...document.querySelectorAll('[role=dialog] button')].filter(b=>b.textContent==='입력')[1].className.includes('ec-btn-primary')",

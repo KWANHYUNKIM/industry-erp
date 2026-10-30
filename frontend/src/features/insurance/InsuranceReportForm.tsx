@@ -11,6 +11,7 @@ import { ACQUIRE_CODE_FIELDS, DEP_CODE_COLS, LOSS_CODE_FIELDS, type CodeList } f
 import type { EmployeeMaster } from '../../types/api'
 import WorkplaceModal from './WorkplaceModal'
 import { REJECT_HEAD, type InsuranceKind, type InsuranceReport, type InsuranceWorkplace } from './types'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 4대보험취득신고입력(N001769) · 4대보험상실신고입력(N001770) · 피부양자자격신고입력(N001771) — 2026-10-14 loginaa 실측.
@@ -279,8 +280,7 @@ export default function InsuranceReportForm({ kind }: { kind: InsuranceKind }) {
         <li key={`${b.key}-${fld.label}`}>
           <span className="title">{fld.label}</span>
           <div className="form">
-            <input type="date" className="ec-input w-[150px]" disabled={!on} value={form.dates[b.key]}
-                   onChange={(e) => setForm((p) => ({ ...p, dates: { ...p.dates, [b.key]: e.target.value } }))} />
+            <EcDateInput className="ec-input w-[150px]" disabled={!on} value={form.dates[b.key]} onChange={(e) => setForm((p) => ({ ...p, dates: { ...p.dates, [b.key]: e.target.value } }))} />
           </div>
         </li>
       )
@@ -313,8 +313,7 @@ export default function InsuranceReportForm({ kind }: { kind: InsuranceKind }) {
         <li>
           <span className="title">일자-No.</span>
           <div className="form">
-            <input type="date" className="ec-input w-[150px]" value={form.reportDate} disabled={!!editId}
-                   onChange={(e) => setForm((p) => ({ ...p, reportDate: e.target.value }))} />
+            <EcDateInput className="ec-input w-[150px]" value={form.reportDate} disabled={!!editId} onChange={(e) => setForm((p) => ({ ...p, reportDate: e.target.value }))} />
             {seqText && <span>-{seqText}</span>}
           </div>
         </li>
@@ -397,7 +396,7 @@ export default function InsuranceReportForm({ kind }: { kind: InsuranceKind }) {
                               {DEP_CODE_COLS[c].map(([code, name]) => <option key={code} value={code}>{code} {name}</option>)}
                             </select>
                           ) : DEP_DATE_COLS.has(c) ? (
-                            <input type="date" className="ec-input w-full min-w-[120px]" disabled={!depGridOn} value={d[c] ?? ''} onChange={(e) => setDep(i, c, e.target.value)} />
+                            <EcDateInput className="ec-input w-full min-w-[120px]" disabled={!depGridOn} value={d[c] ?? ''} onChange={(e) => setDep(i, c, e.target.value)} />
                           ) : (
                             <input className="ec-input w-full min-w-[80px]" disabled={!depGridOn || LOCKED_COLS.has(c)}
                                    value={LOCKED_COLS.has(c) ? '' : d[c] ?? ''} onChange={(e) => setDep(i, c, e.target.value)} />

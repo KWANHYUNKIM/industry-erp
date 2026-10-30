@@ -7,6 +7,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../types/api'
 import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesorder/components/SalesOrderPickModal'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 생산관리 > 소요시간계산.
@@ -216,8 +217,7 @@ export default function TimeCalcPage() {
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="일자" span="full">
-          <input className="ec-input" type="date" value={baseDate}
-                 onChange={(e) => setBaseDate(e.target.value)} style={{ width: 150 }} />
+          <EcDateInput className="ec-input" value={baseDate} onChange={(e) => setBaseDate(e.target.value)} />
           <span className="text-[11.5px] text-ec-hint ml-[6px]">
             [작업지시 불러오기]를 누르면 이 날짜에 잡힌 지시를 아래 그리드에 담습니다.
           </span>

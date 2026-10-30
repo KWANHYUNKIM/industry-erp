@@ -10,6 +10,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 영업관리 > 미출하현황 (이카운트 E040228).
@@ -217,11 +218,7 @@ export default function UnshippedPage() {
                  onChange={(e) => setC({ shipNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>
         <EcCond label="출하예정일">
-          <input type="date" className="ec-input" value={cond.dueFrom}
-                 onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
-          <span className="text-ec-label">~</span>
-          <input type="date" className="ec-input" value={cond.dueTo}
-                 onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: cond.dueFrom, onChange: (e) => setC({ dueFrom: e.target.value }) }} to={{ className: "ec-input", value: cond.dueTo, onChange: (e) => setC({ dueTo: e.target.value }) }} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"

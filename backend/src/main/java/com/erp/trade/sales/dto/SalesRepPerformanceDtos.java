@@ -1,12 +1,12 @@
-package com.erp.hr.employee.dto;
+package com.erp.trade.sales.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-public final class EmployeePerformanceDtos {
+public final class SalesRepPerformanceDtos {
 
-    private EmployeePerformanceDtos() {}
+    private SalesRepPerformanceDtos() {}
 
     /** 담당자 한 줄. employeeId 가 null 이면 담당자 미지정 전표를 모은 행이다. */
     public record PerformanceRow(

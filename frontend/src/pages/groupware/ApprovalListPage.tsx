@@ -14,6 +14,10 @@ import CodePickerField from '../../components/CodePickerField'
 import { useShortcut } from '../../utils/useShortcut'
 import { requireSelection } from '../../components/EcDialog'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcIcon from '../../components/ui/EcIcon'
+import { EcDateRange } from '../../components/ui/EcDateInput'
+import { periodOf } from '../../utils/periods'
+import StampSignModal from '../../features/approval/components/StampSignModal'
 
 /**
  * 알약(탭)은 화면마다 마지막 하나가 다르다 — 원본에서 확인했다.
@@ -32,6 +36,22 @@ const actedText = (iso: string) => {
 const TABS_MINE = [...COMMON_TABS, '수신참조'] as const
 const TABS_ALL = [...COMMON_TABS, '삭제'] as const
 type Tab = (typeof TABS_MINE)[number] | (typeof TABS_ALL)[number]
+
+/** [라벨] 단추의 '라벨없음' — 라벨을 달지 않은 문서만 */
+const LABEL_NONE = '(라벨없음)'
+
+/**
+ * 원본 [Option](2026-10-30 E070105 · E070108 클릭 대조) — 검색항목설정 · 양식설정 · 조건양식설정.
+ * 검색항목 · 양식 디자이너는 두지 않아 다른 현황 화면(이익관리 VariancePage)처럼 안내만 한다.
+ */
+const OPTION_MENU = [
+  { label: '검색항목설정', onClick: () => void ecAlert('검색항목설정은 지원하지 않습니다.') },
+  { label: '양식설정', onClick: () => void ecAlert('양식설정은 지원하지 않습니다(양식 하나).') },
+  { label: '조건양식설정', onClick: () => void ecAlert('조건양식설정은 지원하지 않습니다.') },
+]
+
+/** 원본 내결재관리 조건 판 [검색(F8)] 옆 ▾ 기간 빠른선택(2026-10-30 실측) */
+const MINE_PICKS = ['최근30일(+1개월)', '전월+금월'] as const
 
 const TAB_STATUS: Record<Exclude<Tab, '전체' | '삭제' | '수신참조'>, ApprovalStatus> = {
   기안중: 'DRAFTING',
@@ -58,7 +78,7 @@ export default function ApprovalListPage({
   scope: 'mine' | 'all'
   bottomActions?: string[]
 }) {
-  const { user } = useAuth()
+  const { user, companyCode } = useAuth()
   const navigate = useNavigate()
   const [rows, setRows] = useState<ApprovalDoc[]>([])
   /*
@@ -96,8 +116,8 @@ export default function ApprovalListPage({
   /* 원본 기안서통합관리 · 내결재관리 둘 다 [진행중] 알약이 켜진 채로 열린다(2026-10-03 실측). */
   const [tab, setTab] = useState<Tab>('진행중')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
-  /* 기간 줄의 이름은 화면마다 다르다 — 내결재관리 [기준일자] · 기안서통합관리 [일자](사본 실측). */
-  const dateLabel = scope === 'mine' ? '기준일자' : '일자'
+  /* 기간 줄 이름 — 두 화면 모두 [기준일자](2026-10-30 원본 기안서통합관리 실측 · 사본에서 '일자' 로 봤던 것을 바로잡음). */
+  const dateLabel = '기준일자'
   /**
    * 빈 줄이 걸칠 칸 수. [작업자]·[작업일시]가 scope 에 따라 붙었다 빠지므로
    * 숫자를 두 군데 적으면 한쪽만 고치게 된다 — 실제로 이 저장소에서 가장 자주 낸 실수다.
@@ -114,6 +134,8 @@ export default function ApprovalListPage({
    *   [삭제]    — 기안일자 · 제목 · 구분 · 기안자 · 결재자 · 결재 · 작업자 · 작업일시(지운 때)
    */
   const delView = isAll && tab === '삭제'
+  /** 내결재관리 [기안중] 알약 — 하단 [보내기] · [결재/검토완료] · [인쇄] 가 없다 */
+  const draftTab = !isAll && tab === '기안중'
   const colCount = delView ? 9 : isAll ? 12 : 10
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -124,7 +146,7 @@ export default function ApprovalListPage({
   const [schemas, setSchemas] = useState<Record<number, ApprovalField[]>>({})
   // 원본 하단 버튼줄의 [결재/검토완료]·[라벨변경]은 **고른 문서에 한꺼번에** 하는 동작이다.
   // 그러려면 행을 고를 수 있어야 하는데 우리 목록엔 그 방법이 없었다.
-  // 고르는 방식은 판매조회·전표입력과 같다 — 회색 행번호 칸을 누른다.
+  // 원본처럼 줄 앞 체크박스로 고른다(머리 체크박스 = 지금 쪽 전체).
   const [selected, setSelected] = useState<Set<number>>(new Set())
   /** 원본 목록은 한 쪽 15줄이다(2026-10-03 실측 — 1 2 3 / 3). */
   const [page, setPage] = useState(1)
@@ -139,6 +161,10 @@ export default function ApprovalListPage({
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  /** 머리 [라벨] 단추의 목록 · 조건 판 [검색(F8)] ▾ · [My도장/서명] 창 */
+  const [labelOpen, setLabelOpen] = useState(false)
+  const [picksOpen, setPicksOpen] = useState(false)
+  const [stampOpen, setStampOpen] = useState(false)
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -209,7 +235,7 @@ export default function ApprovalListPage({
     .filter((r) => !formType || catOf(r) === formType)
     .filter((r) => !dept || (r.department ?? '') === dept)
     .filter((r) => !project || String(r.projectId ?? '') === project)
-    .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
+    .filter((r) => !labelCond || (labelCond === LABEL_NONE ? !r.labelText : (r.labelText ?? '') === labelCond))
     .filter((r) => !drafterCond || r.drafterName.includes(drafterCond))
     .filter((r) => !contentCond || (r.content ?? '').includes(contentCond))
     .filter((r) => !titleCond || r.title.includes(titleCond))
@@ -236,6 +262,7 @@ export default function ApprovalListPage({
   const PAGE_SIZE = 15
   const pages = Math.max(1, Math.ceil(sort.sorted.length / PAGE_SIZE))
   const curPage = Math.min(page, pages)
+  const pageRows = sort.sorted.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE)
 
   /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
   const formTypes = [...new Set(rows.map(catOf).filter(Boolean))].sort()
@@ -246,6 +273,13 @@ export default function ApprovalListPage({
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   const labels = [...new Set(rows.map((r) => r.labelText).filter(Boolean))].sort() as string[]
   const approvers = [...new Set(rows.flatMap((r) => (r.lines ?? []).map((l) => l.approverName)))].sort()
+
+  /** 조건 판 [다시 작성] — 칸을 처음 값으로(기간은 오늘 −30일 ~ +30일). */
+  function resetConds() {
+    setFrom(ymd(new Date(Date.now() - 30 * 86400000))); setTo(ymd(new Date(Date.now() + 30 * 86400000)))
+    setDocNoCond(''); setFormType(''); setDrafterCond(''); setTitleCond(''); setContentCond('')
+    setLineCond(''); setDept(''); setProject(''); setAttachCond('전체'); setLabelCond(''); setPage(1)
+  }
 
   const isMyTurn = (d: ApprovalDoc) =>
     !d.deleted && d.status === 'IN_PROGRESS' && d.currentApproverName === user?.name
@@ -279,7 +313,7 @@ export default function ApprovalListPage({
     const skipped = selected.size - targets.length
     if (targets.length === 0) {
       flash(selected.size === 0
-        ? '결재할 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.'
+        ? '결재할 문서를 고르세요. 줄 앞 체크박스로 고릅니다.'
         : '고른 문서 중 지금 내 차례인 것이 없습니다.')
       return
     }
@@ -303,7 +337,7 @@ export default function ApprovalListPage({
   async function changeLabelSelected() {
     const targets = filtered.filter((d) => selected.has(d.id))
     if (targets.length === 0) {
-      flash('라벨을 바꿀 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.')
+      flash('라벨을 바꿀 문서를 고르세요. 줄 앞 체크박스로 고릅니다.')
       return
     }
     const next = window.prompt(`${targets.length}건의 라벨을 무엇으로 바꿀까요? (비우면 라벨을 뗍니다)`, '')
@@ -331,7 +365,7 @@ export default function ApprovalListPage({
     const targets = filtered.filter((d) => selected.has(d.id) && !d.deleted)
     if (targets.length === 0) {
       flash(selected.size === 0
-        ? '지울 문서를 고르세요. 행번호 칸을 누르면 선택됩니다.'
+        ? '지울 문서를 고르세요. 줄 앞 체크박스로 고릅니다.'
         : '고른 문서 중 지울 수 있는 것이 없습니다.')
       return
     }
@@ -385,9 +419,29 @@ export default function ApprovalListPage({
   return (
     <div className="flex flex-col min-h-[100%]">
       <div className="flex items-center mb-[8px]">
-        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-ec-star mr-[4px]"><EcIcon name="star-outline" size={13} glyph="☆" /></span>
         <span className="text-[15px] font-extrabold text-ec-text">{title}</span>
         <div className="ml-auto flex items-center gap-[4px] relative">
+          {/* 원본 검색칸 왼쪽 [라벨] — 라벨없음 · 쓰고 있는 라벨(긴급 …), 고르면 그 라벨 문서만(2026-10-30 클릭 대조). 다시 누르면 푼다. */}
+          <span className="relative">
+            <button type="button" className={`ec-btn${labelCond ? ' ec-btn-primary' : ''}`} aria-haspopup="menu" aria-expanded={labelOpen}
+                    onClick={() => setLabelOpen((v) => !v)}>
+              {labelCond === LABEL_NONE ? '라벨없음' : labelCond || '라벨'}
+            </button>
+            {labelOpen && (
+              <>
+                <div className="ec-backdrop-clear" onClick={() => setLabelOpen(false)} />
+                <div className="ec-menu left-0 right-auto" role="menu">
+                  {[LABEL_NONE, ...labels].map((v) => (
+                    <button key={v} type="button" role="menuitemcheckbox" aria-checked={labelCond === v}
+                            onClick={() => { setLabelOpen(false); setPage(1); setLabelCond((c) => (c === v ? '' : v)) }}>
+                      {labelCond === v ? '✓ ' : ''}{v === LABEL_NONE ? '라벨없음' : v}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </span>
           <input
             className="ec-input"
             placeholder="입력 후 [Enter]"
@@ -403,14 +457,10 @@ export default function ApprovalListPage({
 
           {optionOpen && (
             <>
-              <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
-                {[
-                  { label: 'Excel', run: () => { void doExcel() } },   // 원본 버튼 이름 그대로
-                  { label: '인쇄', run: () => doPrint() },
-                  { label: '검색조건 초기화', run: () => { setSearch(''); filterRows('') } },
-                ].map((m) => (
-                  <button key={m.label} onClick={() => { setOptionOpen(false); m.run() }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', fontSize: 12, background: 'none', border: 0, cursor: 'pointer' }}>{m.label}</button>
+              <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
+              <div className="ec-menu" role="menu">
+                {OPTION_MENU.map((m) => (
+                  <button key={m.label} type="button" onClick={() => { setOptionOpen(false); m.onClick() }}>{m.label}</button>
                 ))}
               </div>
             </>
@@ -426,7 +476,7 @@ export default function ApprovalListPage({
       <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
           <button
-            key={t} type="button" onClick={() => { setTab(t); setPage(1) }}
+            key={t} type="button" onClick={() => { setTab(t); setPage(1); setSelected(new Set()) }}
             className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
           >
             {t}
@@ -436,15 +486,23 @@ export default function ApprovalListPage({
 
       {/* 원본은 조건을 접어 두고 [Search(F3)] 로 편다. 펴면 기안일자 기간 + 조건들이 나온다. */}
       {condOpen && <div className="flex items-center flex-wrap gap-[4px] mb-[6px] ec-search-conds">
-        {/*
-          <b>이 파일이 겸하는 두 화면은 이 줄을 서로 다르게 부른다</b>(사본 실측) —
-          기안서통합관리는 [일자], 내결재관리는 [기준일자]다. 한 이름으로 눌러 두면
-          한쪽이 늘 틀린다(판매조회/구매조회에서 겪은 것과 같다).
-        */}
+        {/* 두 화면 모두 [기준일자] — 기안서통합관리를 사본에서 [일자] 로 봤으나 2026-10-30 원본은 [기준일자]였다. */}
         <label className="text-[12.5px] text-ec-label">{dateLabel}</label>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
+        {/* 원본 조건 차례(2026-10-30 기안서통합관리 실측): 기준일자 · 기안서No. · 구분 · 기안자 · 제목 · 내용 — 그 뒤는 예전에 잰 더보기 칸. */}
+        <label className="text-[12.5px] text-ec-label ml-[8px]">기안서No.</label>
+        <input className="ec-input" value={docNoCond} onChange={(e) => setDocNoCond(e.target.value)}
+               style={{ width: 140 }} placeholder="문서번호 일부" />
+        {/*
+          <b>이름을 잘못 달고 있었다.</b> 이 칸이 거르는 것은 기안서의 <b>양식</b>(지출결의서·
+          품의서 …)인데 원본은 그것을 <b>[구분]</b> 이라 부른다. 원본의 [출력양식]은 따로 있는
+          <b>인쇄 양식</b>이라 다른 것이다 — 우리는 화면마다 인쇄 양식이 하나라 그 칸이 없다.
+        */}
+        <label className="text-[12.5px] text-ec-label ml-[8px]">구분</label>
+        <select className="ec-input" value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: 150 }}>
+          <option value="">전체</option>
+          {formTypes.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
         <label className="text-[12.5px] text-ec-label ml-[8px]">기안자</label>
         <input className="ec-input" value={drafterCond} onChange={(e) => setDrafterCond(e.target.value)}
                style={{ width: 110 }} placeholder="기안자" />
@@ -459,16 +517,6 @@ export default function ApprovalListPage({
           <option value="">전체</option>
           {approvers.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        {/*
-          <b>이름을 잘못 달고 있었다.</b> 이 칸이 거르는 것은 기안서의 <b>양식</b>(지출결의서·
-          품의서 …)인데 원본은 그것을 <b>[구분]</b> 이라 부른다. 원본의 [출력양식]은 따로 있는
-          <b>인쇄 양식</b>이라 다른 것이다 — 우리는 화면마다 인쇄 양식이 하나라 그 칸이 없다.
-        */}
-        <label className="text-[12.5px] text-ec-label ml-[8px]">구분</label>
-        <select className="ec-input" value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: 150 }}>
-          <option value="">전체</option>
-          {formTypes.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
         <label className="text-[12.5px] text-ec-label ml-[8px]">부서</label>
         <select className="ec-input" value={dept} onChange={(e) => setDept(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>
@@ -478,9 +526,6 @@ export default function ApprovalListPage({
         {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
         <CodePickerField label="프로젝트" hideLabel width={150} placeholder="프로젝트" emptyLabel="전체"
                          value={project} onChange={setProject} items={projects} />
-        <label className="text-[12.5px] text-ec-label ml-[8px]">기안서No.</label>
-        <input className="ec-input" value={docNoCond} onChange={(e) => setDocNoCond(e.target.value)}
-               style={{ width: 140 }} placeholder="문서번호 일부" />
         <label className="text-[12.5px] text-ec-label ml-[8px]">첨부</label>
         <select className="ec-input" value={attachCond} style={{ width: 100 }}
                 onChange={(e) => setAttachCond(e.target.value as '전체' | '있음' | '없음')}>
@@ -489,8 +534,31 @@ export default function ApprovalListPage({
         <label className="text-[12.5px] text-ec-label ml-[8px]">라벨</label>
         <select className="ec-input" value={labelCond} onChange={(e) => setLabelCond(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>
+          <option value={LABEL_NONE}>라벨없음</option>
           {labels.map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
+        {/* 원본 판 아래 줄: [검색(F8)│▾ 기간 빠른선택](내결재관리) · [다시 작성]. 우리 조건은 고르는 즉시 걸려 [검색(F8)] 은 판을 접는다. */}
+        <div className="basis-full flex items-center gap-[4px] mt-[4px]">
+          <span className="ec-btn-group relative">
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-sm" onClick={() => { setPage(1); setCondOpen(false) }}>검색(F8)</button>
+            {!isAll && (
+              <button type="button" className="ec-btn ec-btn-primary ec-btn-sm ec-btn-arrow" aria-label="기간 빠른선택"
+                      onClick={() => setPicksOpen((v) => !v)}><EcIcon name="caret-down" size={10} glyph="▾" /></button>
+            )}
+            {picksOpen && (
+              <div className="ec-menu ec-search-picks">
+                {MINE_PICKS.map((l) => (
+                  <button key={l} type="button" onClick={() => {
+                    setPicksOpen(false)
+                    const r = periodOf(l)
+                    if (r) { setFrom(r.from); setTo(r.to); setPage(1) }
+                  }}>{l}</button>
+                ))}
+              </div>
+            )}
+          </span>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={resetConds}>다시 작성</button>
+        </div>
       </div>}
 
       {/* 원본: 쪽번호(한 쪽 15줄)는 왼쪽, 기안일자 기간은 오른쪽 — 표 바로 위 */}
@@ -508,21 +576,17 @@ export default function ApprovalListPage({
         <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
-              {/* 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 다른 목록과 같은 규칙. */}
-              <th
-                style={{ width: 34, cursor: filtered.length > 0 ? 'pointer' : 'default' }}
-                title="전체 선택 / 해제"
-                onClick={() => setSelected(
-                  selected.size === filtered.length ? new Set() : new Set(filtered.map((d) => d.id)),
-                )}
-              >
-                {filtered.length > 0 && selected.size === filtered.length ? '☑' : ''}
+              {/* 원본 1열은 체크박스다(2026-10-30 기안서통합관리 실측) — 머리 체크박스 = 지금 쪽 전체 선택. */}
+              <th className="w-[34px] text-center">
+                <input type="checkbox" aria-label="전체 선택"
+                       checked={pageRows.length > 0 && pageRows.every((d) => selected.has(d.id))}
+                       onChange={(e) => setSelected(e.target.checked ? new Set(pageRows.map((d) => d.id)) : new Set())} />
               </th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
+              <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
               <th>제목</th>
               {isAll && !delView && <th className="text-center">ERP전표(건)</th>}
-              {isAll && <th className="cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>}
-              <th className="cursor-pointer" onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
+              {isAll && <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>}
+              <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
               <th>결재자</th>
               {!delView && <th className="text-center">진행상태</th>}
               <th className="text-center">결재</th>
@@ -538,22 +602,12 @@ export default function ApprovalListPage({
           <tbody>
             {loading ? (
               <tr><td colSpan={colCount} className="ec-empty">불러오는 중…</td></tr>
-            ) : filtered.length === 0 ? (
+            ) : pageRows.length === 0 ? (
               <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : sort.sorted.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE).map((r, i0) => { const i = (curPage - 1) * PAGE_SIZE + i0; return (
+            ) : pageRows.map((r) => (
               <tr key={r.id} style={{ opacity: r.deleted ? 0.55 : 1 }}>
-                <td
-                  style={{
-                    textAlign: 'center',
-                    background: selected.has(r.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
-                    color: selected.has(r.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
-                    fontWeight: selected.has(r.id) ? 700 : 400,
-                    cursor: 'pointer', userSelect: 'none',
-                  }}
-                  title="눌러서 이 문서를 고릅니다"
-                  onClick={() => toggleSelect(r.id)}
-                >
-                  {i + 1}
+                <td className="text-center">
+                  <input type="checkbox" aria-label="선택" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} />
                 </td>
                 <td className="whitespace-nowrap">
                   {/* 원본: 기안중(임시저장) 줄의 [기안일자] 는 링크 — 같은 작성 창이 [삭제] 와 함께 열려 고쳐 다시 저장한다(같은 번호). */}
@@ -561,7 +615,11 @@ export default function ApprovalListPage({
                     ? <a onClick={() => navigate('/groupware/approval/draft', { state: { editOf: r } })} className="text-ec-navy cursor-pointer">{r.draftNo}</a>
                     : r.draftNo}
                 </td>
-                <td><a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a></td>
+                <td>
+                  {/* 원본: 라벨은 제목 앞 작은 옅은 배지(label label-light mr-5) — 2026-10-30 실측 */}
+                  {r.labelText && <span className="ec-label-chip bg-ec-disabled text-ec-ink mr-[5px]">{r.labelText}</span>}
+                  <a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a>
+                </td>
                 {isAll && !delView && <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>}
                 {/* 원본 [구분]은 기안서의 구분(휴가신청서 · 지출결의서)이다 — 구분 없는 문서(비품 구매 신청서)는 빈칸. 양식 이름은 칸 풍선으로. */}
                 {isAll && <td title={r.formTypeName}>{catOf(r)}</td>}
@@ -597,7 +655,7 @@ export default function ApprovalListPage({
                 {/* 원본 작업일시 '2026/10/14 오전 0:02:16' — 지운 때(서버가 지운 문서는 lastActedAt 에 deletedAt 을 싣는다) */}
                 {delView && <td>{r.lastActedAt ? actedText(r.lastActedAt) : ''}</td>}
               </tr>
-            )})}
+            ))}
           </tbody>
         </table>
       </div>
@@ -615,18 +673,19 @@ export default function ApprovalListPage({
             <button className="ec-btn ec-btn-primary" onClick={() => navigate('/groupware/approval/draft')}>
               신규(F2)
             </button>
-            <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void approveSelected() }}>결재/검토완료</button>
+            <button className="ec-btn" onClick={() => setStampOpen(true)}>My도장/서명</button>
+            {/* [보내기] · [결재/검토완료] · [인쇄] 는 [기안중] 알약에는 없다(원본 2026-10-30 — 기안중 → 진행중 으로 옮기면 셋이 생긴다). */}
+            {!draftTab && (
+              <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void ecAlert('메일 · 팩스 보내기는 아직 없습니다.') }}>보내기</button>
+            )}
+            {!draftTab && <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void approveSelected() }}>결재/검토완료</button>}
           </>
         ) : (
           <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void deleteSelected() }}>선택삭제</button>
         )}
         <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void changeLabelSelected() }}>라벨변경</button>
-        {bottomActions.map((a) => {
-          const onClick = a.includes('Excel') || a.includes('엑셀') ? () => { void doExcel() }
-            : a.includes('인쇄') || a.includes('출력') ? () => doPrint()
-            : undefined
-          return <button key={a} className="ec-btn" onClick={onClick}>{a}</button>
-        })}
+        {!draftTab && bottomActions.includes('인쇄') && <button className="ec-btn" onClick={() => doPrint()}>인쇄</button>}
+        {bottomActions.includes('Excel') && <button className="ec-btn" onClick={() => { void doExcel() }}>Excel</button>}
       </div>
 
       {detail && (
@@ -642,6 +701,8 @@ export default function ApprovalListPage({
           onSubmit={isMine(detail) && !detail.deleted && detail.status === 'DRAFTING' ? submitDraft : undefined}
         />
       )}
+
+      {stampOpen && user && <StampSignModal user={`${companyCode ?? ""}:${user.username}`} onClose={() => setStampOpen(false)} />}
 
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

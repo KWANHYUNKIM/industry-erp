@@ -13,6 +13,7 @@ import EditStateMenu from '../../components/EditStateMenu'
 import BulkChangeModal from '../../components/BulkChangeModal'
 import EcHistoryButton from '../../components/EcHistory'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.등록</b> (이카운트 E040617)
@@ -205,9 +206,7 @@ export default function SerialLotPage() {
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="유효기한">
-          <input className="ec-input w-[130px]" type="date" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input className="ec-input w-[130px]" type="date" value={expTo} onChange={(e) => setExpTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[130px]", value: expFrom, onChange: (e) => setExpFrom(e.target.value) }} to={{ className: "ec-input w-[130px]", value: expTo, onChange: (e) => setExpTo(e.target.value) }} />
         </EcCond>
         <EcCond label="품목">
           <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
@@ -287,7 +286,7 @@ export default function SerialLotPage() {
               )}
               <EcCond label="규격"><span>{specOf(form.itemId)}</span></EcCond>
               <EcCond label="유효기한">
-                <input className="ec-input w-[140px]" type="date" value={form.expireDate} onChange={(e) => set('expireDate', e.target.value)} />
+                <EcDateInput className="ec-input w-[140px]" value={form.expireDate} onChange={(e) => set('expireDate', e.target.value)} />
               </EcCond>
               {tab === '기본' && lotField()}
             </>

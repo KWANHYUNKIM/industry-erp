@@ -6,6 +6,7 @@ import { ymd } from '../../../components/EcPeriodPicks'
 import { ecConfirm } from '../../../components/EcDialog'
 import { useCondPickers } from '../../../utils/useCondPickers'
 import { useShortcut } from '../../../utils/useShortcut'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /** 서버 한 줄 — 같은 planNo 의 줄들이 한 전표다(매출계획조회 · 입력이 같이 쓴다). */
 export interface SalesPlanRow {
@@ -129,8 +130,7 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
       {error && !onError && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-form">
         <li><div className="title">예상매출일자</div><div className="form">
-          <input type="date" className="ec-input w-[150px]" value={f.expectedDate} disabled={!!editing} aria-label="예상매출일자"
-                 onChange={(e) => setF((x) => ({ ...x, expectedDate: e.target.value }))} />
+          <EcDateInput className="ec-input w-[150px]" value={f.expectedDate} disabled={!!editing} aria-label="예상매출일자" onChange={(e) => setF((x) => ({ ...x, expectedDate: e.target.value }))} />
         </div></li>
         {/* 원본 입력 머리에는 없다 — 조회 목록의 [창고명] · [프로젝트명] 열이 쓰는 우리 칸. */}
         {!slim && <li><div className="title">창고</div><div className="form">

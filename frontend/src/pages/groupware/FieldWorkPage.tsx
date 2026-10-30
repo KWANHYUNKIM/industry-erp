@@ -8,6 +8,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useShortcut } from '../../utils/useShortcut'
 import { ecConfirm } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 실측). */
@@ -95,9 +96,7 @@ export default function FieldWorkPage() {
       <ul className="ec-cond mb-[6px]">
         <li>
           <span className="text-[12px] text-ec-label mr-[6px]">일자</span>
-          <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="text-ec-label mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
         </li>
       </ul>
 

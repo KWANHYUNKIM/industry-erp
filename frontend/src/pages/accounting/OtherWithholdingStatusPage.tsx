@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingLineReportRow } from '../../types/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
 const ym = (s: string) => s.replace('-', '/')
@@ -83,9 +84,7 @@ export default function OtherWithholdingStatusPage() {
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="지급일자">
-          <input type="date" className="ec-input w-[150px]" value={from} onChange={(e) => setPeriod([e.target.value, to])} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={to} onChange={(e) => setPeriod([from, e.target.value])} />
+          <EcDateRange from={{ className: "ec-input w-[150px]", value: from, onChange: (e) => setPeriod([e.target.value, to]) }} to={{ className: "ec-input w-[150px]", value: to, onChange: (e) => setPeriod([from, e.target.value]) }} />
         </EcCond>
         <EcCond label="귀속연월">
           <label className="inline-flex items-center gap-[3px]"><input type="checkbox" checked={useAttr} onChange={(e) => setUseAttr(e.target.checked)} /> 사용</label>

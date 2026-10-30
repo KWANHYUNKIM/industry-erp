@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { RetirementPay, RetirementPayCalculation } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const won = (n: number | null | undefined) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const slash = (d?: string | null) => (d ? d.replace(/-/g, '/') : '')
@@ -267,18 +268,15 @@ export default function RetirementPayPage() {
             </li>
             <li>
               <div className="title">기산일</div>
-              <div className="form"><input type="date" className="ec-input w-[150px]" value={form.startDate}
-                                           onChange={(e) => set({ startDate: e.target.value })} onBlur={() => recalc(form, false)} /></div>
+              <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.startDate} onChange={(e) => set({ startDate: e.target.value })} onBlur={() => recalc(form, false)} /></div>
             </li>
             <li>
               <div className="title">퇴사일</div>
-              <div className="form"><input type="date" className="ec-input w-[150px]" value={form.retireDate}
-                                           onChange={(e) => set({ retireDate: e.target.value })} onBlur={() => recalc(form, false)} /></div>
+              <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.retireDate} onChange={(e) => set({ retireDate: e.target.value })} onBlur={() => recalc(form, false)} /></div>
             </li>
             <li>
               <div className="title">지급일자</div>
-              <div className="form"><input type="date" className="ec-input w-[150px]" value={form.payDate}
-                                           onChange={(e) => set({ payDate: e.target.value, withholdingMonth: e.target.value.slice(0, 7) || form.withholdingMonth })} /></div>
+              <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.payDate} onChange={(e) => set({ payDate: e.target.value, withholdingMonth: e.target.value.slice(0, 7) || form.withholdingMonth })} /></div>
             </li>
             <li>
               <div className="title">퇴직사유</div>

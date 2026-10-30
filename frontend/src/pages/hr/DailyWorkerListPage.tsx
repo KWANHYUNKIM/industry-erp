@@ -10,6 +10,9 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Department } from '../../types/api'
 import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
+import { shrinkImage } from '../../utils/imageResize'
+import EcIcon from '../../components/ui/EcIcon'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface DailyWorker {
   id: number; code: string; name: string; foreigner: boolean; nationality: string | null
@@ -274,7 +277,7 @@ export default function DailyWorkerListPage() {
                     <input ref={attachRef} type="file" className="hidden" onChange={async (e) => {
                       const f = e.target.files?.[0]; e.target.value = ''
                       if (!f) return
-                      const fd = new FormData(); fd.append('file', f)
+                      const fd = new FormData(); fd.append('file', await shrinkImage(f))
                       try { const r = await api.post<{ id: number; name: string }>('/files', fd); set({ attachmentFileId: String(r.data.id), attachmentName: r.data.name }) }
                       catch (err) { setFormError(extractErrorMessage(err)) }
                     }} />
@@ -286,13 +289,13 @@ export default function DailyWorkerListPage() {
     '입사일자': <Fragment key="입사일자">
                 <li>
                   <span className="title">입사일자</span>
-                  <div className="form"><input type="date" className="ec-input w-[150px]" value={form.hireDate} onChange={(e) => set({ hireDate: e.target.value })} /></div>
+                  <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.hireDate} onChange={(e) => set({ hireDate: e.target.value })} /></div>
                 </li>
     </Fragment>,
     '퇴사일자': <Fragment key="퇴사일자">
                 <li>
                   <span className="title">퇴사일자</span>
-                  <div className="form"><input type="date" className="ec-input w-[150px]" value={form.resignDate} onChange={(e) => set({ resignDate: e.target.value })} /></div>
+                  <div className="form"><EcDateInput className="ec-input w-[150px]" value={form.resignDate} onChange={(e) => set({ resignDate: e.target.value })} /></div>
                 </li>
     </Fragment>,
     '우편번호': text('우편번호', 'zipcode', true),
@@ -456,7 +459,7 @@ export default function DailyWorkerListPage() {
                             </label>
                           ))}
                         </span>
-                      ) : t === 'date' ? <input type="date" className="ec-input w-[150px]" value={form[k]} onChange={(e) => set({ [k]: e.target.value } as Partial<Form>)} />
+                      ) : t === 'date' ? <EcDateInput className="ec-input w-[150px]" value={form[k]} onChange={(e) => set({ [k]: e.target.value } as Partial<Form>)} />
                         : <input className={`ec-input w-full${t === 'num' ? ' text-right' : ''}`} inputMode={t === 'num' ? 'decimal' : undefined} value={form[k]}
                                  onChange={(e) => set({ [k]: t === 'num' ? e.target.value.replace(/[^0-9.-]/g, '') : e.target.value } as Partial<Form>)} />}
                     </div>
@@ -506,7 +509,7 @@ export default function DailyWorkerListPage() {
           {/* 원본(2026-10-14): 저장(F8)▴ — 저장/내용유지 · 저장/신규. 수정 창 버튼(2026-10-04 실측): 저장(F8)▴ · 복사 · 다시 작성 · 삭제 · 닫기 · H */}
           <span className="ec-btn-group relative">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
-            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기" onClick={() => setSaveMenu((v) => !v)}>▴</button>
+            <button type="button" className="ec-btn ec-btn-primary ec-btn-arrow" aria-label="저장 더보기" onClick={() => setSaveMenu((v) => !v)}><EcIcon name="caret-up" size={10} glyph="▴" /></button>
             {saveMenu && (
               <div className="absolute bottom-full left-0 mb-[2px] z-[41] min-w-[120px] p-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec">
                 <button type="button" className="no-ec block w-full text-left py-[6px] px-[8px] text-[12px] bg-transparent border-0 cursor-pointer"

@@ -8,6 +8,7 @@ import type {
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const today = () => ymd(new Date())
 const thisMonth = () => ymd(new Date()).slice(0, 7)
@@ -460,7 +461,7 @@ function TransferTab({ transfers, onError, onDone }: {
             <input className="ec-input" type="month" value={payMonth} onChange={(e) => setPayMonth(e.target.value)} style={{ width: 140 }} />
           </Field>
           <Field label="이체일">
-            <input className="ec-input" type="date" value={transferDate} onChange={(e) => setTransferDate(e.target.value)} style={{ width: 140 }} />
+            <EcDateInput className="ec-input" value={transferDate} onChange={(e) => setTransferDate(e.target.value)} />
           </Field>
           <Field label="출금 계좌 *">
             <select className="ec-input" value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} style={{ width: 240 }}>

@@ -12,6 +12,7 @@ import type { ExpenseGroup, ExpenseItem } from '../expensemaster/api'
 import { bankLabel, type BankAccountOpt } from '../fundplan/types'
 import { slipNo, type ExpenseRow } from './types'
 import EcSlipShell from '../../components/EcSlipShell'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 회계 II › 비용관리 › 비용내역 › <b>비용내역입력</b>(E060812) 판 — 입력 화면과 비용내역조회의 [전표번호] → '비용내역수정' 창이 같이 쓴다.
@@ -186,7 +187,7 @@ export default function ExpenseSlipForm({ edit, onSaved, onClose, onList }: {
         <li>
           <span className="title">작성일자</span>
           <div className="form">
-            <input type="date" className="ec-input w-[145px]" aria-label="작성일자" value={date} onChange={(e) => setDate(e.target.value)} />
+            <EcDateInput className="ec-input w-[145px]" aria-label="작성일자" value={date} onChange={(e) => setDate(e.target.value)} />
             {head && <span className="ml-[6px]">- {slipNo(head).split(' -').pop()}</span>}
             {settled && <span className="ec-badge ml-[6px]">가지급금정산서</span>}
           </div>
@@ -256,8 +257,7 @@ export default function ExpenseSlipForm({ edit, onSaved, onClose, onList }: {
                 <tr key={i}>
                   <td className="text-center">{i + 1}</td>
                   <td className={bad.has(`${i}:useDate`) ? 'outline outline-1 outline-ec-danger' : ''}>
-                    <input type="date" className="ec-input w-full" aria-label="사용일자" value={l.useDate}
-                           onChange={(e) => { set(i, 'useDate', e.target.value); unbad(`${i}:useDate`) }} />
+                    <EcDateInput className="ec-input w-full" aria-label="사용일자" value={l.useDate} onChange={(e) => { set(i, 'useDate', e.target.value); unbad(`${i}:useDate`) }} />
                   </td>
                   <td><GridCode title="비용검색" codeHead="비용코드" nameHead="비용명" items={itemCodes} value={l.itemId}
                                 onPick={(v) => { set(i, 'itemId', v); if (i === 0 && !l.useDate) set(i, 'useDate', date) }} /></td>

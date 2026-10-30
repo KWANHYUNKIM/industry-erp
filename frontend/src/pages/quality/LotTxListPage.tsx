@@ -12,6 +12,7 @@ import type { LotTransaction } from '../../types/api'
 import { ecConfirm } from '../../components/EcDialog'
 import { lotShownQty, lotTxEditable } from '../../utils/lotQty'
 import LotTxEntryModal from '../../features/lot/components/LotTxEntryModal'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 
 /** 원본 [유효기한] 후보 — 시리얼/로트No.재고현황과 같다(2026-10-02 실측). */
@@ -114,9 +115,7 @@ export default function LotTxListPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px] whitespace-pre-line">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -133,9 +132,7 @@ export default function LotTxListPage() {
             {EXPIRY_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
           {expiryOpt !== '사용안함' && (<>
-            <input type="date" className="ec-input" value={expFrom} onChange={(e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145, marginLeft: 6 }} />
-            <span className="my-0 mx-[4px]">~</span>
-            <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145 }} />
+            <EcDateRange from={{ className: "ec-input", value: expFrom, onChange: (e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') } }} to={{ className: "ec-input", value: expTo, onChange: (e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') } }} />
           </>)}
         </EcCond>
         <EcCond label="품목" pick>

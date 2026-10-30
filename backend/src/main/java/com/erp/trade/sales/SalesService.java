@@ -37,7 +37,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.List;
-import com.erp.hr.employee.EmployeeService;
+import com.erp.inventory.salesrep.SalesRepService;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.stock.StockService;
@@ -50,7 +50,7 @@ import com.erp.trade.sales.dto.SalesDtos;
 public class SalesService {
 
     private final ProjectService projectService;
-    private final EmployeeService employeeService;
+    private final SalesRepService salesRepService;
 
     private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
 
@@ -609,7 +609,7 @@ public class SalesService {
         }
         sales.setRemark(req.remark());
         sales.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
-        sales.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
+        sales.setEmployee(req.employeeId() != null ? salesRepService.getUsable(req.employeeId()) : null);
 
         // 부가세는 라인을 만들기 전에 한꺼번에 배분한다 — [거래별부가세계산] 이 켜져 있으면
         // 전표 합계를 알아야 반올림할 수 있기 때문이다. 규칙은 VatAllocator 에 모아 뒀다.

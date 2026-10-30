@@ -3,10 +3,14 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAuth } from '../../features/auth/AuthContext'
 import { api } from '../../api/client'
 import { myFolders, MY_FOLDERS_EVENT, type MyFolder } from '../../features/mypage/api'
-import AppBarPanel, { type PanelKind } from '../../components/AppBarPanel'
+import AppBar, { APP_ITEMS } from '../../features/appbar/AppBar'
+import { Icon } from '../../features/appbar/icons'
+import { openAppBarPanel } from '../../components/AppBarPanel'
 import TableContextMenu from '../../components/TableContextMenu'
-import type { NotificationResponse } from '../../types/api'
+import EcIcon from '../../components/ui/EcIcon'
 import { ecAlert } from '../../components/EcDialog'
+import NoPermissionPage from '../../features/auth/components/NoPermissionPage'
+import UserMenu from '../../features/usermenu/UserMenu'
 
 /** 이카운트 v5 실제 레이아웃 재현:
  *  [최상단 북마크바]
@@ -19,14 +23,15 @@ interface Group { label: string; children: Leaf[] }
 type SideNode = Leaf | Group
 /** home — 2단을 누르면 처음 여는 화면(원본 실측, 없으면 첫 화면). open — 처음부터 펼쳐 두는 묶음(지금 화면이 든 묶음은 늘 펼친다). */
 interface Tab { label: string; nodes: SideNode[]; home?: string; open?: string[] }
-interface TopMenu { label: string; tabs: Tab[] }
+/** home — 1단을 누르면 처음 여는 화면(원본 2026-10-28 실측 '1단 기본'). 없으면 첫 2단의 처음 화면. */
+interface TopMenu { label: string; tabs: Tab[]; home?: string }
 
 const isGroup = (n: SideNode): n is Group => 'children' in n
 
 /** 대메뉴 > 탭 > (그룹 >) 리프.
- *  회계 I·회계 II·관리·세무·그룹웨어·재고 II·데이터센터의 탭 구성은 이카운트 사이트맵을 따랐고,
- *  실제 페이지가 있는 메뉴만 실었다. MyPage·Self-Customizing·재고 I 은 이카운트 트리 자료가 없어
- *  기존 그룹을 탭으로 그대로 승격만 해두었다. */
+ *  2단 · 묶음 · 화면의 차례와 처음 펼친 묶음 · 처음 여는 화면은 원본 사이트맵과 좌측 메뉴 실측
+ *  (plans/데이터이관/원본-메뉴-2단.md, 2026-10-28 · 10-30 loginaa)을 따랐고, 실제 페이지가 있는 메뉴만 실었다.
+ *  원본에 없는 우리 화면은 다른 메뉴로 닿지 않을 때만 그 2단 맨 끝(묶음 밖)에 둔다. */
 const MENU: TopMenu[] = [
   {
     label: 'MyPage',
@@ -97,9 +102,10 @@ const MENU: TopMenu[] = [
   },
   {
     label: 'Self-Customizing',
+    home: '/settings/preferences',
     tabs: [
       { label: '정보관리', nodes: [{ label: '회사정보관리', to: '/settings/company' }] },
-      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '역할·권한관리', to: '/roles' }, { label: '회사관리', to: '/companies' }] },
+      { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '권한그룹 설정', to: '/users/permission-groups' }, { label: '권한승인대기현황', to: '/users/permission-requests' }, { label: '관리자설정', to: '/users/masters' }, { label: '회사관리', to: '/companies' }] },
       { label: '환경설정', nodes: [{ label: '기능설정', to: '/settings/preferences' }, { label: '기본값설정', to: '/settings/defaults' }] },
       { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }, { label: '사용자정의필드', to: '/settings/custom-fields' }, { label: '디자인 시스템', to: '/settings/design-system' }] },
       { label: '보안관리', nodes: [{ label: '보안설정', to: '/settings/security' }] },
@@ -108,6 +114,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: '재고 I',
+    home: '/sales/sales-list',
     tabs: [
       {
         label: '기초등록',
@@ -119,8 +126,10 @@ const MENU: TopMenu[] = [
           { label: '프로젝트등록', to: '/inventory/projects' },
           { label: '품목등록', to: '/inventory/items' },
           { label: '관리항목등록', to: '/inventory/manage-items' },
-          { label: '단가관리', children: [{ label: '단가적용순서설정', to: '/inventory/price-order' }, { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' }, { label: '특별단가등록', to: '/sales/special-price' }, { label: '품목별단가', to: '/inventory/item-prices' }] },
-          /* 원본 사이트맵 차례: … 품목별단가 · 사원(담당)등록(E010110 — 우리에게 없음) · 인쇄용결재라인등록(재고) E040111 · 외화등록 · 각종코드변경 */
+                    /* 원본 단가관리 차례(2026-10-30 사이트맵): 단가적용순서설정 · 특별단가등록 · 거래처특별단가그룹등록 · 품목별단가 */
+          { label: '단가관리', children: [{ label: '단가적용순서설정', to: '/inventory/price-order' }, { label: '특별단가등록', to: '/sales/special-price' }, { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' }, { label: '품목별단가', to: '/inventory/item-prices' }] },
+          /* 원본 사이트맵 차례: … 단가관리 · 사원(담당)등록 E010110 · 인쇄용결재라인등록(재고) E040111 · 외화등록 · 각종코드변경(E040113 — 우리에게 없음) */
+          { label: '사원(담당)등록', to: '/inventory/sales-reps' },
           { label: '인쇄용결재라인등록(재고)', to: '/inventory/print-sign' },
           { label: '외화등록', to: '/settings/currencies' },
         ],
@@ -131,6 +140,8 @@ const MENU: TopMenu[] = [
         // 우리 화면 하나가 원본의 조회·입력을 겸하는 경우가 많아, 없는 이름은 만들지 않고 있는 것만 건다.
         label: '영업관리',
         home: '/sales/sales-list',
+        /* 원본 영업관리 좌측 메뉴(2026-10-28 · 10-30 loginaa 사이트맵): 견적서 · 주문서 · 판매 · 출하지시서 · 출하 · 판매일괄회계반영 ·
+           영업관리현황 일곱 묶음. 처음 펼친 묶음은 판매(판매조회가 든 묶음)뿐이다. 현황류는 출력물 탭에도 그대로 둔다(원본도 두 곳에 있다). */
         nodes: [
           { label: '견적서', children: [{ label: '견적서조회', to: '/sales/quotations' }, { label: '견적서입력', to: '/sales/quotation-entry' }, { label: '견적서현황', to: '/sales/quotations?view=status' }, { label: '미주문현황', to: '/sales/unordered' }] },
           { label: '주문서', children: [{ label: '주문서조회', to: '/sales/orders' }, { label: '주문서입력', to: '/sales/order-entry' }, { label: '주문서현황', to: '/sales/order-status' }, { label: '주문서출고처리', to: '/sales/order-release' }, { label: '미판매현황', to: '/sales/unsold' }] },
@@ -140,33 +151,12 @@ const MENU: TopMenu[] = [
               { label: '판매조회', to: '/sales/sales-list' },
               { label: '판매입력', to: '/sales/sell' },
               { label: '판매입력 II', to: '/sales/sell2' },
-              { label: '거래처중심입력', to: '/sales/partner-entry' },
-              { label: '품목중심입력', to: '/sales/item-entry' },
               { label: '판매단가일괄변경', to: '/sales/sales-price-bulk' },
-              /*
-               * 원본 영업관리 탭 실측(사본 '판매현황' 의 메뉴트리): 판매조회 · 판매입력 ·
-               * 판매입력 II · 판매단가일괄변경 · <b>판매현황 · 수금현황 · 판매할인현황 ·
-               * 회계미반영현황 (판매) · 거래처별채권</b> · 거래명세서인쇄 · 결제내역조회 ·
-               * 결제내역자료비교 · 판매일괄회계반영.
-               *
-               * <p>이 다섯이 우리에겐 <b>출력물 탭에만</b> 있었다. 구매관리 탭에는 짝이 되는
-               * 다섯(구매현황·지급현황·구매할인현황·회계미반영현황 (구매)·거래처별채무)이
-               * 이미 들어 있어서, <b>같은 자리인데 영업만 비어 있었다</b> —
-               * 구매에서 되던 일이 판매에서 안 되면 사람은 자기가 잘못 찾는 줄 안다.
-               * 출력물 탭에도 그대로 둔다(원본도 두 곳에 있다).
-               */
               { label: '판매현황', to: '/sales/sales-status' },
-              { label: '수금현황', to: '/sales/collection' },
-              { label: '판매할인현황', to: '/sales/sales-discount' },
-              { label: '회계미반영현황 (판매)', to: '/sales/accounting-reflection?kind=sales&view=unposted' },
-              { label: '거래처별채권', to: '/sales/ledger-receivable' },
-              { label: '거래명세서인쇄', to: '/sales/statement' },
               { label: '결제내역조회', to: '/sales/payment-history' },
               { label: '결제내역자료비교', to: '/sales/payment-compare' },
-              { label: '수금/지급', to: '/sales/settlement' },
             ],
           },
-          { label: '판매일괄회계반영', children: [{ label: '판매일괄회계반영', to: '/sales/accounting-reflection?view=batch' }] },
           { label: '출하지시서', children: [{ label: '출하지시서조회', to: '/sales/shipment-order' }, { label: '출하지시서입력', to: '/sales/shipment-order-entry' }, { label: '출하지시서현황', to: '/sales/shipment-order-status' }] },
           {
             label: '출하',
@@ -176,13 +166,26 @@ const MENU: TopMenu[] = [
               { label: '출하현황', to: '/sales/shipment' },
             ],
           },
-          { label: '특별단가등록', to: '/sales/special-price' },
+          { label: '판매일괄회계반영', children: [{ label: '판매일괄회계반영', to: '/sales/accounting-reflection?view=batch' }, { label: '매출(세금)계산서조회(재고)', to: '/sales/sales-tax-list' }] },
+          {
+            label: '영업관리현황',
+            children: [
+              { label: '거래명세서인쇄', to: '/sales/statement' },
+              { label: '미출하현황', to: '/sales/unshipped' },
+              { label: '거래처별채권', to: '/sales/ledger-receivable' },
+              { label: '수금현황', to: '/sales/collection' },
+              { label: '판매할인현황', to: '/sales/sales-discount' },
+              { label: '회계미반영현황 (판매)', to: '/sales/accounting-reflection?kind=sales&view=unposted' },
+              { label: '매출(세금)계산서현황(재고)', to: '/sales/sales-tax-status' },
+            ],
+          },
         ],
       },
       {
         // 원본 구매관리도 묶음이다(발주요청·발주계획·단가요청·발주서·구매·구매일괄회계반영).
         label: '구매관리',
         home: '/sales/purchase-list',
+        /* 처음 펼친 묶음은 구매(구매조회가 든 묶음)뿐이다(2026-10-28 실측). */
         nodes: [
           { label: '발주요청', children: [{ label: '발주요청조회', to: '/sales/purchase-requests' }, { label: '발주요청입력', to: '/sales/purchase-request-input' }, { label: '발주요청현황', to: '/sales/purchase-request-status' }] },
           { label: '발주계획', children: [{ label: '발주계획조회', to: '/sales/purchase-plans' }, { label: '발주계획입력', to: '/sales/purchase-plan-input' }, { label: '발주계획현황', to: '/sales/purchase-plan-status' }] },
@@ -215,71 +218,73 @@ const MENU: TopMenu[] = [
               { label: '구매단가일괄변경', to: '/sales/purchase-price-bulk' },
             ],
           },
-          // 원본은 이 넷을 '구매' 묶음 밖, 구매관리 바로 아래에 둔다(출력물 쪽에도 같은 메뉴가 또 있다).
-          { label: '지급현황', to: '/sales/payment' },
-          { label: '구매할인현황', to: '/sales/purchase-discount' },
-          { label: '회계미반영현황 (구매)', to: '/sales/accounting-reflection?kind=purchase&view=unposted' },
-          { label: '거래처별채무', to: '/sales/ledger-payable' },
           // 원본 구매일괄회계반영 › 구매일괄회계반영 · 매입(세금)계산서조회(재고)(2026-10-13 실측)
           { label: '구매일괄회계반영', children: [{ label: '구매일괄회계반영', to: '/sales/accounting-reflection?kind=purchase&view=batch' }, { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' }] },
+          // 원본 구매관리현황 묶음(2026-10-30 사이트맵) — 출력물 › 구매관리현황에도 같은 화면이 또 있다.
+          {
+            label: '구매관리현황',
+            children: [
+              { label: '거래처별채무', to: '/sales/ledger-payable' },
+              { label: '지급현황', to: '/sales/payment' },
+              { label: '구매할인현황', to: '/sales/purchase-discount' },
+              { label: '회계미반영현황 (구매)', to: '/sales/accounting-reflection?kind=purchase&view=unposted' },
+              { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
+            ],
+          },
         ],
       },
       {
         label: '생산/외주',
         home: '/production/receipt-inquiry',
+        /* 원본 생산/외주 좌측 메뉴(2026-10-30 loginaa 실측): 아홉 묶음 나무. 생산계획/MRP생성만 묶음 없는 화면.
+           처음 펼친 묶음은 생산입고 · 생산/외주현황(지금 화면이 든 묶음은 늘 펼친다). */
+        open: ['생산입고', '생산/외주현황'],
         nodes: [
-          { label: 'BOM(소요량)조회', to: '/production/bom' },
-          /* 원본 BOM(소요량) 묶음: BOM(소요량)조회 · BOM(소요량)현황 · 소요량계산(2026-10-02 loginaa 실측). */
-          { label: 'BOM(소요량)현황', to: '/production/bom-status' },
-          { label: '소요량계산', to: '/production/requirement-calc' },
-          { label: '공정등록', to: '/production/process' },
-          { label: '자원등록', to: '/production/resource' },
-          { label: 'BOR(작업소요시간)', to: '/production/bor' },
-          { label: '소요시간계산', to: '/production/time-calc' },
-          /* 원본 차례: BOM(소요량) · 공정 · 생산계획/MRP생성 · 작업지시서 … (2026-10-02 loginaa 좌측 메뉴 실측). */
+          { label: 'BOM(소요량)', children: [{ label: 'BOM(소요량)조회', to: '/production/bom' }, { label: 'BOM(소요량)현황', to: '/production/bom-status' }, { label: '소요량계산', to: '/production/requirement-calc' }] },
+          { label: '공정', children: [{ label: '공정등록', to: '/production/process' }, { label: '자원등록', to: '/production/resource' }, { label: 'BOR(작업소요시간)', to: '/production/bor' }, { label: '소요시간계산', to: '/production/time-calc' }] },
           { label: '생산계획/MRP생성', to: '/production/mrp' },
-          { label: '작업지시서조회', to: '/production/work-orders' },
-          { label: '작업지시서입력', to: '/production/work-order-entry' },
-          { label: '작업지시서현황', to: '/production/wo-status' },
-          { label: '작업지시서작업처리', to: '/production/wo-work' },
-          { label: '작업지시서별진행현황', to: '/production/wo-progress' },
-          { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
-          { label: '생산불출조회', to: '/production/issue' },
-          { label: '생산불출현황', to: '/production/issue-status' },
-          { label: '작업내역입력', to: '/production/work-result' },
-          { label: '작업내역조회', to: '/production/work-result-list' },
-          { label: '작업내역현황', to: '/production/work-result-status' },
-          { label: '생산입고 I', to: '/production/receipt-bom' },
-          { label: '생산입고 II', to: '/production/receipt-manual' },
-          { label: '생산입고 III', to: '/production/receipt-qr' },
-          { label: '생산입고조회', to: '/production/receipt-inquiry' },
-          { label: '생산입고현황', to: '/production/receipt-status' },
-          /*
-           * 원본 생산/외주 탭 실측(사본 좌측 메뉴): … 생산입고/소모현황 I ·
-           * <b>지급현황 · 외주비할인현황 · 거래처별채무 · 외주비회계반영</b>.
-           *
-           * <p>외주는 남에게 맡겨 만드는 것이라 <b>사고 나서 돈을 주는</b> 흐름이 따라붙는다.
-           * 그 셋이 우리에겐 구매관리·출력물 탭에만 있어서, 외주를 보다가 "얼마 줬나" 를
-           * 보려면 탭을 옮겨야 했다. 원본처럼 여기에도 둔다.
-           *
-           * <p>[외주비일괄회계반영]은 2026-10-02 에 만들었다(loginaa 실측) — 생산입고 I·II 의
-           * 외주비합계·부가세를 외주처별 매입전표로 넘긴다.
-           */
-          /* 원본 차례(2026-10-02 실측): … 생산입고현황 · [외주비회계반영] 외주비일괄회계반영 · [생산/외주현황] 생산입고/소모현황 I ·
-             거래처별채무 · 지급현황 · 외주비할인현황 · 매입(세금)계산서현황(재고). */
-          { label: '외주비일괄회계반영', to: '/production/subcontract-reflection' },
-          { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
-          { label: '거래처별채무', to: '/sales/ledger-payable' },
-          { label: '지급현황', to: '/sales/payment' },
-          { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
-          { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' },
-          { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
+          {
+            label: '작업지시서',
+            children: [
+              { label: '작업지시서조회', to: '/production/work-orders' },
+              { label: '작업지시서입력', to: '/production/work-order-entry' },
+              { label: '작업지시서현황', to: '/production/wo-status' },
+              { label: '작업지시서작업처리', to: '/production/wo-work' },
+              { label: '작업지시서별진행현황', to: '/production/wo-progress' },
+              { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
+            ],
+          },
+          { label: '생산불출', children: [{ label: '생산불출조회', to: '/production/issue' }, { label: '생산불출입력', to: '/production/issue-entry' }, { label: '생산불출현황', to: '/production/issue-status' }] },
+          { label: '작업', children: [{ label: '작업내역입력', to: '/production/work-result' }, { label: '작업내역조회', to: '/production/work-result-list' }, { label: '작업내역현황', to: '/production/work-result-status' }] },
+          {
+            label: '생산입고',
+            children: [
+              { label: '생산입고조회', to: '/production/receipt-inquiry' },
+              { label: '생산입고 I', to: '/production/receipt-bom' },
+              { label: '생산입고 II', to: '/production/receipt-manual' },
+              { label: '생산입고 III', to: '/production/receipt-qr' },
+              { label: '생산입고현황', to: '/production/receipt-status' },
+            ],
+          },
+          /* 외주는 남에게 맡겨 만드는 것이라 사고 나서 돈을 주는 흐름이 따라붙는다 — 원본처럼 채무 · 지급도 이 탭에 둔다.
+             [외주비일괄회계반영]은 생산입고 I·II 의 외주비합계·부가세를 외주처별 매입전표로 넘긴다(2026-10-02). */
+          { label: '외주비회계반영', children: [{ label: '외주비일괄회계반영', to: '/production/subcontract-reflection' }, { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' }] },
+          {
+            label: '생산/외주현황',
+            children: [
+              { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
+              { label: '거래처별채무', to: '/sales/ledger-payable' },
+              { label: '지급현황', to: '/sales/payment' },
+              { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
+              { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
+            ],
+          },
         ],
       },
       /* 원본 기타이동 탭(2026-10-20 loginaa 실측): 창고이동 · 자가사용 · 불량처리 · 재고조정 · 기타이동현황 다섯 묶음.
-         창고이동조회 · 입력은 아직 기타이동 화면(창고이동 탭 · 등록 창)이 맡는다 — 원본은 여러 줄 전표 · 수정이 되는 별도 화면. */
-      { label: '기타이동', open: ['기타이동현황'], nodes: [
-        { label: '창고이동', children: [{ label: '창고이동조회', to: '/inventory/transfer' }, { label: '창고이동입력', to: '/inventory/transfer?new=1' }, { label: '창고이동현황', to: '/inventory/transfer-status' }] },
+         창고이동조회는 기타이동 화면(창고이동 탭)이, 창고이동입력은 따로 있는 입력 화면이 맡는다(원본 — 수정만 창 '창고이동수정'). */
+      { label: '기타이동', home: '/inventory/transfer', open: ['기타이동현황'], nodes: [
+        { label: '창고이동', children: [{ label: '창고이동조회', to: '/inventory/transfer' }, { label: '창고이동입력', to: '/inventory/transfer-entry' }, { label: '창고이동현황', to: '/inventory/transfer-status' }] },
         /* 원본 기타이동 탭의 [자가사용] 묶음 — 조회 · 입력 · 현황(2026-10-12 실측). 입력은 예전엔 기타이동 화면의 탭 속 창뿐이었다. */
         { label: '자가사용', children: [{ label: '자가사용조회', to: '/inventory/self-use' }, { label: '자가사용입력', to: '/inventory/self-use-input' }, { label: '자가사용현황', to: '/inventory/self-use-status' }] },
         { label: '불량처리', children: [{ label: '불량처리조회', to: '/inventory/defect' }, { label: '불량처리입력', to: '/inventory/defect-input' }, { label: '불량처리현황', to: '/inventory/defect-status' }] },
@@ -411,6 +416,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: '재고 II',
+    home: '/accounting/daily-profit',
     tabs: [
       {
         /* 원본 사이트맵(2026-10-13): A/S접수(입력 · 조회 · 현황) · A/S수리(입력 · 조회 · 현황 · 소모현황) 두 묶음. */
@@ -421,7 +427,15 @@ const MENU: TopMenu[] = [
           { label: 'A/S수리', children: [{ label: 'A/S수리입력', to: '/quality/as-repair-entry' }, { label: 'A/S수리조회', to: '/quality/as-repair-list' }, { label: 'A/S수리현황', to: '/quality/as-repair-status' }, { label: 'A/S소모현황', to: '/quality/as-consumption' }] },
         ],
       },
-      { label: '시리얼/로트No.', home: '/quality/lot-tx-list', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '시리얼/로트No.내역조회', to: '/quality/lot-tx-list' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }, { label: '시리얼/로트No.재고조정', to: '/quality/lot-adjust' }, { label: '시리얼/로트No.재고수불부', to: '/quality/lot-ledger' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '품목vs시리얼재고수량비교', to: '/quality/lot-compare' }] },
+      {
+        /* 원본 시리얼/로트No. 탭(2026-10-28 실측 · plans/재고2.md 사이트맵): 두 묶음, 둘 다 펼쳐 둔다. 처음 화면은 내역조회. */
+        label: '시리얼/로트No.',
+        home: '/quality/lot-tx-list', open: ['시리얼/로트No. 재고조정'],
+        nodes: [
+          { label: '시리얼/로트No.등록', children: [{ label: '시리얼/로트No.등록', to: '/quality/serial-lot' }, { label: '시리얼/로트No.내역조회', to: '/quality/lot-tx-list' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }] },
+          { label: '시리얼/로트No. 재고조정', children: [{ label: '시리얼/로트No.재고조정', to: '/quality/lot-adjust' }, { label: '시리얼/로트No.재고수불부', to: '/quality/lot-ledger' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '품목vs시리얼재고수량비교', to: '/quality/lot-compare' }] },
+        ],
+      },
       {
         /*
          * 원본 사이트맵(2026-10-14): 품질검사요청(입력 · 조회 · 현황 · 미검사현황) · 품질검사(유형등록 · 입력 · 조회 · 현황) 두 묶음.
@@ -445,17 +459,16 @@ const MENU: TopMenu[] = [
           /* 원본 프로젝트계획 > [프로젝트계획조회](E040636) · [프로젝트계획/실적현황](E040637) — 2026-10-13. */
           { label: '매출계획', children: [{ label: '매출계획입력', to: '/sales/sales-plan-entry' }, { label: '매출계획조회', to: '/sales/sales-plan-list' }, { label: '매출계획현황', to: '/sales/sales-plan-status' }, { label: '매출계획비교표', to: '/sales/sales-plan-compare' }] },
           { label: '프로젝트계획', children: [{ label: '프로젝트계획조회', to: '/accounting/project-plan' }, { label: '프로젝트계획/실적현황', to: '/accounting/project-plan-status' }] },
+          /* 원본 계획관리는 위 두 묶음뿐이다(2026-10-28 실측). 생산계획/MRP생성은 원본처럼 재고 I › 생산/외주에만 둔다.
+             생산계획(MPS)은 원본 메뉴에 없는 우리 화면이라 끝에 둔다. */
           { label: '생산계획(MPS)', to: '/production/planning' },
-          /* 원본 생산/외주 탭의 표기는 [생산계획/MRP생성] 이다(사본 좌측 메뉴 실측). */
-          { label: '생산계획/MRP생성', to: '/production/mrp' },
         ],
       },
       {
         label: '이익관리',
         home: '/accounting/daily-profit', open: ['월별이익'],
+        /* 원본 이익관리(2026-10-28 실측): 월별이익 · 일별이익 두 묶음, 둘 다 펼친다. 처음 화면은 일별이익현황. */
         nodes: [
-          { label: '손익요약', to: '/accounting/profit' },
-          { label: '품목별원가/이익', to: '/accounting/item-cost' },
           {
             label: '월별이익',
             children: [
@@ -475,7 +488,9 @@ const MENU: TopMenu[] = [
               { label: '일별이익현황', to: '/accounting/daily-profit' },
             ],
           },
-          /* 원본 2단에 없는 우리 화면(예전 회계 II › 프로젝트 — 2026-10-28 원본 2단 실측에 맞춰 그 2단을 빼며 여기로) */
+          /* 원본 이익관리에 없는 우리 화면 — 손익요약 · 품목별원가/이익(예전 이 탭 맨 앞), 프로젝트별 손익(예전 회계 II › 프로젝트). 원본 자리를 찾으면 옮긴다. */
+          { label: '손익요약', to: '/accounting/profit' },
+          { label: '품목별원가/이익', to: '/accounting/item-cost' },
           { label: '프로젝트별 손익', to: '/accounting/project-profit' },
         ],
       },
@@ -483,8 +498,7 @@ const MENU: TopMenu[] = [
         label: '오더관리',
         home: '/sales/order-stages',
         nodes: [
-          { label: '오더관리(수주)', to: '/sales/orders' },
-          /* 원본 오더관리 탭의 표기는 [오더관리유형등록] 이다(사본 좌측 메뉴 실측). */
+          /* 원본 오더관리 탭은 이 둘뿐이다(2026-10-28 실측). 표기는 [오더관리유형등록](사본 좌측 메뉴 실측). */
           { label: '오더관리유형등록', to: '/sales/order-types' },
           { label: '오더관리진행단계', to: '/sales/order-stages' },
         ],
@@ -540,6 +554,7 @@ const MENU: TopMenu[] = [
           { label: '결제대행사등록', to: '/accounting/payment-agencies' },
           /* 원본 사이트맵 차례: … 결제대행사등록 · 추가항목유형등록 · 사원(담당)등록 · 계정등록(E010107) · 각종코드변경 · 외화등록 */
           { label: '추가항목유형등록', to: '/accounting/extra-field-types' },
+          { label: '사원(담당)등록', to: '/inventory/sales-reps' },
           { label: '계정등록', to: '/accounting/accounts' },
           { label: '각종코드변경', to: '/accounting/code-change' },
           { label: '외화등록', to: '/settings/currencies' },
@@ -651,7 +666,19 @@ const MENU: TopMenu[] = [
       },
       {
         label: '고정자산',
-        nodes: [{ label: '고정자산·감가상각', to: '/accounting/fixed-assets' }, { label: '고정자산대장', to: '/accounting/fixed-asset-ledger' }, { label: '고정자산증가내역', to: '/accounting/fixed-asset-in' }, { label: '고정자산감소내역', to: '/accounting/fixed-asset-out' }, { label: '고정자산증감대장', to: '/accounting/fixed-asset-movement' }, { label: '고정자산수불부', to: '/accounting/fixed-asset-stock' }, { label: '고정자산전표조회', to: '/accounting/fixed-asset-slips' }, { label: '감가상각계산', to: '/accounting/depreciation-calc' }],
+        /* 원본 고정자산(2026-10-28 실측 · plans/회계1/E010610.md 사이트맵): 고정자산등록 · 고정자산증가 · 고정자산감소 · 고정자산전표조회 ·
+           고정자산관련출력물(대장 · 증가내역 · 감소내역 · 증감대장 · 수불부 · 감가상각계산, 펼쳐 둔다). 원본 처음 화면은 고정자산증가인데
+           우리는 증가 · 감소가 고정자산등록 화면의 창이라 따로 된 메뉴가 없다 — 고정자산등록이 처음 화면이다. */
+        open: ['고정자산관련출력물'],
+        nodes: [
+          { label: '고정자산등록', to: '/accounting/fixed-assets' },
+          { label: '고정자산전표조회', to: '/accounting/fixed-asset-slips' },
+          { label: '고정자산관련출력물', children: [
+            { label: '고정자산대장', to: '/accounting/fixed-asset-ledger' }, { label: '고정자산증가내역', to: '/accounting/fixed-asset-in' },
+            { label: '고정자산감소내역', to: '/accounting/fixed-asset-out' }, { label: '고정자산증감대장', to: '/accounting/fixed-asset-movement' },
+            { label: '고정자산수불부', to: '/accounting/fixed-asset-stock' }, { label: '감가상각계산', to: '/accounting/depreciation-calc' },
+          ] },
+        ],
       },
       {
         label: '회계거래관리',
@@ -749,6 +776,8 @@ const MENU: TopMenu[] = [
   },
   {
     label: '회계 II',
+    /* 원본 1단 기본(2026-10-28)은 수입비용전표검색 — 그 계정이 마지막에 본 화면일 수도 있다(미확인). */
+    home: '/accounting/import-cost/vouchers',
     tabs: [
       {
         label: '채권관리',
@@ -764,8 +793,9 @@ const MENU: TopMenu[] = [
           { label: '거래처채권집계관리대장', to: '/accounting/bonds/ar/partner-summary' },
           { label: '거래처채권관리대장인쇄', to: '/accounting/bonds/ar/partner-ledger-print' },
           { label: '채권잔액분석표', to: '/accounting/bonds/ar/balance-analysis' },
+          /* 원본 채권관리는 위 열 화면뿐이다(2026-10-28 실측). 아래는 원본에 없는 우리 화면 — 다른 메뉴로 닿지 않아 끝에 둔다.
+             채권/채무현황(기준일자)은 재고 I › 출력물 › 기타의 [채권/채무현황] 으로 닿는다. */
           { label: '채권·채무현황', to: '/sales/ledger' },
-          { label: '채권/채무현황(기준일자)', to: '/sales/ar-ap-status' },
           { label: '거래처관리대장', to: '/sales/partner-ledger' },
         ],
       },
@@ -782,8 +812,9 @@ const MENU: TopMenu[] = [
           { label: '거래처채무집계관리대장', to: '/accounting/bonds/ap/partner-summary' },
           { label: '거래처채무관리대장인쇄', to: '/accounting/bonds/ap/partner-ledger-print' },
           { label: '채무잔액분석표', to: '/accounting/bonds/ap/balance-analysis' },
+          /* 원본 채무관리도 위 열 화면뿐이다. 아래 둘은 원본에 없는 우리 화면(지급현황은 재고 I › 구매관리 › 구매관리현황으로 닿는다).
+             수금/지급(정산)은 예전 영업관리 › 판매 끝에도 있었다 — 원본 판매 묶음에 없어 여기만 남겼다. */
           { label: '미지급현황(연령분석)', to: '/sales/payable' },
-          { label: '지급현황', to: '/sales/payment' },
           { label: '수금/지급(정산)', to: '/sales/settlement' },
         ],
       },
@@ -904,6 +935,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: '관리',
+    home: '/hr/payroll',
     tabs: [
       {
         label: '급여관리',
@@ -918,19 +950,21 @@ const MENU: TopMenu[] = [
             { label: '프로젝트등록', to: '/inventory/projects' },
             // 원본 인쇄용결재라인등록(관리) E090102 — 회계 · 재고 · 관리 알약 중 [관리] 가 켜진 채로 연다(화면은 회계1 의 E010106 과 같다)
             { label: '인쇄용결재라인등록(관리)', to: '/hr/print-sign' },
-            { label: '담당자별 실적', to: '/hr/performance' },
           ] },
           { label: '근무기록', children: [
             { label: '근무입력', to: '/hr/work-input' },
             { label: '근무조회', to: '/hr/work-list' },
           ] },
-          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '사원별급여조회', to: '/hr/payroll/by-employee' }, { label: '급여현황', to: '/hr/payroll/status' }, { label: '근무확정현황', to: '/hr/payroll/work-confirms' }, { label: '급여이체현황', to: '/hr/payroll/transfer-status' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
+          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '사원별급여조회', to: '/hr/payroll/by-employee' }, { label: '급여현황', to: '/hr/payroll/status' }, { label: '근무확정현황', to: '/hr/payroll/work-confirms' }, { label: '급여이체현황', to: '/hr/payroll/transfer-status' }] },
           { label: '4대보험신고', children: [
             { label: '4대보험취득신고입력', to: '/hr/insurance/acquire' },
             { label: '4대보험상실신고입력', to: '/hr/insurance/loss' },
             { label: '피부양자자격신고입력', to: '/hr/insurance/dependent' },
             { label: '4대보험신고', to: '/hr/insurance/reports' },
           ] },
+          /* 원본 급여관리 묶음에 없는 우리 화면 — 예전엔 기본사항등록 · 급여작업 묶음 끝에 섞여 있었다(2026-10-28 실측에 맞춰 묶음 밖 끝으로). */
+          { label: '담당자별 실적', to: '/hr/performance' },
+          { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' },
         ],
       },
       {
@@ -983,8 +1017,9 @@ const MENU: TopMenu[] = [
             { label: '일용근로 급여현황', to: '/hr/daily-payroll/status' },
             { label: '일용근로 근무확정현황', to: '/hr/daily-payroll/work-confirms' },
             { label: '일용근로 급여이체현황', to: '/hr/daily-payroll/transfer-status' },
-            { label: '일용근로 출역/지급(분개)', to: '/hr/daily-wage' },
           ] },
+          /* 원본 일용근로 급여작업 묶음에 없는 우리 화면(2026-10-28 실측에 맞춰 묶음 밖 끝으로) */
+          { label: '일용근로 출역/지급(분개)', to: '/hr/daily-wage' },
         ],
       },
       {
@@ -1022,10 +1057,11 @@ const MENU: TopMenu[] = [
   },
   {
     label: '세무',
+    home: '/accounting/vat/return',
     /*
      * 원본 사이트맵(2026-10-03 loginaa) 차례 그대로: 원천징수 · 기타원천세 · 부가세 · 법인세.
      * 묶음 이름도 원본 것(세무신고 · 퇴직정산 · 출력물 · 신고전검토자료 …). 원본에 있는데 아직 없는 화면은 넣지 않는다.
-     * 원본에 없는 우리 화면 셋(근로소득원천징수영수증 · 매입매출·부가세 · 법인세 신고서)은 가장 가까운 묶음 끝에 둔다.
+     * 원본에 없는 우리 화면 셋(근로소득원천징수영수증 · 매입매출·부가세 · 법인세 신고서)은 그 2단 맨 끝(묶음 밖)에 둔다.
      */
     tabs: [
       {
@@ -1062,8 +1098,9 @@ const MENU: TopMenu[] = [
             { label: '원천세신고자료비교표', to: '/accounting/withholding/comparison' },
             { label: '연말정산검토표 I', to: '/accounting/withholding/year-end-review-1' },
             { label: '연말정산검토표 II', to: '/accounting/withholding/year-end-review-2' },
-            { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           ] },
+          /* 원본 원천징수 › 출력물에 없는 우리 화면(2026-10-28 실측에 맞춰 묶음 밖 끝으로) */
+          { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
         ],
       },
       {
@@ -1099,7 +1136,6 @@ const MENU: TopMenu[] = [
             { label: '부가세Checklist', to: '/accounting/vat/checklist' },
             { label: '전표vs매출매입자료비교', to: '/accounting/vat/journal-compare' },
             { label: '사업용신용카드 자료비교', to: '/accounting/vat/card-compare' },
-            { label: '매입매출·부가세', to: '/accounting/vat' },
           ] },
           { label: '부가세신고서(일반)', children: [
             { label: '부가세신고서(일반)', to: '/accounting/vat/return' },
@@ -1107,6 +1143,8 @@ const MENU: TopMenu[] = [
           ] },
           { label: '과세자료전산매체', to: '/accounting/vat/media-files' },
           { label: '세무증명서류', to: '/accounting/vat/tax-certificate' },
+          /* 원본 신고전검토자료 묶음에 없는 우리 화면(2026-10-28 실측에 맞춰 묶음 밖 끝으로) */
+          { label: '매입매출·부가세', to: '/accounting/vat' },
         ],
       },
       {
@@ -1121,6 +1159,7 @@ const MENU: TopMenu[] = [
   },
   {
     label: '그룹웨어',
+    home: '/groupware/approval/my',
     tabs: [
       {
         label: '공유정보',
@@ -1283,8 +1322,10 @@ const MENU: TopMenu[] = [
   },
   {
     label: '데이터센터',
+    /* 원본 1단 [데이터센터] → 수집데이터등록(C001401, 2026-10-30 loginaa 클릭 대조) */
+    home: '/datacenter/collect-sources',
     tabs: [
-      { label: '데이터수집', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }, { label: '수집데이터등록', to: '/datacenter/collect-sources' }] },
+      { label: '데이터수집', home: '/datacenter/collect-sources', nodes: [{ label: '데이터수집', to: '/datacenter/collect' }, { label: '수집데이터등록', to: '/datacenter/collect-sources' }] },
       { label: '데이터내보내기', nodes: [{ label: '데이터내보내기', to: '/datacenter/export' }, { label: '의료기기공급내역보고', to: '/datacenter/medical-device-report' }] },
     ],
   },
@@ -1299,46 +1340,30 @@ const MENU: TopMenu[] = [
  */
 interface Bookmark { id: number | null; label: string; path: string; sortOrder: number }
 
-/*
- * 우측 세로 앱바 아이콘. 이름은 <b>원본 그대로</b> 쓴다(사본 172장 전부의 상단바에 있다).
- * to 면 라우트 이동, print 면 화면 인쇄, newWindow 면 지금 화면을 새 창으로, 나머지는 안내.
- *
- * <p>다크모드로보기·업무지원AI·원격지원은 아직 안내만 띄운다.
- * 다크모드는 색이 화면마다 인라인으로 박혀 있어(토큰 사용 1,069곳 vs 하드코딩 4,716곳)
- * 토큰만 바꾸면 <b>절반만 어두워진다.</b> 흰 배경에 흰 글씨가 되는 화면이 생기느니
- * 안내를 띄우는 편이 낫다. 색을 토큰으로 모으는 것이 먼저다.
- */
-interface AppIcon { icon: string; title: string; to?: string; print?: boolean; newWindow?: boolean; panel?: PanelKind }
-const APPS: AppIcon[] = [
-  { icon: '🌙', title: '다크모드로보기' },
-  { icon: '🤖', title: '업무지원AI' },
-  { icon: '🔍', title: '통합검색', panel: 'search' },
-  { icon: '🎧', title: '원격지원' },
-  { icon: '➕', title: '빠른등록' },
-  { icon: '📄', title: 'ECDrive 문서', to: '/groupware/drive' },
-  { icon: '🔔', title: '알림', panel: 'notifications' },
-  { icon: '💬', title: '메신저', panel: 'messenger' },
-  /*
-   * 원본 앱바의 [쪽지]. 우리는 아이콘만 두고 <b>아무 데도 안 갔다</b> — 눌러도 아무 일이
-   * 없는 아이콘은 고장으로 읽힌다. 쪽지 화면은 진작 있다(그룹웨어 > 쪽지(수발신내역)).
-   */
-  { icon: '📨', title: '쪽지', to: '/groupware/messages' },
-  { icon: '📝', title: 'E Note', panel: 'notes' },
-  { icon: '🖨️', title: '화면 인쇄', print: true },
-  { icon: '🗗', title: '새창열기', newWindow: true },
-  { icon: '📊', title: '데이터 내보내기', to: '/datacenter/export' },
-  { icon: '🕒', title: '타임라인' },
-  { icon: '📌', title: '화면 고정' },
-  { icon: '⚙️', title: '환경설정', to: '/settings/preferences' },
-]
-
 const tabLeaves = (tab: Tab): Leaf[] => tab.nodes.flatMap((n) => (isGroup(n) ? n.children : [n]))
 
 /** 경로가 메뉴 항목에 해당하면 그 항목의 길이(구체성)를, 아니면 0을 돌려준다.
  *  세그먼트 경계로 끊어야 '/'가 모든 경로를, '/sales/pay'가 '/sales/payment'를 삼키지 않는다. */
-function matchLength(to: string, pathname: string): number {
-  if (to === '/') return pathname === '/' ? 1 : 0
-  return pathname === to || pathname.startsWith(`${to}/`) ? to.length : 0
+function matchLength(to: string, here: string): number {
+  /*
+   * 메뉴 주소에 '?tab=…' 이 붙은 것(공통양식등록 · 결재설정 · 근로소득원천징수영수증)이 있다. 예전엔 경로만 견줘서
+   * 그런 메뉴는 한 번도 안 걸렸고, 대메뉴가 MyPage(맨 앞)로 떨어져 왼쪽 메뉴까지 MyPage 가 떴다.
+   * 이제 here(경로 + 검색어)의 검색어가 메뉴의 것을 모두 담으면 그 메뉴 주소 길이만큼, 그 키가 아예 없으면
+   * (탭을 안 고르고 들어온 같은 화면) 경로 길이 −1 로 약하게 건다 — 검색어 없는 같은 경로 메뉴가 있으면 그쪽이 이긴다.
+   */
+  const [path, query = ''] = here.split('?')
+  const [toPath, toQuery] = to.split('?')
+  if (toPath === '/') return path === '/' && !toQuery ? 1 : 0
+  if (!(path === toPath || path.startsWith(`${toPath}/`))) return 0
+  if (!toQuery) return toPath.length
+  const want = new URLSearchParams(toQuery)
+  const have = new URLSearchParams(query)
+  let missing = false
+  for (const [k, v] of want) {
+    if (!have.has(k)) missing = true
+    else if (have.get(k) !== v) return 0
+  }
+  return missing ? Math.max(1, toPath.length - 1) : to.length
 }
 
 const BASE_MENU = MENU
@@ -1406,17 +1431,18 @@ export default function EcountLayout() {
   const { user, logout, canRoute, isHost, companyName } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  /** 메뉴와 견줄 지금 주소 — 경로 + 검색어('?tab=공통양식등록'). matchLength 참고. */
+  const here = location.pathname + location.search
   const [hoverIdx, setHoverIdx] = useState<number | null>(null) // 대메뉴 호버 시 뜨는 탭바
   const [menuQuery, setMenuQuery] = useState('')                // 메뉴검색 입력값
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])    // 상단 북마크바 (사용자별)
   const [sitemapOpen, setSitemapOpen] = useState(false)         // 사이트맵 모달
   const [sitemapIdx, setSitemapIdx] = useState(0)               // 사이트맵 좌측 레일 선택
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({}) // 사이드바 그룹 접힘
-  const [appNotice, setAppNotice] = useState('')                // 앱바 안내 토스트
-  const [panel, setPanel] = useState<PanelKind | null>(null)    // 앱바에서 연 패널
-  const [alertCount, setAlertCount] = useState(0)               // 알림 배지
-  const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
-  const [noteCount, setNoteCount] = useState(0)
+  /* 앱바 [권한있는메뉴만보기] — 켜면 권한 없는 메뉴를 숨기고, 끄면(기본) 모두 보인다(권한 없는 화면은 열면 🔒 자물쇠 화면).
+     기본이 꺼짐인 근거: 원본은 권한 없는 사용자에게도 왼쪽 · 위 메뉴가 그대로 보이고 누르면 자물쇠 화면이다
+     (2026-10-30 loginaa 데모 사용자의 사용자관리 · 결재설정, 영상 1998 · 1514 의 판매입력 · 매출전표 I). */
+  const [permOnly, setPermOnly] = useState(() => localStorage.getItem('ec-perm-only') === 'y')
   /* 머리 로고 자리 · 창 제목의 상호 — 로그인 때 받은 이름으로 시작해 회사정보(/company)를 다시 읽고,
      회사정보 화면에서 저장하면(erp:company-updated) 바로 따라 바뀐다 */
   const [brand, setBrand] = useState<string | null>(companyName)
@@ -1457,50 +1483,10 @@ export default function EcountLayout() {
     else { link.href = link.dataset.defaultHref ?? '/favicon.svg'; if (link.dataset.defaultType) link.type = link.dataset.defaultType }
   }, [logoUrl])
   const [folders, setFolders] = useState<MyFolder[] | null>(null)  // MyPage 나만의 업무 폴더 (사용자별)                 // 쪽지 안 읽은 수
-  const [userOpen, setUserOpen] = useState(false)               // 사용자 동그라미 → 이름·로그아웃
   // 휴대폰·태블릿(≤768px, 원본 실측) — ☰ 메뉴판과 ★ 즐겨찾기 · 앱 모음 펼침
   const [drawer, setDrawer] = useState<{ top: number; tab: number } | null>(null)
   const [mPanel, setMPanel] = useState<'fav' | 'apps' | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)               // 본문 영역(표 우클릭 메뉴가 감시)
-
-  // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
-  useEffect(() => {
-    api.get<NotificationResponse>('/workspace/notifications')
-      .then((r) => setAlertCount(r.data.total))
-      .catch(() => setAlertCount(0))
-  }, [panel])
-
-  // 메신저 미읽음. 패널을 열지 않아도 새 메시지를 알아야 하므로 주기적으로 센다.
-  // 패널이 열려 있을 때는 패널 자신이 폴링하므로 여기서는 닫힌 동안만 돈다.
-  useEffect(() => {
-    const count = () => api.get<{ unread: number }>('/chat/unread-count')
-      .then((r) => setChatCount(r.data.unread))
-      .catch(() => setChatCount(0))
-    count()
-    if (panel === 'messenger') return
-    const t = window.setInterval(count, 30000)
-    return () => window.clearInterval(t)
-  }, [panel])
-
-  /*
-   * 쪽지 안 읽은 수. 서버가 세어 주는데(/short-messages/unread-count) 아무도 안 물어봐서
-   * <b>새 쪽지가 와도 아이콘이 그대로였다.</b> 메신저와 같은 주기로 센다.
-   */
-  useEffect(() => {
-    const count = () => api.get<{ unread: number }>('/short-messages/unread-count')
-      .then((r) => setNoteCount(r.data.unread))
-      .catch(() => setNoteCount(0))
-    count()
-    const t = window.setInterval(count, 30000)
-    return () => window.clearInterval(t)
-  }, [location.pathname])
-
-  /* 화면 안의 버튼(근태조회 [메신저]·설문조사조회 [대화방])이 <b>같은 창을</b> 열어 달라고 알린다. */
-  useEffect(() => {
-    const open = (e: Event) => setPanel((e as CustomEvent<PanelKind>).detail)
-    window.addEventListener('ec:open-panel', open)
-    return () => window.removeEventListener('ec:open-panel', open)
-  }, [])
 
   // 상단 북마크바. 아무것도 담지 않은 사람에게는 서버가 기본 여섯을 내려 준다.
   useEffect(() => {
@@ -1517,11 +1503,11 @@ export default function EcountLayout() {
   const currentLeaf = useMemo(() => {
     let best: FlatItem | null = null
     for (const f of FLAT_MENU) {
-      if (matchLength(f.to, location.pathname) > 0
+      if (matchLength(f.to, here) > 0
           && (!best || f.to.length > best.to.length)) best = f
     }
     return best
-  }, [location.pathname])
+  }, [here])
   const bookmarked = !!currentLeaf && bookmarks.some((b) => b.path === currentLeaf.to)
 
   async function toggleBookmark() {
@@ -1546,14 +1532,17 @@ export default function EcountLayout() {
   const NAV = useMemo(() => withMyFolders(folders), [folders])
 
   const menuPin = (location.state as { menuPin?: [number, number] } | null)?.menuPin
-  const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname, menuPin, NAV), [location.pathname, menuPin, NAV])
+  const [topIdx, tabIdx] = useMemo(() => resolveActive(here, menuPin, NAV), [here, menuPin, NAV])
   const activeTop = NAV[topIdx]
   const activeTab = activeTop.tabs[tabIdx]
+  /* 첫 화면(위젯) — 원본은 1단 어느 것도 켜지 않고 2단 · 왼쪽 메뉴 없이 위젯만 넓게 편다(2026-10-30 loginaa) */
+  const isHome = location.pathname === '/'
 
   // 권한에 따른 메뉴 노출 판정. 리프는 라우트 권한으로, 상위는 하위가 하나라도 보이면 보인다.
   // 회사관리(/companies)는 본사에서만 노출한다.
+  /* 지금 연 화면은 권한이 없어도(자물쇠 화면) 메뉴에 남아 켜져 있다 — 원본 실측 */
   const leafOk = (l: Leaf) =>
-    (l.to === '/companies' ? isHost : true) && (!l.to || canRoute(l.to))
+    (l.to === '/companies' ? isHost : true) && (!permOnly || !l.to || canRoute(l.to) || matchLength(l.to, here) > 0)
   const nodeOk = (n: SideNode) => (isGroup(n) ? n.children.some(leafOk) : leafOk(n))
   const tabOk = (t: Tab) => t.nodes.some(nodeOk)
   const topOk = (m: TopMenu) => m.tabs.some(tabOk)
@@ -1582,20 +1571,6 @@ export default function EcountLayout() {
     else void ecAlert(`[${leaf.label}] 메뉴는 준비 중입니다.`)
   }
 
-  // 앱바 아이콘 클릭: 라우트가 있으면 이동, 인쇄면 화면 인쇄, 나머지는 안내
-  function onApp(app: AppIcon) {
-    if (app.panel) return setPanel(app.panel)
-    if (app.to) return navigate(app.to)
-    if (app.print) return window.print()
-    // 원본 [새창열기] — 지금 화면을 그대로 새 창에. 두 화면을 나란히 놓고 보라는 것이다.
-    if (app.newWindow) {
-      window.open(window.location.href, '_blank', 'noopener,noreferrer')
-      return
-    }
-    setAppNotice(`${app.title} 기능은 준비 중입니다.`)
-    window.setTimeout(() => setAppNotice(''), 2200)
-  }
-
   // 2단 메뉴 — 머리 메뉴 아래 떠 있는 흰 알약 판(styles/shell.css .ec-subnav)
   function subnav(menu: TopMenu, activeTabIdx: number | null) {
     if (menu.tabs.length < 2) return null
@@ -1621,16 +1596,20 @@ export default function EcountLayout() {
   }
 
   /* 가장 길게 맞는 메뉴 하나만 켠다 — '/accounting/withholding' 과 '/accounting/withholding/pdf' 가 함께 켜지지 않게 */
-  const bestLeafLen = Math.max(0, ...FLAT_MENU.map((f) => matchLength(f.to, location.pathname)))
+  const bestLeafLen = Math.max(0, ...FLAT_MENU.map((f) => matchLength(f.to, here)))
+  /* 같은 길이로 둘이 걸리면(탭 없이 연 설정 화면 — 공통양식등록 · 결재설정) 메뉴 차례로 앞의 것 하나만 켠다 */
+  const activeLeafTo = bestLeafLen > 0 ? FLAT_MENU.find((f) => matchLength(f.to, here) === bestLeafLen)?.to : undefined
 
+  const locked = !canRoute(location.pathname)
   /* 창(탭) 제목 = 지금 화면 이름 - 상호 (원본도 탭 제목이 화면 이름이다). 메뉴에 없는 화면은 상호만 */
   useEffect(() => {
-    const leaf = bestLeafLen > 0 ? FLAT_MENU.find((f) => matchLength(f.to, location.pathname) === bestLeafLen) : undefined
+    const leaf = activeLeafTo ? FLAT_MENU.find((f) => f.to === activeLeafTo) : undefined
     const site = brand || '제조 ERP'
-    document.title = leaf ? `${leaf.label} - ${site}` : site
-  }, [bestLeafLen, location.pathname, brand])
+    /* 막힌 화면은 원본처럼 창 제목이 '권한없음' */
+    document.title = !locked ? (leaf ? `${leaf.label} - ${site}` : site) : '권한없음'
+  }, [activeLeafTo, brand, locked])
   function sidebarLeaf(leaf: Leaf, key: number) {
-    const on = !!leaf.to && bestLeafLen > 0 && matchLength(leaf.to, location.pathname) === bestLeafLen
+    const on = !!leaf.to && leaf.to === activeLeafTo
     return (
       <button
         key={key}
@@ -1677,7 +1656,7 @@ export default function EcountLayout() {
             const kids = node.children.filter(leafOk)
             if (kids.length === 0) return null
             // 왼쪽 메뉴와 같은 규칙 — 지금 화면이 든 묶음만 펼치고 칠한다. 접힌 상태도 왼쪽 메뉴와 같이 쓴다.
-            const current = kids.some((c) => !!c.to && matchLength(c.to, location.pathname) > 0)
+            const current = kids.some((c) => !!c.to && matchLength(c.to, here) > 0)
             const key = `${at.top}/${at.tab}/${node.label}`
             const open = key in collapsed ? !collapsed[key] : current || !!tab.open?.includes(node.label)
             return (
@@ -1695,7 +1674,7 @@ export default function EcountLayout() {
 
   // 화면이 하나뿐인 메뉴(MyPage)는 원본처럼 왼쪽 메뉴 없이 본문을 넓게 쓴다
   const leafCount = activeTab.nodes.reduce((n, node) => n + (isGroup(node) ? node.children.length : 1), 0)
-  const showLnb = leafCount > 1
+  const showLnb = leafCount > 1 && !isHome
 
   return (
     <div className="ec-shell">
@@ -1703,7 +1682,7 @@ export default function EcountLayout() {
       {/* 휴대폰 폭에서 ★ 를 누르면 이 줄이 머리 아래를 덮는 판이 된다(shell.css .ec-bookbar.m-open, 원본 wrapper-frame-bookmark) */}
       <div className={`ec-bookbar${mPanel === 'fav' ? ' m-open' : ''}`}>
         <div className="ec-bookbar-search">
-          <span className="icon">🔍</span>
+          <span className="icon"><EcIcon name="search" size={12} /></span>
           <input
             placeholder="메뉴검색"
             value={menuQuery}
@@ -1711,7 +1690,7 @@ export default function EcountLayout() {
             onBlur={() => window.setTimeout(() => setMenuQuery(''), 150)}
             onKeyDown={(e) => { if (e.key === 'Enter' && menuMatches[0]) gotoMenu(menuMatches[0].to) }}
           />
-          <button className="ec-chip" onClick={() => { setSitemapIdx(topIdx); setSitemapOpen(true) }}>사이트맵</button>
+          <button className="ec-chip" onClick={() => { setSitemapIdx(isHome ? 0 : topIdx); setSitemapOpen(true) }}>사이트맵</button>
           {menuMatches.length > 0 && (
             <div className="ec-popover" style={{ left: 0, right: 'auto', top: '100%', marginTop: 3, minWidth: 260, maxHeight: 320, overflowY: 'auto', padding: 4 }}>
               {menuMatches.map((x, i) => (
@@ -1729,7 +1708,8 @@ export default function EcountLayout() {
             </div>
           )}
         </div>
-        <span className="ec-bookbar-hint">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다 ★</span>
+        {/* 원본에서 이 글은 회사가 이름을 바꿔 둔 북마크다 — 누르면 품목등록 리스트(E040103)로 간다(2026-10-30 loginaa) */}
+        <NavLink to="/inventory/items" className="ec-bookbar-hint">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다 ★</NavLink>
         {bookmarks.map((b, i) => (
           <NavLink key={b.path + i} to={b.path} className={({ isActive }) => `ec-bookmark${isActive ? ' active' : ''}`}>
             {b.label}
@@ -1738,30 +1718,32 @@ export default function EcountLayout() {
         {/* 지금 화면을 담거나 뺀다. 메뉴에 없는 화면은 이름을 붙일 수 없어 담지 않는다. */}
         <button className={`ec-bookbar-star${bookmarked ? ' on' : ''}`} title={bookmarked ? '북마크에서 빼기' : '이 화면을 북마크에 담기'}
                 onClick={toggleBookmark} disabled={!currentLeaf}>
-          {bookmarked ? '★' : '☆'}
+          {bookmarked ? <EcIcon name="star" size={13} glyph="★" /> : <EcIcon name="star-outline" size={13} glyph="☆" />}
         </button>
-        <span className="ec-bookbar-pin">📌</span>
+        <span className="ec-bookbar-pin"><EcIcon name="pin" size={13} /></span>
       </div>
 
       {/* ===== 머리 메뉴(1단) + 떠 있는 2단 메뉴 ===== */}
       <div className="ec-gnb" onMouseLeave={() => setHoverIdx(null)}>
         <Link to="/" className="ec-logo" title={brand ?? undefined}>
           {logoUrl ? <img className="ec-logo-img" src={logoUrl} alt={brand ?? '회사 로고'} />
-            : brand ? <b className="ec-logo-name">{brand}</b> : <><b>제조</b><span className="tail">ERP</span></>}
+            : <span className="ec-logo-name">{brand ?? '제조 ERP'}</span>}
         </Link>
         {/* 휴대폰·태블릿에서만 — ☰ 메뉴판, ★ 즐겨찾기 */}
         <button className="ec-m-btn ec-m-menu" aria-label="메뉴" onClick={() => { setMPanel(null); setDrawer((d) => (d ? null : { top: topIdx, tab: tabIdx })) }}>☰</button>
-        <button className="ec-m-btn ec-m-fav" aria-label="즐겨찾기" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'fav' ? null : 'fav')) }}>★</button>
+        <button className="ec-m-btn ec-m-fav" aria-label="즐겨찾기" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'fav' ? null : 'fav')) }}><EcIcon name="star" glyph="★" /></button>
         <ul className="ec-gnb-menu">
           {NAV.map((m, idx) => {
             if (!topOk(m)) return null
             return (
               <li key={m.label} onMouseEnter={() => setHoverIdx(idx)}>
                 <button
-                  className={`ec-gnb-item${idx === topIdx ? ' active' : ''}`}
+                  className={`ec-gnb-item${idx === topIdx && !isHome ? ' active' : ''}`}
                   onClick={() => {
-                    const ti = m.tabs.findIndex((t) => !!tabRoute(t))
-                    const to = ti >= 0 ? tabRoute(m.tabs[ti]) : undefined
+                    // 원본은 1단마다 처음 여는 화면이 따로 있다(재고 I → 판매조회 · 세무 → 부가세신고서(일반) …) — 그 화면이 든 2단을 켠다.
+                    const hi = m.home && canRoute(m.home) ? m.tabs.findIndex((t) => tabLeaves(t).some((l) => l.to === m.home)) : -1
+                    const ti = hi >= 0 ? hi : m.tabs.findIndex((t) => !!tabRoute(t))
+                    const to = hi >= 0 ? m.home : ti >= 0 ? tabRoute(m.tabs[ti]) : undefined
                     if (to) { setCollapsed({}); gotoMenu(to, [idx, ti]) }
                   }}
                 >
@@ -1772,29 +1754,20 @@ export default function EcountLayout() {
           })}
         </ul>
         {/* 다른 대메뉴에 마우스를 올리면 그 메뉴의 2단을, 아니면 지금 메뉴의 2단을 띄운다 */}
-        {hoverIdx !== null && hoverIdx !== topIdx ? subnav(NAV[hoverIdx], null) : subnav(activeTop, tabIdx)}
+        {hoverIdx !== null && (hoverIdx !== topIdx || isHome) ? subnav(NAV[hoverIdx], null) : isHome ? null : subnav(activeTop, tabIdx)}
 
         <div className="ec-gnb-right">
-          {companyName && <span className="ec-company">{companyName}</span>}
           <button className="ec-m-apps" aria-label="앱 모음" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'apps' ? null : 'apps')) }}>⋮⋮</button>
-          <button className="ec-avatar" title={user?.name} onClick={() => setUserOpen((o) => !o)}>👤</button>
-          {userOpen && (
-            <div className="ec-popover" onMouseLeave={() => setUserOpen(false)}>
-              <div className="font-bold text-ec-text">{user?.name}</div>
-              <div className="text-[11px] text-ec-hint mb-[8px]">{user?.roles.join(', ')}</div>
-              <button className="ec-btn w-full justify-center mb-[4px]" onClick={() => { setUserOpen(false); navigate('/mypage/folders') }}>My Page설정</button>
-              <button className="ec-btn" onClick={logout} style={{ width: '100%', justifyContent: 'center' }}>로그아웃</button>
-            </div>
-          )}
+          <UserMenu name={user?.name} onLogout={logout} />
         </div>
       </div>
 
       {drawer && mobileDrawer(drawer)}
       {mPanel === 'apps' && (
         <div className="ec-m-panel ec-m-apps-grid">
-          {APPS.map((a, i) => (
-            <button key={i} className="ec-appbar-btn" title={a.title} onClick={() => { setMPanel(null); onApp(a) }}>
-              {a.icon}<span>{a.title}</span>
+          {APP_ITEMS.filter((a) => a.key !== 'hide').map((a) => (
+            <button key={a.key} type="button" className="ec-appbar-btn" data-tone={a.tone} onClick={() => { setMPanel(null); openAppBarPanel(a.key) }}>
+              <Icon name={a.icon} /><span>{a.label}</span>
             </button>
           ))}
         </div>
@@ -1810,7 +1783,7 @@ export default function EcountLayout() {
               if (visibleChildren.length === 0) return null
               const key = `${topIdx}/${tabIdx}/${node.label}`
               // 원본처럼 지금 화면이 든 묶음을 칠하고 펼친다. 원본이 처음부터 펼쳐 두는 묶음(tab.open)도 펼친다. 나머지는 접혀 있다가 누르면 펼친다.
-              const current = visibleChildren.some((c) => !!c.to && matchLength(c.to, location.pathname) > 0)
+              const current = visibleChildren.some((c) => !!c.to && matchLength(c.to, here) > 0)
               const open = key in collapsed ? !collapsed[key] : current || !!activeTab.open?.includes(node.label)
               return (
                 <div key={ni}>
@@ -1838,139 +1811,60 @@ export default function EcountLayout() {
               <Outlet />
             </Suspense>
           ) : (
-            <div className="p-[48px] text-center text-ec-hint">
-              <div className="text-[40px] mb-[12px]">🔒</div>
-              <div className="text-[16px] font-bold text-ec-text mb-[6px]">
-                접근 권한이 없습니다
-              </div>
-              <div className="text-[13px]">
-                이 메뉴에 대한 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.
-              </div>
-            </div>
+            <NoPermissionPage key={location.pathname} path={location.pathname}
+                              menuName={activeLeafTo ? FLAT_MENU.find((f) => f.to === activeLeafTo)?.label : undefined} />
           )}
         </div>
 
-        {/* 오른쪽 세로 앱바 */}
-        <div className="ec-appbar">
-          {APPS.map((a, i) => (
-            <button key={i} className="ec-appbar-btn" title={a.title} onClick={() => onApp(a)}>
-              {a.icon}
-              {((a.panel === 'notifications' && alertCount > 0)
-                || (a.panel === 'messenger' && chatCount > 0)
-                || (a.title === '쪽지' && noteCount > 0)) && (
-                <span className="ec-appbar-badge">{a.panel === 'messenger' ? (chatCount > 99 ? '99+' : chatCount)
-                  : a.title === '쪽지' ? (noteCount > 99 ? '99+' : noteCount)
-                    : alertCount}</span>
-              )}
-            </button>
-          ))}
-        </div>
+        {/* 오른쪽 세로 앱바 + 앱바 창(features/appbar) — 창은 화면에 고정 배치라 앱바가 숨는 휴대폰 폭에서도 뜬다 */}
+        <AppBar companyName={brand} permOnly={permOnly}
+                onPermOnly={(on) => { setPermOnly(on); localStorage.setItem('ec-perm-only', on ? 'y' : 'n') }} />
       </div>
 
-      {/* 앱바 패널: 통합검색 · 알림 · E Note */}
-      {panel && <AppBarPanel kind={panel} onClose={() => setPanel(null)} />}
-
-      {/* 앱바 안내 토스트 */}
-      {appNotice && (
-        <div style={{
-          position: 'fixed', right: 56, bottom: 20, zIndex: 70,
-          background: '#2b3444', color: '#fff', fontSize: 12.5, padding: '8px 12px',
-          borderRadius: 4, boxShadow: '0 6px 18px rgba(0,0,0,.22)',
-        }}>
-          {appNotice}
-        </div>
-      )}
-
-      {/* 사이트맵 모달: 좌측 대메뉴 레일 + 선택한 메뉴의 탭 컬럼 */}
+      {/* 사이트맵 — 원본(2026-10-30 loginaa): 화면을 덮는 판, 왼쪽 파란 세로 줄에 1단, 오른쪽에 1단 전부를 차례로
+          (회색 제목 줄 + 2단 열 + 그 아래 묶음 · 화면). 왼쪽을 누르면 그 1단으로 내려간다. 오른쪽 위 ✕ 로 닫는다. */}
       {sitemapOpen && (
-        <div
-          onClick={() => setSitemapOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 80,
-            display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '48px 16px', overflow: 'auto',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ background: '#fff', borderRadius: 5, width: 1040, maxWidth: '96vw', boxShadow: '0 12px 34px rgba(0,0,0,.22)' }}
-          >
-            <div className="py-[12px] px-[16px] border-b border-b-ec-line-soft border-solid flex items-center">
-              <span className="font-extrabold text-[15px] text-ec-text">사이트맵 · 전체 메뉴</span>
-              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setSitemapOpen(false)}>닫기</button>
+        <div className="ec-sitemap-back" onClick={() => setSitemapOpen(false)}>
+          <div className="ec-sitemap" role="dialog" aria-label="사이트맵" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="ec-sitemap-close" aria-label="닫기" onClick={() => setSitemapOpen(false)}><EcIcon name="close" size={14} glyph="✕" /></button>
+            <div className="ec-sitemap-rail">
+              {NAV.map((m, i) => (
+                !topOk(m) ? null :
+                <button key={m.label} type="button" className={i === sitemapIdx ? 'on' : ''}
+                        onClick={() => { setSitemapIdx(i); document.getElementById(`ec-sitemap-${i}`)?.scrollIntoView({ block: 'start' }) }}>
+                  {m.label}
+                </button>
+              ))}
             </div>
-
-            <div className="flex min-h-[380px]">
-              {/* 좌측 대메뉴 레일 */}
-              <div className="w-[168px] shrink-0 border-r border-r-ec-line-soft border-solid py-[8px] px-0 bg-ec-page">
-                {NAV.map((m, i) => (
-                  !topOk(m) ? null :
-                  <button
-                    key={m.label}
-                    onMouseEnter={() => setSitemapIdx(i)}
-                    onClick={() => setSitemapIdx(i)}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
-                      background: i === sitemapIdx ? '#fff' : 'none', border: 0, cursor: 'pointer', fontSize: 13,
-                      color: i === sitemapIdx ? 'var(--ec-blue)' : 'var(--ec-text)',
-                      fontWeight: i === sitemapIdx ? 800 : 400,
-                      borderLeft: i === sitemapIdx ? '3px solid var(--ec-blue)' : '3px solid transparent',
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* 선택한 대메뉴의 탭 → 그룹 → 리프 */}
-              <div style={{
-                flex: 1, padding: 16, display: 'grid', gap: 16, alignContent: 'start',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
-              }}>
-                {NAV[sitemapIdx].tabs.map((tab) => (
-                  !tabOk(tab) ? null :
-                  <div key={tab.label}>
-                    <div style={{ fontWeight: 800, fontSize: 12.5, color: 'var(--ec-blue)', marginBottom: 6, paddingBottom: 4, borderBottom: '2px solid var(--ec-blue-light)' }}>
-                      {tab.label}
-                    </div>
-                    {tab.nodes.map((node) =>
-                      isGroup(node) ? (
-                        node.children.some(leafOk) ? (
-                        <div key={node.label} className="mb-[6px]">
-                          <div className="font-bold text-[11.5px] text-ec-hint mt-[4px] mx-0 mb-[2px]">{node.label}</div>
-                          {node.children.filter(leafOk).map((c) => (
-                            <button
-                              key={c.label} disabled={!c.to} onClick={() => c.to && gotoMenu(c.to)}
-                              style={{
-                                display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px 3px 12px',
-                                fontSize: 12, background: 'none', border: 0, borderRadius: 3,
-                                cursor: c.to ? 'pointer' : 'default', color: c.to ? 'var(--ec-text)' : '#b3b8bf',
-                              }}
-                              onMouseEnter={(e) => { if (c.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
-                            >
-                              {c.label}
-                            </button>
-                          ))}
-                        </div>
-                        ) : null
-                      ) : !leafOk(node) ? null : (
-                        <button
-                          key={node.label} disabled={!node.to} onClick={() => node.to && gotoMenu(node.to)}
-                          style={{
-                            display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px',
-                            fontSize: 12, background: 'none', border: 0, borderRadius: 3,
-                            cursor: node.to ? 'pointer' : 'default', color: node.to ? 'var(--ec-text)' : '#b3b8bf',
-                          }}
-                          onMouseEnter={(e) => { if (node.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
-                        >
-                          {node.label}
-                        </button>
-                      ),
-                    )}
+            <div className="ec-sitemap-body">
+              {NAV.map((m, mi) => (
+                !topOk(m) ? null :
+                <section key={m.label} id={`ec-sitemap-${mi}`}>
+                  <div className="ec-sitemap-top">{m.label}</div>
+                  <div className="ec-sitemap-cols">
+                    {m.tabs.map((tab) => (
+                      !tabOk(tab) ? null :
+                      <div key={tab.label} className="ec-sitemap-col">
+                        <div className="ec-sitemap-tab">{tab.label}</div>
+                        {tab.nodes.map((node) =>
+                          isGroup(node) ? (
+                            node.children.some(leafOk) ? (
+                              <div key={node.label} className="ec-sitemap-group">
+                                <div className="name">{node.label}</div>
+                                {node.children.filter(leafOk).map((c) => (
+                                  <button key={c.label} type="button" disabled={!c.to} onClick={() => c.to && gotoMenu(c.to)}>· {c.label}</button>
+                                ))}
+                              </div>
+                            ) : null
+                          ) : !leafOk(node) ? null : (
+                            <button key={node.label} type="button" className="leaf" disabled={!node.to} onClick={() => node.to && gotoMenu(node.to)}>{node.label}</button>
+                          ),
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </section>
+              ))}
             </div>
           </div>
         </div>

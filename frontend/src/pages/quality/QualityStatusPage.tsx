@@ -13,6 +13,7 @@ import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine } from '
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 import { ecAlert } from '../../components/EcDialog'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 II > 품질관리 > 품질검사현황 (이카운트 E040623)
@@ -446,11 +447,7 @@ function SearchPanel({
       </div>
       <div style={rowStyle}>
         <span style={label}>기준일자</span>
-        <input type="date" className="ec-input" value={draft.dateFrom}
-          onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span className="my-0 mx-[6px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={draft.dateTo}
-          onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
+        <EcDateRange from={{ className: "ec-input", value: draft.dateFrom, onChange: (e) => onChange({ dateFrom: e.target.value }) }} to={{ className: "ec-input", value: draft.dateTo, onChange: (e) => onChange({ dateTo: e.target.value }) }} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={draft.dateFrom}
               onPick={(r) => { onChange({ dateFrom: r.from, dateTo: r.to }); onApply({ dateFrom: r.from, dateTo: r.to }) }} />

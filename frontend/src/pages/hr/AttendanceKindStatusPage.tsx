@@ -13,6 +13,7 @@ import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, typ
 import { COMPARE_PERIODS, comparePeriodOf, type ComparePeriod } from '../../utils/periods'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { vacationFetchRange } from '../../utils/vacationFetchRange'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 관리 > 근태관리 > 근태현황 — 연차·반차 같은 <b>근태 기록</b>을 기간·조건으로 본다.
@@ -358,8 +359,7 @@ export default function AttendanceKindStatusPage() {
           <button type="button" className="ec-btn ec-btn-sm">설정</button>
         </EcCond>
         <EcCond label="근태일자">
-          <input type="date" className="ec-input" value={dayCond}
-                 onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
+          <EcDateInput className="ec-input" value={dayCond} onChange={(e) => setDayCond(e.target.value)} />
         </EcCond>
         {/* 원본 [양식] 탭(2026-10-21 실측): 적용양식 [기본(수정불가)] · 양식구분 [결재방표시] */}
         <EcCond label="적용양식">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useShortcut } from '../../utils/useShortcut'
+import { shrinkImage } from '../../utils/imageResize'
 
 /** Self-Customizing > 정보관리 — 회사 기본정보 등록/수정 (실제 연동, 단일 레코드 upsert) */
 interface CompanyForm {
@@ -53,6 +54,7 @@ export default function CompanyInfoPage() {
   async function uploadLogo(file: File | undefined) {
     if (!file) return
     setError(''); setOk('')
+    file = await shrinkImage(file, { maxEdge: 800 })
     if (file.size > 512 * 1024) { setError('로고 그림은 512KB 까지 올릴 수 있습니다.'); return }
     setLogoBusy(true)
     try {

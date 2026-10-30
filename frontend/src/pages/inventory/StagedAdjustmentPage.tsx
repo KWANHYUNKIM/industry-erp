@@ -11,6 +11,7 @@ import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { useSearchParams } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고 > 단계별재고조정 / 재고조정진행단계 (이카운트 E040604·E040650)
@@ -155,7 +156,7 @@ export default function StagedAdjustmentPage() {
         <div className="border border-ec-line border-solid bg-white p-[14px] mt-[8px] mb-[8px]">
           <div className="flex gap-[12px] flex-wrap items-end">
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">요청일자</div>
-              <input className={inputCls} type="date" value={form.requestDate} onChange={(e) => set('requestDate', e.target.value)} style={{ width: 140 }} /></label>
+              <EcDateInput className={inputCls} value={form.requestDate} onChange={(e) => set('requestDate', e.target.value)} /></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
                            value={form.itemId} onChange={(v) => set('itemId', v)}
@@ -177,11 +178,7 @@ export default function StagedAdjustmentPage() {
       {/* 원본 단계별재고조정 조건의 <b>[적요]</b>. 사유는 목록에 이미 찍히는데 그것으로 거를 수가 없었다. */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from}
-                 onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span className="my-0 mx-[4px] text-ec-label">~</span>
-          <input type="date" className="ec-input" value={to}
-                 onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+          <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
         </EcCond>
         <EcCond label="창고">
           {/* 마스터를 고르는 칸은 드롭다운이 아니라 코드도움이다. */}

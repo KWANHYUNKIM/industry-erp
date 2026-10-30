@@ -9,6 +9,7 @@ import { ymd } from '../../utils/periods'
 import { koreanDateTime } from '../../features/employeecommute/types'
 import { requireSelection } from '../../components/EcDialog'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 interface CommuteEvent {
   id: number; kind: 'IN' | 'OUT'; at: string; place: string | null; outside: boolean; halfDay: boolean; reason: string | null
@@ -238,7 +239,7 @@ export default function EmployeeCommutePage() {
       ) : (
         <>
           <div className="flex items-center justify-end gap-[6px] mb-[6px]">
-            <input type="date" className="ec-input w-[150px]" value={day} onChange={(e) => setDay(e.target.value)} />
+            <EcDateInput className="ec-input w-[150px]" value={day} onChange={(e) => setDay(e.target.value)} />
             <span className="text-ec-hint">{slash(day)} ~{slash(day)}</span>
           </div>
           <CommuteTable tableRef={tableRef} rows={rows} checked={checked} setChecked={setChecked} onOpen={(r) => openRecord(r, null)} />

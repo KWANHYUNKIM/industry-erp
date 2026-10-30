@@ -9,6 +9,7 @@ import EcPeriodPicks, { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPick
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { QualityInspection, QualityInspectionRequest } from '../../types/api'
 import { EcReportHead, EcReportFoot, reportDate } from '../../components/EcReportFrame'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 const qty = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 월 소계 · 총합계 줄(2026-10-03 실측): 바탕 rgb(247,247,247) · 굵게 · 앞 세 칸을 묶어 가운데 정렬. */
@@ -121,7 +122,7 @@ export default function UninspectedPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="일자(영업주기)">
-          <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 145 }} />
+          <EcDateInput className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>

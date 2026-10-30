@@ -28,9 +28,9 @@ public final class ScheduleEventDtos {
             String location,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String attendees,
-            /* 원본 [라벨] — '급함·대외비' 처럼 일정구분을 가로지르는 표시다. */
-            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
-            String labelText,
+            /* 원본 [라벨] — 라벨 마스터의 코드. 비우면 라벨 없음. */
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
+            String labelCode,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark,
             /* 원본 [공유여부]·[프로젝트]. 안 주면 공유이고 프로젝트는 안 붙는다. */
@@ -86,8 +86,9 @@ public final class ScheduleEventDtos {
             String location,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String attendees,
-            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
-            String labelText,
+            /* 원본 [라벨] 코드. null 이면 그대로, 빈 글자면 라벨을 뗀다. */
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
+            String labelCode,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
             String remark,
             /* 원본 [공유여부]·[프로젝트]. 안 주면 공유이고 프로젝트는 안 붙는다. */
@@ -108,17 +109,21 @@ public final class ScheduleEventDtos {
     public record ScheduleEventResponse(
             Long id, LocalDate eventDate, String startTime, String endTime, String title,
             String category, String owner, String location, String attendees,
-            String labelText, String remark, String createdBy,
+            /** 원본 [라벨] — 코드와, 마스터에서 붙인 이름 · 색(코드가 마스터에 없으면 둘 다 null). */
+            String labelCode, String labelText, String labelColor,
+            String remark, String createdBy,
             /** 원본 [공유여부]·[프로젝트]. 프로젝트는 id 와 <b>이름</b>을 같이 준다. */
             boolean shared, Long projectId, String projectName,
             String sharers, String repeatGroup, String repeatRule,
             boolean permAttendeeEdit, boolean permSharerEdit, boolean permOthersView
     ) {
-        public static ScheduleEventResponse from(ScheduleEvent e) {
+        public static ScheduleEventResponse from(ScheduleEvent e,
+                                                 java.util.Map<String, com.erp.groupware.schedule.ScheduleLabel> labels) {
+            com.erp.groupware.schedule.ScheduleLabel l = e.getLabelCode() == null ? null : labels.get(e.getLabelCode());
             return new ScheduleEventResponse(
                     e.getId(), e.getEventDate(), e.getStartTime(), e.getEndTime(), e.getTitle(),
                     e.getCategory(), e.getOwner(), e.getLocation(), e.getAttendees(),
-                    e.getLabelText(),
+                    e.getLabelCode(), l != null ? l.getName() : null, l != null ? l.getColor() : null,
                     e.getRemark(), e.getCreatedBy(),
                     e.isShared(),
                     e.getProject() != null ? e.getProject().getId() : null,

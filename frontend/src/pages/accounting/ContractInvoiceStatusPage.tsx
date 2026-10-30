@@ -12,6 +12,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { VAT_TYPES, won, type ContractInvoiceRow } from '../../features/billingcontract/types'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /* 원본 [상태] — 결재중 · 미확인 · 확인(기본). 우리 회계전표 확인상태 값. */
 const STATUS: [string, string][] = [['', '전체'], ['IN_APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인']]
@@ -74,9 +75,7 @@ export default function ContractInvoiceStatusPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="기준일자 시작" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="기준일자 끝" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "기준일자 시작", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "기준일자 끝", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={SALES_TAX_STOCK_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
         </EcCond>
         <EcCond label="회계전표No."><input className="ec-input w-[220px]" aria-label="회계전표No." placeholder="회계전표No." value={docNo} onChange={(e) => setDocNo(e.target.value)} /></EcCond>

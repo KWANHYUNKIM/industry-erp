@@ -57,7 +57,9 @@ public final class ChatDtos {
             String senderName,
             String content,
             LocalDateTime sentAt,
-            boolean system
+            boolean system,
+            /** [보기] 가 여는 화면 — 권한요청 알림 등 서버가 보낸 메시지만 */
+            String linkTo
     ) {
         public static ChatMessageResponse from(ChatMessage m) {
             return new ChatMessageResponse(
@@ -67,7 +69,8 @@ public final class ChatDtos {
                     m.getSender() != null ? m.getSender().getName() : "안내",
                     m.getContent(),
                     m.getSentAt(),
-                    m.isSystem());
+                    m.isSystem(),
+                    m.getLinkTo());
         }
     }
 

@@ -10,6 +10,7 @@ import EcPeriodPicks, { ymd } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_STATUS_PICKS, byPartnerName, openBonds, type OpenBond } from '../../features/bond/ledger'
 import { flatten, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /**
  * 회계 II › 채권관리 › <b>채권현황</b>(E060404) · 채무관리 › 채무현황 — 2026-10-12 loginaa 실측.
@@ -83,7 +84,7 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+          <EcDateInput className="ec-input w-[145px]" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={BOND_STATUS_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>

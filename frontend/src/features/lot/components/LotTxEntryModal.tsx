@@ -9,6 +9,7 @@ import type { CondPickers } from '../../../utils/useCondPickers'
 import { useShortcut } from '../../../utils/useShortcut'
 import { LOT_ADJUST, lotShownQty } from '../../../utils/lotQty'
 import type { Lot, LotTransaction } from '../../../types/api'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /*
  * 원본 '시리얼/로트No.내역입력' [전표구분] 후보 — 차례 그대로(2026-10-12 실측, 기본 견적).
@@ -110,8 +111,7 @@ export default function LotTxEntryModal({ open, editing, siblings = [], pickers,
     <Modal open={open} width={640} title="시리얼/로트No.내역입력" error={formError} onClose={onClose}>
       <ul className="ec-form">
         <li><div className="title">일자</div><div className="form">
-          <input type="date" className="ec-input w-[150px]" value={f.txDate} disabled={!!editing}
-                 onChange={(e) => setF((x) => ({ ...x, txDate: e.target.value }))} />
+          <EcDateInput className="ec-input w-[150px]" value={f.txDate} disabled={!!editing} onChange={(e) => setF((x) => ({ ...x, txDate: e.target.value }))} />
         </div></li>
         <li><div className="title">전표구분</div><div className="form">
           <select className="ec-input w-full" aria-label="전표구분" value={f.docType} disabled={!!editing}

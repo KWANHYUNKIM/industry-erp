@@ -20,6 +20,7 @@ public class ScheduleEventService {
     /** [H] 이력의 대상 이름(이미 적힌 줄과 같은 글자) */
     public static final String SCHEDULE_HISTORY = "SCHEDULE";
     private final ScheduleEventRepository scheduleEventRepository;
+    private final ScheduleLabelRepository labelRepository;
     private final com.erp.common.history.ChangeHistoryService workHistoryService;
 
     /** 일자 오름차순, 그다음 시간/ID 순. */
@@ -33,10 +34,11 @@ public class ScheduleEventService {
      */
     @Transactional(readOnly = true)
     public List<ScheduleEventResponse> findAll(Viewer viewer) {
+        java.util.Map<String, ScheduleLabel> labels = labels();
         return scheduleEventRepository.findAll(
                         Sort.by(Sort.Order.asc("eventDate"), Sort.Order.asc("startTime"), Sort.Order.asc("id"))).stream()
                 .filter(e -> viewer == null || canView(e, viewer))
-                .map(ScheduleEventResponse::from)
+                .map(e -> ScheduleEventResponse.from(e, labels))
                 .toList();
     }
 
@@ -106,7 +108,7 @@ public class ScheduleEventService {
                     .owner(req.owner())
                     .location(req.location())
                     .attendees(req.attendees())
-                    .labelText(req.labelText())
+                    .labelCode(blankToNull(req.labelCode()))
                     .remark(req.remark())
                     /* 안 주면 공유다 — 예전 일정이 다 그랬고, 갑자기 안 보이는 것이 더 놀랍다. */
                     .shared(req.shared() == null || req.shared())
@@ -124,7 +126,7 @@ public class ScheduleEventService {
                     com.erp.common.history.ChangeHistoryService.CREATED);
             if (first == null) first = saved;
         }
-        return ScheduleEventResponse.from(first);
+        return ScheduleEventResponse.from(first, labels());
     }
 
     /**
@@ -149,7 +151,7 @@ public class ScheduleEventService {
             if (req.owner() != null) e.setOwner(req.owner());
             if (req.location() != null) e.setLocation(req.location());
             if (req.attendees() != null) e.setAttendees(req.attendees());
-            if (req.labelText() != null) e.setLabelText(req.labelText());
+            if (req.labelCode() != null) e.setLabelCode(blankToNull(req.labelCode()));
             if (req.remark() != null) e.setRemark(req.remark());
             if (req.shared() != null) e.setShared(req.shared());
             if (req.projectId() != null) e.setProject(projectOf(req.projectId()));
@@ -160,7 +162,7 @@ public class ScheduleEventService {
             workHistoryService.record(SCHEDULE_HISTORY, e.getId(),
                     com.erp.common.history.ChangeHistoryService.UPDATED);
         }
-        return ScheduleEventResponse.from(target);
+        return ScheduleEventResponse.from(target, labels());
     }
 
     /** 원본 '일정조회' [H] '이력' — 저장할 때마다 한 줄(신규 · 수정). */
@@ -191,6 +193,21 @@ public class ScheduleEventService {
             return group.stream().filter(e -> !e.getEventDate().isBefore(target.getEventDate())).toList();
         }
         throw ApiException.badRequest("반복일정 범위가 올바르지 않습니다: " + scope);
+    }
+
+    /** 라벨코드 → 라벨(이름 · 색). 일정에는 코드만 있다. */
+    private java.util.Map<String, ScheduleLabel> labels() {
+        java.util.Map<String, ScheduleLabel> m = new java.util.HashMap<>();
+        for (ScheduleLabel l : labelRepository.findAll()) m.put(l.getCode(), l);
+        return m;
+    }
+
+    /** 빈 라벨코드는 '라벨 없음'. 고른 코드는 마스터에 있어야 한다. */
+    private String blankToNull(String code) {
+        if (code == null || code.isBlank()) return null;
+        String c = code.trim();
+        if (!labelRepository.existsByCode(c)) throw ApiException.badRequest("라벨을 찾을 수 없습니다: " + c);
+        return c;
     }
 
     private ScheduleEvent get(Long id) {

@@ -4,13 +4,14 @@ import Modal from '../../../components/Modal'
 import { useShortcut } from '../../../utils/useShortcut'
 import { fetchLabels, LABEL_DEFAULT_COLOR, LABEL_PALETTE, type BoardLabel } from '../labels'
 import LabelChip from './LabelChip'
+import EcIcon from '../../../components/ui/EcIcon'
 
 /** [사용중단/재사용 ▲] — 펴면 사용중단 · 삭제 · 재사용(원본 차례). */
 function StopMenu({ disabled, onPick }: { disabled?: boolean; onPick: (a: 'stop' | 'delete' | 'reuse') => void }) {
   const [open, setOpen] = useState(false)
   return (
     <span className="relative">
-      <button type="button" className="ec-btn disabled:opacity-45" disabled={disabled} onClick={() => setOpen((v) => !v)}>사용중단/재사용 ▴</button>
+      <button type="button" className="ec-btn disabled:opacity-45" disabled={disabled} onClick={() => setOpen((v) => !v)}>사용중단/재사용 <EcIcon name="caret-up" size={10} glyph="▴" /></button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />

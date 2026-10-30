@@ -10,6 +10,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Partner } from '../../types/api'
 import { shortDateNo } from '../../utils/dateNo'
 import { IMPORT_ENTRY, money, type ImportCostVoucher, type ImportLot } from '../../features/importcost/api'
+import { EcDateRange } from '../../components/ui/EcDateInput'
 
 /** 원본 [검색(F8) ▾] 기간 빠른선택(2026-10-14 실측). */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '이번기수', '직전기수', '종료일', '최근30일(+1개월)'] as const
@@ -91,9 +92,7 @@ export default function ImportCostVoucherListPage() {
     >
       <ul className="ec-cond">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" aria-label="시작일" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span className="mx-[4px]">~</span>
-          <input type="date" className="ec-input w-[145px]" aria-label="종료일" value={to} onChange={(e) => setTo(e.target.value)} />
+          <EcDateRange from={{ className: "ec-input w-[145px]", 'aria-label': "시작일", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", 'aria-label': "종료일", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]"><EcPeriodPicks labels={PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} /></span>
         </EcCond>
         <EcCond label="거래처" pick>

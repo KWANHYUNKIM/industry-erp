@@ -9,6 +9,7 @@ import type { WithholdingReceiptPayee } from '../../types/api'
 import type { Company } from './SimplePaymentPage'
 import { ymd } from '../../utils/periods'
 import InterestDividendSheet from '../../features/otherwithholding/components/InterestDividendSheet'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 const KINDS: { value: Kind; label: string }[] = [
@@ -132,7 +133,7 @@ export default function OtherWithholdingReceiptPage() {
           <input type="month" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
         </EcCond>
         <EcCond label="제출일자">
-          <input type="date" className="ec-input w-[150px]" value={submitDate} onChange={(e) => setSubmitDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[150px]" value={submitDate} onChange={(e) => setSubmitDate(e.target.value)} />
         </EcCond>
         <EcCond label="출력용도">
           {([[true, '발행자보관용'], [false, '소득자보관용']] as const).map(([v, l]) => (

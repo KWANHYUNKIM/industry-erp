@@ -7,15 +7,16 @@ import EditStateMenu, { type StateOp } from '../../components/EditStateMenu'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { periodOf, ORDER_STAGE_PICKS } from '../../components/EcPeriodPicks'
-import { ecConfirm, requireSelection } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 재고2 > 오더관리 > 오더관리진행단계(E040904).
  *
  * <p>2026-10-21 loginaa 실측: 오더는 전표(수주)가 아니라 <b>오더관리번호</b>다. [신규(F2)] 로
- * [오더관리번호등록] 창(번호 00027 자동 · 오더관리명 · 오더관리유형 · 생성일자 · 적요1 · 적요2 · 검색창내용)을
+ * [오더관리번호등록] 창(번호 00027 미리 찍힘 · 신규에서 고칠 수 있음(00023_202610 꼴) · 오더관리명 · 오더관리유형 · 생성일자 · 적요1 · 적요2 · 검색창내용)을
  * 열어 만들고, 격자는 오더관리번호 · 오더관리명 · 오더관리유형명 · 기준일자 · 진행단계('주문서 (0)') · 상세(보기).
  * 빈 오더관리명 · 오더관리유형으로 저장하면 두 칸만 붉어지고 글은 없다. 저장 · 삭제 뒤 창은 말 없이 닫힌다.
  * [전체단계완료] '선택한 오더관리번호를 종결 하겠습니까?' → 상세 [진행상태] 완료.
@@ -59,14 +60,19 @@ const initP = periodOf('최근30일(+1개월)')!
 const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 const emptyForm = (): Form => ({ name: '', orderTypeId: '', createdDate: today(), remarks1: '', remarks2: '', searchKeyword: '' })
 
-export default function OrderStagePage() {
+/**
+ * {@code popup} — MyPage 오더관리진행단계 위젯이 이 화면을 숨긴 채(features/mypage/PopupHost) 창 하나만 띄울 때(원본 2026-10-30 홈 실측):
+ * orderId 가 없으면 펜(새 글) → '오더관리번호등록', 있으면 오더관리번호 · 명 → 그 번호의 '오더관리번호등록', detail 이면 [보기] → '오더관리번호별 상세내역'.
+ * 위젯은 기간이 달라(금월) 기간 없이 받는다.
+ */
+export default function OrderStagePage({ popup }: { popup?: { orderId?: number; detail?: boolean } } = {}) {
   const [rows, setRows] = useState<OrderNo[]>([])
   const [types, setTypes] = useState<OrderType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [from, setFrom] = useState(initP.from)
-  const [to, setTo] = useState(initP.to)
+  const [from, setFrom] = useState(popup ? '' : initP.from)
+  const [to, setTo] = useState(popup ? '' : initP.to)
   const [orderNoCond, setOrderNoCond] = useState('')
   const [byUpdated, setByUpdated] = useState(false)
   const [searchKeywordCond, setSearchKeywordCond] = useState('')
@@ -80,6 +86,7 @@ export default function OrderStagePage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [nextNo, setNextNo] = useState('')
+  const [fnOpen, setFnOpen] = useState(false)
   const [form, setForm] = useState<Form>(emptyForm())
   const [invalid, setInvalid] = useState<Set<keyof Form>>(new Set())
   const [formError, setFormError] = useState('')
@@ -101,6 +108,19 @@ export default function OrderStagePage() {
     }
   }
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from, to])
+
+  /* MyPage 위젯에서 부른 창 — 처음 한 번만 연다(번호는 목록을 받은 뒤에 찾는다) */
+  const popupDone = useRef(false)
+  useEffect(() => {
+    if (!popup || popupDone.current) return
+    if (popup.orderId == null) { popupDone.current = true; void openNew(); return }
+    const o = rows.find((r) => r.id === popup.orderId)
+    if (!o) return
+    popupDone.current = true
+    if (popup.detail) setDetails([o.id])
+    else openEdit(o)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   const stepsOf = useMemo(() => new Map(types.map((t) => [t.id, t.steps])), [types])
 
@@ -124,11 +144,30 @@ export default function OrderStagePage() {
     setForm(emptyForm())
     setInvalid(new Set())
     setFormError('')
+    setFnOpen(false)
     setFormOpen(true)
+    await genNo()
+  }
+
+  /* 원본 번호 칸 [Fn ▸ 코드생성] — 다음 다섯 자리 번호를 다시 찍는다. */
+  async function genNo() {
     try {
       const r = await api.get<{ orderNo: string }>('/order-numbers/next-no')
       setNextNo(r.data.orderNo)
     } catch { setNextNo('') }
+  }
+
+  /* 원본 [Fn ▸ 중복확인] — 있으면 '이미 등록된 코드입니다.' */
+  async function checkDup() {
+    setFnOpen(false)
+    const no = nextNo.trim()
+    if (!no) return
+    try {
+      const r = await api.get<{ exists: boolean }>('/order-numbers/exists', { params: { orderNo: no } })
+      await ecAlert(r.data.exists ? '이미 등록된 코드입니다.' : '사용할 수 있는 코드입니다.')
+    } catch (err) {
+      setFormError(extractErrorMessage(err))
+    }
   }
 
   function openEdit(o: OrderNo) {
@@ -157,7 +196,7 @@ export default function OrderStagePage() {
     }
     try {
       if (editId) await api.put(`/order-numbers/${editId}`, body)
-      else await api.post('/order-numbers', { ...body, orderTypeId: Number(form.orderTypeId) })
+      else await api.post('/order-numbers', { ...body, orderNo: nextNo.trim() || null, orderTypeId: Number(form.orderTypeId) })
       setFormOpen(false)
       await load()
     } catch (err) {
@@ -240,9 +279,7 @@ export default function OrderStagePage() {
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
           <div className="flex items-center gap-[6px] flex-wrap">
-            <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <span className="text-ec-label">~</span>
-            <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+            <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
             <EcPeriodPicks labels={ORDER_STAGE_PICKS} currentFrom={from}
                            onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </div>
@@ -350,7 +387,20 @@ export default function OrderStagePage() {
         <div className="ec-form">
           <div className="grid grid-cols-[110px_1fr] gap-[6px] items-center text-[12.5px]">
             <label>오더관리번호</label>
-            <input className="ec-input" value={nextNo} placeholder="오더관리번호" disabled readOnly />
+            {/* 원본(2026-10-30 실측): 신규는 다음 번호가 찍힌 채 고칠 수 있고 옆에 [Fn ▾ 중복확인 · 코드생성], 수정 창은 번호를 글자로만 보인다. */}
+            {editId ? <span>{nextNo}</span> : (
+              <span className="relative flex">
+                <input className="ec-input w-full" value={nextNo} placeholder="오더관리번호" maxLength={30}
+                       onChange={(e) => setNextNo(e.target.value)} />
+                <button type="button" className="ec-btn" title="Fn" onClick={() => setFnOpen((v) => !v)}>Fn</button>
+                {fnOpen && (
+                  <div className="ec-menu">
+                    <button type="button" onClick={() => void checkDup()}>중복확인</button>
+                    <button type="button" onClick={() => { setFnOpen(false); void genNo() }}>코드생성</button>
+                  </div>
+                )}
+              </span>
+            )}
             <label>오더관리명</label>
             <span className={invalid.has('name') ? 'ec-invalid' : ''}>
               <input className="ec-input w-full" placeholder="오더관리명" value={form.name} onChange={set('name')} />
@@ -364,7 +414,7 @@ export default function OrderStagePage() {
                                  .map((t) => ({ value: String(t.id), code: t.code, name: t.name }))} />
             </span>
             <label>생성일자</label>
-            <input type="date" className="ec-input w-[150px]" value={form.createdDate} onChange={set('createdDate')} />
+            <EcDateInput className="ec-input w-[150px]" value={form.createdDate} onChange={set('createdDate')} />
             <label>적요1</label>
             <input className="ec-input w-full" placeholder="적요1" value={form.remarks1} onChange={set('remarks1')} />
             <label>적요2</label>

@@ -6,6 +6,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import type { Item, PurchaseOrder, StockRow, WorkOrder } from '../../types/api'
+import EcDateInput from '../../components/ui/EcDateInput'
 
 /** 수량조정에 올리는 계획 줄 하나. */
 export interface AdjustLine {
@@ -148,7 +149,7 @@ export default function PlanQtyAdjustModal({ lines, onClose, onSaved }: {
   const dateRow = (label: string, d: 'soldDate' | 'unrecvDate' | 'unissDate', due: 'soldDue' | 'unrecvDue' | 'unissDue', dueLabel: string) => (<>
     <div className="flex items-center gap-[8px]">
       <span className="w-[150px] shrink-0 text-ec-label">{label}</span>
-      <input type="date" className="ec-input w-[150px]" value={f[d]} onChange={(e) => set({ [d]: e.target.value } as Partial<Formula>)} />
+      <EcDateInput className="ec-input w-[150px]" value={f[d]} onChange={(e) => set({ [d]: e.target.value } as Partial<Formula>)} />
     </div>
     <div className="flex items-center gap-[8px]">
       <span className="w-[150px] shrink-0 text-ec-label">{dueLabel}</span>
@@ -247,7 +248,7 @@ export default function PlanQtyAdjustModal({ lines, onClose, onSaved }: {
           </div>
           <div className="flex items-center gap-[8px]">
             <span className="w-[150px] shrink-0 text-ec-label">보유재고기준일</span>
-            <input type="date" className="ec-input w-[150px]" value={f.stockDate} onChange={(e) => set({ stockDate: e.target.value })} />
+            <EcDateInput className="ec-input w-[150px]" value={f.stockDate} onChange={(e) => set({ stockDate: e.target.value })} />
           </div>
           <div className="flex items-center gap-[8px]">
             <span className="w-[150px] shrink-0 text-ec-label">보유재고창고</span>

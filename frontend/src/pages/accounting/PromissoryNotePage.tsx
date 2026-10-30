@@ -11,6 +11,7 @@ import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useNavigate } from 'react-router-dom'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -143,11 +144,7 @@ export default function PromissoryNotePage() {
       {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
-        <input type="date" className="ec-input" value={pFrom}
-               onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
-        <span className="text-ec-label">~</span>
-        <input type="date" className="ec-input" value={pTo}
-               onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
+        <EcDateRange from={{ className: "ec-input", value: pFrom, onChange: (e) => setPFrom(e.target.value) }} to={{ className: "ec-input", value: pTo, onChange: (e) => setPTo(e.target.value) }} />
       </div>
 
 
@@ -296,7 +293,7 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
           </select>
         </EcCond>
         <EcCond label="전표일자" span={2}>
-          <input type="date" className="ec-input w-[150px]" aria-label="전표일자" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[150px]" aria-label="전표일자" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
         </EcCond>
         <EcCond label="회계전표No." span={2}>
           <input className="ec-input w-full" placeholder="회계전표No." disabled value="" />
@@ -314,7 +311,7 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
           <input className="ec-input w-full" placeholder="어음번호" aria-label="어음번호" maxLength={30} value={noteNo} onChange={(e) => setNoteNo(e.target.value)} />
         </EcCond>
         <EcCond label="만기일자" span={2}>
-          <span className={`inline-block ${req.cls('dueDate', !!dueDate)}`}><input type="date" className="ec-input w-[150px]" aria-label="만기일자" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></span>
+          <span className={`inline-block ${req.cls('dueDate', !!dueDate)}`}><EcDateInput className="ec-input w-[150px]" aria-label="만기일자" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></span>
         </EcCond>
         <EcCond label="금액" span={2}>
           <div className={`w-full ${req.cls('amount', Number(amount) > 0)}`}><input type="number" className="ec-input w-full text-right" aria-label="금액" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>

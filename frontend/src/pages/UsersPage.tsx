@@ -6,12 +6,18 @@ import type { Role, User } from '../types/api'
 import EcListShell from '../components/EcListShell'
 import { useTableSort } from '../utils/useTableSort'
 import { ecAlert, ecConfirm } from '../components/EcDialog'
+import { PermissionCopyWindow, UserPermissionWindow } from '../features/auth/components/UserPermissionTab'
+import { BASE_LABEL } from '../features/auth/workPermissions'
+import EcBadge from '../components/ui/EcBadge'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /* 아이디를 누르면 [권한] 탭(기본권한 · 업무권한), 아래 [권한복사] */
+  const [permUser, setPermUser] = useState<User | null>(null)
+  const [copying, setCopying] = useState(false)
 
   async function loadAll() {
     setLoading(true)
@@ -81,7 +87,7 @@ export default function UsersPage() {
           }}
         />
       )}
-      actions={[{ label: 'Excel' }]}
+      actions={[{ label: '권한복사', onClick: () => setCopying(true) }, { label: 'Excel' }]}
     >
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
@@ -107,13 +113,15 @@ export default function UsersPage() {
             sort.sorted.map((u, idx) => (
               <tr key={u.id}>
                 <td className="text-center text-ec-hint">{idx + 1}</td>
-                <td>{u.username}</td>
+                <td><button type="button" className="ec-link" onClick={() => setPermUser(u)}>{u.username}</button></td>
                 <td>{u.name}</td>
                 <td>{u.department ?? ''}</td>
                 <td style={{ color: u.employeeId ? undefined : 'var(--ec-text-off)' }}>{u.employeeId ? '연결됨' : '안 이음'}</td>
                 <td>
                   <div className="flex flex-wrap gap-[4px]">
-                    {u.roles.map((r) => (
+                    {u.master ? <EcBadge tone="info">마스터</EcBadge>
+                      : u.basePermission !== 'GROUP' ? <EcBadge tone="info">{BASE_LABEL[u.basePermission]}</EcBadge> : null}
+                    {!u.master && u.basePermission === 'GROUP' && u.roles.filter((r) => r !== 'ADMIN').map((r) => (
                       <span key={r} style={{ background: '#eef1fb', color: 'var(--ec-blue)', padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{roleLabel(r)}</span>
                     ))}
                   </div>
@@ -131,6 +139,8 @@ export default function UsersPage() {
           )}
         </tbody>
       </table>
+      {permUser && <UserPermissionWindow user={permUser} roles={roles} onClose={() => setPermUser(null)} onSaved={() => void loadAll()} />}
+      {copying && <PermissionCopyWindow users={users.filter((u) => !u.master)} onClose={() => setCopying(false)} onDone={() => void loadAll()} />}
     </EcListShell>
   )
 }

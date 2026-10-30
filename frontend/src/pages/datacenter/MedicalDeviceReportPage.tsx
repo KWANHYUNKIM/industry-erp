@@ -13,6 +13,7 @@ import GridFindButton from '../../components/GridFindButton'
 import GridSortModal from '../../components/GridSortModal'
 import { MenuButton } from '../../components/EcSlipShell'
 import { ecConfirm } from '../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 /**
  * 데이터센터 › 의료기기공급내역보고 (이카운트 C001403)
@@ -285,8 +286,7 @@ export default function MedicalDeviceReportPage() {
           ))}
         </EcCond>
         <EcCond label="기준일자" span={2}>
-          <input type="date" className="ec-input" value={cond.from} onChange={(e) => setC('from', e.target.value)} /> ~
-          <input type="date" className="ec-input" value={cond.to} onChange={(e) => setC('to', e.target.value)} />
+          <EcDateRange from={{ className: "ec-input", value: cond.from, onChange: (e) => setC('from', e.target.value) }} to={{ className: "ec-input", value: cond.to, onChange: (e) => setC('to', e.target.value) }} />
         </EcCond>
         <EcCond label="보고기준월">
           <input type="month" className="ec-input" value={cond.month} disabled={!cond.useMonth} onChange={(e) => setC('month', e.target.value)} />
@@ -315,8 +315,7 @@ export default function MedicalDeviceReportPage() {
           ))}
         </EcCond>
         <EcCond label="납품일자" span={2}>
-          <input type="date" className="ec-input" value={cond.deliveryFrom} onChange={(e) => setC('deliveryFrom', e.target.value)} /> ~
-          <input type="date" className="ec-input" value={cond.deliveryTo} onChange={(e) => setC('deliveryTo', e.target.value)} />
+          <EcDateRange from={{ className: "ec-input", value: cond.deliveryFrom, onChange: (e) => setC('deliveryFrom', e.target.value) }} to={{ className: "ec-input", value: cond.deliveryTo, onChange: (e) => setC('deliveryTo', e.target.value) }} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} value={cond.partner} onChange={(v) => setC('partner', v)} items={partnerItems} />
@@ -474,7 +473,7 @@ export default function MedicalDeviceReportPage() {
                   <td>{l.salesLineId ? '판매' : ''}</td>
                   <td>{l.sourceDocNo}</td>
                   <td>{l.udi}</td>
-                  <td><input type="date" className="ec-input w-full" value={l.deliveryDate ?? ''} onChange={(e) => setLine(i, { deliveryDate: e.target.value || null })} /></td>
+                  <td><EcDateInput className="ec-input w-full" value={l.deliveryDate ?? ''} onChange={(e) => setLine(i, { deliveryDate: e.target.value || null })} /></td>
                   <td>
                     {([true, false] as const).map((v) => (
                       <label key={String(v)} className="inline-flex items-center gap-[2px] mr-[6px]">

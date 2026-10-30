@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster } from '../../types/api'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import EcIcon from '../../components/ui/EcIcon'
 
 interface Node extends Department {
   children: Node[]
@@ -126,8 +127,8 @@ export default function OrgStatusPage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <div className="flex gap-[4px] mb-[10px]">
-        <button type="button" className="ec-btn ec-btn-sm" aria-label="확대" onClick={() => setZoom((z) => Math.min(2, z + 0.1))}>🔍+</button>
-        <button type="button" className="ec-btn ec-btn-sm" aria-label="축소" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>🔍−</button>
+        <button type="button" className="ec-btn ec-btn-sm" aria-label="확대" onClick={() => setZoom((z) => Math.min(2, z + 0.1))}><EcIcon name="search" /><EcIcon name="plus" size={10} /></button>
+        <button type="button" className="ec-btn ec-btn-sm" aria-label="축소" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}><EcIcon name="search" /><span className="ml-[1px]">−</span></button>
       </div>
       <div className="overflow-auto">
         <div ref={chartRef} className="ec-org-chart">

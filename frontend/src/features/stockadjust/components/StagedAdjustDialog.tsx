@@ -6,6 +6,7 @@ import CodePickerField from '../../../components/CodePickerField'
 import { EcCond } from '../../../components/EcStatusPanel'
 import { periodOf } from '../../../utils/periods'
 import { useCondPickers } from '../../../utils/useCondPickers'
+import EcDateInput from '../../../components/ui/EcDateInput'
 
 /**
  * 원본 재고조정진행단계 [재고조정] 이 여는 <b>단계별재고조정</b> 창 (2026-10-13 loginaa 실측).
@@ -42,7 +43,7 @@ export default function StagedAdjustDialog({ open, onClose, onDone }: { open: bo
     <Modal open={open} title="단계별재고조정" onClose={onClose} width={720} error={error || null}>
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[145px]" value={date} onChange={(e) => setDate(e.target.value)} />
+          <EcDateInput className="ec-input w-[145px]" value={date} onChange={(e) => setDate(e.target.value)} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={260} emptyLabel="" value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
