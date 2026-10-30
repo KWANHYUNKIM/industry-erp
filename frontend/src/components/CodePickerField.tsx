@@ -52,8 +52,10 @@ export default function CodePickerField({
    */
   label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
   hideLabel, multiple, values, onChangeMulti, fill, pair, nameValue, onNameChange, columns, popupTitle, onNew, plain, hideNew, showCode, invalid,
-  employeeSearch, onPickMany,
+  employeeSearch, onPickMany, checkApply,
 }: {
+  /** 여럿 고르기 창을 원본 조건 창 꼴(체크칸 + 번호 · [적용(F8)] [닫기] · TIP)로 — CodeSearchModal checkApply. multiple 과 같이. */
+  checkApply?: boolean
   /** 빈 필수칸 — 칸 줄을 원본 has-error 빨간 테두리(`.ec-invalid`)로 두른다. 보통 useRequired 훅의 on(키, 채워졌나). */
   invalid?: boolean
   /** 고른 뒤 칸에 이름 대신 코드를 적는다(원본 기타원천세입력 업종구분코드 940909 · 소득코드 62 — 이름은 옆 열이 보인다). */
@@ -305,6 +307,7 @@ export default function CodePickerField({
         plain={plain}
         hideNew={hideNew}
         employeeSearch={employeeSearch}
+        checkApply={checkApply}
         onApplyMany={(its) => { onPickMany?.(its); setOpen(false); setQ('') }}
       />
     </div>

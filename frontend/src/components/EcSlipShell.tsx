@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import EcIcon from './ui/EcIcon'
+import EcIcon, { type EcIconName } from './ui/EcIcon'
 
 /**
  * 전표입력 화면 셸 — 이카운트 `page page-fluid page-modal` 구조를 그대로 옮긴 것.
@@ -37,6 +37,8 @@ export interface SlipAction {
   menu?: SlipMenuItem[]
   /** 비활성 사유. disabled 일 때 title 로 보여 준다. */
   disabledReason?: string
+  /** 글자 없이 그림만 있는 단추(원본 판매입력 맨 앞 종이비행기) — label 은 aria-label 로 남는다. */
+  icon?: EcIconName
 }
 
 export interface SlipTab {
@@ -122,7 +124,15 @@ export default function EcSlipShell({
   title, formTabs = [], activeFormTab, onFormTab,
   relatedTabs = [], onAddTab,
   tempSave, savedAt, options = [], actions: rawActions = [], busy = false, help, children,
+  layouts, plainOption,
 }: {
+  /**
+   * 머리 오른쪽 [기본(수정불가) ▾] — 입력 양식 고르기(원본 판매입력 2026-10-31 loginad 실측:
+   * ✓기본(수정불가) · 적요 · … · 신규양식추가). 주면 [Option] 앞에 선다.
+   */
+  layouts?: { label: string; items: SlipMenuItem[] }
+  /** [Option] 을 ▾ 없이 한 단추로(원본 판매 · 구매입력) — 누르면 메뉴가 열린다. */
+  plainOption?: boolean
   title: string
   /** 양식 탭 (원본: 기본(수정불가) / 적요). 캐럿으로 양식 목록이 열린다. */
   formTabs?: SlipTab[]
@@ -153,6 +163,7 @@ export default function EcSlipShell({
   const [helpOpen, setHelpOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
   const [optionOpen, setOptionOpen] = useState(false)
+  const [layoutOpen, setLayoutOpen] = useState(false)
   const [bookmarked, setBookmarked] = useState(true)   // 원본은 page-bookmark-added 상태로 뜬다
   const footerRef = useRef<HTMLDivElement>(null)
 
@@ -223,9 +234,35 @@ export default function EcSlipShell({
         <span className="name">{title}</span>
 
         <div className="ml-auto flex gap-[4px] relative">
-          {options.length > 0 && (
-            <MenuButton label="Option" items={options} />
+          {layouts && (
+            <span className="relative inline-flex">
+              <button type="button" className="ec-btn" aria-expanded={layoutOpen} onClick={() => setLayoutOpen((v) => !v)}>
+                {layouts.label} <EcIcon name="chevron-down" size={12} glyph="▾" />
+              </button>
+              {layoutOpen && <>
+                <div className="ec-backdrop-clear" onClick={() => setLayoutOpen(false)} />
+                <div className="ec-menu" role="menu">
+                  {layouts.items.map((m) => (
+                    <button key={m.label} type="button" role="menuitem" onClick={() => { setLayoutOpen(false); m.onClick?.() }}>{m.label}</button>
+                  ))}
+                </div>
+              </>}
+            </span>
           )}
+          {options.length > 0 && (plainOption ? (
+            <span className="relative inline-flex">
+              <button type="button" className="ec-btn" aria-expanded={optionOpen} onClick={() => setOptionOpen((v) => !v)}>Option</button>
+              {optionOpen && (
+                <div className="ec-menu" role="menu">
+                  {options.map((m) => (
+                    <button key={m.label} type="button" role="menuitem" disabled={!m.onClick} onClick={() => { setOptionOpen(false); m.onClick?.() }}>{m.label}</button>
+                  ))}
+                </div>
+              )}
+            </span>
+          ) : (
+            <MenuButton label="Option" items={options} />
+          ))}
           <button type="button" className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
           {optionOpen && <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />}
         </div>
@@ -280,9 +317,10 @@ export default function EcSlipShell({
               className={cls}
               onClick={a.onClick}
               disabled={a.disabled}
-              title={a.disabled ? a.disabledReason : undefined}
+              aria-label={a.icon ? a.label : undefined}
+              title={a.disabled ? a.disabledReason : a.icon ? a.label : undefined}
             >
-              {a.label}
+              {a.icon ? <EcIcon name={a.icon} size={14} /> : a.label}
             </button>
           )
         })}

@@ -187,6 +187,18 @@ function overriddenSupply(l: LineInput): number | null {
   return roundWon(num(l.supplyOverride))
 }
 
+/** 원본 [전표불러오기] '메뉴검색' 창의 목록(2026-10-31 loginad — 판매입력에서는 [판매], 구매입력에서는 [구매] 가 빠진다). */
+const SLIP_LOAD_MENUS: [string, string][] = [
+  ['영업관리', '견적서'], ['영업관리', '주문서'], ['영업관리', '판매'], ['영업관리', '출하지시서'], ['영업관리', '출하'],
+  ['구매관리', '발주요청'], ['구매관리', '발주계획'], ['구매관리', '단가요청서'], ['구매관리', '발주서'], ['구매관리', '구매'],
+  ['생산/외주', '작업지시서'], ['생산/외주', '생산불출'], ['생산/외주', '생산입고'],
+  ['기타이동', '창고이동'], ['기타이동', '자가사용'], ['기타이동', '불량처리'],
+  ['A/S관리', 'A/S접수'], ['A/S관리', 'A/S수리'],
+  ['품질관리', '품질검사요청'], ['품질관리', '품질검사'],
+  ['수출관리', 'Invoice / Packing List'],
+  ['창고관리', '입고예정'], ['창고관리', '출고예정'], ['창고관리', 'ERP전표생성(입고)'], ['창고관리', 'ERP전표생성(출고)'],
+]
+
 const CFG = {
   sales: {
     endpoint: '/sales',
@@ -501,6 +513,8 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const [profitOpen, setProfitOpen] = useState(false)
   // 전표불러오기(원본 slip_load) — 지난 전표를 골라 그 명세를 복사해 담는다.
   const [slipLoadOpen, setSlipLoadOpen] = useState(false)
+  /** 툴바 [전표불러오기] — 원본은 '메뉴검색' 창(어느 전표에서 불러올지 메뉴를 고른다, 2026-10-31 loginad 실측). */
+  const [menuSearchOpen, setMenuSearchOpen] = useState(false)
   // My품목(원본 group12myProdLoad) — 자주 쓰는 품목 묶음. 서버에 사용자별로 저장된다.
   const [myItems, setMyItems] = useState<MyItem[]>([])
   const [myItemsOpen, setMyItemsOpen] = useState(false)
@@ -1827,7 +1841,31 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
 
   const partnerDocs = docs.filter((d) => String(d.partnerId) === partnerId)
 
+  /*
+   * 원본 판매입력 아래 줄 ▲ 메뉴(2026-10-31 loginad 실측):
+   *   [저장(F8)▲] 저장/전자결재 · 저장/내용유지 · 보류 · 저장/신규, [저장/전표(F7)▲] 저장/회계전표, [현금수금▲] 어음수금.
+   * [보류] 는 툴바 [보류] 와 같다 — 보류 전표는 아직 없다(동작 미구현).
+   */
+  const saveMenu = [
+    { label: '저장/전자결재', onClick: () => flash('전자결재 상신은 [그룹웨어 › 전자결재]에서 이 전표를 첨부해 올립니다(입력 화면에서 바로 올리는 길은 아직 없습니다).') },
+    /* 원본: 저장하고 그 전표의 수정 화면(판매입력(수정))으로 바뀐다 — 입력한 내용이 그대로 남는다. */
+    { label: '저장/내용유지', onClick: () => { afterSaveRef.current = KEEP_AFTER_SAVE; formRef.current?.requestSubmit() } },
+    ...(mode !== 'sales' || isAdjust ? [] : [{ label: '보류', onClick: () => void ecAlert('보류 전표 기능은 아직 없습니다.') }]),
+    { label: '저장/신규', onClick: () => formRef.current?.requestSubmit() },
+  ]
+  const slipMenu = [{ label: '저장/회계전표', onClick: () => { afterSaveRef.current = '/sales/accounting-reflection'; formRef.current?.requestSubmit() } }]
+  // 판매: [어음수금] = 받을어음증가. 구매 [현금지급▲] 메뉴는 아직 원본을 못 봐서 예전 둘을 둔다.
+  const cashMenu = mode === 'sales'
+    ? [{ label: '어음수금', onClick: () => navigate('/accounting/notes-increase') }]
+    : [
+        { label: '수금 화면으로', onClick: () => navigate('/sales/collection') },
+        { label: '지급 화면으로', onClick: () => navigate('/sales/payment') },
+      ]
+  /** 원본 아래 줄 맨 앞 종이비행기 — 무엇을 하는지 아직 못 봤다(동작 미구현). */
+  const sendAction: SlipAction = { label: '보내기', icon: 'send', onClick: () => void ecAlert('전표 보내기는 아직 없습니다.') }
+
   const footerActions: SlipAction[] = [
+    ...(mode === 'sales' && !isAdjust ? [sendAction] : []),
     {
       label: editing ? '수정저장(F8)' : '저장(F8)', primary: true, submit: true,
       /*
@@ -1837,11 +1875,9 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
        * 임시저장은 60초마다 저절로 돈다).
        */
       menu: [
-        { label: '저장/전자결재', onClick: () => flash('전자결재 상신은 [그룹웨어 › 전자결재]에서 이 전표를 첨부해 올립니다(입력 화면에서 바로 올리는 길은 아직 없습니다).') },
-        /* 원본: 저장하고 그 전표의 수정 화면(판매입력(수정))으로 바뀐다 — 입력한 내용이 그대로 남는다. */
-        { label: '저장/내용유지', onClick: () => { afterSaveRef.current = KEEP_AFTER_SAVE; formRef.current?.requestSubmit() } },
-        { label: '저장/신규', onClick: () => formRef.current?.requestSubmit() },
-        { label: '저장/결제', onClick: () => { afterSaveRef.current = cfg.cashTo; formRef.current?.requestSubmit() } },
+        ...saveMenu,
+        // [저장/결제] 는 판매입력 II 의 메뉴다(대조표 ecount-buttons). 판매입력 ▲ 에는 없다(2026-10-31 loginad 실측).
+        ...(isAdjust ? [{ label: '저장/결제', onClick: () => { afterSaveRef.current = cfg.cashTo; formRef.current?.requestSubmit() } }] : []),
         ...(editing ? [{
           label: '수정 취소(신규로)',
           onClick: () => { setEditing(null); setSearchParams({}, { replace: true }); reset(false) },
@@ -1855,7 +1891,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
        * (2026-10-06 신규 입력 화면에서는 안 보였다 — 저장 뒤에 서는 단추로 보인다).
        * 원본 이 회사에서는 '회계반영여부를 확인해주세요' 알림으로 멈췄다(설정에 따라 매출전표 I 로 가는 자리) — 우리는 저장하고 회계반영 화면으로 간다.
        */
-      menu: [{ label: '저장/회계전표', onClick: () => { afterSaveRef.current = '/sales/accounting-reflection'; formRef.current?.requestSubmit() } }],
+      menu: slipMenu,
     },
     {
       label: '회계전표연결',
@@ -1873,10 +1909,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         api.get<typeof cashDepts>('/departments').then((r) => setCashDepts(r.data)).catch(() => setCashDepts([]))
         setCashOpen(true)
       },
-      menu: [
-        { label: '수금 화면으로', onClick: () => navigate('/sales/collection') },
-        { label: '지급 화면으로', onClick: () => navigate('/sales/payment') },
-      ],
+      menu: cashMenu,
     },
     // 원본 푸터의 마지막 두 개는 [리스트][웹자료올리기] 다. '닫기' 가 아니라 조회 화면으로 간다.
     { label: '리스트', onClick: () => navigate(cfg.listTo) },
@@ -1932,10 +1965,12 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
      * 신규 창(판매조회 [신규(F2)] · 수정 창 [복사] 뒤) — 원본 아래 버튼줄(2026-10-21 실측):
      *   저장(F8) · 저장/전표(F7) · 다시 작성 · 현금수금 · 닫기 · 웹자료올리기.
      */
-    { label: '저장(F8)', primary: true, submit: true },
-    { label: '저장/전표(F7)', onClick: saveAndPrintSlip },
+    // 원본 신규 창도 ✈ · 저장(F8)▲ · 저장/전표(F7)▲ · 현금수금▲ 이다(2026-10-31 loginad 판매조회 [신규(F2)]).
+    ...(mode === 'sales' ? [sendAction] : []),
+    { label: '저장(F8)', primary: true, submit: true, ...(mode === 'sales' ? { menu: saveMenu } : {}) },
+    { label: '저장/전표(F7)', onClick: saveAndPrintSlip, ...(mode === 'sales' ? { menu: slipMenu } : {}) },
     { label: '다시 작성', onClick: () => { reset(false); setSavedDoc(null) } },
-    ...(cashAction ? [{ ...cashAction, menu: undefined }] : []),
+    ...(cashAction ? [{ ...cashAction, menu: mode === 'sales' ? cashMenu : undefined }] : []),
     { label: '닫기', onClick: () => void closeNewPopup() },
     { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
   ]
@@ -1967,6 +2002,16 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             ? [{ id: '매출전표 I', label: '매출전표 I', onSelect: () => navigate('/sales/accounting-reflection') }]
             : []}
         onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
+        /* 원본 판매입력 머리 [기본(수정불가) ▾] · [Option] · [도움말](2026-10-31 loginad). 구매입력 머리에는 양식 단추가 없다. */
+        layouts={mode === 'sales' && !isAdjust ? {
+          label: '기본(수정불가)',
+          items: [
+            { label: '✓ 기본(수정불가)' },
+            { label: '적요', onClick: () => flash('입력 양식 바꾸기는 아직 없습니다 — 기본(수정불가) 양식으로 입력합니다.') },
+            { label: '신규양식추가', onClick: () => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.') },
+          ],
+        } : undefined}
+        plainOption
         tempSave={hasTemp && !popup ? { onApply: applyTemp, onDelete: deleteTemp } : null}
         savedAt={savedAt}
         options={[
@@ -1975,6 +2020,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           { label: 'Excel 내려받기', onClick: () => void doExcel() },
           { label: '인쇄', onClick: doPrint },
           { label: '입력값 초기화', onClick: () => reset(false) },
+          // 예전 [전표불러오기] 창(지난 같은 전표 복사). 툴바 단추는 원본처럼 '메뉴검색' 창이 됐다.
+          { label: `지난 ${cfg.lineTab}전표 불러오기`, onClick: () => { ensureDocs(); setSlipLoadOpen(true) } },
         ]}
         actions={popupActions ?? footerActions}
         busy={submitting.busy}
@@ -1996,7 +2043,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         {/* 이름표 폭은 원본이 화면마다 정한다 — 판매입력 E040205 는 120(실측 2026-10-21) */}
         <ul className={`ec-form${mode === 'sales' && !adjust ? ' [&>li>.title]:basis-[120px]' : ''}`}>
           <li>
-            <div className="title">일자</div>
+            <div className="title">{mode === 'sales' && !isAdjust ? '일자-No.' : '일자'}</div>
             <div className="form"><EcDateField value={date} onChange={setDate} disabled={!!editing} /></div>
           </li>
           <li>
@@ -2080,7 +2127,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             원본 판매입력 머리에는 [프로젝트] 가 없다(일자-No. · 거래처 · 담당자 · 출하창고 · 거래유형 · 통화 · 첨부), 구매입력에는 있다
             (2026-10-14 loginaa 실측). 판매는 주문 · 수정에서 이어받은 값이 있을 때만 보인다 — 프로젝트별 손익이 그 값을 쓴다.
           */}
-          {(mode !== 'sales' || projectId) && (
+          {/* 2026-10-31 loginad 원본 판매입력 머리에는 [프로젝트] 가 있다(거래유형 아래). 저장 값(projectId)은 원래 요청에 있다. */}
+          {(mode !== 'sales' || !isAdjust || projectId) && (
           <li>
             <div className="title">프로젝트</div>
             <div className="form">
@@ -2093,7 +2141,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
           </li>
           )}
           {!isAdjust && (<>
-          <li>
+          {/* 원본 신규 창에는 판매No. 칸이 없다(번호는 저장할 때 일자-No. 로 붙는다). 수정 창은 번호 · [Fn] 일자변경을 보인다. */}
+          {editing && <li>
             <div className="title">{cfg.docNoLabel}</div>
             <div className="form">
               <input className="ec-input" readOnly aria-label="일자-No." value={editing ? `${date.replace(/-/g, '/')} -${editing.docNo.split('-').pop()?.replace(/^0+/, '') ?? ''}` : '(저장 시 자동채번)'} style={{ width: 170, background: '#f4f5f7', color: 'var(--ec-text-hint)' }} />
@@ -2109,7 +2158,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 </span>
               )}
             </div>
-          </li>
+          </li>}
           <li className="wide">
             <div className="title">적요</div>
             <div className="form">
@@ -2183,9 +2232,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         )}
 
         {/* ── 명세 탭 + 툴바 (원본 nav-tabs + wrapper-toolbar 2줄) ── */}
-        <ul className="ec-tabs" style={{ marginTop: 10 }}>
-          <li className="ec-tab active">{cfg.lineTab}</li>
-        </ul>
+        {/* 원본 판매 · 구매입력은 머리 판 바로 아래가 툴바다 — 안쪽 [판매] 탭이 없다(2026-10-31 loginad). */}
+        <div className="mt-[10px]" />
 
         <div className="ec-toolbar">
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFindOpen((v) => !v)}>찾기(F3)</button>
@@ -2211,7 +2259,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               type="button" className="ec-btn ec-btn-sm ec-btn-arrow"
               aria-label="My품목 목록" onClick={() => setMyItemsOpen((v) => !v)}
             >
-              <EcIcon name="caret-down" size={10} glyph="▾" />
+              {/* 원본 [My품목▲] — 툴바의 붙은 화살도 위 방향이다(2026-10-31 loginad) */}
+              <EcIcon name="caret-up" size={10} glyph="▴" />
             </button>
             {myItemsOpen && (
               <div
@@ -2270,7 +2319,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             <b>구매입력은 이 버튼이 [할인] 바로 뒤에 있다</b>(사본 실측) — 한 컴포넌트가
             두 화면을 겸해서 둘 다 맞출 수 없다. 더 많은 버튼을 가진 판매입력에 맞췄다.
           */}
-          {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => { ensureDocs(); setSlipLoadOpen(true) }}>전표불러오기</button>}
+          {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setMenuSearchOpen(true)}>전표불러오기</button>}
           {/*
             판매입력 II 는 [전표불러오기] 다음이 [금액조정] · [거래별계산] 이다(2026-10-13 실측).
             할인을 [적용] 하면 버튼이 주황(원본 btn-warning 246·136·45 — 토큰 --ec-bg-tag)으로 바뀐다.
@@ -2300,7 +2349,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             title={toolbarExpanded ? '툴바 접기' : '툴바 펼치기'}
             onClick={() => setToolbarExpanded((v) => !v)}
           >
-            {toolbarExpanded ? '«' : '»'}
+            {/* 원본 툴바 끝 ⌄ / ⌃(btn-toolbar-more) */}
+            <EcIcon name={toolbarExpanded ? 'chevron-up' : 'chevron-down'} size={12} glyph={toolbarExpanded ? '⌃' : '⌄'} />
           </button>
         </div>
 
@@ -2882,7 +2932,40 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         </div>
       </Modal>
 
-      {/* ── 전표불러오기 (원본 slip_load) — 거래처 상관없이 지난 전표를 복사 ── */}
+      {/*
+        ── 툴바 [전표불러오기] = 원본 '메뉴검색' 창(2026-10-31 loginad 판매입력 · 구매입력 실측) ──
+        구분 / 메뉴 두 열, 아래 [닫기]. 메뉴를 누르면 그 전표의 검색창(예: 견적서검색창(조회))이 떠 거기서 골라 담는다.
+        목록은 판매 · 구매가 같고 자기 자신(판매입력이면 [판매], 구매입력이면 [구매])만 빠진다.
+        우리에게 담는 길이 있는 것은 [주문서](판매) · [발주서](구매) — 툴바 [주문] · [발주] 와 같은 창. 나머지는 동작 미구현 안내.
+      */}
+      <Modal open={menuSearchOpen} title="메뉴검색" width={696} onClose={() => setMenuSearchOpen(false)}>
+        <div className="max-h-[520px] overflow-y-auto">
+          <table className="w-full text-left">
+            <colgroup><col width="50%" /><col width="50%" /></colgroup>
+            <thead><tr><th className="text-center">구분</th><th className="text-center">메뉴</th></tr></thead>
+            <tbody>
+              {SLIP_LOAD_MENUS.filter(([, m]) => m !== cfg.lineTab).map(([g, m]) => (
+                <tr key={`${g}-${m}`}>
+                  <td>{g}</td>
+                  <td>
+                    <a className="text-ec-navy cursor-pointer" onClick={() => {
+                      if ((mode === 'sales' && m === '주문서') || (mode === 'purchase' && m === '발주서')) {
+                        setMenuSearchOpen(false); void openLoadSource(); return
+                      }
+                      void ecAlert(`${m} 전표 불러오기는 아직 연결되지 않았습니다.`)
+                    }}>{m}</a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex gap-[5px] mt-[9px]">
+          <button type="button" className="ec-btn" onClick={() => setMenuSearchOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      {/* ── 지난 전표 불러오기 (Option 메뉴) — 거래처 상관없이 지난 전표를 복사 ── */}
       <Modal error={error} open={slipLoadOpen} title={`전표불러오기 (${cfg.lineTab})`} width={760} onClose={() => setSlipLoadOpen(false)}>
         <p className="text-[12px] text-ec-label mt-0">
           지난 {cfg.lineTab} 전표입니다. 행을 누르면 그 전표의 품목·수량·단가를 지금 명세로 가져오고,

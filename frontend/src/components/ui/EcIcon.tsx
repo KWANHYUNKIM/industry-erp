@@ -15,7 +15,7 @@ export type EcIconName =
   | 'search' | 'calendar' | 'close' | 'maximize' | 'restore' | 'refresh' | 'pin' | 'new-window'
   | 'chevron-down' | 'chevron-up' | 'chevron-left' | 'chevron-right'
   | 'caret-down' | 'caret-up'
-  | 'star' | 'star-outline' | 'check' | 'plus' | 'user' | 'lock'
+  | 'star' | 'star-outline' | 'check' | 'plus' | 'user' | 'lock' | 'send'
 
 /** 24 칸 판 위의 선. 끝은 둥글게, 굵기는 아래 STROKE. */
 const PATHS: Record<EcIconName, string[]> = {
@@ -39,6 +39,8 @@ const PATHS: Record<EcIconName, string[]> = {
   plus: ['M12 5v14', 'M5 12h14'],
   user: ['M12 4.5a3.75 3.75 0 1 0 0 7.5a3.75 3.75 0 1 0 0-7.5z', 'M4.5 20a7.5 7.5 0 0 1 15 0'],
   lock: ['M6.5 11h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z', 'M8.5 11V8a3.5 3.5 0 0 1 7 0v3'],
+  // 종이비행기 — 원본 판매입력 아래 줄 맨 앞 단추(2026-10-31 loginad 실측)
+  send: ['M20 4L3.5 10.5l6.5 3 3 6.5z', 'M20 4L10 13.5'],
 }
 
 /** 채워 그리는 것 — 단추의 펼침 화살(원본 fa-caret)과 담긴 즐겨찾기 ★. */

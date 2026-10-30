@@ -1,0 +1,69 @@
+{
+  "about": "판매 · 구매입력 창을 원본(2026-10-31 loginad 판매입력 · 구매입력 · 판매조회 [신규(F2)])처럼 — 머리 [기본(수정불가) ▾](✓기본 · 적요 · 신규양식추가) · [Option](▾ 없음) · [도움말], 칸 일자-No. · 프로젝트(판매No. 칸 없음), 안쪽 [판매] 탭 없음, 툴바 끝 ⌄, [전표불러오기] = '메뉴검색' 창(구분 / 메뉴, 판매입력에는 [판매] 가 빠지고 구매입력에는 [구매] 가 빠진다), 아래 줄 종이비행기 · 저장(F8)▲(저장/전자결재 · 저장/내용유지 · 보류 · 저장/신규) · 저장/전표(F7)▲(저장/회계전표) · 현금수금▲(어음수금). 저장은 하지 않는다. node qa/shot.mjs qa/flows/sales-entry-click-diff.json",
+  "shots": [
+    {
+      "name": "판매입력 — 머리 · 칸 · 툴바 · 아래 줄 ▲ 메뉴",
+      "path": "/sales/sell",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-slip-title button')].map((b) => b.textContent.trim()); return t.includes('기본(수정불가) ▾') && t.includes('Option') && t.includes('도움말') && !t.some((x) => x.startsWith('Option') && x !== 'Option') })()",
+        "expect:![...document.querySelectorAll('.ec-slip-title button')].some((b) => b.getAttribute('aria-label') === 'Option 부가기능')",
+        "js:[...document.querySelectorAll('.ec-slip-title button')].find((b) => b.textContent.trim().startsWith('기본(수정불가)')).click(); true",
+        "wait:200",
+        "expect:(() => { const m = [...document.querySelectorAll('.ec-slip-title .ec-menu button')].map((b) => b.textContent.trim()); return m.join(' · ') === '✓ 기본(수정불가) · 적요 · 신규양식추가' })()",
+        "js:document.querySelector('.ec-slip-title .ec-backdrop-clear').click(); true",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-form .title')].map((x) => x.textContent.trim()); return t.includes('일자-No.') && t.includes('프로젝트') && !t.includes('판매No.') })()",
+        "expect:![...document.querySelectorAll('.ec-slip li.ec-tab')].some((li) => li.textContent.trim() === '판매')",
+        "expect:[...document.querySelectorAll('.ec-toolbar button')].some((b) => b.title === '툴바 펼치기' && b.textContent.trim() === '⌄')",
+        "click:전표불러오기",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const rows = [...d.querySelectorAll('tbody tr')].map((r) => r.innerText.replace(/\\s+/g, ' ').trim()); return d.innerText.includes('메뉴검색') && rows[0] === '영업관리 견적서' && rows.includes('영업관리 주문서') && !rows.includes('영업관리 판매') && rows.includes('구매관리 구매') && rows.length === 24 })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:200",
+        "expect:[...document.querySelectorAll('.ec-slip-footer button')].some((b) => b.getAttribute('aria-label') === '보내기')",
+        "js:document.querySelector('.ec-slip-footer button[aria-label=\"저장(F8) 부가기능\"]').click(); true",
+        "wait:200",
+        "expect:(() => { const s = document.querySelector('button[aria-label=\"저장(F8) 부가기능\"]').parentElement; return [...s.querySelectorAll(':scope > div button')].map((b) => b.textContent.trim()).join(' · ') === '저장/전자결재 · 저장/내용유지 · 보류 · 저장/신규' })()",
+        "js:document.querySelector('button[aria-label=\"저장(F8) 부가기능\"]').parentElement.querySelector('div').click(); true",
+        "js:document.querySelector('button[aria-label=\"현금수금 부가기능\"]').click(); true",
+        "wait:200",
+        "expect:[...document.querySelector('button[aria-label=\"현금수금 부가기능\"]').parentElement.querySelectorAll(':scope > div button')].map((b) => b.textContent.trim()).join(' · ') === '어음수금'",
+        "js:document.querySelector('button[aria-label=\"현금수금 부가기능\"]').parentElement.querySelector('div').click(); true",
+        "js:document.querySelector('button[aria-label=\"저장/전표(F7) 부가기능\"]').click(); true",
+        "wait:200",
+        "expect:[...document.querySelector('button[aria-label=\"저장/전표(F7) 부가기능\"]').parentElement.querySelectorAll(':scope > div button')].map((b) => b.textContent.trim()).join(' · ') === '저장/회계전표'"
+      ]
+    },
+    {
+      "name": "구매입력 — 머리에 양식 단추 없음 · 메뉴검색에 [판매] 있고 [구매] 없음",
+      "path": "/sales/buy",
+      "steps": [
+        "wait:1500",
+        "expect:![...document.querySelectorAll('.ec-slip-title button')].some((b) => b.textContent.trim().startsWith('기본(수정불가)'))",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-form .title')].map((x) => x.textContent.trim()); return t.includes('프로젝트') && !t.includes('구매No.') })()",
+        "click:전표불러오기",
+        "wait:300",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const rows = [...d.querySelectorAll('tbody tr')].map((r) => r.innerText.replace(/\\s+/g, ' ').trim()); return rows.includes('영업관리 판매') && !rows.includes('구매관리 구매') && rows.length === 24 })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody a')].find((a) => a.textContent.trim() === '발주서').click(); true",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('메뉴검색'))"
+      ]
+    },
+    {
+      "name": "판매조회 [신규(F2)] 창 — ✈ · 저장(F8)▲ · 저장/전표(F7)▲ · 다시 작성 · 현금수금▲ · 닫기 · 웹자료올리기, 머리 [기본(수정불가) ▾] · 프로젝트",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:1500",
+        "js:(() => { window.__dlg = () => document.querySelector('[role=dialog]'); return true })()",
+        "click:신규(F2)",
+        "wait:1500",
+        "expect:[...window.__dlg().querySelector('.ec-slip-footer').querySelectorAll('button')].map((b) => b.textContent.trim() || b.getAttribute('aria-label')).filter((t) => t !== '⌄').join('|') === '보내기|저장(F8)|▴|저장/전표(F7)|▴|다시 작성|현금수금|▴|닫기|웹자료올리기'",
+        "expect:[...window.__dlg().querySelectorAll('.ec-slip-title button')].some((b) => b.textContent.trim() === '기본(수정불가) ▾')",
+        "expect:[...window.__dlg().querySelectorAll('.ec-form .title')].some((x) => x.textContent.trim() === '프로젝트')",
+        "js:window.__dlg().querySelector('button[aria-label=\"현금수금 부가기능\"]').click(); true",
+        "wait:200",
+        "expect:[...window.__dlg().querySelector('button[aria-label=\"현금수금 부가기능\"]').parentElement.querySelectorAll(':scope > div button')].map((b) => b.textContent.trim()).join(' · ') === '어음수금'"
+      ]
+    }
+  ]
+}

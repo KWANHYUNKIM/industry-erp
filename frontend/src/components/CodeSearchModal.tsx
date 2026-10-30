@@ -128,6 +128,12 @@ type CodeSearchProps = {
   /** 사원검색 꼴(인사발령입력 2026-10-22 실측) — [퇴사자포함] · Search(F3) 조건 판 · 체크칸 + 번호 · [적용(F8)] 여러 개 고름. */
   employeeSearch?: boolean
   onApplyMany?: (items: CodeItem[]) => void
+  /**
+   * 조회 조건의 여럿 고르기 창 꼴(원본 판매조회 조건 [거래유형] → '거래유형(영업)검색', 2026-10-31 loginad 실측):
+   * 머리 [사용중단포함] · 검색칸 · [Fn] · [Search(F3)](Option 없음), 격자 맨 앞 체크칸 + 번호, 아래 [적용(F8)] [닫기] · 키보드 활용 TIP.
+   * multiple 과 같이 쓴다.
+   */
+  checkApply?: boolean
 }
 
 /**
@@ -143,8 +149,9 @@ export default function CodeSearchModal(props: CodeSearchProps) {
 
 function CodeSearchBody({
   open, label, title, items, columns, value, onPick, onClose, emptyLabel,
-  multiple, picked = [], onToggle, onClearAll, onApply, initialQuery = '', onNew, plain, hideNew, employeeSearch, onApplyMany,
+  multiple, picked = [], onToggle, onClearAll, onApply, initialQuery = '', onNew, plain, hideNew, employeeSearch, onApplyMany, checkApply,
 }: CodeSearchProps) {
+  const checks = !!multiple && !!checkApply
   const [q, setQ] = useState(initialQuery)
   const [withStopped, setWithStopped] = useState(false)
   const [page, setPage] = useState(1)
@@ -202,7 +209,7 @@ function CodeSearchBody({
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'F2' && !hideNew) { e.preventDefault(); runNew() }
+      if (e.key === 'F2' && !hideNew && !checks) { e.preventDefault(); runNew() }
       if (e.key === 'F3') { e.preventDefault(); searchRef.current?.focus() }
       if (e.key === 'F8' && multiple) { e.preventDefault(); onApply?.() }
       if (e.key === 'F8' && employeeSearch) { e.preventDefault(); if (panel) applyCond(); else applyMany() }
@@ -255,8 +262,9 @@ function CodeSearchBody({
             else if (shown.length === 1) onPick(shown[0])
           }}
         />}
+        {checks && <button type="button" className="ec-btn" title="검색 방식(Fn)">Fn</button>}
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => { if (employeeSearch) { setPanel((v) => !v); return } searchRef.current?.focus() }}>Search(F3)</button>
-        {!bare && (
+        {!bare && !checks && (
           <div className="relative">
             <button type="button" className="ec-btn" aria-expanded={optionOpen} onClick={() => setOptionOpen((v) => !v)}>Option</button>
             {optionOpen && <>
@@ -324,11 +332,14 @@ function CodeSearchBody({
       <div className="max-h-[360px] overflow-y-auto">
         <table className="w-full text-left ec-head700">
           <colgroup>
-            {(multiple || employeeSearch) && <col width={employeeSearch ? 52 : 34} />}
+            {(multiple || employeeSearch) && <col width={employeeSearch || checks ? 52 : 34} />}
             {cols.map((c, n) => <col key={n} width={c.width} />)}
           </colgroup>
           <thead className="[&_th]:h-[var(--ec-th-h-sort)]"><tr>
-            {(multiple || employeeSearch) && <th></th>}
+            {(multiple || employeeSearch) && (checks
+              ? <th className="text-center"><input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((i) => picked.includes(i.value))}
+                                               onChange={(e) => shown.forEach((i) => { if (picked.includes(i.value) !== e.target.checked) onToggle?.(i) })} /></th>
+              : <th></th>)}
             {cols.map((c, n) => <th key={n}>{c.head}</th>)}
           </tr></thead>
           <tbody>
@@ -345,7 +356,7 @@ function CodeSearchBody({
               return (
                 <tr key={i.value} onClick={() => (employeeSearch ? setMany(on ? many.filter((v) => v !== i.value) : [...many, i.value]) : multiple ? onToggle?.(i) : onPick(i))}
                     className={`cursor-pointer${on ? ' bg-[var(--ec-blue-light)]' : ''}`}>
-                  {multiple && <td className="text-center"><input type="checkbox" readOnly checked={on} /></td>}
+                  {multiple && <td className="text-center whitespace-nowrap"><input type="checkbox" readOnly checked={on} />{checks && ` ${(cur - 1) * PAGE_SIZE + n + 1}`}</td>}
                   {employeeSearch && <td className="text-center whitespace-nowrap"><input type="checkbox" readOnly checked={on} /> {(cur - 1) * PAGE_SIZE + n + 1}</td>}
                   {cols.map((c, n) => <td key={n} className={c.link ? 'text-ec-navy' : undefined}>{c.cell(i)}</td>)}
                 </tr>
@@ -358,13 +369,13 @@ function CodeSearchBody({
       <div className="flex items-center gap-[5px] mt-[9px]">
         {multiple && <>
           <button type="button" className="ec-btn ec-btn-primary" onClick={onApply}>적용(F8)</button>
-          <button type="button" className="ec-btn" onClick={onClearAll}>전체 해제</button>
+          {!checks && <button type="button" className="ec-btn" onClick={onClearAll}>전체 해제</button>}
         </>}
         {employeeSearch && <button type="button" className="ec-btn ec-btn-primary" onClick={applyMany}>적용(F8)</button>}
-        {!hideNew && !employeeSearch && <button type="button" className="ec-btn" onClick={runNew} title={route || onNew ? undefined : '등록 화면이 없는 대상입니다'}>신규(F2)</button>}
+        {!hideNew && !employeeSearch && !checks && <button type="button" className="ec-btn" onClick={runNew} title={route || onNew ? undefined : '등록 화면이 없는 대상입니다'}>신규(F2)</button>}
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
-        {employeeSearch && <span className="ml-[8px] text-[12px] text-ec-label">키보드 활용 TIP <span className="text-ec-navy">상세보기</span></span>}
-        {multiple && picked.length > 0 && (
+        {(employeeSearch || checks) && <span className={`${checks ? 'ml-auto' : 'ml-[8px]'} text-[12px] text-ec-label`}>키보드 활용 TIP <span className="text-ec-navy">상세보기</span></span>}
+        {multiple && !checks && picked.length > 0 && (
           <span className="ml-auto text-[12px] text-ec-label">선택 <b className="text-ec-blue">{picked.length}</b>건</span>
         )}
       </div>
