@@ -1,0 +1,51 @@
+{
+  "about": "발주서조회 · 출하조회 [인쇄] — 원본(loginad C000077 · C000138 2026-10-31 실측)은 목록 위 인쇄 미리보기 창. 발주서: '발 주 서', 일련번호 · 수 신 · 참 조 · TEL · FAX · '납기일자 : …' | 로고 · 사업자등록번호 · 회사명/대표 · 주 소 · 담당/연락처, 금액 줄, 품목코드 · 품목명[규격] … 26 칸 · 총합계 줄 없음, 수량 · 공급가액 · VAT · 합계, [✓내자기본]. 출하: '출하전표' + '공 급 자' 상자, 출하창고 · 출하일 · 납품지주소, 품목명(규격) · 수량(단위포함) · 적요 11 칸 + 총합계, 수량 · 인수 · 인, [✓기본(수정불가)] 두 장. 시험 발주 · 출하를 API 로 만들고 끝에 지운다.",
+  "shots": [
+    {
+      "name": "준비 — QA-PROD 2 × 100 발주서 · 출하를 API 로 만든다",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:800",
+        "js:(async()=>{const a=window.__api;const it=(await a('GET','/items')).body.find((i)=>i.code==='QA-PROD');const pa=(await a('GET','/partners')).body;const sup=pa.find((p)=>p.code==='QA-SUPP');const c=pa.find((x)=>x.type==='CUSTOMER'||x.type==='BOTH');const w=(await a('GET','/warehouses')).body.find((x)=>x.code==='QA-WH');const d=new Date();const today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const o=await a('POST','/purchase-orders',{partnerId:sup.id,orderDate:today,dueDate:today,taxable:true,warehouseId:w.id,order:true,remark:'QA전표인쇄',lines:[{itemId:it.id,quantity:2,unitPrice:100}]});if(o.status>=300)return 'PO '+o.status+' '+JSON.stringify(o.body);sessionStorage.setItem('psPo',o.body.id);sessionStorage.setItem('psPoNo',today.replace(/-/g,'/')+' -'+Number(o.body.orderNo.split('-').pop()));sessionStorage.setItem('psPoShort',today.slice(2).replace(/-/g,'/')+'-'+Number(o.body.orderNo.split('-').pop()));const s=await a('POST','/shipments',{partnerId:c.id,shipDate:today,warehouseId:w.id,address:'QA 납품지',remark:'QA전표인쇄',lines:[{itemId:it.id,quantity:2,remark:'QA적요'}]});if(s.status>=300)return 'SH '+s.status+' '+JSON.stringify(s.body);sessionStorage.setItem('psSh',s.body.id);sessionStorage.setItem('psShNo',today.replace(/-/g,'/')+' -'+Number(s.body.shipNo.split('-').pop()));sessionStorage.setItem('psPartner',c.name);return 'ok'})()",
+        "expect:!!sessionStorage.getItem('psPo')&&!!sessionStorage.getItem('psSh')"
+      ]
+    },
+    {
+      "name": "발주서조회 줄 [인쇄] → '발주서' 창",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "js:(async()=>{const find=()=>[...document.querySelectorAll('tbody tr')].find((t)=>[...t.cells].some((c)=>c.innerText.trim()===sessionStorage.getItem('psPoShort')));let tr=find();for(let k=0;k<30&&!tr;k++){await new Promise((r)=>setTimeout(r,500));tr=find()}if(!tr)return 'no row';[...tr.querySelectorAll('a,button')].find((b)=>b.textContent.trim()==='인쇄').click();return true})()",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label')==='발주서'",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.innerText;return d.querySelector('.ec-slip-title').innerText.trim()==='발 주 서'&&['일련번호','수 신','참 조','TEL','FAX','납기일자 : ','사업자등록번호','회사명/대표','담당/연락처'].every((x)=>t.includes(x))&&t.includes(sessionStorage.getItem('psPoNo'))})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelectorAll('.ec-slip-lines thead th')].map((x)=>x.innerText.trim()).join('|');const r=[...d.querySelectorAll('.ec-slip-lines tbody tr')].map((t)=>[...t.cells].map((c)=>c.innerText.trim()));return h==='품목코드|품목명[규격]|수량(단위포함)|단가|공급가액|부가세'&&r.length===26&&r[0][4]==='200'&&!r.some((x)=>x[0]==='총합계')})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return [...d.querySelectorAll('.ec-slip-foot th, .ec-slip-foot td')].map((c)=>c.innerText.trim()).join('|')==='수량|2|공급가액|200|VAT|20|합계|220'&&d.querySelector('.ec-slip-amount').innerText.includes('이백이십원 정')})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog]')"
+      ]
+    },
+    {
+      "name": "출하조회 줄 [인쇄] → '출하' 창",
+      "path": "/sales/shipment-inquiry",
+      "steps": [
+        "js:window.print = () => { window.__printed = (window.__printed || 0) + 1 }; true",
+        "js:(async()=>{const find=()=>[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('psShNo')));let tr=find();for(let k=0;k<30&&!tr;k++){await new Promise((r)=>setTimeout(r,500));tr=find()}if(!tr)return 'no row';[...tr.querySelectorAll('a,button')].find((b)=>b.textContent.trim()==='인쇄').click();return true})()",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label')==='출하'",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.querySelector('.ec-slip-paper').innerText;return t.includes('출하전표')&&t.includes(sessionStorage.getItem('psPartner'))&&['일련번호','사업자등록번호','상호','출하창고','출하일','납품지주소','QA 납품지'].every((x)=>t.includes(x))&&t.includes(sessionStorage.getItem('psShNo'))})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const tb=d.querySelector('.ec-slip-paper .ec-slip-lines');const h=[...tb.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const r=[...tb.querySelectorAll('tbody tr')].map((t)=>[...t.cells].map((c)=>c.innerText.trim()));return h==='품목명(규격)|수량(단위포함)|적요'&&r[0][2]==='QA적요'&&r[0][1].startsWith('2')&&r[1][0]==='총합계'&&r.length===12})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return [...d.querySelector('.ec-slip-foot').querySelectorAll('th, td')].map((c)=>c.innerText.trim()).join('|')==='수량|2|인수|인'&&d.querySelectorAll('.ec-slip-paper .ec-slip-sheet').length===2})()",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].some((b)=>b.textContent.trim()==='기본(수정불가) ⌄')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='인쇄').click(); true",
+        "wait:300",
+        "expect:window.__printed===1&&!!document.querySelector('body > .ec-slip-print-out .ec-slip-ship')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const s=sessionStorage.getItem('psSh');const o=sessionStorage.getItem('psPo');if(s)await fetch('/api/shipments/'+s,{method:'DELETE',headers:H});if(o)await fetch('/api/purchase-orders/'+o,{method:'DELETE',headers:H});['psSh','psPo'].forEach((k)=>sessionStorage.removeItem(k));return true})()"
+  ]
+}

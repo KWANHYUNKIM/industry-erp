@@ -23,6 +23,8 @@ import Modal, { ModalWindow } from '../../components/Modal'
 import TradeEntry, { type TradeEntryPrefill } from './TradeEntry'
 import { openPrintWindow } from '../../utils/print'
 import { purchaseSlipDocument } from '../../utils/tradeSlipDocument'
+import EcSlipPrintModal, { type SlipPrintDoc } from '../../components/EcSlipPrintModal'
+import { purchaseOrderSlip } from '../../utils/slipLetter'
 import { ecConfirm } from '../../components/EcDialog'
 import { dateNo, shortDateNo } from '../../utils/dateNo'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
@@ -263,36 +265,20 @@ export default function PurchaseOrderPage() {
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
 
   /**
-   * 발주서 인쇄. 발주서는 우리가 <b>발주자</b>이고 거래처가 물품을 대는 쪽이라,
-   * 명세서와 공급자/공급받는자 위치가 반대다.
+   * 발주서 [인쇄] — 원본은 새 창이 아니라 목록 위 '발주서' 인쇄 미리보기 창이다(2026-10-31 loginad C000077 실측).
+   * 줄 [인쇄] 는 그 발주서, 하단 [인쇄] 는 고른 발주서들.
    */
-  async function printOrder(po: PurchaseOrder) {
+  const [slipDocs, setSlipDocs] = useState<SlipPrintDoc[] | null>(null)
+  const toSlip = (po: PurchaseOrder) => {
     const p = partners.find((x) => x.id === po.partnerId)
-    await printDocuments([{
-      title: '발 주 서',
-      docNo: po.orderNo,
-      docDate: po.orderDate,
-      supplier: {
-        label: '수신처(공급자)', name: po.partnerName,
-        bizRegNo: p?.bizRegNo, ceo: p?.ceoName, bizType: p?.bizType, bizItem: p?.bizItem,
-        tel: p?.phone, address: p?.address,
-      },
-      customer: company ? { ...company, label: '발주자' } : { label: '발주자', name: '(회사정보 미등록)' },
-      extra: [
-        { label: '납기일', value: po.dueDate },
-        /* 납기일과 다른 값이다 — 이건 그 단가가 언제까지 유효하냐다. */
-        { label: '단가 유효기간', value: po.priceValidUntil },
-        { label: '입고창고', value: po.warehouseName },
-        { label: '담당', value: po.employeeName ?? po.createdBy },
-        { label: '진행상태', value: po.statusName },
-      ],
-      remark: po.remark,
-      lines: po.lines.map((l) => ({
-        itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
-        quantity: l.quantity, unitPrice: l.unitPrice, supplyAmount: l.supplyAmount, vatAmount: l.vatAmount,
-      })),
-      footNote: '아래와 같이 발주하오니 납기를 준수하여 주시기 바랍니다.',
-    }])
+    return purchaseOrderSlip({ key: po.id, dateNo: dateNo(po.orderDate, po.orderNo), partnerName: po.partnerName, partnerTel: p?.phone, partnerFax: p?.fax,
+      employeeName: po.employeeName ?? po.createdBy, dueDate: po.dueDate, supplyAmount: po.supplyAmount, vatAmount: po.vatAmount,
+      totalAmount: po.totalAmount, lines: po.lines }, company)
+  }
+  function printOrder(po: PurchaseOrder) { setSlipDocs([toSlip(po)]) }
+  function printChecked() {
+    const list = shown.filter((po) => picked.has(po.id))
+    if (list.length) setSlipDocs(list.map(toSlip))
   }
 
 
@@ -360,13 +346,14 @@ export default function PurchaseOrderPage() {
       actions={[
       /* 원본 차례: 신규(F2) · 진행상태변경 · 인쇄 · 선택삭제 · Excel (사본 실측) */
       { label: `진행상태변경${picked.size ? ` (${picked.size})` : ''}`, onClick: bulkStatus },
-      { label: '인쇄' },
+      { label: '인쇄', onClick: printChecked, selected: picked.size },
       { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
       { label: 'Excel' },
     ]}>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
+      {slipDocs && <EcSlipPrintModal title="발주서" docs={slipDocs} forms={['내자기본']} width={782} onClose={() => setSlipDocs(null)} />}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: 발주No. · … · 창고 · … · 거래처 · 품목 */}
@@ -536,7 +523,7 @@ export default function PurchaseOrderPage() {
               <td className="text-center" onClick={(e) => e.stopPropagation()}>
                 {/* 원본 [인쇄] 열은 '인쇄' 한 칸뿐(2026-10-21 실측). 옛 단추(발주계획 · 단가확정 · 발주확정 · 입고전환 · 취소 · 삭제)는
                     원본 자리로 갔다 — 단가는 단가요청진행단계, 입고는 구매입력 [발주], 지우기는 [선택삭제]. */}
-                <a className="cursor-pointer" onClick={() => void printOrder(po)}>인쇄</a>
+                <a className="cursor-pointer" onClick={() => printOrder(po)}>인쇄</a>
               </td>
               <td>{po.projectName ?? ''}</td>
             </tr>

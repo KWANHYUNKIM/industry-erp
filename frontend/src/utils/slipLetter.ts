@@ -89,3 +89,30 @@ export function orderSlip(src: LetterSrc, company: DocParty | null): SlipPrintDo
     },
   }
 }
+
+/**
+ * 발주서(원본 C000077 발주서조회 줄 [인쇄] 2026-10-31 loginad 실측 — 창 '발주서' 폭 782, ✓내자기본):
+ * 왼쪽 일련번호 · 수 신 · 참 조 · TEL · FAX · '납기일자 : 일자'(두 칸 합침), 오른쪽 로고(두 줄) · 사업자등록번호 · 회사명/대표 ·
+ * 주 소 · 담당/연락처. 품목명[규격], 품목 칸 26 · 총합계 줄 없음.
+ */
+export function purchaseOrderSlip(src: LetterSrc, company: DocParty | null): SlipPrintDoc {
+  return {
+    ...base(src, '발주서'),
+    letter: {
+      left: [
+        { label: '일련번호', value: src.dateNo }, { label: '수 신', value: src.partnerName }, { label: '참 조', value: '' },
+        { label: 'TEL', value: src.partnerTel ?? '' }, { label: 'FAX', value: src.partnerFax ?? '' },
+        { label: '', value: `납기일자 : ${slash(src.dueDate)}`, span: true },
+      ],
+      right: [
+        { label: '사업자등록번호', value: company?.bizRegNo ?? '' },
+        { label: '회사명/대표', value: company ? `${company.name} / ${company.ceo ?? ''}` : '' },
+        { label: '주 소', value: company?.address ?? '' },
+        { label: '담당/연락처', value: `${src.employeeName ?? ''} / ${company?.tel ?? ''}` },
+      ],
+      company: company?.name ?? '',
+      amountKorean: amountToKorean(src.totalAmount),
+      nameHead: '품목명[규격]', sumQty: false, noSum: true, logoRows: 2, rowsPerPage: 26,
+    },
+  }
+}

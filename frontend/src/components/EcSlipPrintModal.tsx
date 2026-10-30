@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState, type Ref } from 'react'
+import { Fragment, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import Modal from './Modal'
 import { FooterButton } from './EcListShell'
@@ -47,6 +47,8 @@ export interface SlipPrintDoc {
   letter?: SlipLetter
   /** 판매 거래명세서 양식이면 준다(아래 SlipStatement). */
   statement?: SlipStatement
+  /** 출하전표 양식이면 준다(아래 SlipShipment) — 품목 줄은 이쪽 lines 를 쓴다. */
+  shipment?: SlipShipment
 }
 
 /**
@@ -71,7 +73,8 @@ const STATEMENT_ROWS = 12
  * 아래 상자는 수량 · 공급가액 · VAT · 합계(인 수 칸 없음).
  */
 export interface SlipLetter {
-  left: { label: string; value: string }[]
+  /** span 이면 두 칸을 합쳐 값만 가운데에 찍는다(발주서 '납기일자 : 2026/10/20'). */
+  left: { label: string; value: string; span?: boolean }[]
   right: { label: string; value: string; rows?: number }[]
   /** 왼쪽 줄 아래 세 줄 높이 칸의 글(견적서 '1. 귀사의 일익 …'). */
   notice?: string[]
@@ -82,6 +85,10 @@ export interface SlipLetter {
   nameHead: string
   /** 총합계 줄에 수량을 찍나 — 주문서는 찍고, 견적서는 총합계 칸이 수량 칸까지 덮는다. */
   sumQty: boolean
+  /** 총합계 줄이 아예 없다(발주서). */
+  noSum?: boolean
+  /** 로고 칸 높이(줄 수) — 견적서 · 주문서 3, 발주서 2. */
+  logoRows?: number
   /** 한 쪽 품목 줄 칸 수 — 견적서 25(품목 1 + 빈 24), 주문서 20(품목 4 + 빈 16). */
   rowsPerPage: number
 }
@@ -94,8 +101,8 @@ interface Page { doc: SlipPrintDoc; lines: SlipPrintLine[]; no: number; of: numb
 
 function pagesOf(docs: SlipPrintDoc[]): Page[] {
   return docs.flatMap((doc) => {
-    const per = doc.letter?.rowsPerPage ?? (doc.statement ? STATEMENT_ROWS : ROWS_PER_PAGE)
-    const n = Math.max(1, Math.ceil(doc.lines.length / per))
+    const per = doc.letter?.rowsPerPage ?? (doc.statement ? STATEMENT_ROWS : doc.shipment ? SHIPMENT_ROWS : ROWS_PER_PAGE)
+    const n = Math.max(1, Math.ceil((doc.shipment?.lines.length ?? doc.lines.length) / per))
     return Array.from({ length: n }, (_, i) => ({ doc, lines: doc.lines.slice(i * per, (i + 1) * per), no: i + 1, of: n }))
   })
 }
@@ -104,7 +111,8 @@ function pagesOf(docs: SlipPrintDoc[]): Page[] {
 function LetterHead({ h }: { h: SlipLetter }) {
   const leftN = h.left.length + (h.notice ? 3 : 0)
   const starts: number[] = []
-  let at = 3
+  const logo = h.logoRows ?? 3
+  let at = logo
   for (const r of h.right) { starts.push(at); at += r.rows ?? 1 }
   const n = Math.max(leftN, at)
   return (
@@ -118,12 +126,12 @@ function LetterHead({ h }: { h: SlipLetter }) {
           const covered = ri < 0 && h.right.some((x, k) => r > starts[k] && r < starts[k] + (x.rows ?? 1))
           return (
             <tr key={r}>
-              {r < h.left.length ? <><th>{h.left[r].label}</th><td>{h.left[r].value}</td></>
+              {r < h.left.length ? (h.left[r].span ? <td colSpan={2} className="text-center">{h.left[r].value}</td> : <><th>{h.left[r].label}</th><td>{h.left[r].value}</td></>)
                 : h.notice && r === h.left.length ? <td colSpan={2} rowSpan={3} className="notice">{h.notice.map((t) => <div key={t}>{t}</div>)}</td>
                   : h.notice && r < h.left.length + 3 ? null : <td colSpan={2} className="none" />}
               <td className="gap" />
-              {r === 0 ? <td colSpan={2} rowSpan={3} className="logo">{h.company}</td>
-                : r < 3 || covered ? null
+              {r === 0 ? <td colSpan={2} rowSpan={logo} className="logo">{h.company}</td>
+                : r < logo || covered ? null
                   : ri >= 0 ? <><th rowSpan={h.right[ri].rows ?? 1}>{h.right[ri].label}</th><td rowSpan={h.right[ri].rows ?? 1}>{h.right[ri].value}</td></>
                     : <td colSpan={2} className="none" />}
             </tr>
@@ -138,7 +146,7 @@ function LetterSheet({ page, tableRef }: { page: Page; tableRef?: Ref<HTMLTableE
   const { doc, lines, no, of } = page
   const h = doc.letter as SlipLetter
   const last = no === of
-  const blanks = Math.max(0, h.rowsPerPage - lines.length - (last ? 0 : -1))
+  const blanks = Math.max(0, h.rowsPerPage - lines.length - (last && !h.noSum ? 0 : -1) - (h.noSum ? 1 : 0))
   return (
     <div className="ec-slip-sheet">
       <div className="ec-slip-title"><u>{[...doc.title].join(' ')}</u></div>
@@ -161,7 +169,7 @@ function LetterSheet({ page, tableRef }: { page: Page; tableRef?: Ref<HTMLTableE
               <td className="text-right">{l.unitPrice}</td><td className="text-right">{l.supply}</td><td className="text-right">{l.vat}</td>
             </tr>
           ))}
-          {last && (h.sumQty
+          {last && !h.noSum && (h.sumQty
             ? <tr className="sum"><td colSpan={2} className="text-center">총합계</td><td className="text-right">{doc.totalQty}</td><td /><td /><td /></tr>
             : <tr className="sum"><td colSpan={3} className="text-center">총합계</td><td /><td /><td /></tr>)}
           {Array.from({ length: blanks }, (_, i) => <tr key={`b${i}`} className="blank"><td /><td /><td /><td /><td /><td /></tr>)}
@@ -179,6 +187,77 @@ function LetterSheet({ page, tableRef }: { page: Page; tableRef?: Ref<HTMLTableE
   )
 }
 
+/** 거래명세서 · 출하전표 머리 — 왼쪽 제목 + 받는 쪽 상자, 오른쪽 세로 '공 급 자' 상자. */
+function SupplierHead({ title, to, s, titleClass = 'title' }: { title: string; to: ReactNode; s: SlipStatement['supplier']; titleClass?: string }) {
+  return (
+      <table className="no-ec ec-slip-stmt">
+        <colgroup>
+          <col className="w-[299px]" /><col className="w-[20px]" /><col className="w-[20px]" /><col className="w-[70px]" /><col className="w-[99px]" /><col className="w-[50px]" /><col />
+        </colgroup>
+        <tbody>
+          <tr>
+            <td rowSpan={2} className={titleClass}>{title}</td><td className="gap" />
+            <th rowSpan={4} className="who">공<br />급<br />자</th>
+            <th>일련번호</th><td>{s.docNo}</td><th>TEL</th><td>{s.tel}</td>
+          </tr>
+          <tr className="tall"><td className="gap" /><th>사업자등록번호</th><td>{s.bizRegNo}</td><th>성명</th><td>{s.ceo}</td></tr>
+          <tr>
+            <td rowSpan={2} className="to">{to}</td>
+            <td className="gap" /><th>상호</th><td colSpan={3}>{s.name}</td>
+          </tr>
+          <tr className="addr"><td className="gap" /><th>주소</th><td colSpan={3}>{s.address}</td></tr>
+        </tbody>
+      </table>
+  )
+}
+
+/**
+ * 출하전표(원본 C000138 출하조회 줄 [인쇄] 2026-10-31 loginad 실측 — 창 '출하', ✓기본(수정불가), 점선 아래 두 장).
+ * 머리는 거래명세서와 같은 '공 급 자' 상자, 왼쪽 '출하전표'(24px 700 밑줄) · 받는 쪽 상자는 이름만.
+ * 그 아래 출하창고 · 출하일 / 납품지주소 상자, 격자 품목명(규격) 300 · 수량(단위포함) 150 · 적요 200,
+ * 품목 칸 11 + 총합계 줄(세 칸 합침, 숫자 없음), 아래 상자 수량 · 인수 … 인. 금액 줄 없음.
+ */
+export interface SlipShipment {
+  supplier: SlipStatement['supplier']
+  toName: string
+  warehouse: string
+  date: string
+  address: string
+  lines: { name: string; qty: string; remark: string }[]
+}
+const SHIPMENT_ROWS = 11
+
+function ShipmentSheet({ page, tableRef }: { page: Page; tableRef?: Ref<HTMLTableElement> }) {
+  const { doc, no, of } = page
+  const h = doc.shipment as SlipShipment
+  const lines = h.lines.slice((no - 1) * SHIPMENT_ROWS, no * SHIPMENT_ROWS)
+  const last = no === of
+  return (
+    <div className="ec-slip-sheet">
+      <SupplierHead title={doc.title} titleClass="title is-u" s={h.supplier} to={h.toName} />
+      <table className="no-ec ec-slip-ship">
+        <colgroup><col className="w-[75px]" /><col className="w-[220px]" /><col className="w-[75px]" /><col /></colgroup>
+        <tbody>
+          <tr><th>출하창고</th><td>{h.warehouse}</td><th>출하일</th><td>{h.date}</td></tr>
+          <tr><th>납품지주소</th><td colSpan={3}>{h.address}</td></tr>
+        </tbody>
+      </table>
+      <table className="no-ec ec-slip-lines" ref={tableRef}>
+        <colgroup><col className="w-[300px]" /><col className="w-[150px]" /><col /></colgroup>
+        <thead><tr><th>품목명(규격)</th><th>수량(단위포함)</th><th>적요</th></tr></thead>
+        <tbody>
+          {lines.map((l, i) => <tr key={i}><td>{l.name}</td><td className="text-right">{l.qty}</td><td>{l.remark}</td></tr>)}
+          {last && <tr className="sum"><td colSpan={3} className="text-center">총합계</td></tr>}
+          {Array.from({ length: Math.max(0, SHIPMENT_ROWS - lines.length + (last ? 0 : 1)) }, (_, i) => <tr key={`b${i}`} className="blank"><td /><td /><td /></tr>)}
+        </tbody>
+      </table>
+      <table className="no-ec ec-slip-foot is-ship">
+        <tbody><tr><th>수량</th><td>{doc.totalQty}</td><th>인수</th><td>인</td></tr></tbody>
+      </table>
+    </div>
+  )
+}
+
 function StatementSheet({ page, tableRef }: { page: Page; tableRef?: Ref<HTMLTableElement> }) {
   const { doc, lines, no, of } = page
   const h = doc.statement as SlipStatement
@@ -186,24 +265,8 @@ function StatementSheet({ page, tableRef }: { page: Page; tableRef?: Ref<HTMLTab
   const won = (n: number) => n.toLocaleString('ko-KR')
   return (
     <div className="ec-slip-sheet">
-      <table className="no-ec ec-slip-stmt">
-        <colgroup>
-          <col className="w-[299px]" /><col className="w-[20px]" /><col className="w-[20px]" /><col className="w-[70px]" /><col className="w-[99px]" /><col className="w-[50px]" /><col />
-        </colgroup>
-        <tbody>
-          <tr>
-            <td rowSpan={2} className="title">{doc.title}</td><td className="gap" />
-            <th rowSpan={4} className="who">공<br />급<br />자</th>
-            <th>일련번호</th><td>{h.supplier.docNo}</td><th>TEL</th><td>{h.supplier.tel}</td>
-          </tr>
-          <tr className="tall"><td className="gap" /><th>사업자등록번호</th><td>{h.supplier.bizRegNo}</td><th>성명</th><td>{h.supplier.ceo}</td></tr>
-          <tr>
-            <td rowSpan={2} className="to"><div>{h.to.name} 貴 中</div><div>{h.to.address}</div><div>{h.to.tel ? `☎ ${h.to.tel}` : ''}</div></td>
-            <td className="gap" /><th>상호</th><td colSpan={3}>{h.supplier.name}</td>
-          </tr>
-          <tr className="addr"><td className="gap" /><th>주소</th><td colSpan={3}>{h.supplier.address}</td></tr>
-        </tbody>
-      </table>
+      <SupplierHead title={doc.title} s={h.supplier}
+        to={<><div>{h.to.name} 貴 中</div><div>{h.to.address}</div><div>{h.to.tel ? `☎ ${h.to.tel}` : ''}</div></>} />
       <div className="ec-slip-amount is-stmt">
         <span>금&nbsp;&nbsp;액 : {h.amountKorean}원 정</span>
         <span>(￦{doc.total})</span>
@@ -241,6 +304,7 @@ function StatementSheet({ page, tableRef }: { page: Page; tableRef?: Ref<HTMLTab
 function Sheet({ page, tableRef }: { page: Page; tableRef?: Ref<HTMLTableElement> }) {
   if (page.doc.letter) return <LetterSheet page={page} tableRef={tableRef} />
   if (page.doc.statement) return <StatementSheet page={page} tableRef={tableRef} />
+  if (page.doc.shipment) return <ShipmentSheet page={page} tableRef={tableRef} />
   const { doc, lines, no, of } = page
   const last = no === of
   const blanks = Math.max(0, ROWS_PER_PAGE - lines.length - (last ? 0 : -1))
@@ -297,7 +361,7 @@ function FormPage({ page, form, tableRef }: { page: Page; form: Form; tableRef?:
   return (
     <div className="ec-slip-page">
       <Sheet page={page} tableRef={tableRef} />
-      {form === '내자기본' && !page.doc.letter && (<><div className="ec-slip-cut" /><Sheet page={page} /></>)}
+      {(form === '내자기본' || form === '기본(수정불가)') && !page.doc.letter && (<><div className="ec-slip-cut" /><Sheet page={page} /></>)}
     </div>
   )
 }

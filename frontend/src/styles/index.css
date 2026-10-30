@@ -1825,6 +1825,16 @@ th.ec-empty {
 .ec-slip-foot.is-stmt td { height: 22px; }
 .ec-slip-foot.is-stmt td:last-child { width: 85px; }
 .ec-slip-pageno { margin-top: 2px; font-size: 11px; }
+/* 출하전표(원본 C000138 [인쇄]): 제목 밑줄 · 출하창고 상자 75/220/75 h22 · 아래 상자 수량 · 인수 네 칸 */
+.ec-slip-stmt td.title.is-u { text-decoration: underline; }
+.ec-slip-ship { width: 100%; margin: 0 0 6px; border-collapse: collapse; table-layout: fixed; }
+.ec-slip-ship th,
+.ec-slip-ship td { height: 22px; padding: 0 3px; border: 1px solid var(--ec-ink); font-size: 12px; text-align: left; }
+.ec-slip-ship th { background: var(--ec-bg-ledger-head); font-weight: 700; text-align: center; }
+.ec-slip-foot.is-ship th { width: auto; font-weight: 700; background: var(--ec-bg-ledger-head); }
+.ec-slip-foot.is-ship th,
+.ec-slip-foot.is-ship td { height: 22px; }
+.ec-slip-foot.is-ship td:last-child { width: auto; }
 .ec-slip-cut { margin: 18px 0; border-top: 1px dashed var(--ec-line-ledger); }
 /* 인쇄용 한 벌 — 화면에는 안 보이고, 인쇄할 때는 이것만 보인다(나머지 body 자식은 감춘다). */
 .ec-slip-print-out { display: none; }

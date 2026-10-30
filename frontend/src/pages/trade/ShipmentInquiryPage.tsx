@@ -8,7 +8,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 import { dateNo } from '../../utils/dateNo'
-import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
+import { loadSupplierParty, type DocParty } from '../../utils/printDocument'
+import EcSlipPrintModal, { type SlipPrintDoc } from '../../components/EcSlipPrintModal'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import Modal from '../../components/Modal'
@@ -52,37 +53,20 @@ type Tab = (typeof TABS)[number]
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /**
- * 원본 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 종이로 찍는다.
- *
- * <p><b>금액 칸(단가·공급가액·부가세)은 안 그린다.</b> 출하 전표에는 <b>부가세가 없다</b> —
- * 부가세는 판매 전표가 매긴다. 0 으로 채워 그리면 "부가세 0원" 이 되어, 과세 거래인데
- * 면세처럼 읽히는 종이가 나간다. 대신 우리가 <b>아는 값</b>인 출하금액 합계는 머리 항목에
- * 적는다 — 없는 값을 지어내지 않으면서 아는 값은 버리지 않는다.
+ * 원본 격자의 마지막 열 <b>[인쇄]</b> — 목록 위 '출하' 인쇄 미리보기 창(2026-10-31 loginad C000138 실측: 출하전표 · 공 급 자 상자 ·
+ * 출하창고 · 출하일 · 납품지주소, 품목명(규격) · 수량(단위포함) · 적요, 총합계, 수량 · 인수, ✓기본(수정불가) 두 장). 금액 칸은 원본도 없다.
  */
-async function printShipment(r: Shipment, company: DocParty | null) {
-  await printDocuments([{
-    title: '출 하 증',
-    docNo: r.shipNo,
-    docDate: r.shipDate,
-    hideAmounts: true,
-    supplier: company ? { ...company, label: '공급자' } : { label: '공급자', name: '(회사정보 미등록)' },
-    customer: { label: '공급받는자', name: r.partnerName },
-    extra: [
-      { label: '출하창고', value: r.warehouseName },
-      { label: '근거주문', value: r.salesOrderNo },
-      { label: '담당', value: r.employeeName ?? r.createdBy },
-      { label: '연락처', value: r.contact },
-      { label: '배송지', value: r.address },
-      { label: '발송여부', value: r.statusName },
-      { label: '출하금액', value: r.totalAmount.toLocaleString('ko-KR') },
-    ],
-    remark: r.remark,
-    lines: r.lines.map((l) => ({
-      itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit,
-      quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
-    })),
-    footNote: '위 물품을 틀림없이 인수하였음을 확인합니다.',
-  }])
+function shipmentSlip(r: Shipment, company: DocParty | null): SlipPrintDoc {
+  const no = dateNo(r.shipDate, r.shipNo)
+  return {
+    key: r.id, title: '출하전표', docNo: no, date: r.shipDate.replace(/-/g, '/'), right: [], lines: [],
+    totalQty: r.lines.reduce((a, l) => a + Number(l.quantity), 0).toLocaleString(), supply: '', vat: '', total: '',
+    shipment: {
+      supplier: { docNo: no, tel: company?.tel ?? '', bizRegNo: company?.bizRegNo ?? '', ceo: company?.ceo ?? '', name: company?.name ?? '', address: company?.address ?? '' },
+      toName: r.partnerName, warehouse: r.warehouseName ?? '', date: r.shipDate.replace(/-/g, '/'), address: r.address ?? '',
+      lines: r.lines.map((l) => ({ name: l.spec ? `${l.itemName} [${l.spec}]` : l.itemName, qty: `${Number(l.quantity).toLocaleString()}${l.unit ?? ''}`, remark: l.remark ?? '' })),
+    },
+  }
 }
 
 export default function ShipmentInquiryPage() {
@@ -113,6 +97,7 @@ export default function ShipmentInquiryPage() {
   const entry = useShipmentEntry(editing)
   /* 인쇄물 머리의 공급자 칸. 회사정보를 한 번만 받아 둔다. */
   const [company, setCompany] = useState<DocParty | null>(null)
+  const [slipDocs, setSlipDocs] = useState<SlipPrintDoc[] | null>(null)
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -266,7 +251,7 @@ export default function ShipmentInquiryPage() {
         /* 2026-10-30 클릭 대조: [Email] · [바코드(품목)] 알림, [진행상태변경] 은 고른 줄 없어도 메뉴, [이력조회] '출하 이력조회' 창. */
         { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
         { label: '진행상태변경', onClick: openStatusMenu },
-        { label: '인쇄', selected: checked.size, onClick: () => { shown.filter((r) => checked.has(r.id)).forEach((r) => void printShipment(r, company)) } },
+        { label: '인쇄', selected: checked.size, onClick: () => { const list = shown.filter((r) => checked.has(r.id)); if (list.length) setSlipDocs(list.map((r) => shipmentSlip(r, company))) } },
         { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size },
         { label: '선택삭제', selected: checked.size, onClick: () => void remove([...checked]) },
         { label: 'Excel' },
@@ -365,6 +350,7 @@ export default function ShipmentInquiryPage() {
       <div className="mb-[8px] text-[12.5px] text-ec-hint text-right">총 {shown.length}건</div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {slipDocs && <EcSlipPrintModal title="출하" docs={slipDocs} forms={['기본(수정불가)']} width={782} onClose={() => setSlipDocs(null)} />}
 
       <ul className="ec-tabs">
         {TABS.map((t) => <li key={t} className={`ec-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}{t === '전체' ? '*' : ''}</li>)}
@@ -418,7 +404,7 @@ export default function ShipmentInquiryPage() {
               <td>{r.lines[0]?.itemName}{r.lines[0]?.spec ? ` [${r.lines[0].spec}]` : ''}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
               <td className="text-right">{qty2(r.totalQuantity)}</td>
               <td>{r.partnerName}</td>
-              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); void printShipment(r, company) }}>인쇄</a></td>
+              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setSlipDocs([shipmentSlip(r, company)]) }}>인쇄</a></td>
             </tr>
           ))}
         </tbody>
