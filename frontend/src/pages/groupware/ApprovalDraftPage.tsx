@@ -56,8 +56,12 @@ function initialFormData(t: ApprovalFormTemplate): Record<string, unknown> {
 }
 
 /** 전자결재 > 기안서작성 — 좌측 양식 목록 + 우측 기안 편집기. 양식별 입력항목은 서버가 내려준다. */
-export default function ApprovalDraftPage() {
-  const navigate = useNavigate()
+export default function ApprovalDraftPage({ embedded }: {
+  /** 내결재관리 [신규(F2)] 처럼 떠 있는 창 안에 그릴 때 — 저장 · 삭제 뒤 페이지를 옮기지 않고 창만 닫는다. busy: 작성 폼이 떠 있는 동안 true(Esc 가 창까지 닫지 않게). */
+  embedded?: { onDone: () => void; busy?: { current: boolean } }
+} = {}) {
+  const routerNavigate = useNavigate()
+  const navigate = (to: string) => (embedded ? embedded.onDone() : routerNavigate(to))
   // 기안서통합관리의 '기안서복사'가 원본 문서를 넘겨준다.
   const navState = useLocation().state as { copyFrom?: ApprovalDoc; editOf?: ApprovalDoc } | null
   const copyFrom = navState?.copyFrom ?? null
@@ -68,6 +72,7 @@ export default function ApprovalDraftPage() {
   /** 원본 [구분] 코드도움의 후보 — '구분검색'(01 지출결의서 · 02 휴가신청서 …). */
   const [groups, setGroups] = useState<ApprovalGroup[]>([])
   const [selected, setSelected] = useState<ApprovalFormTemplate | null>(null)
+  useEffect(() => { if (embedded?.busy) embedded.busy.current = !!selected }, [embedded, selected])
   /** 원본: 결재문서가 '근태관리' 인 양식(휴가신청서)을 열면 [근태입력] 창이 같이 뜬다(2026-10-30 실측). */
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   /*
@@ -345,8 +350,8 @@ export default function ApprovalDraftPage() {
   return (
     <div className="flex flex-col min-h-[100%]">
       <div className="flex items-center mb-[8px]">
-        <span className="text-ec-star mr-[4px]"><EcIcon name="star-outline" size={13} glyph="☆" /></span>
-        <span className="text-[15px] font-extrabold text-ec-text">{TITLE}</span>
+        {!embedded && <span className="text-ec-star mr-[4px]"><EcIcon name="star-outline" size={13} glyph="☆" /></span>}
+        {!embedded && <span className="text-[15px] font-extrabold text-ec-text">{TITLE}</span>}
         <div className="ml-auto flex items-center gap-[4px] relative">
           <input
             className="ec-input"

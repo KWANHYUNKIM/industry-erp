@@ -414,6 +414,8 @@ export default function EcDrivePage() {
               )}
             />
           )}
+          {/* 원본: Shared Drive 아래 구분선 뒤에 중요문서함 · 휴지통 */}
+          {treeOpen && <div className="my-[6px] border-t border-t-ec-line-soft border-solid" />}
           {treeOpen && TREE.filter((t) => !t.drive).map((t) => (
             <button key={t.key} type="button" onClick={() => open(t.key, null)}
                     className={`no-ec flex items-center gap-[6px] w-full text-left py-[7px] px-[14px] text-[12.5px] border-0 cursor-pointer ${

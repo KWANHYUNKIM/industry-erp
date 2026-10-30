@@ -17,6 +17,8 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { periodOf } from '../../utils/periods'
+import AppWindow from '../../features/appbar/AppWindow'
+import ApprovalDraftPage from './ApprovalDraftPage'
 import StampSignModal from '../../features/approval/components/StampSignModal'
 
 /**
@@ -39,6 +41,9 @@ type Tab = (typeof TABS_MINE)[number] | (typeof TABS_ALL)[number]
 
 /** [라벨] 단추의 '라벨없음' — 라벨을 달지 않은 문서만 */
 const LABEL_NONE = '(라벨없음)'
+/** [라벨] 팝업의 '라벨있음' — 라벨이 달린 문서만 */
+const LABEL_ANY = '(라벨있음)'
+const labelText0 = (v: string) => (v === LABEL_NONE ? '라벨없음' : v === LABEL_ANY ? '라벨있음' : v)
 
 /**
  * 원본 [Option](2026-10-30 E070105 · E070108 클릭 대조) — 검색항목설정 · 양식설정 · 조건양식설정.
@@ -136,7 +141,7 @@ export default function ApprovalListPage({
   const delView = isAll && tab === '삭제'
   /** 내결재관리 [기안중] 알약 — 하단 [보내기] · [결재/검토완료] · [인쇄] 가 없다 */
   const draftTab = !isAll && tab === '기안중'
-  const colCount = delView ? 9 : isAll ? 12 : 10
+  const colCount = delView ? 9 : 12
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   /** 기안서 작성 화면이 넘겨준 저장 결과(번호). 넘어오자마자 보여 줄 자리가 여기뿐이다. */
@@ -165,6 +170,11 @@ export default function ApprovalListPage({
   const [labelOpen, setLabelOpen] = useState(false)
   const [picksOpen, setPicksOpen] = useState(false)
   const [stampOpen, setStampOpen] = useState(false)
+  /** 내결재관리 [신규(F2)] — 원본은 '기안서작성' 이 떠 있는 창이다(2026-10-31 클릭 대조). busy: 그 안의 작성 폼이 떠 있는 동안 Esc 가 창까지 닫지 않게. */
+  const [draftWinOpen, setDraftWinOpen] = useState(false)
+  const draftBusy = useRef(false)
+  const [labelTyping, setLabelTyping] = useState(false)
+  const [labelText, setLabelText] = useState('')
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -235,7 +245,7 @@ export default function ApprovalListPage({
     .filter((r) => !formType || catOf(r) === formType)
     .filter((r) => !dept || (r.department ?? '') === dept)
     .filter((r) => !project || String(r.projectId ?? '') === project)
-    .filter((r) => !labelCond || (labelCond === LABEL_NONE ? !r.labelText : (r.labelText ?? '') === labelCond))
+    .filter((r) => !labelCond || (labelCond === LABEL_NONE ? !r.labelText : labelCond === LABEL_ANY ? !!r.labelText : (r.labelText ?? '') === labelCond))
     .filter((r) => !drafterCond || r.drafterName.includes(drafterCond))
     .filter((r) => !contentCond || (r.content ?? '').includes(contentCond))
     .filter((r) => !titleCond || r.title.includes(titleCond))
@@ -426,18 +436,35 @@ export default function ApprovalListPage({
           <span className="relative">
             <button type="button" className={`ec-btn${labelCond ? ' ec-btn-primary' : ''}`} aria-haspopup="menu" aria-expanded={labelOpen}
                     onClick={() => setLabelOpen((v) => !v)}>
-              {labelCond === LABEL_NONE ? '라벨없음' : labelCond || '라벨'}
+              {labelCond ? labelText0(labelCond) : '라벨'}
             </button>
             {labelOpen && (
               <>
                 <div className="ec-backdrop-clear" onClick={() => setLabelOpen(false)} />
                 <div className="ec-menu left-0 right-auto" role="menu">
-                  {[LABEL_NONE, ...labels].map((v) => (
-                    <button key={v} type="button" role="menuitemcheckbox" aria-checked={labelCond === v}
-                            onClick={() => { setLabelOpen(false); setPage(1); setLabelCond((c) => (c === v ? '' : v)) }}>
-                      {labelCond === v ? '✓ ' : ''}{v === LABEL_NONE ? '라벨없음' : v}
+                  {/* 원본 팝업: 체크 [전체] [라벨있음] + 아래 줄 ↵ · + · × 아이콘(2026-10-31 클릭 대조). 우리는 라벨없음 · 쓰고 있는 라벨도 이어 둔다. */}
+                  {['', LABEL_ANY, LABEL_NONE, ...labels].map((v) => (
+                    <button key={v || 'all'} type="button" role="menuitemcheckbox" aria-checked={labelCond === v}
+                            onClick={() => { setLabelOpen(false); setPage(1); setLabelCond(v) }}>
+                      <input type="checkbox" readOnly tabIndex={-1} checked={labelCond === v} className="mr-[6px] align-middle" />
+                      {v === '' ? '전체' : labelText0(v)}
                     </button>
                   ))}
+                  {labelTyping && (
+                    <div className="px-[8px] py-[4px]">
+                      <input className="ec-input w-full" autoFocus aria-label="라벨 찾기" placeholder="라벨 이름" value={labelText}
+                             onChange={(e) => setLabelText(e.target.value)}
+                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setLabelOpen(false); setPage(1); setLabelCond(labelText.trim()); setLabelTyping(false) } }} />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-end gap-[4px] px-[8px] py-[4px] border-t border-t-ec-line-soft border-solid">
+                    <button type="button" className="ec-btn ec-btn-sm" aria-label="적용" title="적용"
+                            onClick={() => { setLabelOpen(false); setLabelTyping(false); if (labelTyping) { setPage(1); setLabelCond(labelText.trim()) } }}>↵</button>
+                    <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 이름으로 찾기" title="라벨 이름으로 찾기"
+                            onClick={() => setLabelTyping((v) => !v)}><EcIcon name="plus" size={11} glyph="+" /></button>
+                    <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 조건 풀기" title="라벨 조건 풀기"
+                            onClick={() => { setLabelOpen(false); setLabelTyping(false); setLabelText(''); setPage(1); setLabelCond('') }}><EcIcon name="close" size={11} glyph="×" /></button>
+                  </div>
                 </div>
               </>
             )}
@@ -474,7 +501,7 @@ export default function ApprovalListPage({
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       <div className="ec-pills" style={{ marginBottom: 6 }}>
-        {TABS.map((t) => (
+        {TABS.filter((t) => t !== '수신참조').map((t) => (
           <button
             key={t} type="button" onClick={() => { setTab(t); setPage(1); setSelected(new Set()) }}
             className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
@@ -482,6 +509,13 @@ export default function ApprovalListPage({
             {t}
           </button>
         ))}
+        {/* 원본 내결재관리: 수신참조는 알약 줄 오른쪽 끝의 파란 드롭다운 단추(2026-10-31 클릭 대조) */}
+        {!isAll && (
+          <button type="button" className={`ec-btn ec-btn-primary ml-auto${tab === '수신참조' ? ' active' : ''}`} aria-pressed={tab === '수신참조'}
+                  onClick={() => { setTab(tab === '수신참조' ? '전체' : '수신참조'); setPage(1); setSelected(new Set()) }}>
+            수신참조 <EcIcon name="caret-down" size={10} glyph="▾" />
+          </button>
+        )}
       </div>
 
       {/* 원본은 조건을 접어 두고 [Search(F3)] 로 편다. 펴면 기안일자 기간 + 조건들이 나온다. */}
@@ -563,12 +597,12 @@ export default function ApprovalListPage({
 
       {/* 원본: 쪽번호(한 쪽 15줄)는 왼쪽, 기안일자 기간은 오른쪽 — 표 바로 위 */}
       <div className="flex items-center gap-[6px] mb-[4px]">
-        <div className="ec-paging">
+        {pages > 1 && <div className="ec-paging">
           {Array.from({ length: pages }, (_, k) => k + 1).map((p) => (
             <button key={p} type="button" className={p === curPage ? 'active' : ''} onClick={() => setPage(p)}>{p}</button>
           ))}
-        </div>
-        <span className="text-[12px] text-ec-ink">/ {pages}</span>
+        </div>}
+        {pages > 1 && <span className="text-[12px] text-ec-ink">/ {pages}</span>}
         <span className="ml-auto text-[12px] text-ec-ink">{from.replace(/-/g, '/')} ~{to.replace(/-/g, '/')}</span>
       </div>
 
@@ -584,16 +618,15 @@ export default function ApprovalListPage({
               </th>
               <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
               <th>제목</th>
-              {isAll && !delView && <th className="text-center">ERP전표(건)</th>}
-              {isAll && <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>}
+              {!delView && <th className="text-center">ERP전표(건)</th>}
+              {<th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>}
               <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
               <th>결재자</th>
               {!delView && <th className="text-center">진행상태</th>}
               <th className="text-center">결재</th>
               {!delView && <th className="text-center">기안서복사</th>}
-              {isAll && !delView && <th className="text-center">조회</th>}
+              {!delView && <th className="text-center">조회</th>}
               {!delView && <th>연결전표</th>}
-              {!isAll && <th className="text-center">첨부</th>}
               {/* 작업자 · 작업일시는 통합관리 [삭제] 알약의 맨 마지막 두 열뿐이다(2026-10-20 실측 — 다른 알약 · 내결재관리에는 없다). */}
               {delView && <th className="w-[90px]">작업자</th>}
               {delView && <th className="w-[150px]">작업일시</th>}
@@ -620,9 +653,9 @@ export default function ApprovalListPage({
                   {r.labelText && <span className="ec-label-chip bg-ec-disabled text-ec-ink mr-[5px]">{r.labelText}</span>}
                   <a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a>
                 </td>
-                {isAll && !delView && <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>}
+                {!delView && <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>}
                 {/* 원본 [구분]은 기안서의 구분(휴가신청서 · 지출결의서)이다 — 구분 없는 문서(비품 구매 신청서)는 빈칸. 양식 이름은 칸 풍선으로. */}
-                {isAll && <td title={r.formTypeName}>{catOf(r)}</td>}
+                <td title={r.formTypeName}>{catOf(r)}</td>
                 <td>{r.drafterName}</td>
                 <td>{r.currentApproverName ?? ''}</td>
                 {!delView && (
@@ -642,7 +675,7 @@ export default function ApprovalListPage({
                   {/* 원본은 기안중(임시저장) 줄의 [기안서복사] 가 빈칸이다. */}
                   {r.status !== 'DRAFTING' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => copy(r)}>복사</button>}
                 </td>}
-                {isAll && !delView && <td className="text-center" />}
+                {!delView && <td className="text-center" />}
                 {!delView && <td className="whitespace-nowrap">
                   {r.vouchers.map((v) => (
                     <span key={v.id} className="inline-block mr-[4px] py-[1px] px-[6px] rounded-[10px] text-[11px] bg-ec-blue-wash text-ec-navy">
@@ -650,7 +683,6 @@ export default function ApprovalListPage({
                     </span>
                   ))}
                 </td>}
-                {!isAll && <td className="text-center" title={r.attachmentName ?? undefined}>{r.attachmentId ? '📎' : ''}</td>}
                 {delView && <td>{r.lastActorName ?? ''}</td>}
                 {/* 원본 작업일시 '2026/10/14 오전 0:02:16' — 지운 때(서버가 지운 문서는 lastActedAt 에 deletedAt 을 싣는다) */}
                 {delView && <td>{r.lastActedAt ? actedText(r.lastActedAt) : ''}</td>}
@@ -670,7 +702,7 @@ export default function ApprovalListPage({
         */}
         {scope === 'mine' ? (
           <>
-            <button className="ec-btn ec-btn-primary" onClick={() => navigate('/groupware/approval/draft')}>
+            <button className="ec-btn ec-btn-primary" onClick={() => setDraftWinOpen(true)}>
               신규(F2)
             </button>
             <button className="ec-btn" onClick={() => setStampOpen(true)}>My도장/서명</button>
@@ -700,6 +732,13 @@ export default function ApprovalListPage({
           onDelete={remove}
           onSubmit={isMine(detail) && !detail.deleted && detail.status === 'DRAFTING' ? submitDraft : undefined}
         />
+      )}
+
+      {draftWinOpen && (
+        <AppWindow title="기안서작성" kind="ec-pagewin" popout="/groupware/approval/draft"
+                   onClose={() => { if (!draftBusy.current) setDraftWinOpen(false) }}>
+          <ApprovalDraftPage embedded={{ busy: draftBusy, onDone: () => { draftBusy.current = false; setDraftWinOpen(false); void load() } }} />
+        </AppWindow>
       )}
 
       {stampOpen && user && <StampSignModal user={`${companyCode ?? ""}:${user.username}`} onClose={() => setStampOpen(false)} />}

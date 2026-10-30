@@ -60,6 +60,8 @@ export default function DriveFolderTree({
                   onContextMenu={(e) => { if (onContextMenu) { e.preventDefault(); onContextMenu(drive, e) } }}
                   className={`no-ec flex items-center gap-[6px] w-full text-left py-[7px] px-[14px] text-[12.5px] border-0 cursor-pointer ${
                     on(drive, null) ? 'bg-ec-blue-wash text-ec-blue font-bold' : 'bg-transparent text-ec-text'}`}>
+            {/* 원본: Shared Drive 머리 앞에 ▷ (2026-10-31 클릭 대조) */}
+            {drive === 'SHARED' && <span className="text-ec-label text-[10px] -mr-[2px]">▷</span>}
             <span>{drive === 'MY' ? '📁' : '👥'}</span>{drive === 'MY' ? 'My Drive' : 'Shared Drive'}
           </button>
           {extra?.(drive)}

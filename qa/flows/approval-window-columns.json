@@ -1,0 +1,34 @@
+{
+  "about": "전자결재 클릭 대조 2차(2026-10-31) — 내결재관리 [신규(F2)] 는 페이지 이동이 아니라 떠 있는 창 '기안서작성'(제목줄 새창 · 고정 · 새로고침 · 최대 · 닫기, 표 정렬순서/양식명/구분/결재문서), [라벨] 팝업 전체/라벨있음/라벨없음 + ↵ + ×, [수신참조] 는 알약 줄 오른쪽 끝 파란 단추, 표 머리 ERP전표(건)·구분·조회(첨부 없음), 쪽이 하나면 쪽번호 동그라미 없음. 아무것도 저장하지 않는다. node qa/shot.mjs qa/flows/approval-window-columns.json",
+  "shots": [
+    {
+      "name": "내결재관리 — 신규(F2) 창 · 라벨 팝업 · 수신참조 단추 · 표 머리",
+      "path": "/groupware/approval/my",
+      "steps": [
+        "wait:1200",
+        "js:window.__B=(t)=>[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()===t);true",
+        "expect:[...document.querySelectorAll('thead th')].map((t)=>t.textContent.trim().replace(/[▲▼ ]/g,'')).join('|').includes('ERP전표(건)|구분|기안자') && [...document.querySelectorAll('thead th')].some((t)=>t.textContent.trim()==='조회') && ![...document.querySelectorAll('thead th')].some((t)=>t.textContent.trim()==='첨부')",
+        "expect:![...document.querySelectorAll('.ec-pill')].some((p)=>p.textContent.trim()==='수신참조') && (()=>{const b=[...document.querySelectorAll('button')].find((x)=>x.textContent.trim().startsWith('수신참조'));return !!b && b.classList.contains('ec-btn-primary')})()",
+        "js:__B('라벨').click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=menu] button')].map((b)=>b.textContent.trim()).slice(0,3).join('|')==='전체|라벨있음|라벨없음' && !!document.querySelector('[role=menu] [aria-label=\"적용\"]') && !!document.querySelector('[role=menu] [aria-label=\"라벨 조건 풀기\"]')",
+        "js:document.querySelector('[role=menu] [aria-label=\"라벨 조건 풀기\"]').click();true",
+        "wait:300",
+        "js:__B('신규(F2)').click();true",
+        "wait:900",
+        "expect:location.pathname==='/groupware/approval/my' && (()=>{const d=document.querySelector('[role=dialog]');return !!d && d.getAttribute('aria-label')==='기안서작성' && ['새창','고정','새로고침','최대화','닫기'].every((n)=>!!d.querySelector('[aria-label=\"'+n+'\"]')) && ['정렬순서','양식명','구분','결재문서'].every((h)=>d.innerText.includes(h)) && d.innerText.includes('Search(F3)')})()",
+        "js:document.querySelector('[role=dialog] [aria-label=\"닫기\"]').click();true",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog]')"
+      ]
+    },
+    {
+      "name": "주요전달사항 — 세 구획이 각자 스크롤",
+      "path": "/groupware/key-notice",
+      "steps": [
+        "wait:1200",
+        "expect:['1. 미확인쪽지보기','2. 결재할문서','3. 수신참조문서'].every((t)=>document.body.innerText.includes(t))"
+      ]
+    }
+  ]
+}

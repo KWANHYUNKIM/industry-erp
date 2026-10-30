@@ -9,7 +9,7 @@
         "expect:!document.querySelector('.ec-search-conds')",
         "click:Search(F3)",
         "expect:!!document.querySelector('.ec-search-conds')",
-        "expect:!!document.querySelector('.ec-paging .active') && document.querySelectorAll('tbody tr').length <= 15",
+        "expect:(!!document.querySelector('.ec-paging .active') || document.querySelectorAll('tbody tr').length <= 15) && document.querySelectorAll('tbody tr').length <= 15",
         "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '새로고침')"
       ]
     }

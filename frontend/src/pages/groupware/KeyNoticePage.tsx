@@ -17,6 +17,7 @@ import { ecAlert } from '../../components/EcDialog'
  *   3. 수신참조문서   — 내가 수신참조로 지정된 기안서
  * 상단에는 [Option]·[도움말]뿐이고 검색창도 하단 버튼줄도 없다.
  *
+ * 세 구획은 각자 높이를 갖고 안에서 스크롤한다 — 쪽지가 많아도 2 · 3 구획이 화면 아래로 밀리지 않는다(2026-10-31 클릭 대조).
  * 컬럼 폭은 원본 실측(컨테이너 2266px 기준)을 비율로 옮겼다.
  */
 
@@ -135,7 +136,8 @@ export default function KeyNoticePage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <SectionTitle>1. 미확인쪽지보기</SectionTitle>
-      <table className="w-full text-left mb-[12px]">
+      <div className="max-h-[26vh] overflow-y-auto mb-[12px]">
+      <table className="w-full text-left">
         <colgroup>{NOTE_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
           <tr><th className="text-center">보낸사람</th><th>내용</th><th className="text-center">발송일자</th><th className="text-center">연결전표</th></tr>
@@ -156,20 +158,25 @@ export default function KeyNoticePage() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <SectionTitle>2. 결재할문서</SectionTitle>
-      <table ref={tableRef} className="w-full text-left mb-[12px]">
+      <div className="max-h-[26vh] overflow-y-auto mb-[12px]">
+      <table ref={tableRef} className="w-full text-left">
         <colgroup>{DOC_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead><tr>{DOC_HEADS.map((h) => <th key={h}>{h}</th>)}</tr></thead>
         <tbody>{docRows(pending)}</tbody>
       </table>
+      </div>
 
       <SectionTitle>3. 수신참조문서</SectionTitle>
+      <div className="max-h-[26vh] overflow-y-auto">
       <table className="w-full text-left">
         <colgroup>{DOC_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead><tr>{DOC_HEADS.map((h) => <th key={h}>{h}</th>)}</tr></thead>
         <tbody>{docRows(referenced)}</tbody>
       </table>
+      </div>
 
       {detail && (
         <ApprovalDetailModal
