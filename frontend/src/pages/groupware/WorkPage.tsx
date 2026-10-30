@@ -349,10 +349,13 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [statusBlank, setStatusBlank] = useState(false)
-  /** [담당자] 사원검색 — 사원 마스터(코드 · 이름). */
+  /**
+   * [담당자] 사원검색 — 사원(담당) 마스터(코드 · 이름). 원본 칸반 예시의 담당자 '정다인' 은 관리 사원(30명)에 없고
+   * 재고 I › 사원(담당)등록에만 있다(2026-10-30 실측) — 전표의 [담당자] 와 같은 마스터.
+   */
   const [employees, setEmployees] = useState<{ code: string; name: string }[]>([])
   useEffect(() => {
-    if (cfg.extras?.some((x) => x.type === 'emp')) api.get<{ code: string; name: string }[]>('/employees').then((r) => setEmployees(r.data)).catch(() => {})
+    if (cfg.extras?.some((x) => x.type === 'emp')) api.get<{ code: string; name: string }[]>('/sales-reps').then((r) => setEmployees(r.data)).catch(() => {})
   }, [cfg.extras])
   /** [거래처] · [품목] 코드도움 후보(거래처 · 품목 마스터). */
   const [partnerList, setPartnerList] = useState<{ code: string; name: string }[]>([])
