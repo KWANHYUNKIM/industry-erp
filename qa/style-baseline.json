@@ -104,6 +104,11 @@
   "color": 0,
   "palette": 0
  },
+ "features/approval/components/RichBodyEditor.tsx": {
+  "inline": 1,
+  "color": 0,
+  "palette": 0
+ },
  "features/item/components/ItemSuggestInput.tsx": {
   "inline": 1,
   "color": 0,
@@ -435,8 +440,8 @@
   "palette": 0
  },
  "pages/groupware/ApprovalDraftPage.tsx": {
-  "inline": 22,
-  "color": 9,
+  "inline": 8,
+  "color": 5,
   "palette": 0
  },
  "pages/groupware/ApprovalListPage.tsx": {

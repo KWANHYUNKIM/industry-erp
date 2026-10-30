@@ -1,0 +1,71 @@
+{
+  "about": "본문 편집 도구 모음(원본 기안서작성 편집 도구 모음, 2026-10-30 실측 11-편집도구모음.png) — 공통양식 입력화면설정 [기안내용] 에서 삽입 › 표 ▾ 로 2×3 표를 넣고, 첫 줄 두 칸을 끌어 골라 레이아웃 › 칸 합치기, 둘째 줄을 골라 테두리 ▾ 2px 모든 테두리 · 서식 › 칸 바탕색 ▾ 을 칠하고 [저장(F8)] → 서버 __body 에 colspan · 2px 선 · 바탕색이 실렸나(고른 표시 ec-cell-sel 은 안 실림) → 다시 열면 그대로 → 기안서작성에서 그 양식이 그 표로 열리고 도구 모음 묶음 이름표(글꼴 · 서식 · 삽입 · 레이아웃)가 있나. 끝에 양식을 지운다(회사 0001). node qa/shot.mjs qa/flows/approval-editor-table.json",
+  "shots": [
+    {
+      "name": "표 넣기 → 합치기 · 테두리 · 바탕색 → 저장",
+      "path": "/groupware/approval/settings?tab=공통양식등록",
+      "steps": [
+        "wait:800",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ts = await (await fetch('/api/approval-settings/templates', { headers: H })).json(); for (const t of ts.filter((x) => x.name === 'QA그룹웨어-편집기')) await fetch('/api/approval-settings/templates/' + t.id, { method: 'DELETE', headers: H }); location.reload(); return true })()",
+        "wait:2500",
+        "click:신규(F2)",
+        "setnear:양식명|QA그룹웨어-편집기",
+        "click:저장(F8)",
+        "wait:900",
+        "expect:['글꼴', '서식', '삽입', '레이아웃'].every((n) => [...document.querySelectorAll('.ec-ed-label')].some((x) => x.textContent === n)) && !!document.querySelector('[aria-label=\"글꼴\"]') && document.querySelector('[aria-label=\"글꼴\"]').value === '돋움'",
+        "js:document.querySelector('[data-tool=\"table\"] .ec-ed-caret').click(); true",
+        "wait:150",
+        "js:document.querySelector('[aria-label=\"2×3 표\"]').click(); true",
+        "wait:150",
+        "expect:(() => { const t = document.querySelector('[aria-label=\"기안내용\"][contenteditable] table'); return !!t && t.rows.length === 2 && t.rows[0].cells.length === 3 })()",
+        "js:(() => { const t = document.querySelector('[aria-label=\"기안내용\"][contenteditable] table'); t.rows[0].cells[0].innerHTML = '구분'; t.rows[0].cells[1].innerHTML = '내용'; const a = t.rows[0].cells[0], b = t.rows[0].cells[1]; a.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); b.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); return t.querySelectorAll('.ec-cell-sel').length === 2 })()",
+        "js:document.querySelector('[data-tool=\"tableMerge\"] .ec-ed-caret').click(); true",
+        "wait:150",
+        "js:[...document.querySelectorAll('.ec-ed-item')].find((x) => x.textContent === '칸 합치기').click(); true",
+        "wait:150",
+        "expect:(() => { const t = document.querySelector('[aria-label=\"기안내용\"][contenteditable] table'); return t.rows[0].cells.length === 2 && t.rows[0].cells[0].colSpan === 2 && t.rows[0].cells[0].innerText.includes('구분') && t.rows[0].cells[0].innerText.includes('내용') })()",
+        "js:(() => { const t = document.querySelector('[aria-label=\"기안내용\"][contenteditable] table'); const a = t.rows[1].cells[0], b = t.rows[1].cells[2]; a.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); b.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); return t.querySelectorAll('.ec-cell-sel').length === 3 })()",
+        "js:document.querySelector('[data-tool=\"border\"] .ec-ed-caret').click(); true",
+        "wait:150",
+        "js:(() => { const s = document.querySelector('[aria-label=\"테두리 굵기\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '2'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:100",
+        "js:[...document.querySelectorAll('.ec-ed-item')].find((x) => x.textContent === '모든 테두리').click(); true",
+        "wait:150",
+        "js:(() => { const t = document.querySelector('[aria-label=\"기안내용\"][contenteditable] table'); const a = t.rows[1].cells[0], b = t.rows[1].cells[2]; a.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); b.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); document.querySelector('[data-tool=\"cellBg\"] .ec-ed-caret').click(); return true })()",
+        "wait:150",
+        "js:document.querySelector('.ec-ed-panel [aria-label=\"#fff2cc\"]').click(); true",
+        "wait:150",
+        "expect:(() => { const td = document.querySelector('[aria-label=\"기안내용\"][contenteditable] table').rows[1].cells[1]; const cs = getComputedStyle(td); return cs.borderTopWidth === '2px' && cs.backgroundColor === 'rgb(255, 242, 204)' })()",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '저장(F8)').pop().click(); true",
+        "wait:900",
+        "expect:document.body.innerText.includes('QA그룹웨어-편집기 양식을 저장했습니다.')",
+        "expect:fetch('/api/approval-settings/templates', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((ts) => { const t = ts.find((x) => x.name === 'QA그룹웨어-편집기'); const b = t && t.fieldSchema.find((f) => f.key === '__body'); return !!b && /colspan=\"2\"/.test(b.html) && b.html.includes('border-width: 2px') && !b.html.includes('class=\"\"') && /background-color: rgb\\(255, 242, 204\\)/.test(b.html) && !b.html.includes('ec-cell-sel') })"
+      ]
+    },
+    {
+      "name": "다시 열면 합친 칸 · 테두리 · 바탕색이 그대로",
+      "path": "/groupware/approval/settings?tab=공통양식등록",
+      "steps": [
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent === 'QA그룹웨어-편집기').click(); true",
+        "wait:600",
+        "expect:(() => { const t = document.querySelector('[aria-label=\"기안내용\"][contenteditable] table'); if (!t) return false; const cs = getComputedStyle(t.rows[1].cells[2]); return t.rows[0].cells[0].colSpan === 2 && cs.borderRightWidth === '2px' && cs.backgroundColor === 'rgb(255, 242, 204)' && getComputedStyle(document.querySelector('[aria-label=\"기안내용\"][contenteditable]')).fontFamily.includes('Dotum') })()"
+      ]
+    },
+    {
+      "name": "기안서작성 — 원본 머리 · 도구 모음 · 그 표로 열린다",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === 'QA그룹웨어-편집기').click(); true",
+        "wait:600",
+        "expect:(() => { const d = document.querySelector('[role=dialog]'); const ed = d && d.querySelector('[aria-label=\"본문\"][contenteditable]'); const t = ed && ed.querySelector('table'); return !!t && t.rows[0].cells[0].colSpan === 2 && Math.round(ed.getBoundingClientRect().width) === 700 })()",
+        "expect:(() => { const d = document.querySelector('[role=dialog]'); const titles = [...d.querySelectorAll('.ec-form > li > .title')].map((x) => x.textContent.replace('*', '').trim()); return ['일자', '제목', '결재라인', '구분', '출력양식', '결재문서', '첨부', '라벨'].every((n) => titles.includes(n)) && !titles.includes('부서') && d.querySelectorAll('.ec-date select').length === 2 && d.querySelector('[aria-label=\"출력양식\"]').value === '기본양식(결재문서 별도 인쇄)' })()",
+        "expect:(() => { const d = document.querySelector('[role=dialog]'); const t = [...d.querySelectorAll('button')].map((b) => b.textContent.trim()); return ['저장/결재(F7)', '임시저장/미리보기', '양식샘플보기', 'My도장/서명', '닫기'].every((n) => t.includes(n)) && ['undo', 'redo'].length === 2 && !!d.querySelector('[aria-label=\"실행 취소\"]') && !!d.querySelector('[data-tool=\"dimension\"]') })()"
+      ]
+    }
+  ],
+  "finally": [
+    "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ts = await (await fetch('/api/approval-settings/templates', { headers: H })).json(); let n = 0; for (const t of ts.filter((x) => x.name === 'QA그룹웨어-편집기')) { await fetch('/api/approval-settings/templates/' + t.id, { method: 'DELETE', headers: H }); n++ } return 'cleanup ' + n })()"
+  ]
+}
