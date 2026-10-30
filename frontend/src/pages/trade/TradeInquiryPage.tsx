@@ -11,6 +11,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
+import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import TradeEntry from './TradeEntry'
 import Modal, { ModalWindow } from '../../components/Modal'
 import { EcDateRange } from '../../components/ui/EcDateInput'
@@ -147,6 +148,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [rawDocs, setRawDocs] = useState<(SalesDoc | PurchaseDoc)[]>([])
   // 원본 목록의 [선택삭제] 대상. 전표 입력 그리드와 같이 **행번호 칸을 눌러** 고른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  /** 하단 [이력조회 ▴] 로 연 '판매 이력조회' · '판매 II 이력조회' 창(서버 이력 메뉴 이름). */
+  const [historyMenu, setHistoryMenu] = useState<string | null>(null)
   // 열을 더할 때 합계행(tfoot)을 같이 안 고치면 숫자가 엉뚱한 열 아래에 선다. 개발 모드에서 잡는다.
   const listRef = useRef<HTMLTableElement>(null)
   // 명세서 인쇄용 — 우리 회사(공급자) 정보와 거래처 상세
@@ -512,13 +515,21 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
          * 전자결재 · 선택삭제 · Excel(표시형식) · 이력조회. Email · 보내기 · 바코드 · 전자결재 · 이력조회는 받쳐 줄 것이 없어 두지 않는다.
          * [회계반영] · [거래내역보기(판매)] 는 원본 판매조회에 없다(회계반영은 판매일괄회계반영 화면).
          */
-        { label: '진행상태변경', onClick: () => void confirmSelected(), selected: selected.size, menu: [
+        /* 2026-10-30 클릭 대조: [진행상태변경] 글자도 메뉴를 연다(원본 — 고른 줄 없음 알림은 고를 때), [Email] · [바코드(품목)] 알림,
+           [이력조회 ▴] 판매 이력조회 · 판매 II 이력조회 창. */
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
+        { label: '진행상태변경', menuOnly: true, menu: [
           { label: '미확인', onClick: () => void confirmSelected('unconfirm') },
           { label: '확인', onClick: () => void confirmSelected('confirm') },
         ] },
         { label: '인쇄' },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: selected.size },
         { label: '선택삭제', onClick: () => void deleteSelected(), selected: selected.size },
         { label: 'Excel' },
+        { label: '이력조회', onClick: () => setHistoryMenu('판매'), menu: [
+          { label: '판매 이력조회', onClick: () => setHistoryMenu('판매') },
+          { label: '판매 II 이력조회', onClick: () => setHistoryMenu('판매II') },
+        ] },
       ] : [
         /* 원본 버튼줄 차례: … 선택삭제 앞이 <b>[회계반영]</b> 이다. */
         { label: `회계반영${selected.size ? ` (${selected.size})` : ''}`,
@@ -535,6 +546,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {historyMenu && (
+        <SlipMenuHistoryModal menu={historyMenu} title={historyMenu === '판매II' ? '판매 II 이력조회' : '판매 이력조회'}
+                              noLabel="전표번호" itemLabel="품목명" onClose={() => setHistoryMenu(null)} />
+      )}
 
       {/*
         원본은 이 줄이 [상태 알약]…………[기간] 이다 — 왼쪽에 필터, 오른쪽 끝에 조회 기간.

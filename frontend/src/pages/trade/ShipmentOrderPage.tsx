@@ -9,7 +9,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateNo } from '../../utils/dateNo'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
+import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { EcDateRange } from '../../components/ui/EcDateInput'
@@ -80,6 +81,7 @@ export default function ShipmentOrderPage() {
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('전체')
   const [keyword, setKeyword] = useState('')
+  const [menuHistory, setMenuHistory] = useState(false)
   const [period0] = useState(defaultPeriod)
   const [from, setFrom] = useState(period0[0])
   const [to, setTo] = useState(period0[1])
@@ -173,16 +175,22 @@ export default function ShipmentOrderPage() {
       newLabel="신규(F2)"
       onNew={() => navigate('/sales/shipment-order-entry')}
       onReset={() => { setFrom(period0[0]); setTo(period0[1]); setNoCond(''); setWhCond(''); setPjCond(''); setPtCond(''); setItemCond(''); setByUpdated(false); setMgmtCond(''); setSendCond(''); setSpecCond(''); setPmgrCond(''); setRemarkCond(''); setAuthorCond(''); setDueCond(['', '']); setEmpCond(''); setContactCond(''); setAddrCond(''); setMade(['', '']); setEdited(['', '']) }}
+      /* 2026-10-30 클릭 대조: 원본 차례 신규 · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 전자결재 · 선택삭제 · Excel · 이력조회.
+         [진행상태변경] 글자도 메뉴를 연다(고른 줄 없음 알림은 고를 때), [이력조회] '출하지시서 이력조회' 창. */
       actions={[
-        { label: '진행상태변경', selected: checked.size, onClick: () => setStatus([...checked], 'COMPLETED'), menu: [
-          { label: '진행중', onClick: () => setStatus([...checked], 'IN_PROGRESS') },
-          { label: '완료', onClick: () => setStatus([...checked], 'COMPLETED') },
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
+        { label: '진행상태변경', menuOnly: true, menu: [
+          { label: '진행중', onClick: () => { if (requireSelection(checked.size)) void setStatus([...checked], 'IN_PROGRESS') } },
+          { label: '완료', onClick: () => { if (requireSelection(checked.size)) void setStatus([...checked], 'COMPLETED') } },
         ] },
         { label: '인쇄', selected: checked.size, onClick: () => { shown.filter((s) => checked.has(s.id)).forEach((s) => void printOne(s, company)) } },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size },
         { label: '선택삭제', selected: checked.size, onClick: removeChecked },
         { label: 'Excel' },
+        { label: '이력조회', onClick: () => setMenuHistory(true) },
       ]}
     >
+      {menuHistory && <SlipMenuHistoryModal menu="출하지시서" statusLabel="확인" onClose={() => setMenuHistory(false)} />}
       <ul className="ec-cond">
         <EcCond label="기준일자">
           <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />

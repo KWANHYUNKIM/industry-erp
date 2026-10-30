@@ -13,7 +13,8 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
+import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -59,6 +60,7 @@ export default function QuotationPage() {
   /** 빠른 검색칸(Search(F3) 옆) — 거래처명 · 일자-No. */
   const [keyword, setKeyword] = useState('')
   /** 하단 [진행상태변경 ▴] · [다른전표생성 ▴] 메뉴 — 버튼 위로 뜬다. */
+  const [historyWin, setHistoryWin] = useState(false)
   const [menuAt, setMenuAt] = useState<{ kind: 'status' | 'gen'; left: number; bottom: number } | null>(null)
   const [generated, setGenerated] = useState<{ quote: Quotation; rows: GeneratedRow[] } | null>(null)
   const [error, setError] = useState('')
@@ -345,6 +347,8 @@ export default function QuotationPage() {
   /** 원본 메뉴 '▾미확인 › 미확인', '▾확인 › 진행중 · 완료' — 고르면 말 없이 목록이 바뀐다. */
   async function changeStatus(status: QuotationStatus) {
     setMenuAt(null)
+    /* 원본은 고른 줄이 없어도 [진행상태변경] 메뉴를 먼저 띄운다 — 알림은 고를 때(2026-10-30 클릭 대조). */
+    if (!requireSelection(picked.size)) return
     const fails: string[] = []
     for (const id of picked) {
       try { await api.patch(`/quotations/${id}/status`, { status }) }
@@ -393,12 +397,17 @@ export default function QuotationPage() {
       onNew={() => navigate('/sales/quotation-entry')}
       /* 원본 차례(2026-10-14 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 다른전표생성 · 전자결재 · 선택삭제 · Excel(표시형식) · 이력조회 · 웹자료올리기 — 바깥 발송 · 결재는 뺀다. */
       actions={[
-        { label: '진행상태변경', onClick: () => openMenu('status', '진행상태변경'), selected: picked.size },
+        /* 2026-10-30 클릭 대조: [Email] 원본은 알림('데모에서는 …') · [바코드(품목)] 고른 줄 없으면 원본 알림 · [이력조회] '견적서 이력조회' 창. */
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
+        { label: '진행상태변경', onClick: () => openMenu('status', '진행상태변경') },
         { label: '인쇄' },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: picked.size },
         { label: '다른전표생성', onClick: () => openMenu('gen', '다른전표생성'), selected: picked.size },
         { label: '선택삭제', onClick: removeChecked, selected: picked.size },
         { label: 'Excel' },
+        { label: '이력조회', onClick: () => setHistoryWin(true) },
       ]}>
+      {historyWin && <SlipMenuHistoryModal menu="견적서" statusLabel="확인" onClose={() => setHistoryWin(false)} />}
       {menuAt && (
         <>
           <div className="ec-backdrop-clear" onClick={() => setMenuAt(null)} />
