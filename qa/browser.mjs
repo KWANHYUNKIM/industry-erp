@@ -8,7 +8,7 @@
  *   await b.close()
  */
 import { spawn } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -34,15 +34,32 @@ export async function login(username = process.env.ERP_USER ?? 'admin', password
  * <b>내가 띄운 Chrome 에만</b> 붙는다. 예전엔 스크립트마다 포트가 고정(9333 · 9335 …)이라, 작업자 둘이 같은 검사를
  * 동시에 돌리면 두 번째 Chrome 은 포트를 못 잡고, 두 번째 스크립트는 같은 포트의 <b>남의 Chrome</b> 에 붙어 그 화면을 몰았다.
  */
+/**
+ * 지난 실행이 남긴 erp-cdp-* 프로필 중 6시간 넘은 것을 지운다(지금 도는 다른 작업자의 프로필은 건드리지 않게 넉넉히).
+ * 잡혀 있는 폴더는 건너뛴다.
+ */
+function sweepStaleProfiles() {
+  const cut = Date.now() - 6 * 3600_000
+  let names = []
+  try { names = readdirSync(tmpdir()).filter((n) => n.startsWith('erp-cdp-')) } catch { return }
+  for (const n of names) {
+    const dir = join(tmpdir(), n)
+    try { if (statSync(dir).mtimeMs < cut) rmSync(dir, { recursive: true, force: true }) } catch { /* 잡혀 있다 */ }
+  }
+}
+
 export async function openBrowser({ port = Number(process.env.CDP_PORT ?? 0), width = 1600, height = 900 } = {}) {
   const token = await login()
+  sweepStaleProfiles()
   const profile = mkdtempSync(join(tmpdir(), 'erp-cdp-'))
   const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
     `--window-size=${width},${height}`, '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' })
   // 스크립트가 어떻게 끝나든(예외 · Ctrl-C · 작업자가 죽음) Chrome 을 같이 끈다 — 안 끄면 부모 없는 Chrome 이 남아
   // 메모리를 쥔다(2026-10-13 남은 것 19벌이 스왑 2.4GB 를 쥐고 있었다).
   const killChrome = () => { try { chrome.kill('SIGKILL') } catch { /* 이미 꺼짐 */ } }
-  process.once('exit', killChrome)
+  // 프로필 폴더(≈55MB)도 같이 지운다 — 시험이 실패해 close() 를 못 부르고 끝나면 폴더가 남아, 2026-10-30 87벌(4.8GB)이 C: 를
+  // 채워 Docker · DB 가 멈췄다. 'exit' 안에서는 동기만 되니 Chrome 을 죽이고 곧바로 지워 본다(잡혀 있으면 아래 청소가 다음에 지운다).
+  process.once('exit', () => { killChrome(); try { rmSync(profile, { recursive: true, force: true }) } catch { /* 다음 실행이 지운다 */ } })
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.once(sig, () => { killChrome(); process.exit(130) })
 
   let target
@@ -104,8 +121,11 @@ export async function openBrowser({ port = Number(process.env.CDP_PORT ?? 0), wi
   const close = async () => {
     ws.close()
     chrome.kill()
-    await sleep(500)
-    try { rmSync(profile, { recursive: true, force: true }) } catch { /* Chrome 이 아직 잡고 있으면 남겨 둔다 */ }
+    // 윈도에서는 Chrome 이 꺼진 뒤에도 잠깐 파일을 잡고 있다 — 몇 번 다시 지워 본다.
+    for (let i = 0; i < 10; i++) {
+      await sleep(500)
+      try { rmSync(profile, { recursive: true, force: true }); break } catch { /* 아직 잡혀 있다 */ }
+    }
   }
   const takeErrors = () => { const e = errors; errors = []; return e }
   /** 다른 계정으로 갈아탄다(결재자처럼 두 사람이 필요한 시험). 다음 goto 부터 그 계정이다. */
