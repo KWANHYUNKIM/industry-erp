@@ -59,11 +59,11 @@ function toggleAll(cur: string[], v: string, on: boolean, all: string[]) {
 }
 
 /**
- * 조건 판 거르기. 우리 글은 모두 본문(답글 없음) · 웹(ERP) 입력이고, 지운 글은 남지 않는다 —
- * 그래서 [답글] 만 · [웹(ERP)] 끔 · 삭제구분 [삭제] 면 빈 목록(원본 삭제 = '등록된 데이터가 없습니다.' 와 같다).
+ * 조건 판 거르기. [유형] 본문 = 원글, 답글 = 하위 글(parentId). 우리 글은 모두 웹(ERP) 입력이고, 지운 글은 남지 않는다 —
+ * 그래서 [웹(ERP)] 끔 · 삭제구분 [삭제] 면 빈 목록(원본 삭제 = '등록된 데이터가 없습니다.' 와 같다).
  */
 function passCond(r: WorkPost, c: CondExtra) {
-  if (!c.kinds.includes('본문')) return false
+  if (!c.kinds.includes(r.parentId != null ? '답글' : '본문')) return false
   if (!c.paths.includes('웹(ERP)')) return false
   if (c.del === '삭제') return false
   const done = r.completedAt?.slice(0, 10) ?? ''
@@ -309,7 +309,7 @@ function parseExtra(json?: string | null): Record<string, string> {
  *   <li>[인쇄]는 목록 하단이 아니라 View 안에 있다 — 글 한 건을 찍는다.</li>
  * </ul>
  *
- * <p>답글·복사·보내기·업무지원AI·라벨·이력조회는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도
+ * <p>보내기·업무지원AI·라벨·이력조회는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도
  * 아무 일 없는 버튼은 있는 것만 못하다.
  */
 export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: PostBoardCode; title?: string } = {}) {
@@ -486,6 +486,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   useShortcut('F8', applyCond, condOpen && !showForm && !viewing)
   useShortcut('F2', openNew, !showForm && !viewing && !masterOpen)
   useShortcut('F8', () => void submit(), showForm)
+  useShortcut('F8', () => { if (viewing) openReply(viewing) }, !!viewing && !showForm)
 
   const colorOf = (name: string) => labelMaster.find((l) => l.name === name)?.color
 
@@ -550,7 +551,20 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     setCopyId(r.id)
     setAttachment(null)
   }
+  /**
+   * View [답글(F8)] 로 연 입력 창의 원글. 원본 업무일지 답글 창(2026-10-21 실측)처럼 제목은 원글 그대로('Re:' 없음) · 본문은 비운다.
+   * 저장하면 원글 제목 뒤 '[n]' 이 하나 늘고, [모두펼쳐보기] 로 원글 아래에 하위 글 줄이 펴진다.
+   */
+  const [replyTo, setReplyTo] = useState<WorkPost | null>(null)
+  function openReply(r: WorkPost) {
+    const root = r.parentId != null ? rows.find((x) => x.id === r.parentId) ?? r : r
+    openNew()
+    setViewing(null)
+    setReplyTo(root)
+    setForm((f) => ({ ...f, title: root.title, content: '', stage: root.stage ?? f.stage }))
+  }
   function openNew() {
+    setReplyTo(null)
     setCopyId(null)
     setStatusBlank(false)
     setFormDirty(false)
@@ -569,6 +583,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 
   /** 원본 View 의 [수정] — 같은 입력 창을 '…입력(수정)' 으로 띄운다. */
   function openEdit(r: WorkPost) {
+    setReplyTo(null)
     setCopyId(null)
     setStatusBlank(false)
     setFormDirty(false)
@@ -680,7 +695,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         setEditId(null)
         setViewing(res.data)
       } else {
-        const res = await api.post<WorkPost>('/work-posts', { ...common, board, postDate: form.postDate })
+        const res = await api.post<WorkPost>('/work-posts', { ...common, board, postDate: form.postDate || null, parentId: replyTo?.id ?? null })
         if (cfg.minutes && form.status !== 'IN_PROGRESS') await api.patch(`/work-posts/${res.data.id}/status`, { status: form.status })
         // 원본 [저장(F8)▲](2026-10-21 상담 이력관리 · 칸반보드 실측): 저장/신규 = 빈 새 창, 저장/내용유지 = 저장한 글의 수정 창.
         if (after === 'keep') { openEdit(res.data); load(); return }
@@ -800,7 +815,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 <style>body{font-family:sans-serif;font-size:12px;padding:24px}h1{font-size:14px;margin:0 0 8px}
 .meta{margin-bottom:12px}.body{white-space:pre-wrap;border-top:1px solid;padding-top:12px}</style></head>
 <body><h1>${escapeHtml(`${r.postNo} | ${r.title} | ${r.writerName ?? r.writer} | ${stampText(r.createdAt)}`)}</h1>
-<div class="meta">일자-No. ${escapeHtml(`${dateText(r.postDate)} -1`)}${r.attachmentName ? ` · 첨부 ${escapeHtml(r.attachmentName)}` : ''}</div>
+<div class="meta">일자-No. ${escapeHtml(dateNoOf(r))}${r.attachmentName ? ` · 첨부 ${escapeHtml(r.attachmentName)}` : ''}</div>
 <div class="body">${isHtml(r.content) ? sanitizeHtml(r.content) : escapeHtml(r.content)}</div></body></html>`)
   }
 
@@ -809,7 +824,25 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     .filter((r) => tab === '전체' || statusOf(r) === tab)
     .filter(passLabel)
     .filter((r) => passCond(r, applied))
+    // [유형] 에 본문이 켜져 있으면 답글은 따로 줄을 서지 않고 원글 아래에 편다([모두펼쳐보기]). 답글만 고르면 답글이 줄을 선다.
+    .filter((r) => r.parentId == null || !applied.kinds.includes('본문'))
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? r.writer).includes(keyword))
+  /** 원글 id → 답글(먼저 단 차례). 원본 목록은 원글 제목 뒤에 '[답글 수]'(차량 증빙관리 · 상담 이력관리 2026-10-30 실측). */
+  const repliesOf = new Map<number, WorkPost[]>()
+  for (const r of [...rows].sort((a, b) => a.id - b.id)) {
+    if (r.parentId != null) repliesOf.set(r.parentId, [...(repliesOf.get(r.parentId) ?? []), r])
+  }
+  /** [일자-No.] 의 No. — 그 게시판에서 같은 일자에 올린 원글 차례(번호 작은 글이 1). 답글은 원글 것을 따른다. */
+  const dateSeq = new Map<number, number>()
+  {
+    const byDate = new Map<string, WorkPost[]>()
+    for (const r of rows) if (r.parentId == null) byDate.set(r.postDate, [...(byDate.get(r.postDate) ?? []), r])
+    for (const list of byDate.values()) list.sort((a, b) => a.postNo - b.postNo || a.id - b.id).forEach((r, i) => dateSeq.set(r.id, i + 1))
+  }
+  const dateNoOf = (r: WorkPost) => {
+    const root = r.parentId != null ? rows.find((x) => x.id === r.parentId) ?? r : r
+    return `${dateText(root.postDate)} -${dateSeq.get(root.id) ?? 1}`
+  }
   /*
    * 원본(2026-10-03 같은 글 넷을 넣어 견줌): 번호 붙은 줄은 공지 여부와 상관없이 <b>새 글부터</b>(15 · 14 · 13 · 12),
    * 공지사항여부를 켠 글은 그와 별도로 맨 위에 한 번 더(행번호 없이, 역시 새 글부터). 서버는 공지를 앞에 세워 주는데
@@ -827,25 +860,33 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   useTableColumnCheck(gridRef, `${board} 게시판`, [shown.length, opened, loading, board])
 
   /** 격자 한 줄의 데이터 칸(게시글번호부터). 맨 위 공지 줄과 번호 붙은 줄이 같이 쓴다. */
-  const cells = (r: WorkPost, pin: boolean) => {
+  const cells = (r: WorkPost, pin: boolean, reply = false) => {
     const bg = pin ? 'bg-ec-pinned' : ''
+    /** 제목 칸 — 답글 줄은 '↳' 로 들여 쓰고, 원글은 제목 뒤에 '[답글 수]'(답글이 있을 때만, 12px 굵게 남색 — E200190 실측). */
+    const titleCell = (
+      <>
+        {reply && <span className="text-ec-hint pl-[14px] pr-[4px]">↳</span>}
+        {cfg.labels && (r.labels ?? []).map((l) => <LabelChip key={l} name={l} color={colorOf(l)} className="mr-[4.5px]" />)}
+        <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
+                onClick={() => openView(r)}>{r.title}</button>
+        {!reply && (repliesOf.get(r.id)?.length ?? 0) > 0 && (
+          <span className="ml-[4px] text-[12px] font-bold text-ec-navy">[{repliesOf.get(r.id)!.length}]</span>
+        )}
+      </>
+    )
     if (cfg.cols) {
       const ex = parseExtra(r.extraFields)
       return (
         <>
           {cfg.cols.map((c) => {
             if (c === 'title') return (
-              <td key={c} className={bg}>
-                {cfg.labels && (r.labels ?? []).map((l) => <LabelChip key={l} name={l} color={colorOf(l)} className="mr-[4.5px]" />)}
-                <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
-                        onClick={() => openView(r)}>{r.title}</button>
-              </td>
+              <td key={c} className={bg}>{titleCell}</td>
             )
             if (c.startsWith('x:')) {
               const v = ex[c.slice(2).split('|')[0]] ?? ''
               return <td key={c} className={`${bg}${/^\d{4}-\d\d-\d\d$/.test(v) ? ' text-center' : ''}`}>{/^\d{4}-\d\d-\d\d$/.test(v) ? dateText(v) : v}</td>
             }
-            const text = c === 'no' ? r.postNo : c === 'dateNo' ? `${dateText(r.postDate)} -1` : c === 'writer' ? (r.writerName ?? r.writer)
+            const text = c === 'no' ? r.postNo : c === 'dateNo' ? dateNoOf(r) : c === 'writer' ? (r.writerName ?? r.writer)
               : c === 'forward' ? (r.forwardTo ?? '') : c === 'postDate' ? dateText(r.postDate) : statusOf(r)
             return <td key={c} className={`${bg}${c === 'stage' ? ' text-ec-navy' : ''}${c === 'postDate' || c === 'dateNo' ? ' text-center' : ''}`}>{text}</td>
           })}
@@ -866,14 +907,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     return (
       <>
         <td className={bg}>{r.postNo}</td>
-        <td className={bg}>
-          {/* 원본 [라벨] 칩 — 제목 앞(여백 3.6 4.5 2.7 · 둥글기 10 · 오른쪽 4.5, 실측) */}
-          {cfg.labels && (r.labels ?? []).map((l) => <LabelChip key={l} name={l} color={colorOf(l)} className="mr-[4.5px]" />)}
-          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
-                  onClick={() => openView(r)}>
-            {r.title}
-          </button>
-        </td>
+        {/* 원본 [라벨] 칩 — 제목 앞(여백 3.6 4.5 2.7 · 둥글기 10 · 오른쪽 4.5, 실측) */}
+        <td className={bg}>{titleCell}</td>
         {cfg.minutes ? (
           <>
             {/* 원본 부서 칸 — 이은 팀별회의록 글의 제목(링크 아님) */}
@@ -906,13 +941,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   }
 
   /**
-   * 칸반 카드 한 장 — 라벨 칩 · 제목 · N(아직 아무도 안 연 글) · 아랫줄(담당자). 답글 수는 우리 게시판에 답글이 없어 붙지 않는다.
+   * 칸반 카드 한 장 — 라벨 칩 · 제목 · N(아직 아무도 안 연 글) · 아랫줄(담당자) · 답글 수 [n](E200190 실측 — 답글이 있을 때만).
    * 원본 N 은 '내가 안 읽은 글' 로 보이는데 우리 응답에는 조회수만 있어 '조회 0' 으로 본다.
    */
   const toCard = (r: WorkPost, col: string, lane?: string, colors: BoardLabel[] = labelMaster): KanbanCard => ({
     id: r.id, col, lane, title: r.title, bold: r.notice, isNew: (r.viewCount ?? 0) === 0,
     chips: (r.labels ?? []).map((l) => ({ name: l, color: colors.find((x) => x.name === l)?.color })),
     sub: cfg.subField ? parseExtra(r.extraFields)[cfg.subField] : undefined,
+    replies: repliesOf.get(r.id)?.length,
   })
   /** 카드를 끌어 놓으면 진행상태가 바뀐다(= [진행상태변경]). */
   async function moveStage(id: number, stage: string) {
@@ -1018,7 +1054,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
         2026-10-20 다시 잼(통합게시판 E200076): 게시일 · 유형(☐전체 ☑본문 ☐답글) · 완료일(빈칸) · 제목 · 내용1(여러 줄) · 사용자 · 게시글번호 ·
         삭제구분(○전체 ●미삭제 ○삭제) · 기타(☐수정일자순(정렬)) · 입력경로(☑전체 ☑웹(ERP) ☑자료올리기 ☑기타 ☑OAPI), 빠른선택 금년 · 전년 · 전년+금년.
         원본 [삭제] 로 걸면 전년+금년에도 '등록된 데이터가 없습니다.'(지운 글이 남지 않는다) — 우리도 지운 글은 남지 않으니 빈 목록.
-        우리 글은 답글이 없고(본문만) 모두 웹(ERP)에서 들어온다. [적용양식] · 메뉴(조회/현황/집계)는 아직 없다.
+        우리 글은 모두 웹(ERP)에서 들어온다. [유형] 답글 = View [답글(F8)] 로 단 하위 글. [적용양식] · 메뉴(조회/현황/집계)는 아직 없다.
       */}
       {condOpen && (
         <div className="ec-cond mb-[8px]">
@@ -1315,6 +1351,20 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                         </td>
                       </tr>
                     )}
+                    {/* [모두펼쳐보기] — 원글 아래에 하위 글(답글) 줄을 '↳' 로 들여 편다(원본 차량 증빙관리 · 상담 이력관리). */}
+                    {opened && r.parentId == null && (repliesOf.get(r.id) ?? []).map((c) => (
+                      <Fragment key={`reply-${c.id}`}>
+                        <tr>
+                          <td className="bg-ec-stripe" />
+                          {cells(c, false, true)}
+                        </tr>
+                        <tr>
+                          <td colSpan={colCount} className="bg-ec-page pl-[32px] pr-[14px] py-[10px]">
+                            <EcRichBody content={c.content} className="text-[12px] text-ec-ink min-h-[20px]" />
+                          </td>
+                        </tr>
+                      </Fragment>
+                    ))}
                   </Fragment>
                 ))}
               </>
@@ -1368,6 +1418,17 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       <Modal error={error} open={showForm} title={`${title}입력${editId != null ? '(수정)' : ''}`}
              onClose={() => void closeForm()} width={780}>
         <ul className="ec-form mb-[10px]">
+          {/*
+            [일자] — 목록 [일자-No.] · [일자] 열과 조회 기간(게시일)이 보는 날. 처음 값 오늘. 원본 예시 글은 2025년 날짜로 올라가 있어
+            옮겨 넣을 때 그 날을 적는다. 수정에서는 바꾸지 않는다(일자는 그 글이 언제 올라갔는지의 기록 — 서버도 무시한다).
+          */}
+          <li className="wide">
+            <div className="title">일자</div>
+            <div className="form">
+              <input type="date" className="ec-input w-[140px]" aria-label="일자" value={form.postDate}
+                     disabled={editId != null} onChange={(e) => set('postDate', e.target.value)} />
+            </div>
+          </li>
           {cfg.minutes && titleRow}
           {/* 원본 통합회의록 [진행상태] — 진행중 · 완료(처음 진행중). 원본 고르기의 '==' 는 두지 않았다. */}
           {cfg.minutes && (
@@ -1634,7 +1695,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               {viewing.postNo} | {viewing.title} | {viewing.writerName ?? viewing.writer} | {stampText(viewing.createdAt)}
             </div>
             <ul className="ec-form border-0 mb-[6px]">
-              <li className="wide"><div className="title">일자-No.</div><div className="form text-ec-navy">{dateText(viewing.postDate)} -1</div></li>
+              <li className="wide"><div className="title">일자-No.</div><div className="form text-ec-navy">{dateNoOf(viewing)}</div></li>
               <li className="wide">
                 <div className="title">첨부</div>
                 <div className="form">
@@ -1654,7 +1715,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               카드를 다른 줄로 끌어 놓으면 그 간판제작 글의 진행상태가 바뀐다.
             */}
             {board === 'PROJECT_KANBAN' && (() => {
-              const linked = signPosts.filter((x) => x.kanbanPostId === viewing.id).sort((a, b) => a.postNo - b.postNo)
+              const linked = signPosts.filter((x) => x.kanbanPostId === viewing.id && x.parentId == null).sort((a, b) => a.postNo - b.postNo)
               const projects = [...new Set(linked.map((x) => x.project ?? ''))]
               const signStages = BOARD_CFG.SIGN.stages ?? []
               return (
@@ -1721,6 +1782,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               <MenuButton label={board === 'PROJECT_KANBAN' ? '칸반연결' : '기본(수정불가)'} className="ec-btn" up
                           items={[...(board === 'PROJECT_KANBAN' ? [{ label: '✓ 칸반연결' }, { label: '기본(수정불가)' }] : [{ label: '✓ 기본(수정불가)' }]),
                             { label: '신규양식추가', onClick: () => setInfo('신규양식추가는 지원하지 않습니다(양식 하나).') }]} />
+              {/* 원본 View [답글(F8)] — 같은 입력 창, 제목은 원글 그대로 · 본문 빈칸. 저장하면 원글 제목 뒤 '[n]'. */}
+              <button className="ec-btn" onClick={() => openReply(viewing)}>답글(F8)</button>
               <button className="ec-btn" onClick={() => openCopy(viewing)}>복사</button>
               <button className="ec-btn" onClick={() => openEdit(viewing)}>수정</button>
               <button className="ec-btn" onClick={() => removeOne(viewing.id)}>삭제</button>

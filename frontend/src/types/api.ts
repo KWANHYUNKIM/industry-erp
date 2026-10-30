@@ -1857,6 +1857,8 @@ export interface WorkPost {
   project?: string | null
   /** 간판제작 [칸반연결] — 📅 프로젝트 진행현황 칸반 글 id. 그 밖의 게시판은 null */
   kanbanPostId?: number | null
+  /** 답글(하위 글)이면 원글 id. 목록은 원글 제목 뒤에 '[답글 수]' 를 달고 [모두펼쳐보기] 로 그 아래에 편다. */
+  parentId?: number | null
 }
 
 // ===== ECDrive 문서 드라이브 =====
