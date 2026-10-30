@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { PROJECT_PICKS, ymd } from '../../components/EcPeriodPicks'
@@ -120,7 +121,7 @@ export default function ConstructionSchedulePage() {
     .filter((r) => !to || (r.startDate ?? '') <= to)
     .filter((r) => !endFrom || (r.endDate ?? '') >= endFrom)
     .filter((r) => !endTo || (r.endDate ?? '') <= endTo)
-    .filter((r) => !manager2 || (r.manager ?? '').includes(manager2))
+    .filter((r) => !manager2 || (r.createdBy ?? '').includes(manager2))
     .filter((r) => !title2 || r.name.includes(title2))
     .filter((r) => !keyword || r.name.includes(keyword) || (r.manager ?? '').includes(keyword))
 
@@ -174,38 +175,24 @@ export default function ConstructionSchedulePage() {
       </div>
 
       {/* 원본 조회 조건 — 우리 데이터에 있는 것만 */}
-      <table className="w-full text-left mb-[8px]">
-        <tbody>
-          <tr>
-            {/* 원본 조건 이름은 [계획시작일] 이다 — 우리가 '착수예정일' 이라 달리 적고 있었다. */}
-            <th style={{ ...th, width: 110 }}>계획시작일</th>
-            <td colSpan={3}>
-              <EcDateRange from={{ className: inputCls, value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: inputCls, value: to, onChange: (e) => setTo(e.target.value) }} />
-              <span className="ml-[10px] inline-flex gap-[3px] flex-wrap">
-                <EcPeriodPicks labels={PROJECT_PICKS} currentFrom={from}
-                               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <th style={{ ...th, width: 110 }}>계획종료일</th>
-            <td colSpan={3}>
-              <EcDateRange from={{ className: inputCls, value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: inputCls, value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
-            </td>
-          </tr>
-          <tr>
-            <th style={{ ...th, width: 110 }}>담당</th>
-            <td>
-              <input className={inputCls} value={manager2} onChange={(e) => setManager2(e.target.value)} style={{ width: 200 }} />
-            </td>
-            {/* 원본 [제목] — 우리 공정명이 그 자리다. 검색상자와 달리 담당은 안 걸린다. */}
-            <th style={{ ...th, width: 110 }}>제목</th>
-            <td>
-              <input className={inputCls} value={title2} onChange={(e) => setTitle2(e.target.value)} style={{ width: 200 }} />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="계획시작일" span={2}>
+          <EcDateRange from={{ className: inputCls, value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: inputCls, value: to, onChange: (e) => setTo(e.target.value) }} />
+          <span className="ml-[10px] inline-flex gap-[3px] flex-wrap">
+            <EcPeriodPicks labels={PROJECT_PICKS} currentFrom={from}
+                           onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
+        <EcCond label="계획종료일" span={2}>
+          <EcDateRange from={{ className: inputCls, value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: inputCls, value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
+        </EcCond>
+        <EcCond label="사용자" span={2}>
+          <input className={`${inputCls} w-full`} value={manager2} onChange={(e) => setManager2(e.target.value)} />
+        </EcCond>
+        <EcCond label="제목" span={2}>
+          <input className={`${inputCls} w-full`} value={title2} onChange={(e) => setTitle2(e.target.value)} />
+        </EcCond>
+      </ul>
 
       <Modal open={showForm} title="건설예정공정표 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>

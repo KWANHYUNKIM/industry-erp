@@ -1,0 +1,22 @@
+{
+  "about": "건설예정공정표 — 조건 판은 처음에 접혀 있고 [Search(F3)] 로 펼친다(계획시작일 · 계획종료일 · 담당 · 제목) → [검색(F8)] 로 접힌다. node qa/shot.mjs qa/flows/construction-schedule-cond.json",
+  "shots": [
+    {
+      "name": "Search(F3) 로 조건 판",
+      "path": "/groupware/construction-schedule",
+      "steps": [
+        "wait:600",
+        "expect:document.querySelector('.ec-list-body').classList.contains('conds-closed')",
+        "js:[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='Search(F3)').click();true",
+        "wait:300",
+        "expect:document.querySelector('.ec-list-body').classList.contains('conds-open')",
+        "expect:[...document.querySelectorAll('.conds-open .ec-cond > li .title')].some((t)=>t.textContent.trim()==='계획시작일')",
+        "expect:!!document.querySelector('.ec-search-panel')",
+        "js:(()=>{const i=[...document.querySelectorAll('.conds-open .ec-cond > li')].find((l)=>l.querySelector('.title').textContent.trim()==='제목').querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'QA없는제목XYZ');i.dispatchEvent(new Event('input',{bubbles:true}));return true})()",
+        "js:[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='검색(F8)').click();true",
+        "wait:300",
+        "expect:document.querySelector('.ec-list-body').classList.contains('conds-closed')"
+      ]
+    }
+  ]
+}

@@ -2617,12 +2617,6 @@
   ],
   "in": "backend/src/main/java/com/erp/hr/vacation/dto/HrDtos.java"
  },
- "건설예정공정표|사용자": {
-  "claim": "작성자만 남기고 조건으로 거르지는 않는다",
-  "present": [
-   "createdBy"
-  ]
- },
  "주문서현황|참조": {
   "claim": "수주는 시작점이라 근거전표를 달지 않는다(판매·출하가 수주를 문다)",
   "absent": [
@@ -2986,7 +2980,7 @@
   "file": "groupware/SwSchedulePage.tsx"
  },
  "SW개발일정관리|사용자": {
-  "claim": "작성자만 남기고 조건으로 거르지는 않는다(위 [건설예정공정표|사용자] 과 같은 사실이다)",
+  "claim": "작성자만 남기고 조건으로 거르지는 않는다",
   "present": [
    "createdBy"
   ],

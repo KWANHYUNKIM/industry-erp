@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -131,27 +132,17 @@ export default function SwSchedulePage() {
       </div>
 
       {/* 원본 조회 조건 — 우리 데이터에 있는 것만(계획시작일·계획종료일) */}
-      <table className="w-full text-left mb-[8px]">
-        <tbody>
-          <tr>
-            <th style={{ ...th, width: 110 }}>계획시작일</th>
-            <td>
-              <EcDateRange from={{ className: inputCls, value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: inputCls, value: to, onChange: (e) => setTo(e.target.value) }} />
-            </td>
-            <th style={{ ...th, width: 110 }}>계획종료일</th>
-            <td>
-              <EcDateRange from={{ className: inputCls, value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: inputCls, value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
-            </td>
-          </tr>
-          <tr>
-            {/* 원본 [제목] — 우리 작업/기능명이 그 자리다. */}
-            <th style={{ ...th, width: 110 }}>제목</th>
-            <td colSpan={3}>
-              <input className={inputCls} value={title2} onChange={(e) => setTitle2(e.target.value)} style={{ width: 260 }} />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="계획시작일" span={2}>
+          <EcDateRange from={{ className: inputCls, value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: inputCls, value: to, onChange: (e) => setTo(e.target.value) }} />
+        </EcCond>
+        <EcCond label="계획종료일" span={2}>
+          <EcDateRange from={{ className: inputCls, value: endFrom, onChange: (e) => setEndFrom(e.target.value) }} to={{ className: inputCls, value: endTo, onChange: (e) => setEndTo(e.target.value) }} />
+        </EcCond>
+        <EcCond label="제목" span={2}>
+          <input className={`${inputCls} w-full`} value={title2} onChange={(e) => setTitle2(e.target.value)} />
+        </EcCond>
+      </ul>
 
       <Modal open={showForm} title="SW개발일정 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>

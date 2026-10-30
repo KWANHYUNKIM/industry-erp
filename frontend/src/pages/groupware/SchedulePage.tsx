@@ -465,16 +465,17 @@ export default function SchedulePage({ popup }: { popup?: { viewId?: number } } 
       || (r.owner ?? '').includes(keyword)
       || (r.attendees ?? '').includes(keyword)
       || (r.location ?? '').includes(keyword))
-
-  const shown = inCalendar
     .filter((r) => !from || r.eventDate >= from)
     .filter((r) => !to || r.eventDate <= to)
-    .filter((r) => !pickedDate || r.eventDate === pickedDate)
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !placeCond || (r.location ?? '').includes(placeCond))
     .filter((r) => !kindCond || (r.category ?? '') === kindCond)
     .filter((r) => !labelCond || (r.labelCode ?? '') === labelCond)
     .filter((r) => !bodyCond || (r.remark ?? '').includes(bodyCond))
+
+  /* 조건 판([Search(F3)])의 조건 — 모든 양식(월간 · 일간 · 사용자별 · 목록)이 같이 쓴다. */
+  const shown = inCalendar
+    .filter((r) => !pickedDate || r.eventDate === pickedDate)
 
   const timeText = (r: ScheduleEvent) =>
     `${r.eventDate.replace(/-/g, '/')} ${r.startTime ?? ''}${r.endTime ? ` ~ ${r.endTime}` : ''}`.trim()
@@ -759,6 +760,35 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
       {error && !showForm && !viewing && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
 
+      {/* 원본 조건 판 — 양식과 상관없이 [Search(F3)] 로 연다(셸이 .ec-cond 를 찾아 접어 둔다). */}
+      <ul className="ec-cond mb-[6px]">
+        {/* 원본 조건 첫째 [기준일자] — 구간이다. 달력의 하루 고르기는 이 안에서 더 좁힌다. */}
+        <EcCond label="기준일자">
+          <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
+        </EcCond>
+        <EcCond label="제목">
+          <input className="ec-input w-[160px]" value={titleCond} placeholder="제목" onChange={(e) => setTitleCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="장소">
+          <input className="ec-input w-[140px]" value={placeCond} placeholder="장소" onChange={(e) => setPlaceCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="일정구분">
+          <select className="ec-input w-[120px]" value={kindCond} onChange={(e) => setKindCond(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.category).filter(Boolean))].map((c) => <option key={c as string}>{c}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="라벨">
+          <select className="ec-input w-[120px]" value={labelCond} onChange={(e) => setLabelCond(e.target.value)}>
+            <option value="">전체</option>
+            {labels.map((l) => <option key={l.id} value={l.code}>{l.name}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="본문">
+          <input className="ec-input w-[150px]" value={bodyCond} placeholder="본문" onChange={(e) => setBodyCond(e.target.value)} />
+        </EcCond>
+      </ul>
+
       {isMonth ? (
         <div className="flex gap-[10px] items-start">
           {/* 원본 왼쪽: 연도 넘기기 + 1~12월 + [오늘], 그 아래 캘린더 고르기 */}
@@ -891,33 +921,6 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                   ? `${(from || '처음').replace(/-/g, '/')} ~ ${(to || '끝').replace(/-/g, '/')}`
                 : '전체 기간'}
             </div>
-            <ul className="ec-cond mb-[6px]">
-              {/* 원본 조건 첫째 [기준일자] — 구간이다. 달력의 하루 고르기는 이 안에서 더 좁힌다. */}
-              <EcCond label="기준일자">
-                <EcDateRange from={{ className: "ec-input w-[140px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[140px]", value: to, onChange: (e) => setTo(e.target.value) }} />
-              </EcCond>
-              <EcCond label="제목">
-                <input className="ec-input w-[160px]" value={titleCond} placeholder="제목" onChange={(e) => setTitleCond(e.target.value)} />
-              </EcCond>
-              <EcCond label="장소">
-                <input className="ec-input w-[140px]" value={placeCond} placeholder="장소" onChange={(e) => setPlaceCond(e.target.value)} />
-              </EcCond>
-              <EcCond label="일정구분">
-                <select className="ec-input w-[120px]" value={kindCond} onChange={(e) => setKindCond(e.target.value)}>
-                  <option value="">전체</option>
-                  {[...new Set(rows.map((r) => r.category).filter(Boolean))].map((c) => <option key={c as string}>{c}</option>)}
-                </select>
-              </EcCond>
-              <EcCond label="라벨">
-                <select className="ec-input w-[120px]" value={labelCond} onChange={(e) => setLabelCond(e.target.value)}>
-                  <option value="">전체</option>
-                  {labels.map((l) => <option key={l.id} value={l.code}>{l.name}</option>)}
-                </select>
-              </EcCond>
-              <EcCond label="본문">
-                <input className="ec-input w-[150px]" value={bodyCond} placeholder="본문" onChange={(e) => setBodyCond(e.target.value)} />
-              </EcCond>
-            </ul>
             <table className="w-full text-left table-fixed">
               <thead>
                 <tr>
