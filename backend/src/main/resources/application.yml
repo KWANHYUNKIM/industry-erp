@@ -16,8 +16,9 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/erp
-    username: erp
-    password: erp_dev_pw
+    username: ${DB_USERNAME:erp}
+    # 기본값 없음 — 환경변수 DB_PASSWORD. 로컬 개발(dev 프로필)은 application-dev.yml 이 docker-compose 의 개발 DB 값을 준다.
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
   # 스키마 변경은 전부 db/migration 의 V*.sql 로만 한다.

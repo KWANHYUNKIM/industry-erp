@@ -6,10 +6,13 @@ services:
     environment:
       POSTGRES_DB: erp
       POSTGRES_USER: erp
-      POSTGRES_PASSWORD: erp_dev_pw
+      # 로컬 개발 DB 값(backend application-dev.yml 과 같다). 운영은 다른 값을 환경변수로.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_dev_pw}
       TZ: Asia/Seoul
+    # 이 컴퓨터 안에서만 연다(모든 인터페이스에 열면 같은 네트워크의 누구나 붙는다 — docs/보안-점검.md H5).
+    # 바꾼 뒤 실제로 적용하려면 컨테이너를 다시 만든다: docker compose up -d (자료는 볼륨에 남는다)
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - erp_pgdata:/var/lib/postgresql/data
     healthcheck:

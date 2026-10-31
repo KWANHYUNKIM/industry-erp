@@ -1,0 +1,5 @@
+# dev 프로필 — 로컬 개발 · 공유 개발 서버(./mvnw spring-boot:run 이 켠다, pom.xml). 운영은 이 프로필을 쓰지 않는다.
+# 여기 값은 docker-compose 의 로컬 개발 DB(127.0.0.1 에만 열림) 값이다. 운영 DB 비밀번호는 환경변수 DB_PASSWORD 로만.
+spring:
+  datasource:
+    password: ${DB_PASSWORD:erp_dev_pw}

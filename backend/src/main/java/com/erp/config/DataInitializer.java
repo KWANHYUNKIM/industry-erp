@@ -4,17 +4,11 @@ import com.erp.common.MenuPermissionCatalog;
 import com.erp.accounting.StandardAccounts;
 import com.erp.accounting.account.Account;
 import com.erp.accounting.account.AccountDivision;
-import com.erp.trade.partner.BusinessPartner;
-import com.erp.inventory.item.Item;
-import com.erp.inventory.item.ItemCategory;
-import com.erp.trade.partner.PartnerType;
 import com.erp.auth.role.Permission;
 import com.erp.auth.role.Role;
 import com.erp.auth.user.User;
 import com.erp.inventory.warehouse.Warehouse;
 import com.erp.accounting.account.AccountRepository;
-import com.erp.trade.partner.BusinessPartnerRepository;
-import com.erp.inventory.item.ItemRepository;
 import com.erp.auth.role.PermissionRepository;
 import com.erp.auth.role.RoleRepository;
 import com.erp.auth.user.UserRepository;
@@ -22,20 +16,22 @@ import com.erp.auth.workpermission.WorkPermissionService;
 import com.erp.inventory.warehouse.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * 최초 기동 시 기본 역할과 관리자 계정을 생성한다.
- * 이미 존재하면 건너뛴다 (idempotent).
+ * 기동 시 회사가 쓰려면 반드시 있어야 하는 기준자료(역할 · 권한 카탈로그 · 표준 계정과목 · 기본 창고)를 채운다.
+ * 이미 존재하면 건너뛴다 (idempotent). 데모 계정 · 거래처 · 품목은 dev 프로필에서만 — {@link DevDataSeeder}.
  */
 @Slf4j
 @Component
@@ -46,12 +42,14 @@ public class DataInitializer implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final WarehouseRepository warehouseRepository;
-    private final ItemRepository itemRepository;
-    private final BusinessPartnerRepository partnerRepository;
     private final AccountRepository accountRepository;
     private final PermissionRepository permissionRepository;
     private final PasswordEncoder passwordEncoder;
     private final WorkPermissionService workPermissionService;
+    private final ObjectProvider<DevDataSeeder> devSeeder;
+
+    @Value("${app.bootstrap.admin-password:${ERP_ADMIN_PASSWORD:}}")
+    private String bootstrapAdminPassword;
 
     @Override
     @Transactional
@@ -62,22 +60,8 @@ public class DataInitializer implements CommandLineRunner {
 
         seedPermissions(manager, staff);
 
-        if (!userRepository.existsByUsername("admin")) {
-            User adminUser = User.builder()
-                    .username("admin")
-                    .password(passwordEncoder.encode("admin1234"))
-                    .name("시스템 관리자")
-                    .email("admin@erp.local")
-                    .department("경영지원")
-                    .enabled(true)
-                    .roles(Set.of(admin))
-                    .build();
-            userRepository.save(adminUser);
-            log.info("기본 관리자 계정 생성 완료 → 아이디: admin / 비밀번호: admin1234");
-        }
-
-        ensureUser("manager", "manager1234", "김부장", "manager@erp.local", "생산관리부", manager);
-        ensureUser("staff", "staff1234", "이사원", "staff@erp.local", "생산관리부", staff);
+        devSeeder.ifAvailable(DevDataSeeder::seed);   // dev 프로필만 — 데모 계정 · 거래처 · 품목
+        bootstrapAdmin(admin);
 
         if (!warehouseRepository.existsByCode("WH-01")) {
             warehouseRepository.save(Warehouse.builder()
@@ -89,9 +73,30 @@ public class DataInitializer implements CommandLineRunner {
             log.info("기본 창고(WH-01 본사창고) 생성 완료");
         }
 
-        seedPartners();
-        seedItems();
         seedAccounts();
+    }
+
+    /**
+     * 본사 첫 관리자. 비밀번호를 코드에 두지 않는다(저장소가 공개 — docs/보안-점검.md H5):
+     * {@code app.bootstrap.admin-password}(환경변수 ERP_ADMIN_PASSWORD)가 있을 때만 만든다.
+     * 로컬 개발(dev 프로필)의 데모 계정은 {@link DevDataSeeder} 가 심는다.
+     */
+    private void bootstrapAdmin(Role admin) {
+        if (userRepository.existsByUsername("admin")) return;
+        if (!StringUtils.hasText(bootstrapAdminPassword)) {
+            log.warn("본사 관리자(admin)가 없다 — 만들려면 환경변수 ERP_ADMIN_PASSWORD 를 주고 다시 띄운다.");
+            return;
+        }
+        userRepository.save(User.builder()
+                .username("admin")
+                .password(passwordEncoder.encode(bootstrapAdminPassword))
+                .name("시스템 관리자")
+                .email("admin@erp.local")
+                .department("경영지원")
+                .enabled(true)
+                .roles(Set.of(admin))
+                .build());
+        log.info("본사 관리자 계정(admin) 생성 완료 — 비밀번호는 ERP_ADMIN_PASSWORD");
     }
 
     /** 표준 계정과목 (계정과목등록/비용관리 화면용). */
@@ -120,63 +125,6 @@ public class DataInitializer implements CommandLineRunner {
                     .relatedWork(StandardAccounts.relatedWorkOf(a.code()))
                     .partnerAggregate(StandardAccounts.partnerAggregateOf(a.code(), a.name()))
                     .build());
-        }
-    }
-
-    /** 데모 거래처 (수주/정산 화면의 거래처 선택용). */
-    private void seedPartners() {
-        ensurePartner("CUST-001", "(주)대신전자", PartnerType.CUSTOMER, "김상무", "02-555-0101");
-        ensurePartner("CUST-002", "명현농장", PartnerType.CUSTOMER, "박대표", "041-733-0202");
-        ensurePartner("CUST-003", "밀양종돈", PartnerType.CUSTOMER, "최과장", "055-352-0303");
-        ensurePartner("SUPP-001", "오피스디포", PartnerType.SUPPLIER, "이팀장", "02-777-0404");
-        ensurePartner("BOTH-001", "한울ICT", PartnerType.BOTH, "정이사", "031-123-0505");
-    }
-
-    private void ensurePartner(String code, String name, PartnerType type, String manager, String phone) {
-        if (!partnerRepository.existsByCode(code)) {
-            partnerRepository.save(BusinessPartner.builder()
-                    .code(code).name(name).type(type).manager(manager).phone(phone).active(true)
-                    .build());
-            log.info("데모 거래처 생성 → {} {}", code, name);
-        }
-    }
-
-    /** 데모 품목 (수주/품질 화면의 품목 선택용). */
-    private void seedItems() {
-        ensureItem("ITM-0001", "MQTT 모뎀 v2.0", "IoT 통신모듈", "EA", ItemCategory.FINISHED, 145000, 50);
-        ensureItem("ITM-0002", "AQD 센서모듈", "온습도/암모니아", "EA", ItemCategory.FINISHED, 59000, 100);
-        ensureItem("ITM-0003", "열교환기 코어", "STS304", "EA", ItemCategory.SEMI_FINISHED, 82000, 20);
-        ensureItem("ITM-0004", "모뎀 PCB 조립품", "4층기판", "EA", ItemCategory.SEMI_FINISHED, 33000, 200);
-        ensureItem("ITM-0005", "스테인리스 판재 1.2T", "1000x2000", "SHT", ItemCategory.RAW_MATERIAL, 12500, 300);
-        ensureItem("ITM-0006", "방청유 20L", "산업용", "CAN", ItemCategory.SUB_MATERIAL, 41000, 10);
-    }
-
-    private void ensureItem(String code, String name, String spec, String unit,
-                            ItemCategory category, long unitPrice, long safetyStock) {
-        if (!itemRepository.existsByCode(code)) {
-            itemRepository.save(Item.builder()
-                    .code(code).name(name).spec(spec).unit(unit).category(category)
-                    .unitPrice(BigDecimal.valueOf(unitPrice))
-                    .safetyStock(BigDecimal.valueOf(safetyStock))
-                    .active(true)
-                    .build());
-            log.info("데모 품목 생성 → {} {}", code, name);
-        }
-    }
-
-    private void ensureUser(String username, String rawPassword, String name,
-                            String email, String department, Role role) {
-        if (!userRepository.existsByUsername(username)) {
-            userRepository.save(User.builder()
-                    .username(username)
-                    .password(passwordEncoder.encode(rawPassword))
-                    .name(name)
-                    .email(email)
-                    .department(department)
-                    .enabled(true)
-                    .roles(Set.of(role))
-                    .build());
-            log.info("데모 계정 생성 완료 → 아이디: {} / 비밀번호: {}", username, rawPassword);
         }
     }
 
