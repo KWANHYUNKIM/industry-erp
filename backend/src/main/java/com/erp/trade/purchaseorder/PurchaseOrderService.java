@@ -59,29 +59,13 @@ public class PurchaseOrderService {
     private final PurchaseLineRepository purchaseLineRepository;
     private final PurchaseOrderLineRepository orderLineRepository;
     private final DocumentNoGenerator docNoGenerator;
-    private final com.erp.common.history.ChangeHistoryService changeHistory;
+    private final PurchaseOrderProgress purchaseOrderProgress;
 
     public static final String HISTORY_TARGET = "PURCHASE_ORDER";
 
-    /**
-     * 거래이력조회(재고) — 발주서 한 엔티티가 상태로 세 메뉴다(원본 메뉴검색 '발주요청' · '단가요청' · '발주서').
-     * 발주요청 → 발주요청, 단가요청 · 단가확정 → 단가요청, 발주계획 · 발주확정 · 입고전환 · 취소 → 발주서.
-     * (발주계획은 원본 메뉴검색에 없음 — 어느 메뉴에 묶이는지 원본 재기 필요.)
-     */
+    /** 전표 이력 한 줄 — 꼴 · 메뉴 나눔은 PurchaseOrderProgress.recordSlip 한 곳(구매입력이 상태를 바꿀 때도 같은 것을 쓴다). */
     private void recordHistory(PurchaseOrder po, String action, PurchaseOrderStatus status) {
-        String menu = switch (status) {
-            case REQUESTED -> "발주요청";
-            case PRICE_REQUESTED, PRICED -> "단가요청";
-            default -> "발주서";
-        };
-        PurchaseOrderLine first = po.getLines().isEmpty() ? null : po.getLines().get(0);
-        changeHistory.recordSlip(HISTORY_TARGET, po.getId(), action, new com.erp.common.history.ChangeHistoryService.SlipSnapshot(menu, po.getOrderDate(), po.getOrderNo(),
-                po.getPartner() != null ? po.getPartner().getCode() : null,
-                po.getPartner() != null ? po.getPartner().getName() : null,
-                first == null ? null : com.erp.common.history.ChangeHistoryService.itemSummary(first.effectiveItemName(), first.effectiveSpec(), po.getLines().size()),
-                po.getEmployee() != null ? po.getEmployee().getCode() : null,
-                po.getEmployee() != null ? po.getEmployee().getName() : null,
-                status.getDisplayName()));
+        purchaseOrderProgress.recordSlip(po, action, status);
     }
 
     /**
@@ -471,6 +455,7 @@ public class PurchaseOrderService {
         }
         if (req.priceValidUntil() != null) po.setPriceValidUntil(req.priceValidUntil());
         po.setUpdatedBy(username);
+        recordHistory(po, com.erp.common.history.ChangeHistoryService.UPDATED, po.getStatus());
         return PurchaseOrderResponse.from(po);
     }
 
@@ -502,7 +487,10 @@ public class PurchaseOrderService {
     public PurchaseOrderResponse changeRequestProgress(Long id, PurchaseRequestProgress progress) {
         if (progress == null) throw ApiException.badRequest("진행상태를 고르세요.");
         PurchaseOrder po = get(id);
+        /* 판매 · 주문서 [진행상태변경] 과 같이 바뀐 것만 '상태변경' 한 줄(같은 값으로 또 누르면 남기지 않는다). */
+        boolean changed = po.getRequestProgress() != progress;
         po.setRequestProgress(progress);
+        if (changed) recordHistory(po, com.erp.common.history.ChangeHistoryService.STATUS_CHANGED, po.getStatus());
         return PurchaseOrderResponse.from(po);
     }
 

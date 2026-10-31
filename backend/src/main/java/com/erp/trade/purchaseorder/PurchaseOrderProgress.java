@@ -1,5 +1,6 @@
 package com.erp.trade.purchaseorder;
 
+import com.erp.common.history.ChangeHistoryService;
 import com.erp.trade.purchase.PurchaseLineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,7 @@ public class PurchaseOrderProgress {
 
     private final PurchaseLineRepository purchaseLineRepository;
     private final PurchaseOrderHistoryRepository historyRepository;
+    private final ChangeHistoryService changeHistory;
 
     /**
      * 전 품목을 샀으면 입고전환, 아니면 — 구매로 닫혔던 것만 — 닫히기 직전 단계로 되돌린다.
@@ -48,10 +50,12 @@ public class PurchaseOrderProgress {
         if (allBought && po.getStatus() != PurchaseOrderStatus.RECEIVED) {
             trace(po, po.getStatus(), PurchaseOrderStatus.RECEIVED, username, "구매입력으로 전량 입고");
             po.setStatus(PurchaseOrderStatus.RECEIVED);
+            recordSlip(po, ChangeHistoryService.STATUS_CHANGED, PurchaseOrderStatus.RECEIVED);
         } else if (!allBought && po.getStatus() == PurchaseOrderStatus.RECEIVED && po.getConvertedPurchaseId() == null) {
             PurchaseOrderStatus back = statusBeforeReceived(po);
             trace(po, PurchaseOrderStatus.RECEIVED, back, username, "구매 삭제·수정으로 잔량이 생김");
             po.setStatus(back);
+            recordSlip(po, ChangeHistoryService.STATUS_CHANGED, back);
         }
     }
 
@@ -64,6 +68,32 @@ public class PurchaseOrderProgress {
             }
         }
         return PurchaseOrderStatus.ORDERED;
+    }
+
+    /**
+     * 전표 이력(거래이력조회(재고) · 발주서/발주요청/단가요청 [이력조회] 창 · [H]) 한 줄 — 판매 · 구매 전표와 같은 꼴(SlipSnapshot).
+     * 발주서 한 엔티티가 상태로 세 메뉴다(원본 메뉴검색 '발주요청' · '단가요청' · '발주서').
+     * 발주요청 → 발주요청, 단가요청 · 단가확정 → 단가요청, 발주계획 · 발주확정 · 입고전환 · 취소 → 발주서.
+     * (발주계획은 원본 메뉴검색에 없음 — 어느 메뉴에 묶이는지 원본 재기 필요.)
+     *
+     * <p>구매입력이 발주를 끊어 상태가 바뀔 때(여기 refresh)도 남긴다 — 예전엔 PurchaseOrderService 만 남겨서
+     * 구매입력으로 닫힌 발주서는 [이력조회] 에 '신규' 하나뿐이었다.
+     */
+    void recordSlip(PurchaseOrder po, String action, PurchaseOrderStatus status) {
+        String menu = switch (status) {
+            case REQUESTED -> "발주요청";
+            case PRICE_REQUESTED, PRICED -> "단가요청";
+            default -> "발주서";
+        };
+        PurchaseOrderLine first = po.getLines().isEmpty() ? null : po.getLines().get(0);
+        changeHistory.recordSlip(PurchaseOrderService.HISTORY_TARGET, po.getId(), action, new ChangeHistoryService.SlipSnapshot(menu,
+                po.getOrderDate(), po.getOrderNo(),
+                po.getPartner() != null ? po.getPartner().getCode() : null,
+                po.getPartner() != null ? po.getPartner().getName() : null,
+                first == null ? null : ChangeHistoryService.itemSummary(first.effectiveItemName(), first.effectiveSpec(), po.getLines().size()),
+                po.getEmployee() != null ? po.getEmployee().getCode() : null,
+                po.getEmployee() != null ? po.getEmployee().getName() : null,
+                status.getDisplayName()));
     }
 
     void trace(PurchaseOrder po, PurchaseOrderStatus from, PurchaseOrderStatus to, String username, String note) {

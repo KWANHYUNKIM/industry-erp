@@ -1,0 +1,50 @@
+{
+  "about": "클릭 대조 5번 발주서 서버 몫(2026-10-31) — 발주서조회 [일자-No.] → '발주서수정' 창에서 발주확정(진행중) 전표의 참조를 고쳐 [저장(F8)] 하면 저장되고 창이 닫힌다(예전엔 '발주요청 · 발주계획 · 단가요청 상태에서만 고칠 수 있습니다' 로 막힘). 취소한 전표는 계속 막는다. 하단 [이력조회] '발주서 이력조회' 창에 그 전표가 '수정' 으로 보이고 [H] 에 신규 · 수정 두 줄. 만든 전표는 지운다. node qa/shot.mjs qa/flows/po-edit-history.json",
+  "finally": [
+    "js:(async()=>{const id=sessionStorage.getItem('poeId');if(id)await fetch('/api/purchase-orders/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});return 1})()"
+  ],
+  "shots": [
+    {
+      "name": "발주확정 전표를 API 로 만든다",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "wait:1500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:(async()=>{const a=window.__api;const w=(await a('GET','/warehouses')).body.find((x)=>x.code==='QA-WH');const it=(await a('GET','/items')).body.find((x)=>x.code==='QA-PROD');const p=(await a('GET','/partners')).body.find((x)=>x.code==='QA-SUPP');const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await a('POST','/purchase-orders',{partnerId:p.id,orderDate:ymd,dueDate:ymd,taxable:true,warehouseId:w.id,currency:'KRW',remark:'QA수정전',lines:[{itemId:it.id,quantity:2,unitPrice:100}],order:true});if(r.status!==200&&r.status!==201)return false;sessionStorage.setItem('poeId',r.body.id);sessionStorage.setItem('poeNo',r.body.orderDate.replace(/-/g,'/')+' -'+parseInt(r.body.orderNo.split('-').pop(),10));return r.body.status==='ORDERED'})()"
+      ]
+    },
+    {
+      "name": "발주서수정 — 참조를 고쳐 저장(F8) → 창이 닫히고 서버에 저장, 이력조회 창에 '수정'",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "wait:2000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "expect:(()=>{const a=[...document.querySelectorAll('tbody a')].find((x)=>x.textContent.trim()===sessionStorage.getItem('poeNo'));if(!a)return false;a.click();return true})()",
+        "wait:1200",
+        "expect:document.body.innerText.includes('발주서수정')&&!!document.querySelector('input[aria-label=\"참조\"]')",
+        "set:input[aria-label=\"참조\"]|QA수정저장",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:!document.body.innerText.includes('발주서수정')&&!document.body.innerText.includes('고칠 수 없습니다')&&!document.body.innerText.includes('상태에서만')",
+        "expect:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body.find((x)=>String(x.id)===sessionStorage.getItem('poeId'));return !!o&&o.remark==='QA수정저장'&&o.status==='ORDERED'&&o.lines.length===1})()",
+        "click:이력조회",
+        "wait:1500",
+        "expect:(()=>{const t=[...document.querySelectorAll('table')].find((x)=>x.innerText.includes('작업일자'));if(!t)return false;const r=[...t.querySelectorAll('tbody tr')].find((x)=>x.cells[1]&&x.cells[1].innerText.trim()===sessionStorage.getItem('poeNo'));return !!r&&r.cells[2].innerText.trim()==='수정'&&r.cells[4].innerText.includes('QA매입처')})()",
+        "js:(()=>{const t=[...document.querySelectorAll('table')].find((x)=>x.innerText.includes('작업일자'));const r=[...t.querySelectorAll('tbody tr')].find((x)=>x.cells[1].innerText.trim()===sessionStorage.getItem('poeNo'));r.querySelector('a').click();return true})()",
+        "wait:1200",
+        "expect:(()=>{const ts=[...document.querySelectorAll('table')];const t=ts[ts.length-1];const acts=[...t.querySelectorAll('tbody tr')].map((x)=>x.innerText);return acts.some((s)=>s.includes('신규'))&&acts.some((s)=>s.includes('수정'))})()"
+      ]
+    },
+    {
+      "name": "취소한 발주서는 계속 막는다(안내 문구)",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "allowapi:400: /api/purchase-orders/",
+        "expect:(async()=>{const a=window.__api;const id=sessionStorage.getItem('poeId');const o=(await a('GET','/purchase-orders')).body.find((x)=>String(x.id)===id);const c=await a('POST','/purchase-orders/'+id+'/cancel');if(c.status!==200)return false;const r=await a('PUT','/purchase-orders/'+id,{partnerId:o.partnerId,orderDate:o.orderDate,dueDate:o.dueDate,taxable:true,warehouseId:o.warehouseId,currency:'KRW',remark:'x',lines:[{itemId:o.lines[0].itemId,quantity:1,unitPrice:100}]});return r.status===400&&String(r.body.message).includes('취소된 발주서는 고칠 수 없습니다')})()"
+      ]
+    }
+  ]
+}
