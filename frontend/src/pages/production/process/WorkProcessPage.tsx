@@ -8,6 +8,7 @@ import { useCondPickers } from '../../../utils/useCondPickers'
 import EcRowCap, { capRows } from '../../../components/EcRowCap'
 import { useNavigate } from 'react-router-dom'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 생산관리 > 작업지시서작업처리.
@@ -88,7 +89,6 @@ interface Row {
   hoursPerUnit: number
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function WorkProcessPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -142,7 +142,7 @@ export default function WorkProcessPage() {
     if (sel.length === 0) return setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
     for (const r of sel) {
       const q = Number(input[r.key]?.qty ?? '')
-      if (q > r.remainQty) return setError(`${r.wo.orderNo} ${r.workName}: 미작업량(${num(r.remainQty)})보다 많이 처리할 수 없습니다.`)
+      if (q > r.remainQty) return setError(`${r.wo.orderNo} ${r.workName}: 미작업량(${fmtNumber(r.remainQty)})보다 많이 처리할 수 없습니다.`)
     }
     const prefill = {
       /* 원본 창의 [일자]는 오늘이다(조회 기간의 끝이 아니다). */
@@ -260,7 +260,7 @@ export default function WorkProcessPage() {
     const v = input[r.key]
     const qty = Number(v?.qty ?? '')
     if (!qty || qty <= 0) return setError('처리할 수량을 입력하세요.')
-    if (qty > r.remainQty) return setError(`미작업량(${num(r.remainQty)})보다 많이 처리할 수 없습니다.`)
+    if (qty > r.remainQty) return setError(`미작업량(${fmtNumber(r.remainQty)})보다 많이 처리할 수 없습니다.`)
     setError(''); setOk('')
     try {
       /* qa/fixtures 증거가 api.post('/work-results' 글자를 찾는다 — 타입은 받는 쪽에 단다 */
@@ -275,7 +275,7 @@ export default function WorkProcessPage() {
         workDate: to,
         note: `${r.wo.orderNo} ${r.seq}.${r.workName}`,
       })
-      setOk(`${res.data.resultNo} 작업실적 등록 완료 · ${r.wo.orderNo} ${r.processName} ${num(qty)} 처리`)
+      setOk(`${res.data.resultNo} 작업실적 등록 완료 · ${r.wo.orderNo} ${r.processName} ${fmtNumber(qty)} 처리`)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -363,7 +363,7 @@ export default function WorkProcessPage() {
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {rows.length}줄
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        미작업량 합계 <b className="text-ec-navy text-[14px]">{num(totalRemain)}</b>
+        미작업량 합계 <b className="text-ec-navy text-[14px]">{fmtNumber(totalRemain)}</b>
       </div>
 
       <div className="overflow-x-auto">
@@ -407,13 +407,13 @@ export default function WorkProcessPage() {
                 <td className="text-right">{r.seq}</td>
                 <td>{r.workName} <span className="text-ec-hint text-[11.5px]">({r.processName})</span></td>
                 <td style={{ color: r.workItemLabel ? undefined : 'var(--ec-text-hint)' }}>{r.workItemLabel || ''}</td>
-                <td className="text-right">{num(r.wo.plannedQty)}</td>
-                <td className="text-right text-ec-label">{num(r.doneQty)}</td>
+                <td className="text-right">{fmtNumber(r.wo.plannedQty)}</td>
+                <td className="text-right text-ec-label">{fmtNumber(r.doneQty)}</td>
                 {/* 직전작업 기준이면 앞 공정이 덜 끝난 만큼 여기서 막힌다 */}
                 <td className="text-right font-bold text-ec-danger">
-                  {num(r.remainQty)}
+                  {fmtNumber(r.remainQty)}
                   {prevBased && r.remainQty < r.wo.plannedQty - r.doneQty && (
-                    <span title={`직전작업 완료 ${num(r.availableQty)}에 막혀 있습니다.`}
+                    <span title={`직전작업 완료 ${fmtNumber(r.availableQty)}에 막혀 있습니다.`}
                           style={{ color: 'var(--ec-warn)' }}> *</span>
                   )}
                 </td>

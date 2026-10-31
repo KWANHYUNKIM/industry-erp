@@ -13,6 +13,7 @@ import { useCondPickers } from '../../../utils/useCondPickers'
 import { useItemMgmt } from '../../../utils/itemMgmtItems'
 import { weekOfYear } from '../../../utils/statusAggregate'
 import { minToHours } from '../../../utils/workHours'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 생산관리 > 작업내역현황 — 작업 실적을 기간·조건으로 본다 (/api/work-results).
@@ -79,7 +80,6 @@ interface WorkResult {
   projectName: string | null
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 /** 차이는 부호를 붙여 보여 준다 — 양수면 표준보다 빨리 끝냈다는 뜻이다. */
 const gap = (n: number) => (n > 0 ? '+' : '') + n.toLocaleString('ko-KR')
 const pct = (defect: number, good: number) => {
@@ -493,15 +493,15 @@ export default function WorkResultListPage() {
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         작업 <b className="text-ec-text">{shown.length}</b>건
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        양품 <b className="text-ec-success text-[14px]">{num(totals.good)}</b>
+        양품 <b className="text-ec-success text-[14px]">{fmtNumber(totals.good)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        불량 <b className="text-ec-danger text-[14px]">{num(totals.defect)}</b>
+        불량 <b className="text-ec-danger text-[14px]">{fmtNumber(totals.defect)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
         불량률 <b className="text-ec-danger text-[14px]">{pct(totals.defect, totals.good)}%</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        표준 <b className="text-ec-text">{num(time.standard)}</b>H
+        표준 <b className="text-ec-text">{fmtNumber(time.standard)}</b>H
         <span className="my-0 mx-[2px]">/</span>
-        실제 <b className="text-ec-text">{num(time.actual)}</b>H
+        실제 <b className="text-ec-text">{fmtNumber(time.actual)}</b>H
         <span className="my-0 mx-[6px] text-ec-off">|</span>
         차이 <b style={{ color: time.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>{gap(time.diff)}</b>
         {time.unknown > 0 && (
@@ -517,7 +517,7 @@ export default function WorkResultListPage() {
         const chg = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
         const line = (label: string, f: (r: WorkResult) => number) => {
           const a = sum(prev, f); const b = sum(shown, f)
-          return `${label} ${num(a)} → ${num(b)}${chg(b, a)}`
+          return `${label} ${fmtNumber(a)} → ${fmtNumber(b)}${chg(b, a)}`
         }
         return (
           <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
@@ -547,16 +547,16 @@ export default function WorkResultListPage() {
                 <tr key={k}>
                   <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{k}</td>
-                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? num(m.get(c)!) : ''}</td>)}
-                  <td className="text-right font-semibold">{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
+                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? fmtNumber(m.get(c)!) : ''}</td>)}
+                  <td className="text-right font-semibold">{fmtNumber([...m.values()].reduce((a, v) => a + v, 0))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-bold bg-ec-page">
                 <td colSpan={2} className="text-right">합계</td>
-                {cols.map((c) => <td key={c} className="text-right">{num(byProcess.filter((g) => g.k2 === c).reduce((a, g) => a + g.good, 0))}</td>)}
-                <td className="text-right">{num(totals.good)}</td>
+                {cols.map((c) => <td key={c} className="text-right">{fmtNumber(byProcess.filter((g) => g.k2 === c).reduce((a, g) => a + g.good, 0))}</td>)}
+                <td className="text-right">{fmtNumber(totals.good)}</td>
               </tr>
             </tfoot>
           </table>
@@ -588,24 +588,24 @@ export default function WorkResultListPage() {
                 {code1 && <td>{g.c1}</td>}
                 {code2 && <td>{g.c2}</td>}
                 <td>{g.process}</td>
-                <td className="text-right text-ec-hint">{num(g.count)}</td>
-                <td className="text-right text-ec-success font-semibold">{num(g.good)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                <td className="text-right text-ec-success font-semibold">{fmtNumber(g.good)}</td>
                 {ratio && <td className="text-right text-ec-label">{totals.good ? (Math.round((g.good / totals.good) * 1000) / 10).toFixed(1) : '0.0'}</td>}
-                <td style={{ textAlign: 'right', color: g.defect > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(g.defect)}</td>
+                <td style={{ textAlign: 'right', color: g.defect > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{fmtNumber(g.defect)}</td>
                 <td style={{ textAlign: 'right', color: g.defect > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{pct(g.defect, g.good)}</td>
-                <td className="text-right">{num(g.time)}</td>
+                <td className="text-right">{fmtNumber(g.time)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={2 + (code1 ? 1 : 0) + (code2 ? 1 : 0)} className="text-right">합계 ({byProcess.length}건 묶음)</td>
-              <td className="text-right">{num(shown.length)}</td>
-              <td className="text-right text-ec-success">{num(totals.good)}</td>
+              <td className="text-right">{fmtNumber(shown.length)}</td>
+              <td className="text-right text-ec-success">{fmtNumber(totals.good)}</td>
               {ratio && <td className="text-right">100.0</td>}
-              <td className="text-right text-ec-danger">{num(totals.defect)}</td>
+              <td className="text-right text-ec-danger">{fmtNumber(totals.defect)}</td>
               <td className="text-right text-ec-danger">{pct(totals.defect, totals.good)}</td>
-              <td className="text-right">{num(totals.time)}</td>
+              <td className="text-right">{fmtNumber(totals.time)}</td>
             </tr>
           </tfoot>
         </table>
@@ -668,11 +668,11 @@ export default function WorkResultListPage() {
                 <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>
                   {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
                 </td>
-                <td className="text-right">{num(r.goodQty + r.defectQty)}</td>
+                <td className="text-right">{fmtNumber(r.goodQty + r.defectQty)}</td>
                 <td>{r.worker ?? ''}</td>
                 <td>{r.resourceName ?? ''}</td>
-                <td className="text-right text-ec-success font-semibold">{num(r.goodQty)}</td>
-                <td style={{ textAlign: 'right', color: r.defectQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(r.defectQty)}</td>
+                <td className="text-right text-ec-success font-semibold">{fmtNumber(r.goodQty)}</td>
+                <td style={{ textAlign: 'right', color: r.defectQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{fmtNumber(r.defectQty)}</td>
                 {/*
                   표준이 빈 까닭은 둘이고 <b>고치는 방법이 다르다</b> —
                   공정이 마스터에 안 걸렸으면 <b>이름을 고쳐야</b> 하고,
@@ -683,9 +683,9 @@ export default function WorkResultListPage() {
                     title={r.standardHours != null ? undefined
                       : r.processId == null ? '공정이 마스터에 없습니다 — 공정명을 고치세요'
                         : '이 품목·공정의 BOR(작업소요시간)이 없습니다'}>
-                  {r.standardHours == null ? '-' : num(r.standardHours)}
+                  {r.standardHours == null ? '-' : fmtNumber(r.standardHours)}
                 </td>
-                <td className="text-right">{num(r.workHours)}</td>
+                <td className="text-right">{fmtNumber(r.workHours)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: r.standardHours == null ? 'var(--ec-text-off)' : (r.standardHours - r.workHours) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {r.standardHours == null ? '-' : gap(r.standardHours - r.workHours)}
                 </td>
@@ -699,12 +699,12 @@ export default function WorkResultListPage() {
             <tr className="font-bold bg-ec-page">
               {/* [수량](양품 + 불량) 열도 더한다 — 예전엔 합계 칸이 그 열까지 덮어 수량 합이 없었다. */}
               <td colSpan={6} className="text-right">합계 ({shown.length}건)</td>
-              <td className="text-right">{num(totals.good + totals.defect)}</td>
+              <td className="text-right">{fmtNumber(totals.good + totals.defect)}</td>
               <td colSpan={2}></td>
-              <td className="text-right text-ec-success">{num(totals.good)}</td>
-              <td className="text-right text-ec-danger">{num(totals.defect)}</td>
-              <td className="text-right">{num(time.standard)}</td>
-              <td className="text-right">{num(totals.time)}</td>
+              <td className="text-right text-ec-success">{fmtNumber(totals.good)}</td>
+              <td className="text-right text-ec-danger">{fmtNumber(totals.defect)}</td>
+              <td className="text-right">{fmtNumber(time.standard)}</td>
+              <td className="text-right">{fmtNumber(totals.time)}</td>
               <td style={{ textAlign: 'right', color: time.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{gap(time.diff)}</td>
               <td className="text-right text-ec-danger">{pct(totals.defect, totals.good)}</td>
             </tr>

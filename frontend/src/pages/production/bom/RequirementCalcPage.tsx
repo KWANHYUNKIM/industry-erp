@@ -8,6 +8,7 @@ import EcSlipShell from '../../../components/EcSlipShell'
 import Modal from '../../../components/Modal'
 import { ymd } from '../../../components/EcPeriodPicks'
 import type { Item, Warehouse, WorkOrder } from '../../../types/api'
+import { fmtDecimal4Of } from '../../../utils/format'
 
 /**
  * 재고 I &gt; 생산/외주 &gt; BOM(소요량) &gt; <b>소요량계산</b>.
@@ -26,7 +27,6 @@ interface Line { key: number; itemId: string; qty: string; bomId: string }
 interface Need { componentId: number; componentCode: string; componentName: string; componentSpec: string | null; unit: string; quantity: number }
 let seq = 1
 const blank = (): Line => ({ key: seq++, itemId: '', qty: '', bomId: '' })
-const won = (n: number) => Number(n).toLocaleString('ko-KR', { maximumFractionDigits: 4 })
 
 export default function RequirementCalcPage() {
   const [items, setItems] = useState<Item[]>([])
@@ -223,14 +223,14 @@ export default function RequirementCalcPage() {
                 {result.prod.map((p) => (
                   <tr key={p.line.key}>
                     <td>{p.item.code}</td><td>{p.item.name}</td><td>{p.bomNo || ''}</td><td>{p.versionName}</td>
-                    <td>{p.item.spec ?? ''}</td><td>{p.item.unit}</td><td className="text-right">{won(Number(p.line.qty))}</td>
+                    <td>{p.item.spec ?? ''}</td><td>{p.item.unit}</td><td className="text-right">{fmtDecimal4Of(Number(p.line.qty))}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
                   <td colSpan={6} className="text-right font-bold">합계</td>
-                  <td className="text-right font-bold">{won(result.prod.reduce((n, p) => n + Number(p.line.qty), 0))}</td>
+                  <td className="text-right font-bold">{fmtDecimal4Of(result.prod.reduce((n, p) => n + Number(p.line.qty), 0))}</td>
                 </tr>
               </tfoot>
             </table>
@@ -254,10 +254,10 @@ export default function RequirementCalcPage() {
                         <tr key={`${gi}-${n.componentId}`}>
                           <td>{n.componentCode}</td>
                           <td>{n.componentName}{n.componentSpec ? ` [${n.componentSpec}]` : ''}</td>
-                          <td className="text-right">{won(Number(n.quantity))}</td>
-                          <td style={{ textAlign: 'right', color: onHand < Number(n.quantity) ? 'var(--ec-danger)' : undefined }}>{won(onHand)}</td>
+                          <td className="text-right">{fmtDecimal4Of(Number(n.quantity))}</td>
+                          <td style={{ textAlign: 'right', color: onHand < Number(n.quantity) ? 'var(--ec-danger)' : undefined }}>{fmtDecimal4Of(onHand)}</td>
                           <td>{partnerName(it?.supplierId)}</td>
-                          <td className="text-ec-danger text-[12px]">{onHand < Number(n.quantity) ? `부족 ${won(Number(n.quantity) - onHand)}` : ''}</td>
+                          <td className="text-ec-danger text-[12px]">{onHand < Number(n.quantity) ? `부족 ${fmtDecimal4Of(Number(n.quantity) - onHand)}` : ''}</td>
                         </tr>
                       )
                     })}
@@ -267,7 +267,7 @@ export default function RequirementCalcPage() {
               <tfoot>
                 <tr>
                   <td colSpan={2} className="text-right font-bold">합계</td>
-                  <td className="text-right font-bold">{won(result.needs.reduce((n, g) => n + g.rows.reduce((m, r) => m + Number(r.quantity), 0), 0))}</td>
+                  <td className="text-right font-bold">{fmtDecimal4Of(result.needs.reduce((n, g) => n + g.rows.reduce((m, r) => m + Number(r.quantity), 0), 0))}</td>
                   <td colSpan={3} />
                 </tr>
               </tfoot>
@@ -287,7 +287,7 @@ export default function RequirementCalcPage() {
                 <tr key={o.id} className="cursor-pointer" onClick={() => setPicked((p) => (p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id]))}>
                   <td className="text-center"><input type="checkbox" readOnly checked={picked.includes(o.id)} /></td>
                   <td>{dateText(o.orderDate)} {o.orderNo}</td><td>{o.productCode}</td><td>{o.productName}</td>
-                  <td className="text-right">{won(Number(o.remainingQty))}</td>
+                  <td className="text-right">{fmtDecimal4Of(Number(o.remainingQty))}</td>
                 </tr>
               ))}
             </tbody>

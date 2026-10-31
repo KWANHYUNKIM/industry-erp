@@ -11,6 +11,7 @@ import { dateText } from '../../../utils/dateText'
 import { dateNo } from '../../../utils/dateNo'
 import { expiryDirectRange } from '../../../utils/expiryRange'
 import EcDateInput, { EcDateRange } from '../../../components/ui/EcDateInput'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.재고현황</b> (이카운트 E040619)
@@ -33,7 +34,6 @@ import EcDateInput, { EcDateRange } from '../../../components/ui/EcDateInput'
 const MODES = ['시리얼/로트No.', '시리얼/로트No.(창고별)'] as const
 type Mode = typeof MODES[number]
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 /* 원본 격자의 수량은 소수 둘째 자리까지 찍는다(-3.00 · 1.00 · 합계 325.00, 2026-10-13 실측). */
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -331,8 +331,8 @@ export default function LotStockStatusPage() {
               <tr key={g.warehouse}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.warehouse}</td>
-                <td className="text-right">{num(g.lotCount)}</td>
-                <td className="text-right">{num(g.stockQty)}</td>
+                <td className="text-right">{fmtNumber(g.lotCount)}</td>
+                <td className="text-right">{fmtNumber(g.stockQty)}</td>
               </tr>
             ))}
           </tbody>

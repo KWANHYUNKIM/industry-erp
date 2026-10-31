@@ -6,6 +6,7 @@ import {
   fmtTrunc, fmtTruncBlankOf,
   fmtNumberNz, fmtNumberBlankOf, fmtNumberOrZero, fmtNumberNullZeroBlank, fmtNumberText, fmtAmountOrBlank, fmtAmountHalfAway, fmtTruncNz,
   parseNum, parseNumPlain,
+  fmtDecimal4Of,
 } from './format.ts'
 
 // 서버 값이 타입과 달리 문자열 · null 로 오는 경우까지 — 지역 won 이 그때 찍던 그대로여야 한다.
@@ -208,4 +209,14 @@ test('parseNumPlain — 콤마를 안 지운다, 숫자가 아니면 0', () => {
   assert.equal(parseNumPlain('abc'), 0)
   assert.equal(parseNumPlain(null), 0)
   assert.equal(parseNumPlain(undefined), 0)
+})
+
+test('fmtDecimal4Of — Number 로 바꿔 소수 넷째 자리, NaN 은 그대로', () => {
+  assert.equal(fmtDecimal4Of(0), '0')
+  assert.equal(fmtDecimal4Of(-1234.56789), '-1,234.5679')
+  assert.equal(fmtDecimal4Of(0.00004), '0')
+  assert.equal(fmtDecimal4Of(odd('')), '0')
+  assert.equal(fmtDecimal4Of(odd(null)), '0')
+  assert.equal(fmtDecimal4Of(odd('12.3')), '12.3')
+  assert.equal(fmtDecimal4Of(NaN), 'NaN')
 })

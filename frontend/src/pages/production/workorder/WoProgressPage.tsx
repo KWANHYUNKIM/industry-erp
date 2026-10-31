@@ -11,6 +11,7 @@ import { usePartnerGroups } from '../../../utils/partnerGroups'
 import { useItemFlags } from '../../../utils/useInactiveItems'
 import { dateText } from '../../../utils/dateText'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 생산관리 > 작업지시서별진행현황 — 작업지시 하나가 어디까지 갔는지 네 갈래로 본다.
@@ -106,7 +107,6 @@ interface WorkResult { id: number; workOrderId: number | null; process: string; 
 interface BomLine { componentId: number; componentCode: string; componentName: string; quantity: number }
 interface Bom { productId: number; lines: BomLine[] }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function WoProgressPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -616,9 +616,9 @@ export default function WoProgressPage() {
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         작업지시 <b className="text-ec-text">{shown.length}</b>건
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        지시수량 <b>{num(totals.planned)}</b>
+        지시수량 <b>{fmtNumber(totals.planned)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        생산수량 <b className="text-ec-navy">{num(totals.produced)}</b>
+        생산수량 <b className="text-ec-navy">{fmtNumber(totals.produced)}</b>
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -656,9 +656,9 @@ export default function WoProgressPage() {
                   <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{o.orderNo}</td>
                   <td>[{o.productCode}] {o.productName}</td>
-                  <td className="text-right">{num(o.plannedQty)}</td>
-                  <td className="text-right text-ec-hint">{num(g?.count ?? 0)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: g ? '#a5561b' : 'var(--ec-text-off)' }}>{num(g?.qty ?? 0)}</td>
+                  <td className="text-right">{fmtNumber(o.plannedQty)}</td>
+                  <td className="text-right text-ec-hint">{fmtNumber(g?.count ?? 0)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: g ? '#a5561b' : 'var(--ec-text-off)' }}>{fmtNumber(g?.qty ?? 0)}</td>
                   <td style={{ fontFamily: 'monospace', color: g ? undefined : 'var(--ec-text-off)' }}>{g?.last ?? ''}</td>
                 </tr>
               )
@@ -667,9 +667,9 @@ export default function WoProgressPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={3} className="text-right">합계 ({shown.length}건)</td>
-              <td className="text-right">{num(totals.planned)}</td>
+              <td className="text-right">{fmtNumber(totals.planned)}</td>
               <td></td>
-              <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.issued)}</td>
+              <td style={{ textAlign: 'right', color: '#a5561b' }}>{fmtNumber(totals.issued)}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -702,10 +702,10 @@ export default function WoProgressPage() {
                   <td style={{ color: l.required === 0 ? '#a5561b' : undefined }}>
                     {l.material}{l.required === 0 ? ' (BOM 밖)' : ''}
                   </td>
-                  <td className="text-right">{num(l.required)}</td>
-                  <td className="text-right">{num(l.used)}</td>
+                  <td className="text-right">{fmtNumber(l.required)}</td>
+                  <td className="text-right">{fmtNumber(l.used)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: diff > 0 ? 'var(--ec-danger)' : diff < 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
-                    {diff > 0 ? '+' : ''}{num(diff)}
+                    {diff > 0 ? '+' : ''}{fmtNumber(diff)}
                   </td>
                 </tr>
               )
@@ -738,10 +738,10 @@ export default function WoProgressPage() {
                   <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{o.orderNo}</td>
                   <td>[{o.productCode}] {o.productName}</td>
-                  <td className="text-right text-ec-hint">{num(g?.count ?? 0)}</td>
-                  <td className="text-right text-ec-success font-semibold">{num(g?.good ?? 0)}</td>
-                  <td style={{ textAlign: 'right', color: (g?.defect ?? 0) > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(g?.defect ?? 0)}</td>
-                  <td className="text-right">{num(g?.time ?? 0)}</td>
+                  <td className="text-right text-ec-hint">{fmtNumber(g?.count ?? 0)}</td>
+                  <td className="text-right text-ec-success font-semibold">{fmtNumber(g?.good ?? 0)}</td>
+                  <td style={{ textAlign: 'right', color: (g?.defect ?? 0) > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{fmtNumber(g?.defect ?? 0)}</td>
+                  <td className="text-right">{fmtNumber(g?.time ?? 0)}</td>
                   <td style={{ fontFamily: 'monospace', color: g ? undefined : 'var(--ec-text-off)' }}>{g?.last ?? ''}</td>
                 </tr>
               )
@@ -750,8 +750,8 @@ export default function WoProgressPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={4} className="text-right">합계 ({shown.length}건)</td>
-              <td className="text-right text-ec-success">{num(totals.good)}</td>
-              <td className="text-right text-ec-danger">{num(totals.defect)}</td>
+              <td className="text-right text-ec-success">{fmtNumber(totals.good)}</td>
+              <td className="text-right text-ec-danger">{fmtNumber(totals.defect)}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
@@ -813,11 +813,11 @@ export default function WoProgressPage() {
               <tr key={r.key} className="font-bold bg-ec-page">
                 <td colSpan={3} className="text-right">{r.label}</td>
                 <td colSpan={2}></td>
-                <td className="text-right">{num(r.required)}</td>
+                <td className="text-right">{fmtNumber(r.required)}</td>
                 <td colSpan={3}></td>
-                <td className="text-right text-ec-navy">{num(r.produced)}</td>
-                <td className="text-right">{num(r.unmade)}</td>
-                <td className="text-right">{num(r.onHand)}</td>
+                <td className="text-right text-ec-navy">{fmtNumber(r.produced)}</td>
+                <td className="text-right">{fmtNumber(r.unmade)}</td>
+                <td className="text-right">{fmtNumber(r.onHand)}</td>
               </tr>
             ) : (
               <tr key={r.key}>
@@ -826,23 +826,23 @@ export default function WoProgressPage() {
                 <td>{r.label}</td>
                 <td>{r.process}</td>
                 <td className="text-center">{dateText(r.bomDate)}</td>
-                <td className="text-right">{num(r.required)}</td>
+                <td className="text-right">{fmtNumber(r.required)}</td>
                 <td>{r.factory}</td>
                 <td>{r.prodProcess}</td>
                 <td className="text-center">{r.prodDate ? dateNo(r.prodDate, r.prodNo) : ''}</td>
-                <td className="text-right font-semibold text-ec-navy">{r.produced ? num(r.produced) : ''}</td>
-                <td style={{ textAlign: 'right', color: r.unmade > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(r.unmade)}</td>
-                <td className="text-right">{num(r.onHand)}</td>
+                <td className="text-right font-semibold text-ec-navy">{r.produced ? fmtNumber(r.produced) : ''}</td>
+                <td style={{ textAlign: 'right', color: r.unmade > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{fmtNumber(r.unmade)}</td>
+                <td className="text-right">{fmtNumber(r.onHand)}</td>
               </tr>
             )))}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
-              <td className="text-right">{num(progTotals.required)}</td>
+              <td className="text-right">{fmtNumber(progTotals.required)}</td>
               <td colSpan={3}></td>
-              <td className="text-right text-ec-navy">{num(progTotals.produced)}</td>
-              <td className="text-right">{num(progTotals.unmade)}</td>
+              <td className="text-right text-ec-navy">{fmtNumber(progTotals.produced)}</td>
+              <td className="text-right">{fmtNumber(progTotals.unmade)}</td>
               <td></td>
             </tr>
           </tfoot>

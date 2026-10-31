@@ -44,6 +44,9 @@ export const fmtTruncBlankOf = (n: number | null | undefined) => (Number(n) ? Ma
 /** 소수 넷째 자리까지 · 숫자가 아니면(NaN · Infinity) 빈칸 (생산 수량) */
 export const fmtDecimal4 = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : '')
 
+/** Number 로 바꿔서 · 소수 넷째 자리까지 · NaN 은 'NaN' 그대로 (소요량 계산 — fmtDecimal4 와 달리 거르지 않는다) */
+export const fmtDecimal4Of = (n: number) => Number(n).toLocaleString('ko-KR', { maximumFractionDigits: 4 })
+
 /** 그대로 · 0 · 빈 값(null · undefined · NaN)은 빈칸 — `n ? n.toLocaleString('ko-KR') : ''` (급여대장). Number 로 바꾸지 않는다 */
 export const fmtNumberNz = (n: number | null | undefined) => (n ? n.toLocaleString('ko-KR') : '')
 

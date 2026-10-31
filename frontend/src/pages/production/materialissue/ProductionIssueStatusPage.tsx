@@ -12,7 +12,7 @@ import type { Item } from '../../../types/api'
 import CodePickerField from '../../../components/codepicker/CodePickerField'
 import { useCondPickers } from '../../../utils/useCondPickers'
 import { subtotalBy } from '../../../utils/subtotalBy'
-import { fmtAmountOrDash } from '../../../utils/format'
+import { fmtAmountOrDash, fmtNumber } from '../../../utils/format'
 
 /**
  * 생산 > 생산입고/소모현황 I (이카운트 E040415)
@@ -108,7 +108,6 @@ interface Production {
   materials: ProductionMaterial[]
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 /** 원본 [단가표시] — 생산품목단가 · 소모품목단가 를 따로 이 셋 중에서 고른다. */
 const PRICE_BASES = ['입고단가', '입고단가(VAT포함)', '월별원가'] as const
@@ -561,7 +560,7 @@ export default function ProductionIssueStatusPage() {
 
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '거래별' ? '생산' : '묶음'}{' '}
-        <b className="text-ec-text">{num(
+        <b className="text-ec-text">{fmtNumber(
           mode === '거래별' ? shown.length
             : mode === '생산품목별집계' ? byProduct.length
               : mode === '소모품목별집계' ? byMaterial.length
@@ -569,9 +568,9 @@ export default function ProductionIssueStatusPage() {
                   : byItem.length,
         )}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
-        입고 <b className="text-ec-blue text-[14px]">{num(totals.inQty)}</b>
+        입고 <b className="text-ec-blue text-[14px]">{fmtNumber(totals.inQty)}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
-        소모 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
+        소모 <b style={{ color: '#a5561b', fontSize: 14 }}>{fmtNumber(totals.outQty)}</b>
       </div>
 
       {/*
@@ -625,7 +624,7 @@ export default function ProductionIssueStatusPage() {
                       <td>{p.productName}</td>
                       <td></td>
                       <td></td>
-                      <td className="text-right font-semibold">{num(p.producedQty)}</td>
+                      <td className="text-right font-semibold">{fmtNumber(p.producedQty)}</td>
                       <td className="text-right"></td>
                       <td className="text-right"></td>
                       <td style={{ textAlign: 'right', color: pp == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{pp == null ? '' : fmtAmountOrDash(pp)}</td>
@@ -645,14 +644,14 @@ export default function ProductionIssueStatusPage() {
                           <td>{r.componentCode}</td>
                           <td>{r.componentName}</td>
                           <td className="text-right"></td>
-                          <td className="text-right text-ec-label">{num(r.stdQty)}</td>
-                          <td className="text-right">{r.actualQty ? num(r.actualQty) : ''}</td>
+                          <td className="text-right text-ec-label">{fmtNumber(r.stdQty)}</td>
+                          <td className="text-right">{r.actualQty ? fmtNumber(r.actualQty) : ''}</td>
                           <td className="text-right"></td>
                           <td style={{ textAlign: 'right', color: r.materialPrice == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>
                             {fmtAmountOrDash(r.materialPrice)}
                           </td>
                           <td style={{ textAlign: 'right', fontWeight: 700, color: over ? 'var(--ec-danger)' : r.gap > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
-                            {num(r.gap)}
+                            {fmtNumber(r.gap)}
                           </td>
                           <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount == null ? 'var(--ec-text-off)' : over ? 'var(--ec-danger)' : undefined }}>
                             {fmtAmountOrDash(r.amount)}
@@ -668,12 +667,12 @@ export default function ProductionIssueStatusPage() {
               <tfoot>
                 <tr className="font-bold bg-ec-page">
                   <td colSpan={6} className="text-right">합계 ({flatRows.length}줄)</td>
-                  <td className="text-right">{num(shown.reduce((n, p) => n + p.producedQty, 0))}</td>
-                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.stdQty, 0))}</td>
-                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.actualQty, 0))}</td>
+                  <td className="text-right">{fmtNumber(shown.reduce((n, p) => n + p.producedQty, 0))}</td>
+                  <td className="text-right">{fmtNumber(flatRows.reduce((n, r) => n + r.stdQty, 0))}</td>
+                  <td className="text-right">{fmtNumber(flatRows.reduce((n, r) => n + r.actualQty, 0))}</td>
                   {/* 생산품목단가 · 소모품목단가 — 단가는 더할 값이 아니라 비워 둔다 */}
                   <td colSpan={2}></td>
-                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.gap, 0))}</td>
+                  <td className="text-right">{fmtNumber(flatRows.reduce((n, r) => n + r.gap, 0))}</td>
                   {/* 단가를 모르는 줄은 빼고 센다 — 0 으로 채우면 차이가 없는 것처럼 보인다 */}
                   <td className="text-right text-ec-navy">
                     {fmtAmountOrDash(flatRows.reduce((n, r) => n + (r.amount ?? 0), 0))}
@@ -717,9 +716,9 @@ export default function ProductionIssueStatusPage() {
                       <tr key={g.label}>
                         <td className="font-semibold">{g.label}</td>
                         <td className="text-right">{g.count}</td>
-                        <td className="text-right">{num(g.sums.std)}</td>
-                        <td className="text-right">{num(g.sums.act)}</td>
-                        <td className="text-right">{num(g.sums.gap)}</td>
+                        <td className="text-right">{fmtNumber(g.sums.std)}</td>
+                        <td className="text-right">{fmtNumber(g.sums.act)}</td>
+                        <td className="text-right">{fmtNumber(g.sums.gap)}</td>
                         <td className="text-right">{fmtAmountOrDash(g.sums.amount)}</td>
                       </tr>
                     ))}
@@ -750,16 +749,16 @@ export default function ProductionIssueStatusPage() {
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>{g.code}</td>
                   <td>{g.name}</td>
-                  <td className="text-right text-ec-hint">{num(g.count)}</td>
-                  <td className="text-right font-semibold text-ec-blue">{num(g.qty)} {g.unit}</td>
+                  <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                  <td className="text-right font-semibold text-ec-blue">{fmtNumber(g.qty)} {g.unit}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-bold bg-ec-page">
                 <td colSpan={3} className="text-right">합계 ({byProduct.length}품목)</td>
-                <td className="text-right">{num(shown.length)}</td>
-                <td className="text-right text-ec-blue">{num(totals.inQty)}</td>
+                <td className="text-right">{fmtNumber(shown.length)}</td>
+                <td className="text-right text-ec-blue">{fmtNumber(totals.inQty)}</td>
               </tr>
             </tfoot>
           </table>
@@ -784,15 +783,15 @@ export default function ProductionIssueStatusPage() {
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>{g.code}</td>
                   <td>{g.name}</td>
-                  <td className="text-right text-ec-hint">{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)} {g.unit}</td>
+                  <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{fmtNumber(g.qty)} {g.unit}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-bold bg-ec-page">
                 <td colSpan={4} className="text-right">합계 ({byMaterial.length}자재)</td>
-                <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.outQty)}</td>
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>{fmtNumber(totals.outQty)}</td>
               </tr>
             </tfoot>
           </table>
@@ -818,9 +817,9 @@ export default function ProductionIssueStatusPage() {
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>{g.product}</td>
                   <td>{g.material}</td>
-                  <td className="text-right text-ec-hint">{num(g.count)}</td>
-                  <td className="text-right text-ec-blue">{num(g.producedQty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.usedQty)} {g.unit}</td>
+                  <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                  <td className="text-right text-ec-blue">{fmtNumber(g.producedQty)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{fmtNumber(g.usedQty)} {g.unit}</td>
                 </tr>
               ))}
             </tbody>
@@ -861,11 +860,11 @@ export default function ProductionIssueStatusPage() {
                   </td>
                   <td className="text-right text-ec-hint">{g.inCount || ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: g.inQty ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
-                    {g.inQty ? num(g.inQty) : '—'}
+                    {g.inQty ? fmtNumber(g.inQty) : '—'}
                   </td>
                   <td className="text-right text-ec-hint">{g.outCount || ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: g.outQty ? '#a5561b' : 'var(--ec-text-off)' }}>
-                    {g.outQty ? num(g.outQty) : '—'}
+                    {g.outQty ? fmtNumber(g.outQty) : '—'}
                   </td>
                 </tr>
               ))}
@@ -874,9 +873,9 @@ export default function ProductionIssueStatusPage() {
               <tfoot>
                 <tr>
                   <td colSpan={4} className="text-right font-bold bg-ec-page">합계</td>
-                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totals.inQty)}</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{fmtNumber(totals.inQty)}</td>
                   <td className="bg-ec-page"></td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.outQty)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{fmtNumber(totals.outQty)}</td>
                 </tr>
               </tfoot>
             )}

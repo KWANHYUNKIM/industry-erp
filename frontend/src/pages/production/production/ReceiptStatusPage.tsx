@@ -15,6 +15,7 @@ import { useCondPickers } from '../../../utils/useCondPickers'
 import { useItemMgmt } from '../../../utils/itemMgmtItems'
 import { dateText } from '../../../utils/dateText'
 import ItemSuggestInput from '../../../features/item/components/ItemSuggestInput'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 생산관리 > 생산입고현황 — 생산입고 전표(/api/productions)를 기간·조건으로 본다.
@@ -90,7 +91,6 @@ interface Production {
   materials: Material[]
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function ReceiptStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -517,9 +517,9 @@ export default function ReceiptStatusPage() {
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         입고 전표 <b className="text-ec-navy text-[14px]">{shown.length}</b>건
         <span className="my-0 mx-[8px] text-ec-off">|</span>
-        입고수량 <b className="text-ec-navy text-[14px]">{num(totalQty)}</b>
+        입고수량 <b className="text-ec-navy text-[14px]">{fmtNumber(totalQty)}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
-        생산금액 <b className="text-ec-navy text-[14px]">{num(Math.round(amount.value))}</b>
+        생산금액 <b className="text-ec-navy text-[14px]">{fmtNumber(Math.round(amount.value))}</b>
         {amount.unknown > 0 && (
           <span className="ml-[6px] text-ec-warn">※ 단가 미정 {amount.unknown}건 제외</span>
         )}
@@ -534,7 +534,7 @@ export default function ReceiptStatusPage() {
         return (
           <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
-            수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {num(Math.round(pa))} → {num(Math.round(amount.value))}{pct(amount.value, pa)}
+            수량 {fmtNumber(pq)} → {fmtNumber(totalQty)}{pct(totalQty, pq)} · 생산금액 {fmtNumber(Math.round(pa))} → {fmtNumber(Math.round(amount.value))}{pct(amount.value, pa)}
           </div>
         )
       })()}
@@ -565,16 +565,16 @@ export default function ReceiptStatusPage() {
                   <td className="text-center text-ec-hint">{i + 1}</td>
                   {code1 && <td>{codes1.get(k)}</td>}
                   <td>{k}</td>
-                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? num(m.get(c)!) : ''}</td>)}
-                  <td className="text-right font-semibold">{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
+                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? fmtNumber(m.get(c)!) : ''}</td>)}
+                  <td className="text-right font-semibold">{fmtNumber([...m.values()].reduce((a, v) => a + v, 0))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-bold bg-ec-page">
                 <td colSpan={code1 ? 3 : 2} className="text-right">합계</td>
-                {cols.map((c) => <td key={c} className="text-right">{num(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
-                <td className="text-right">{num(totalQty)}</td>
+                {cols.map((c) => <td key={c} className="text-right">{fmtNumber(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
+                <td className="text-right">{fmtNumber(totalQty)}</td>
               </tr>
             </tfoot>
           </table>
@@ -608,20 +608,20 @@ export default function ReceiptStatusPage() {
                 {agg2 && <td>{g.g2}</td>}
                 {code3 && <td>{codes3.get(g.g3 ?? '')}</td>}
                 {agg3 && <td>{g.g3}</td>}
-                <td className="text-right text-ec-hint">{num(g.count)}</td>
-                <td className="text-right font-semibold text-ec-navy">{num(g.qty)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                <td className="text-right font-semibold text-ec-navy">{fmtNumber(g.qty)}</td>
                 {ratio && <td className="text-right text-ec-label">{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
-                <td className="text-right">{num(Math.round(g.supply))}</td>
+                <td className="text-right">{fmtNumber(Math.round(g.supply))}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={(agg2 ? 3 : 2) + extraCols} className="text-right">합계 ({aggRows.length}묶음)</td>
-              <td className="text-right">{num(shown.length)}</td>
-              <td className="text-right text-ec-navy">{num(totalQty)}</td>
+              <td className="text-right">{fmtNumber(shown.length)}</td>
+              <td className="text-right text-ec-navy">{fmtNumber(totalQty)}</td>
               {ratio && <td className="text-right">100.0</td>}
-              <td className="text-right">{num(Math.round(aggRows.reduce((n, g) => n + g.supply, 0)))}</td>
+              <td className="text-right">{fmtNumber(Math.round(aggRows.reduce((n, g) => n + g.supply, 0)))}</td>
             </tr>
           </tfoot>
         </table>
@@ -646,9 +646,9 @@ export default function ReceiptStatusPage() {
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.code}</td>
                 <td>{g.name}</td>
-                <td className="text-right text-ec-hint">{num(g.count)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
                 <td className="text-right font-semibold text-ec-navy">
-                  {num(g.qty)} {g.unit}
+                  {fmtNumber(g.qty)} {g.unit}
                 </td>
               </tr>
             ))}
@@ -656,8 +656,8 @@ export default function ReceiptStatusPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={3} className="text-right">합계 ({byItem.length}건 묶음)</td>
-              <td className="text-right">{num(shown.length)}</td>
-              <td className="text-right text-ec-navy">{num(totalQty)}</td>
+              <td className="text-right">{fmtNumber(shown.length)}</td>
+              <td className="text-right text-ec-navy">{fmtNumber(totalQty)}</td>
             </tr>
           </tfoot>
         </table>
@@ -695,10 +695,10 @@ export default function ReceiptStatusPage() {
                 <td>{r.warehouseName}</td>
                 <td>{r.productName}{r.productSpec ? `[${r.productSpec}]` : ''}</td>
                 <td className="text-right font-semibold text-ec-navy">
-                  {num(r.producedQty)} {r.productUnit}
+                  {fmtNumber(r.producedQty)} {r.productUnit}
                 </td>
                 <td style={{ textAlign: 'right', color: r.slipAmount == null ? 'var(--ec-text-off)' : undefined }}>
-                  {r.slipAmount == null ? '-' : num(Math.round(r.slipAmount))}
+                  {r.slipAmount == null ? '-' : fmtNumber(Math.round(r.slipAmount))}
                 </td>
                 <td className="text-right text-ec-hint">{r.matCount}</td>
                 {/* [담당자] 는 전표의 담당 사원이다 — 만든 계정(createdBy, [최초작성자])이 아니다. */}
@@ -710,8 +710,8 @@ export default function ReceiptStatusPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={6} className="text-right">합계 ({shown.length}건)</td>
-              <td className="text-right text-ec-navy">{num(totalQty)}</td>
-              <td className="text-right text-ec-navy">{num(Math.round(amount.value))}</td>
+              <td className="text-right text-ec-navy">{fmtNumber(totalQty)}</td>
+              <td className="text-right text-ec-navy">{fmtNumber(Math.round(amount.value))}</td>
               <td colSpan={3}></td>
             </tr>
           </tfoot>

@@ -14,7 +14,7 @@ import { useCondPickers } from '../../../utils/useCondPickers'
 import { subtotalBy } from '../../../utils/subtotalBy'
 import { dateText } from '../../../utils/dateText'
 import { useItemMgmt } from '../../../utils/itemMgmtItems'
-import { fmtAmount } from '../../../utils/format'
+import { fmtAmount, fmtNumber } from '../../../utils/format'
 
 /**
  * 생산관리 > 생산불출현황 — 자재 불출을 기간·조건으로 본다 (/api/material-issues).
@@ -77,7 +77,6 @@ interface MaterialIssue {
   itemCategoryName: string | null
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function IssueStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -500,7 +499,7 @@ export default function IssueStatusPage() {
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         불출 <b className="text-ec-text">{shown.length}</b>건
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        불출수량 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totalQty)}</b>
+        불출수량 <b style={{ color: '#a5561b', fontSize: 14 }}>{fmtNumber(totalQty)}</b>
       </div>
       {mode === '집계' && prevRange && prevRows && (() => {
         const pick = (r: MaterialIssue) => (!warehouseId || String(r.warehouseId) === warehouseId || String(r.toWarehouseId) === warehouseId)
@@ -513,7 +512,7 @@ export default function IssueStatusPage() {
         return (
           <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
-            수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {fmtAmount(pa)} → {fmtAmount(ca)}{pct(ca, pa)}
+            수량 {fmtNumber(pq)} → {fmtNumber(totalQty)}{pct(totalQty, pq)} · 생산금액 {fmtAmount(pa)} → {fmtAmount(ca)}{pct(ca, pa)}
           </div>
         )
       })()}
@@ -544,16 +543,16 @@ export default function IssueStatusPage() {
                   <td className="text-center text-ec-hint">{i + 1}</td>
                   {code1 && <td>{codes1.get(k)}</td>}
                   <td>{k}</td>
-                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? num(m.get(c)!) : ''}</td>)}
-                  <td className="text-right font-semibold">{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
+                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? fmtNumber(m.get(c)!) : ''}</td>)}
+                  <td className="text-right font-semibold">{fmtNumber([...m.values()].reduce((a, v) => a + v, 0))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-bold bg-ec-page">
                 <td colSpan={code1 ? 3 : 2} className="text-right">합계</td>
-                {cols.map((c) => <td key={c} className="text-right">{num(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
-                <td className="text-right">{num(totalQty)}</td>
+                {cols.map((c) => <td key={c} className="text-right">{fmtNumber(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
+                <td className="text-right">{fmtNumber(totalQty)}</td>
               </tr>
             </tfoot>
           </table>
@@ -587,8 +586,8 @@ export default function IssueStatusPage() {
                 {agg2 && <td>{g.g2}</td>}
                 {code3 && <td>{codes3.get(g.g3 ?? '')}</td>}
                 {agg3 && <td>{g.g3}</td>}
-                <td className="text-right text-ec-hint">{num(g.count)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{fmtNumber(g.qty)}</td>
                 {ratio && <td className="text-right text-ec-label">{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
                 <td className="text-right">{fmtAmount(g.supply)}</td>
               </tr>
@@ -597,8 +596,8 @@ export default function IssueStatusPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={(agg2 ? 3 : 2) + extraCols} className="text-right">합계 ({aggRows.length}묶음)</td>
-              <td className="text-right">{num(shown.length)}</td>
-              <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
+              <td className="text-right">{fmtNumber(shown.length)}</td>
+              <td style={{ textAlign: 'right', color: '#a5561b' }}>{fmtNumber(totalQty)}</td>
               {ratio && <td className="text-right">100.0</td>}
               <td className="text-right">{fmtAmount(aggRows.reduce((n, g) => n + g.supply, 0))}</td>
             </tr>
@@ -628,8 +627,8 @@ export default function IssueStatusPage() {
                 <td>{g.itemCode}</td>
                 <td>{g.itemName}</td>
                 <td>{g.unit}</td>
-                <td className="text-right text-ec-hint">{num(g.count)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.totalQty)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{fmtNumber(g.totalQty)}</td>
                 <td>{dateText(g.lastDate)}</td>
               </tr>
             ))}
@@ -637,8 +636,8 @@ export default function IssueStatusPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={4} className="text-right">합계 ({byItem.length}자재)</td>
-              <td className="text-right">{num(shown.length)}</td>
-              <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
+              <td className="text-right">{fmtNumber(shown.length)}</td>
+              <td style={{ textAlign: 'right', color: '#a5561b' }}>{fmtNumber(totalQty)}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -682,7 +681,7 @@ export default function IssueStatusPage() {
                 <td>{r.warehouseName}</td>
                 <td style={{ color: r.toWarehouseName ? undefined : 'var(--ec-text-off)' }}>{r.toWarehouseName ?? ''}</td>
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{fmtNumber(r.qty)} {r.unit}</td>
                 <td className="text-right">{(() => { const a = 'slipAmount' in r ? (r as { slipAmount: number | null }).slipAmount : amountOf(r); return a == null ? '' : fmtAmount(a) })()}</td>
                 <td style={{ color: r.note ? undefined : 'var(--ec-text-off)' }}>{r.note ?? ''}</td>
                 <td className="text-ec-label">{r.workOrderNo}</td>
@@ -692,7 +691,7 @@ export default function IssueStatusPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
+              <td style={{ textAlign: 'right', color: '#a5561b' }}>{fmtNumber(totalQty)}</td>
               <td className="text-right">{fmtAmount(shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0))}</td>
               <td colSpan={2}></td>
             </tr>
@@ -722,7 +721,7 @@ export default function IssueStatusPage() {
                     <td className="font-semibold">{g.label}</td>
                     <td className="text-right">{g.count}</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#a5561b' }}>
-                      {num(g.sums.qty)}
+                      {fmtNumber(g.sums.qty)}
                     </td>
                   </tr>
                 ))}

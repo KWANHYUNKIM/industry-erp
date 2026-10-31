@@ -11,6 +11,7 @@ import { EcReportHead, EcReportFoot, reportPeriod } from '../../../components/Ec
 import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../../components/EcPeriodPicks'
 import { expiryDirectRange } from '../../../utils/expiryRange'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.재고수불부</b>(E040620) — 2026-10-03 loginaa 실측(자료가 든 판).
@@ -21,7 +22,6 @@ import { EcDateRange } from '../../../components/ui/EcDateInput'
  * 판 것만 있으면 -1.00 처럼 음수로 찍힌다. 기간에 움직임이 없어도 이월이 있으면 이월 줄과 계 줄만 선다.
  * 예전엔 줄을 한 판에 늘어놓고 저장할 때의 잔량(balanceAfter)을 찍어, 전표를 고치고 지우면 잔량이 어긋났다.
  */
-const num = (n: number) => n.toLocaleString('ko-KR')
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /* 원본 E040620 은 [전월+금월] 을 보고 열린다(2026-09-01 실측). */
@@ -253,10 +253,10 @@ export default function LotLedgerPage() {
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.head.lotNo}</td>
                 <td>{g.head.itemName}</td>
-                <td className="text-right">{num(g.moves.length)}</td>
-                <td className="text-right">{num(g.inQty)}</td>
-                <td className="text-right">{num(g.outQty)}</td>
-                <td className="text-right font-bold">{num(g.closing)}</td>
+                <td className="text-right">{fmtNumber(g.moves.length)}</td>
+                <td className="text-right">{fmtNumber(g.inQty)}</td>
+                <td className="text-right">{fmtNumber(g.outQty)}</td>
+                <td className="text-right font-bold">{fmtNumber(g.closing)}</td>
               </tr>
             ))}
           </tbody>

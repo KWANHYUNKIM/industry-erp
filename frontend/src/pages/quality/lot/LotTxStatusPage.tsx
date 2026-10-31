@@ -12,6 +12,7 @@ import { EcReportHead, EcReportFoot, reportPeriod } from '../../../components/Ec
 import { subtotalBy } from '../../../utils/subtotalBy'
 import { useItemMgmt } from '../../../utils/itemMgmtItems'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.내역현황</b> (이카운트 E040639)
@@ -36,7 +37,6 @@ import { EcDateRange } from '../../../components/ui/EcDateInput'
 const UNITS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별'] as const
 type Unit = typeof UNITS[number]
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /* 원본은 [금월(~오늘)] 을 보고 열린다(실측). */
@@ -260,8 +260,8 @@ export default function LotTxStatusPage() {
               <tr key={g.label}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.label}</td>
-                <td className="text-right">{num(g.count)}</td>
-                <td className="text-right">{num(g.sums.qty)}</td>
+                <td className="text-right">{fmtNumber(g.count)}</td>
+                <td className="text-right">{fmtNumber(g.sums.qty)}</td>
               </tr>
             ))}
           </tbody>
