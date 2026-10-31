@@ -534,82 +534,82 @@
   "color": 1,
   "palette": 0
  },
- "pages/hr/AttendanceInputPage.tsx": {
+ "pages/hr/attendance/AttendanceInputPage.tsx": {
   "inline": 6,
   "color": 1,
   "palette": 0
  },
- "pages/hr/AttendanceKindStatusPage.tsx": {
+ "pages/hr/attendance/AttendanceKindStatusPage.tsx": {
   "inline": 6,
   "color": 0,
   "palette": 0
  },
- "pages/hr/AttendanceListPage.tsx": {
+ "pages/hr/attendance/AttendanceListPage.tsx": {
   "inline": 5,
   "color": 0,
   "palette": 0
  },
- "pages/hr/AttendanceStatusPage.tsx": {
+ "pages/hr/attendance/AttendanceStatusPage.tsx": {
   "inline": 12,
   "color": 0,
   "palette": 0
  },
- "pages/hr/DailyWagePage.tsx": {
+ "pages/hr/dailywork/DailyWagePage.tsx": {
   "inline": 15,
   "color": 4,
   "palette": 0
  },
- "pages/hr/DailyWorkHoursPage.tsx": {
+ "pages/hr/attendance/DailyWorkHoursPage.tsx": {
   "inline": 12,
   "color": 3,
   "palette": 0
  },
- "pages/hr/EmployeePerformancePage.tsx": {
+ "pages/hr/employee/EmployeePerformancePage.tsx": {
   "inline": 6,
   "color": 2,
   "palette": 0
  },
- "pages/hr/HrRecordPage.tsx": {
+ "pages/hr/employee/HrRecordPage.tsx": {
   "inline": 14,
   "color": 4,
   "palette": 0
  },
- "pages/hr/LateArrivalPage.tsx": {
+ "pages/hr/attendance/LateArrivalPage.tsx": {
   "inline": 6,
   "color": 1,
   "palette": 0
  },
- "pages/hr/LeaveInputPage.tsx": {
+ "pages/hr/vacation/LeaveInputPage.tsx": {
   "inline": 4,
   "color": 1,
   "palette": 0
  },
- "pages/hr/LeaveListPage.tsx": {
+ "pages/hr/vacation/LeaveListPage.tsx": {
   "inline": 5,
   "color": 0,
   "palette": 0
  },
- "pages/hr/PayrollPage.tsx": {
+ "pages/hr/payroll/PayrollPage.tsx": {
   "inline": 19,
   "color": 9,
   "palette": 0
  },
- "pages/hr/PaySettingPage.tsx": {
+ "pages/hr/payroll/PaySettingPage.tsx": {
   "inline": 20,
   "color": 1,
   "palette": 0
  },
- "pages/hr/VacationRemainPage.tsx": {
+ "pages/hr/vacation/VacationRemainPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/hr/VacationUsePage.tsx": {
+ "pages/hr/vacation/VacationUsePage.tsx": {
   "inline": 10,
   "color": 1,
   "palette": 0
  },
- "pages/hr/WorkIntegratedPage.tsx": {
+ "pages/hr/attendance/WorkIntegratedPage.tsx": {
   "inline": 17,
   "color": 5,
   "palette": 0

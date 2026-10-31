@@ -1387,7 +1387,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['지출결의서집계', 'accounting/fastvoucher/ExpenseSlipSummaryPage.tsx'],
     ['입금보고서집계', 'accounting/fastvoucher/ExpenseSlipSummaryPage.tsx'],
     ['가지급금정산서집계', 'accounting/fastvoucher/ExpenseSlipSummaryPage.tsx'],
-    ['인원현황', 'hr/HeadcountPage.tsx'],
+    ['인원현황', 'hr/employee/HeadcountPage.tsx'],
     ['고정자산수불부', 'accounting/fixedasset/FixedAssetStockPage.tsx'],
     ['계정별원장', 'accounting/ledger/AccountLedgerPage.tsx'],
     ['현금흐름(입출금내역)', 'accounting/ledger/CashFlowListPage.tsx'],
@@ -1825,8 +1825,8 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     ['공정등록', 'production/ProcessPage.tsx'],
     ['구매단가일괄변경', 'trade/price/PriceBulkScreen.tsx'],
     ['구매일괄회계반영', 'trade/sales/AccountingReflectionPage.tsx'],
-    ['근태조회', 'hr/LeaveListPage.tsx'],
-    ['근태현황', 'hr/AttendanceKindStatusPage.tsx'],
+    ['근태조회', 'hr/vacation/LeaveListPage.tsx'],
+    ['근태현황', 'hr/attendance/AttendanceKindStatusPage.tsx'],
     ['단가적용순서설정', 'inventory/PriceOrderPage.tsx'],
     ['비용내역현황', 'accounting/expense/ExpenseDetailPage.tsx'],
     ['생산불출조회', 'production/IssuePage.tsx'],
@@ -1844,7 +1844,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     ['작업지시서현황', 'production/WoStatusPage.tsx'],
     ['창고등록리스트', 'inventory/WarehousesPage.tsx'],
     ['품목등록 리스트', 'inventory/ItemsPage.tsx'],
-    ['휴가잔여일수현황', 'hr/VacationRemainPage.tsx'],
+    ['휴가잔여일수현황', 'hr/vacation/VacationRemainPage.tsx'],
     ['관리항목리스트', 'inventory/ManageItemsPage.tsx'],
     ['결제내역조회', 'trade/sales/PaymentHistoryPage.tsx'],
   ])
@@ -2069,7 +2069,7 @@ console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
     ['구매입력', 'trade/sales/TradeEntry.tsx'],
     ['판매입력', 'trade/sales/TradeEntry.tsx'],
     ['구매조회', 'trade/sales/TradeInquiryPage.tsx'],
-    ['근태현황', 'hr/AttendanceKindStatusPage.tsx'],
+    ['근태현황', 'hr/attendance/AttendanceKindStatusPage.tsx'],
     ['생산불출입력', 'production/IssueEntryPage.tsx'],
     ['생산불출조회', 'production/IssuePage.tsx'],
     ['생산입고 III-소모품목 선택', 'production/ProductionResultPage.tsx'],
@@ -5904,8 +5904,8 @@ console.log('\n■ 근태·휴가 일수를 화면마다 같은 모양으로 찍
  * <code>toLocaleString</code> 을 직접 부르면 또 갈라지므로 그것을 잡는다.
  */
 {
-  const DAY_SCREENS = ['hr/LeaveListPage.tsx', 'hr/VacationUsePage.tsx',
-    'hr/VacationRemainPage.tsx', 'hr/AttendanceKindStatusPage.tsx']
+  const DAY_SCREENS = ['hr/vacation/LeaveListPage.tsx', 'hr/vacation/VacationUsePage.tsx',
+    'hr/vacation/VacationRemainPage.tsx', 'hr/attendance/AttendanceKindStatusPage.tsx']
   const bad = []
   let checked = 0
   for (const rel of DAY_SCREENS) {

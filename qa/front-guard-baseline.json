@@ -6,7 +6,7 @@
   "pages/accounting/withholding/IncomeSubmissionPage.tsx",
   "pages/accounting/otherwithholding/OtherWithholdingInputPage.tsx",
   "pages/accounting/project/ProjectPlanStatusPage.tsx",
-  "pages/hr/DailyWorkerListPage.tsx",
+  "pages/hr/dailywork/DailyWorkerListPage.tsx",
   "pages/production/RequirementCalcPage.tsx",
   "pages/trade/arap/ArApStatusPage.tsx"
  ]

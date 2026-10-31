@@ -16,7 +16,7 @@ import { ApprovalGroupField } from '../../features/approval/components/ApprovalG
 import { shrinkImage } from '../../utils/imageResize'
 import RichBodyEditor from '../../features/approval/components/RichBodyEditor'
 import { APPROVAL_DOCS, approvalDocOf, bodyHtmlOf, formFieldsOf, looksLikeHtml, sanitizeHtml } from '../../features/approval/bodyTemplate'
-import LeaveInputPage from '../hr/LeaveInputPage'
+import LeaveInputPage from '../hr/vacation/LeaveInputPage'
 
 import EcDateField from '../../components/EcDateField'
 import { MenuButton } from '../../components/EcSlipShell'

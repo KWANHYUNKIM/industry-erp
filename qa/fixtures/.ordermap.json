@@ -29,15 +29,15 @@
  ],
  [
   "근태조회",
-  "hr/LeaveListPage.tsx"
+  "hr/vacation/LeaveListPage.tsx"
  ],
  [
   "근태현황",
-  "hr/AttendanceKindStatusPage.tsx"
+  "hr/attendance/AttendanceKindStatusPage.tsx"
  ],
  [
   "근태입력",
-  "hr/LeaveInputPage.tsx"
+  "hr/vacation/LeaveInputPage.tsx"
  ],
  [
   "단가적용순서설정",
@@ -121,11 +121,11 @@
  ],
  [
   "휴가잔여일수현황",
-  "hr/VacationRemainPage.tsx"
+  "hr/vacation/VacationRemainPage.tsx"
  ],
  [
   "휴가사용실적현황",
-  "hr/VacationUsePage.tsx"
+  "hr/vacation/VacationUsePage.tsx"
  ],
  [
   "관리항목리스트",
@@ -325,7 +325,7 @@
  ],
  [
   "출_퇴근기록부(ID)",
-  "hr/WorkIntegratedPage.tsx"
+  "hr/attendance/WorkIntegratedPage.tsx"
  ],
  [
   "공지사항",
@@ -697,7 +697,7 @@
  ],
  [
   "사원등록",
-  "hr/EmployeePage.tsx"
+  "hr/employee/EmployeePage.tsx"
  ],
  [
   "월별채권증감내역",
@@ -709,7 +709,7 @@
  ],
  [
   "일별근무시간(ID)",
-  "hr/DailyWorkHoursPage.tsx"
+  "hr/attendance/DailyWorkHoursPage.tsx"
  ],
  [
   "주요전달사항",
@@ -717,7 +717,7 @@
  ],
  [
   "지각현황(ID)",
-  "hr/LateArrivalPage.tsx"
+  "hr/attendance/LateArrivalPage.tsx"
  ],
  [
   "채권현황",
@@ -737,7 +737,7 @@
  ],
  [
   "출/퇴근현황(ID)",
-  "hr/AttendanceStatusPage.tsx"
+  "hr/attendance/AttendanceStatusPage.tsx"
  ],
  [
   "출력물",
@@ -745,7 +745,7 @@
  ],
  [
   "출퇴근/근태/일정현황(ID)",
-  "hr/WorkIntegratedPage.tsx"
+  "hr/attendance/WorkIntegratedPage.tsx"
  ],
  [
   "카드사등록",
@@ -1105,11 +1105,11 @@
  ],
  [
   "퇴사자리스트",
-  "hr/RetiredEmployeePage.tsx"
+  "hr/employee/RetiredEmployeePage.tsx"
  ],
  [
   "인원현황",
-  "hr/HeadcountPage.tsx"
+  "hr/employee/HeadcountPage.tsx"
  ],
  [
   "고정자산수불부",
