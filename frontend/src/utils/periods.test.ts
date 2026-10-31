@@ -248,3 +248,13 @@ test('종료일·종료월 — 시작을 현재 끝으로 옮긴다(원본 실�
   // 현재 기간을 모르면 호출부가 from 을 채우도록 비워 둔다
   assert.deepEqual(periodOf('종료일', today), { from: '', to: '2026-10-21' })
 })
+
+test('ymd — 한국 새벽(10-31 00:30 KST = 10-30 15:30Z)에 오늘은 10-31 (toISOString 은 어제를 낸다)', () => {
+  const d = new Date('2026-10-30T15:30:00Z')
+  // 시험 기계가 한국 시간대일 때만 로컬 날짜가 10-31 이다. 아니면 로컬 기준 일치만 확인.
+  if (process.env.TZ === 'Asia/Seoul' || d.getTimezoneOffset() === -540) {
+    assert.equal(ymd(d), '2026-10-31')
+    assert.equal(d.toISOString().slice(0, 10), '2026-10-30')
+  }
+  assert.equal(ymd(d), `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+})

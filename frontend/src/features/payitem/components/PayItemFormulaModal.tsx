@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../../components/Modal'
 import { api, extractErrorMessage } from '../../../api/client'
+import { ymd } from '../../../utils/periods'
 
 export interface PayItemFormula {
   id: number
@@ -30,7 +31,7 @@ export function splitCondition(f: string): [string, string, string] | null {
 export const joinCondition = (c: string, t: string, e: string) =>
   `[조건1] ${c.trim()}, [참1] ${t.trim()}, [거짓1] ${e.trim()}`
 
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const showMonth = (m: string) => m.replace('-', '/')
 
 /**

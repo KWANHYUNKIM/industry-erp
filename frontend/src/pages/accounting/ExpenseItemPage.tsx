@@ -10,6 +10,7 @@ import ActiveToggleButton from '../../features/expensemaster/ActiveToggleButton'
 import EcHistoryButton from '../../components/EcHistory'
 import { activeMenuAction, type ExpenseControlType, type ExpenseItem } from '../../features/expensemaster/api'
 import type { Account, EmployeeMaster } from '../../types/api'
+import { ymd } from '../../utils/periods'
 
 /**
  * 회계 II › 비용관리 › 기본사항등록 › <b>비용등록</b>(원본 E060809, 제목 '비용리스트') — 2026-10-20 loginaa 실측(plans/회계2/비용관리.md 1.2).
@@ -190,7 +191,7 @@ export default function ExpenseItemPage() {
                 <CodePickerField label="통제유형" hideLabel pair popupTitle="통제유형검색" emptyLabel="" value={f.controlTypeId}
                                  onChange={(v) => {
                                    const t = controls.find((c) => String(c.id) === v)
-                                   const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+                                   const today = ymd(new Date())
                                    setF({ ...f, controlTypeId: v, controlFrom: t?.periodType === 'DESIGNATED' ? f.controlFrom || today : '',
                                      controlTo: t?.periodType === 'DESIGNATED' ? f.controlTo || today : '' })
                                  }}

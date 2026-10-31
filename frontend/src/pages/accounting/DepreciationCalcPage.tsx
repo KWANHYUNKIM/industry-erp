@@ -6,6 +6,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { ymd } from '../../utils/periods'
 
 interface Calc {
   id: number; fiscalTerm: number; periodFrom: string; periodTo: string; itemCount: number; totalAmount: number
@@ -25,7 +26,7 @@ interface AssetOpt {
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const ym = (p: string) => p.replace('-', '/')
-const thisYm = () => new Date().toISOString().slice(0, 7)
+const thisYm = () => ymd(new Date()).slice(0, 7)
 
 /**
  * 회계 I &gt; 고정자산 &gt; <b>감가상각계산</b>(E010616) — 2026-10-22 loginaa 실측. 기간 묶음 한 줄 = 회계기수 · 감가상각기간 · 건수 · 계산처리 ·

@@ -30,7 +30,7 @@ const NR_CODES = [['40', '사업소득'], ['41', '선박등 임대소득'], ['42
 const SHEET_ROWS = 14
 
 const won = (n: number) => (Number(n) ? Math.trunc(Number(n)).toLocaleString('ko-KR') : '')
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + 'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid gray;padding:3px}'
   + '.text-right{text-align:right}.text-center{text-align:center}.ec-report-title{font-size:16px;font-weight:bold;text-align:center}'

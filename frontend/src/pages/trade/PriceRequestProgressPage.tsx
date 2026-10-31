@@ -13,6 +13,7 @@ import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { ymd } from '../../utils/periods'
 
 /**
  * 구매관리 > 단가요청진행단계 (이카운트 E040323) — 2026-10-21 loginaa 실측.
@@ -24,7 +25,7 @@ import { EcDateRange } from '../../components/ui/EcDateInput'
 type Step = 'received' | 'confirmed'
 const STEP_LABEL: Record<Step, string> = { received: '수취단가확인', confirmed: '단가확정' }
 /** 오늘보다 지난 날짜인가. 목록에 날짜만 적어 두면 지났는지를 <b>사람이 세어야</b> 한다. */
-const expired = (d: string | null) => !!d && d < new Date().toISOString().slice(0, 10)
+const expired = (d: string | null) => !!d && d < ymd(new Date())
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const stepDone = (r: PurchaseOrder, s: Step) => r.lines.length > 0

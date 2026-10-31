@@ -15,6 +15,7 @@ import { dateText } from '../../utils/dateText'
 import { useRequired } from '../../utils/useRequired'
 import TradeEntry from './TradeEntry'
 import { ecAlert } from '../../components/EcDialog'
+import { ymd } from '../../utils/periods'
 
 /**
  * 영업 > 거래처관리대장 — 거래처별로 <b>기간 동안의 오고 감</b>을 본다.
@@ -81,7 +82,7 @@ const dayBefore = (d: string) => {
   if (!d) return d
   const t = new Date(`${d}T00:00:00`)
   t.setDate(t.getDate() - 1)
-  return t.toISOString().slice(0, 10)
+  return ymd(t)
 }
 
 export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?: 'AR' | 'AP' | 'BOTH' }) {
@@ -115,7 +116,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   // 원본 기본값이 '전월+금월' 이다 — 대장은 지난달 잔액이 이번 달로 어떻게 넘어왔는지 같이 본다.
   const base = periodOf('전월+금월')!
   /* 거래처관리대장1(채권·채무)은 원본 기본 기간이 전월 1일 ~ 오늘(2026-10-20 실측)이다 — 공용 periodOf 는 말일까지라 여기서만 오늘로 끊는다. */
-  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+  const today = ymd(new Date())
   const init = fixedSide === 'BOTH' ? base : { ...base, to: today }
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)

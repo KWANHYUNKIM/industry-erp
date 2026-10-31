@@ -5,6 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import { stockCostMapFromLast, sumStockValue } from '../../utils/stockValue'
 import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { ymd } from '../../utils/periods'
 
 /**
  * 재고 > 경영자보고서 (이카운트 E040704)
@@ -42,9 +43,9 @@ interface NameAmt { key: string; name: string; amount: number }
   * 아직 못 판 주문이 진짜 미판매다.
   */
 const yearBefore = (d: string) => {
-  const t = new Date(d)
+  const t = new Date(`${d}T00:00:00`)
   t.setFullYear(t.getFullYear() - 1)
-  return t.toISOString().slice(0, 10)
+  return ymd(t)
 }
 
 /** 미판매 한 줄. 미판매현황이 보는 것과 같은 자리다. */

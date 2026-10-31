@@ -11,6 +11,7 @@ import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { ymd } from '../../utils/periods'
 
 /**
  * 재고2 > 오더관리 > 오더관리진행단계(E040904).
@@ -57,7 +58,7 @@ interface Form {
 }
 
 const initP = periodOf('최근30일(+1개월)')!
-const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+const today = () => ymd(new Date())
 const emptyForm = (): Form => ({ name: '', orderTypeId: '', createdDate: today(), remarks1: '', remarks2: '', searchKeyword: '' })
 
 /**

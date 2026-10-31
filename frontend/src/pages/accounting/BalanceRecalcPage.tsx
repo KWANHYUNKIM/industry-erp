@@ -4,10 +4,11 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ecAlert } from '../../components/EcDialog'
 import type { JournalEntry } from '../../types/api'
+import { ymd } from '../../utils/periods'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 
-const thisMonth = () => new Date().toISOString().slice(0, 7)
+const thisMonth = () => ymd(new Date()).slice(0, 7)
 const slashMonth = (m: string) => m.replace('-', '/')
 const LAST_KEY = 'erp.balanceRecalcAt'
 const lastRecalcAt = (): number | null => { try { return Number(localStorage.getItem(LAST_KEY)) || null } catch { return null } }

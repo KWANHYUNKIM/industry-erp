@@ -7,6 +7,7 @@ import { BANK_CODES } from '../../utils/bankCodes'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { lastDay, monthRange, won, type DailyReportLine } from '../../features/dailypay/report'
+import { ymd } from '../../utils/periods'
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 급여작업 &gt; <b>일용근로 급여이체현황</b> (원본 E020133).
@@ -41,7 +42,7 @@ export default function DailyPayTransferPage() {
     && (ledgerCond.length === 0 || ledgerCond.includes(String(r.ledgerId)))
     && (bankCond.length === 0 || bankCond.includes(codeOf(r.bankName))))
   useTableColumnCheck(tableRef, '일용근로 급여이체현황', [list.length])
-  const ytd = () => { const r = monthRange('금년'); return { from: r.from, to: new Date().toISOString().slice(0, 7) } }
+  const ytd = () => { const r = monthRange('금년'); return { from: r.from, to: ymd(new Date()).slice(0, 7) } }
 
   return (
     <EcListShell title="일용근로 급여이체현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
