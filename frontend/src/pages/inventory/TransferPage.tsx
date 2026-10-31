@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockAdjustment, StockAdjustmentType, StockRow, Warehouse } from '../../types/api'
-import EcListShell from '../../components/EcListShell'
+import EcListShell, { slipListOptionMenu } from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
@@ -288,6 +288,7 @@ export default function TransferPage() {
   return (
     <EcListShell
       title={legacyTabs ? '기타이동' : '창고이동조회'}
+      optionMenu={legacyTabs ? undefined : slipListOptionMenu()}
       search={keyword}
       onSearchChange={setKeyword}
       /* 원본 창고이동조회 [신규(F2)] 는 같은 화면 위에 창 '창고이동입력' 을 띄운다(2026-10-31 loginad 실측) —

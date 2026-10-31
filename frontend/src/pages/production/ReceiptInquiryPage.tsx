@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { dateNo } from '../../utils/dateNo'
-import EcListShell from '../../components/EcListShell'
+import EcListShell, { slipListOptionMenu } from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -290,6 +290,7 @@ export default function ReceiptInquiryPage() {
   return (
     <EcListShell
       title="생산입고조회"
+      optionMenu={slipListOptionMenu()}
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}

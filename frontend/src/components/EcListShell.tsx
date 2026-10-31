@@ -59,6 +59,24 @@ export interface OptionItem {
   sub?: { label: string; onClick: () => void; active?: boolean }[]
 }
 
+/**
+ * 원본 전표 조회 화면들의 [Option] — 검색항목설정 · 양식설정 ▶(기본(수정불가) · 신규양식추가) · 조건양식설정 · 문서발송내역 · 리스트탭설정
+ * (작업지시서조회 · 생산입고조회 · 창고이동조회 2026-10-31 loginad 생산 · 기타이동 QA). 우리에게 없는 설정이라 누르면 안내만 한다.
+ */
+export function slipListOptionMenu(): OptionItem[] {
+  const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
+  return [
+    { label: '검색항목설정', onClick: notHere('검색항목설정') },
+    { label: '양식설정', sub: [
+      { label: '기본(수정불가)', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+      { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+    ] },
+    { label: '조건양식설정', onClick: notHere('조건양식설정') },
+    { label: '문서발송내역', onClick: notHere('문서발송내역') },
+    { label: '리스트탭설정', onClick: notHere('리스트탭설정') },
+  ]
+}
+
 /** 조건 판 아래 줄의 [양식 ⌄] — ✓ 지금 양식 · 기본(수정불가)(빨간 글자) · 신규양식추가(원본 이익관리 현황 2026-10-22 실측). 메뉴는 위로 펴진다. */
 function FormPill({ current, up = false }: { current: string; up?: boolean }) {
   const [open, setOpen] = useState(false)
@@ -665,7 +683,9 @@ export default function EcListShell({
       {/* 하단 버튼줄 — 원본처럼 격자 바로 아래. 버튼이 하나도 없으면 빈 띠로 보이므로 아예 그리지 않는다. */}
       <div ref={toolbarRef} className={`ec-footer${moreOpen ? ' open' : ''}`} style={hasBottom ? undefined : { display: 'none' }}>
         <div className="ec-footer-btns">
-        {formMenu && !collapse && <FormPill current={formMenu.current} up />}
+        {/* 판이 접히기 전(셸 판 밖)에는 하단 줄이 판 아래 줄 노릇을 할 때만 — [검색(F8)] 이 여기 있을 때만 그 앞에 선다.
+            화면이 판 안에 제 [검색(F8)] 줄을 그리면(일별이익현황) 셸의 아래 줄(Search(F3))에만 선다. */}
+        {formMenu && !collapse && resolved.some((a) => SEARCH_RE.test(a.label)) && <FormPill current={formMenu.current} up />}
         {(onNew || renderForm) && (
           <button
             className="ec-btn ec-btn-primary"

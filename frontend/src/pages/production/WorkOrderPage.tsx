@@ -3,7 +3,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkOrder } from '../../types/api'
-import EcListShell from '../../components/EcListShell'
+import EcListShell, { slipListOptionMenu } from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -260,6 +260,7 @@ export default function WorkOrderPage() {
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="작업지시서조회"
+      optionMenu={slipListOptionMenu()}
       onNew={() => setEntry({ editNo: null })}
       actions={[
         /* 원본 [진행상태변경▲] — 확인상태(미확인 · 확인)와 진행상태(진행중 · 완료)를 고른다(2026-10-31 loginad). 고른 줄이 없으면 원본 알림. */

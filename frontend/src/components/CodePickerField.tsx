@@ -249,7 +249,18 @@ export default function CodePickerField({
           )}
         </div>
       ) : (
-      <div className={invalid ? 'ec-invalid' : undefined} style={{ display: 'flex', width: fill ? '100%' : undefined }}>
+      /* 조건 코드도움 칸: [🔍][이름][×] — 돋보기가 칸 <b>왼쪽</b>이다(원본 판매조회 · 작업지시서 · 창고이동 · 일별이익현황 2026-10-31 loginad 실측).
+         붙는 쪽 모서리만 각지다(.ec-pick — 전표 코드칸 .ec-code 와 같은 규칙). */
+      <div className={`ec-pick${fill ? ' fill' : ''}${invalid ? ' ec-invalid' : ''}`}>
+        <button
+          type="button"
+          className="ec-btn text-ec-icon"
+          disabled={disabled}
+          onClick={openFrom}
+          title={`${label} 선택`}
+        >
+          <EcIcon name="search" />
+        </button>
         <input
           ref={fieldRef}
           className="ec-input ec-pick-input"
@@ -259,27 +270,16 @@ export default function CodePickerField({
           value={display}
           placeholder={placeholder ?? label}
           onClick={(e) => !disabled && openFrom(e)}
-          style={{ width: fill ? '100%' : width, flex: fill ? 1 : undefined, minWidth: 0,
+          style={{ width: fill ? '100%' : width, flex: fill ? 1 : undefined,
                    cursor: disabled ? 'default' : 'pointer', background: disabled ? '#f4f5f7' : undefined }}
           title={multiple ? pickedItems.map((i) => i.name).join(', ') : (selected ? `${selected.code ?? ''} ${selected.name}`.trim() : (placeholder ?? label))}
         />
-        <button
-          type="button"
-          className="ec-btn text-ec-icon"
-          disabled={disabled}
-          onClick={openFrom}
-          title={`${label} 선택`}
-          style={{ marginLeft: -1, padding: '0 7px' }}
-        >
-          <EcIcon name="search" />
-        </button>
         {(multiple ? picked.length > 0 : !!selected) && !disabled && (
           <button
             type="button"
-            className="ec-btn"
+            className="ec-btn ec-pick-clear"
             onClick={clearAll}
             title="선택 해제"
-            style={{ marginLeft: -1, padding: '0 6px', color: 'var(--ec-danger)' }}
           >
             ×
           </button>

@@ -806,6 +806,28 @@ main table,
   color: var(--ec-icon);
 }
 
+/* 조건 코드도움 칸 (CodePickerField): [🔍][이름][×] — 돋보기가 칸 왼쪽(원본 판매조회 · 작업지시서 · 창고이동 2026-10-31 loginad).
+   붙는 쪽 모서리만 각지다(.ec-code 와 같다 — #root input 둥글기 규칙을 이기려고 #root 를 붙인다). 이름 칸 폭은 화면이 준 width 그대로 — 돋보기 · × 는 그 바깥에 붙는다(전과 같은 폭). */
+.ec-pick {
+  display: flex;
+  align-items: center;
+}
+.ec-pick.fill { width: 100%; }
+.ec-pick > .ec-input { min-width: 0; }
+.ec-pick > :not(:first-child),
+#root .ec-pick > :not(:first-child) {
+  margin-left: calc(-1 * var(--ec-hair));
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.ec-pick > :not(:last-child),
+#root .ec-pick > :not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.ec-pick > .ec-btn { padding: 0 7px; }
+.ec-pick > .ec-pick-clear { padding: 0 6px; color: var(--ec-danger); }
+
 /* 연/월/일 3분할 일자칸 (.wrapper-datepicker) — components/ui/EcDateInput.
    [2026 ▾] / [09 ▾] / [30] [달력]. 숨긴 진짜 date 칸(.ec-date-native)이 값 · 이벤트를 맡는다. */
 .ec-date,
@@ -1567,8 +1589,9 @@ th.ec-empty {
   background: var(--ec-bg-page);
   border-radius: 0 0 calc(var(--ec-radius-panel) - 1px) calc(var(--ec-radius-panel) - 1px);
 }
-/* 아래 줄의 기간 빠른선택 · [설정] · [다시작성] — 테두리 없는 sm 단추(투명 · h21 · '금일' 폭 48) */
-.ec-search-bar .ec-btn-flat {
+/* 판 아래 줄의 기간 빠른선택 · [설정] · [다시작성] — 테두리 없는 sm 단추(투명 · h21 · '금일' 폭 48).
+   셸이 띄운 판(.ec-search-bar)만이 아니라 화면이 그린 처음 판(셸 밖, 일별이익현황)에서도 같다 — 어디서나 납작하게. */
+.ec-btn.ec-btn-flat {
   height: 21px;
   padding: 0 11.7px;
   background: transparent;

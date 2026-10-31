@@ -1801,7 +1801,7 @@ export default function EcountLayout() {
           </aside>
         )}
 
-        <div ref={contentRef} className={`ec-frame${showLnb ? '' : ' full'}`}>
+        <div ref={contentRef} className={`ec-frame${showLnb ? '' : ' full'}${bookmarked ? ' bookmarked' : ''}`}>
           {/* EcListShell 을 쓰지 않는 화면의 표에도 우클릭 메뉴를 붙인다.
               셸이 있는 화면은 셸이 이벤트를 먼저 잡고 전파를 끊으므로 여기까지 오지 않는다. */}
           <TableContextMenu containerRef={contentRef} toolbarRef={contentRef} />

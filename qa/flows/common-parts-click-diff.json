@@ -1,0 +1,58 @@
+{
+  "about": "공용 부품 클릭 대조(2026-10-31 loginad 판매 · 생산 · 기타이동 · 그룹웨어 · 일별이익현황 QA): 조건 코드도움 칸의 돋보기가 칸 왼쪽([🔍][이름]) · 화면 제목 앞 ★ 는 북마크에 담긴 화면만 노랗게 채우고 아니면 빈 ☆ · 셸 밖 처음 판의 [설정] · [다시 작성] 도 테두리 없는 납작 단추 · 작업지시서조회 · 생산입고조회 · 창고이동조회 [Option] = 검색항목설정 · 양식설정 ▶ · 조건양식설정 · 문서발송내역 · 리스트탭설정. 저장하는 것 없음. node qa/shot.mjs qa/flows/common-parts-click-diff.json",
+  "shots": [
+    {
+      "name": "판매조회 — 돋보기 왼쪽 · ★ 북마크 상태",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:1500",
+        "click:Search(F3)",
+        "wait:500",
+        "expect:(() => { const ps = [...document.querySelectorAll('.ec-cond .ec-pick')].filter((p) => p.offsetParent); return ps.length > 0 && ps.every((p) => { const b = p.querySelector(':scope > button'); const i = p.querySelector(':scope > input'); return p.firstElementChild === b && b.getBoundingClientRect().right <= i.getBoundingClientRect().left + 1 }) })()",
+        "expect:(() => { const i = document.querySelector('.ec-cond .ec-pick > input'); const cs = getComputedStyle(i); return cs.borderTopLeftRadius === '0px' && cs.borderTopRightRadius !== '0px' })()",
+        "expect:(() => { const bg = getComputedStyle(document.querySelector('.ec-page-title'), '::before').backgroundColor; return !!document.querySelector('.ec-frame.bookmarked') === (bg === 'rgb(242, 188, 60)') })()"
+      ]
+    },
+    {
+      "name": "일별이익현황 — 처음 판 [설정] · [다시 작성] 납작",
+      "path": "/accounting/daily-profit",
+      "steps": [
+        "wait:2500",
+        "expect:(() => { const bs = [...[...document.querySelectorAll('.ec-cond > li')].pop().querySelectorAll('button')].filter((b) => ['설정', '다시 작성'].includes(b.textContent.trim())); return bs.length === 2 && bs.every((b) => { const cs = getComputedStyle(b); return cs.borderTopColor === 'rgba(0, 0, 0, 0)' && cs.backgroundColor === 'rgba(0, 0, 0, 0)' }) })()"
+      ]
+    },
+    {
+      "name": "작업지시서조회 — Option",
+      "path": "/production/work-orders",
+      "steps": [
+        "wait:1500",
+        "click:Option",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-page-head .ec-menu[role=menu] > button, .ec-page-head .ec-menu[role=menu] > div > button')].map((b) => b.textContent.replace(/[▸▾]/g, '').trim()).join('|') === '검색항목설정|양식설정|조건양식설정|문서발송내역|리스트탭설정'",
+        "click:양식설정",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-page-head .ec-menu .ec-menu button')].map((b) => b.textContent.trim()).join('|') === '기본(수정불가)|신규양식추가'"
+      ]
+    },
+    {
+      "name": "생산입고조회 — Option",
+      "path": "/production/receipt-inquiry",
+      "steps": [
+        "wait:1500",
+        "click:Option",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-page-head .ec-menu[role=menu] > button, .ec-page-head .ec-menu[role=menu] > div > button')].map((b) => b.textContent.replace(/[▸▾]/g, '').trim()).join('|') === '검색항목설정|양식설정|조건양식설정|문서발송내역|리스트탭설정'"
+      ]
+    },
+    {
+      "name": "창고이동조회 — Option",
+      "path": "/inventory/transfer",
+      "steps": [
+        "wait:1500",
+        "click:Option",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-page-head .ec-menu[role=menu] > button, .ec-page-head .ec-menu[role=menu] > div > button')].map((b) => b.textContent.replace(/[▸▾]/g, '').trim()).join('|') === '검색항목설정|양식설정|조건양식설정|문서발송내역|리스트탭설정'"
+      ]
+    }
+  ]
+}
