@@ -3,12 +3,17 @@ import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
 import EcHistoryButton from '../../components/EcHistory'
 import EcFileDrop from '../../components/EcFileDrop'
 import { useTableSort } from '../../utils/useTableSort'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
+import { EcCond } from '../../components/EcStatusPanel'
+import { MenuButton } from '../../components/EcSlipShell'
+import ProductionSlipWindow from '../production/ProductionSlipWindow'
+
+/** 원본에 있고 우리에게 받쳐 줄 것이 없는 메뉴 · 단추 — 누르면 안내만 한다. */
+const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
 
 const inputCls = 'ec-input w-full'
 
@@ -25,6 +30,15 @@ interface PartnerRow { id: number; code: string; name: string; type: string }
 
 export default function WarehousesPage() {
   const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('사용')
+  /*
+   * 원본 조건 판(2026-10-31 loginad E040102): 창고코드 · 창고명 · 추가사업장 · 구분(체크) · 생산공정 · 외주거래처 · 창고계층그룹 · 사용구분 · 기타 수정일자순.
+   * 추가사업장 · 창고계층그룹 · 수정일자순은 우리 창고에 그 자료(사업장 · 계층그룹 · 수정일자)가 없어 칸을 안 둔다.
+   */
+  const [codeCond, setCodeCond] = useState('')
+  const [nameCond, setNameCond] = useState('')
+  const [kindCond, setKindCond] = useState<string[]>([...KINDS])
+  const [procCond, setProcCond] = useState('')
+  const [outCond, setOutCond] = useState('')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -89,8 +103,9 @@ export default function WarehousesPage() {
     setShowForm(true)
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  /** thenNew — 저장 ▲ [저장/신규]: 저장한 뒤 새 창고로 비운 창을 다시 연다. */
+  async function submit(e?: FormEvent, thenNew = false) {
+    e?.preventDefault()
     setError('')
     if (!form.name.trim()) { setInvalid(true); return }
     setInvalid(false)
@@ -110,7 +125,8 @@ export default function WarehousesPage() {
       setEditId(null)
       setForm({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
       setShowForm(false)
-      load()
+      await load()
+      if (thenNew) openNew([...warehouses.map((w) => w.code), form.code])
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -184,8 +200,8 @@ export default function WarehousesPage() {
    * 원본 [신규] 는 창고코드에 다음 번호를 채운다(loginaa: 00000 · 00001 이 있으면 00002 — 자릿수를 지킨다).
    * 다섯 자리 숫자 코드 중 가장 큰 것 + 1, 없으면 00001.
    */
-  function nextCode() {
-    const nums = warehouses.map((w) => w.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
+  function nextCode(codes = warehouses.map((w) => w.code)) {
+    const nums = codes.filter((c) => /^\d{5}$/.test(c)).map(Number)
     return String(nums.length ? Math.max(...nums) + 1 : 1).padStart(5, '0')
   }
 
@@ -206,11 +222,33 @@ export default function WarehousesPage() {
     사용: (w) => (w.active ? '사용' : '사용중단'),
   })
   const shown = sort.sorted.filter((w) => useCond === '전체' || (w.active ? '사용' : '중단') === useCond)
+    .filter((w) => (!codeCond || w.code.includes(codeCond.trim())) && (!nameCond || w.name.includes(nameCond.trim())))
+    .filter((w) => kindCond.includes(w.kind ?? '창고'))
+    .filter((w) => (!procCond || String(w.processId ?? '') === procCond) && (!outCond || String(w.outsourcingPartnerId ?? '') === outCond))
+
+  function openNew(codes?: string[]) {
+    setEditId(null); setInvalid(false)
+    setForm({ code: nextCode(codes), name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
+    setShowForm(true)
+  }
 
   return (
     <EcListShell
       title="창고등록리스트"
-      onNew={() => { setEditId(null); setInvalid(false); setForm({ code: nextCode(), name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }); setShowForm(true) }}
+      onNew={() => openNew()}
+      onReset={() => { setCodeCond(''); setNameCond(''); setKindCond([...KINDS]); setProcCond(''); setOutCond(''); setUseCond('사용') }}
+      /* 조건 판 아래 줄 맨 앞 [기본(수정불가) ▾] — 원본 [적용양식 기본(수정불가)](2026-10-31 loginad). */
+      formMenu={{ current: '기본(수정불가)' }}
+      /* 원본 [Option](2026-10-31 loginad) — 우리에게 없는 설정이라 누르면 안내만 한다. */
+      optionMenu={[
+        { label: '검색항목설정', onClick: notHere('검색항목설정') },
+        { label: '양식설정', sub: [
+          { label: '기본(수정불가)', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+          { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+        ] },
+        { label: '조건양식설정', onClick: notHere('조건양식설정') },
+        { label: '기능설정', onClick: notHere('기능설정') },
+      ]}
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
                 /* 원본 펼침: 사용중단 · 삭제 · 재사용(E040102 실측). */
                 { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive, menu: [
@@ -223,18 +261,26 @@ export default function WarehousesPage() {
     >
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
-      <Modal error={error} open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
-        <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">
-            {editId ? '창고수정' : '창고등록'}
+      {/*
+        원본 창고등록 · 창고수정 창(2026-10-31 loginad): 목록 위에 떠 있는 창 — 제목줄 다섯 단추, 머리 [Option].
+        원본 칸: 창고코드 · 창고명 · 구분(창고/공장/공장(외주비관리)) · 부가세율(매출) · 부가세율(매입) · 영업단가그룹 · 구매단가그룹 · 창고계층그룹,
+        알약 탭 기본 · 창고정보 · 부가정보. 부가세율 · 단가그룹 · 계층그룹은 우리 창고 요청에 자리가 없어(자료 없음) 칸을 안 두고, 다른 탭 칸은 원본 미측정이라 탭도 안 만든다.
+        [위치]는 원본에 없는 우리 칸(계층그룹 창이 위치로 묶는다) — 지우지 않는다.
+      */}
+      {showForm && (
+      <ProductionSlipWindow title={editId ? '창고수정' : '창고등록'} popout="/inventory/warehouses" onClose={() => { setShowForm(false); setEditId(null) }}>
+        <form onSubmit={submit} className="my-[8px] p-[14px] bg-ec-panel">
+          {error && <p role="alert" className="ec-error">{error}</p>}
+          <div className="flex justify-end mb-[10px]">
+            <button type="button" className="ec-btn ec-btn-sm" onClick={notHere(`${editId ? '창고수정' : '창고등록'} Option`)}>Option</button>
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm text-ec-label">창고코드 *</label>
-              {/* 코드는 전표가 그 값으로 묶여 있어 만들 때만 정한다(거래처·품목과 같다). */}
-              <input className={inputCls} value={form.code} disabled={editId != null}
-                     title={editId != null ? '전표가 코드로 묶여 있어 수정할 수 없습니다.' : undefined}
-                     onChange={(e) => setForm({ ...form, code: e.target.value })} />
+              {/* 코드는 전표가 그 값으로 묶여 있어 만들 때만 정한다 — 수정 창은 글자로만(원본 창고수정). */}
+              {editId != null
+                ? <div className="min-h-[26px] leading-[26px] text-[12px]">{form.code}</div>
+                : <input className={inputCls} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />}
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">창고명 *</label>
@@ -243,15 +289,20 @@ export default function WarehousesPage() {
                      value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-ec-label">위치</label>
-              <input className={inputCls} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+              <label className="mb-1 block text-sm text-ec-label">구분</label>
+              {/* 원본은 라디오 셋 — 창고 · 공장 · 공장(외주비관리). 값은 그대로 '외주'. */}
+              <div className="flex flex-wrap gap-x-[14px] min-h-[26px] items-center">
+                {KINDS.map((k) => (
+                  <label key={k} className="inline-flex items-center gap-[4px] text-[12.5px]">
+                    <input type="radio" name="wh-kind" checked={form.kind === k} onChange={() => setForm({ ...form, kind: k })} />
+                    {k === '외주' ? '공장(외주비관리)' : k}
+                  </label>
+                ))}
+              </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-ec-label">구분</label>
-              <select className={inputCls} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                {/* 원본 이름표: 창고 · 공장 · 공장(외주비관리). 값은 그대로 '외주'. */}
-                {KINDS.map((k) => <option key={k} value={k}>{k === '외주' ? '공장(외주비관리)' : k}</option>)}
-              </select>
+              <label className="mb-1 block text-sm text-ec-label">위치</label>
+              <input className={inputCls} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
             {/* 구분에 맞는 칸만 낸다. 창고인데 생산공정을 고르게 두면 뜻 없는 값이 쌓인다. */}
             {form.kind === '공장' && (
@@ -275,9 +326,11 @@ export default function WarehousesPage() {
               </div>
             )}
           </div>
-          {/* 원본: 신규 저장(F8) · 다시 작성 · 웹자료올리기 · 닫기 / 수정 저장(F8) · 다시 작성 · 사용중단/재사용 · 닫기 · H(이력). */}
+          {/* 원본: 신규 저장(F8)▲ · 다시 작성 · 웹자료올리기 · 닫기 / 수정 저장(F8)▲ · 다시 작성 · 사용중단/재사용 · 닫기 · H(이력). */}
           <div className="mt-[12px] flex justify-end gap-[4px]">
-            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            {/* ▲ 안 항목은 원본 미측정이라 다른 마스터 창(자료수집처등록)과 같은 [저장/신규] 만 둔다. */}
+            <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up onMain={() => void submit(undefined, false)}
+                        items={[{ label: '저장/신규', onClick: () => void submit(undefined, true) }]} />
             <button type="button" className="ec-btn" onClick={() => setForm((f) => ({ ...f, name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }))}>다시 작성</button>
             {editId != null
               ? <button type="button" className="ec-btn" onClick={() => toggleOne(editId)}>사용중단/재사용</button>
@@ -286,21 +339,41 @@ export default function WarehousesPage() {
             <EcHistoryButton target="WAREHOUSE" id={editId} last />
           </div>
         </form>
-      )}</Modal>
+      </ProductionSlipWindow>
+      )}
 
       <div className="overflow-x-auto">
-      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다.
-          원본은 이 칸이 [Search(F3)] 판 안에 있다(loginad E040102 2026-10-31) — ec-search-conds 로 접어 둔다. */}
-      <div className="ec-search-conds flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
-        <span>사용구분</span>
-        {/* 원본은 ◯전체 ◉사용 ◯사용중단 라디오다. */}
-        {(['전체', '사용', '중단'] as const).map((v) => (
-          <label key={v} className="inline-flex items-center gap-[3px]">
-            <input type="radio" name="wh-use" checked={useCond === v} onChange={() => setUseCond(v)} />
-            {v === '중단' ? '사용중단' : v}
+      {/* 원본 조건 판(Search(F3) 로 편다, 2026-10-31 loginad E040102). 사용구분은 원본처럼 ◯전체 ◉사용 ◯사용중단. */}
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="창고코드"><input className="ec-input w-full" value={codeCond} onChange={(e) => setCodeCond(e.target.value)} /></EcCond>
+        <EcCond label="창고명"><input className="ec-input w-full" value={nameCond} onChange={(e) => setNameCond(e.target.value)} /></EcCond>
+        <EcCond label="구분" span={2}>
+          <label className="mr-[10px]">
+            <input type="checkbox" checked={kindCond.length === KINDS.length} onChange={(e) => setKindCond(e.target.checked ? [...KINDS] : [])} /> 전체
           </label>
-        ))}
-      </div>
+          {KINDS.map((k) => (
+            <label key={k} className="mr-[10px]">
+              <input type="checkbox" checked={kindCond.includes(k)}
+                     onChange={(e) => setKindCond(e.target.checked ? [...kindCond, k] : kindCond.filter((x) => x !== k))} /> {k === '외주' ? '공장(외주비관리)' : k}
+            </label>
+          ))}
+        </EcCond>
+        <EcCond label="생산공정" pick>
+          <CodePickerField label="생산공정" hideLabel fill emptyLabel="전체" value={procCond} onChange={setProcCond}
+                           items={processes.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="외주거래처" pick>
+          <CodePickerField label="외주거래처" hideLabel fill emptyLabel="전체" value={outCond} onChange={setOutCond}
+                           items={partners.filter((pt) => pt.type !== 'CUSTOMER').map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="사용구분">
+          {(['전체', '사용', '중단'] as const).map((v) => (
+            <label key={v} className="mr-[10px]">
+              <input type="radio" name="wh-use" checked={useCond === v} onChange={() => setUseCond(v)} /> {v === '중단' ? '사용중단' : v}
+            </label>
+          ))}
+        </EcCond>
+      </ul>
 
         <table className="w-full text-left">
           <thead>

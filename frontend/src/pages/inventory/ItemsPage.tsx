@@ -21,6 +21,11 @@ import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
 import { shrinkImage } from '../../utils/imageResize'
 import EcIcon from '../../components/ui/EcIcon'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { MenuButton } from '../../components/EcSlipShell'
+import ProductionSlipWindow from '../production/ProductionSlipWindow'
+
+/** 원본에 있고 우리에게 받쳐 줄 것이 없는 메뉴 · 단추 — 누르면 안내만 한다. */
+const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
 
 const inputCls = 'ec-input w-full'
 
@@ -328,7 +333,7 @@ export default function ItemsPage() {
 
   const closeForm = () => { setShowForm(false); setEditId(null); setEditMenu(false) }
 
-  async function submit(e?: FormEvent) {
+  async function submit(e?: FormEvent, again = false) {
     e?.preventDefault()
     setError('')
     if (!form.name.trim()) { setInvalid(true); return }
@@ -391,7 +396,12 @@ export default function ItemsPage() {
       }
       /* 원본은 저장하면 말 없이 창을 닫고 목록만 다시 그린다(신규 · 수정 둘 다). */
       closeForm()
-      load()
+      await load()
+      /* 저장 ▲ [저장/신규] — 닫지 않은 듯 새 품목 창을 다시 연다(코드는 방금 저장한 것 다음). */
+      if (again) {
+        openCreate()
+        setForm({ ...emptyForm, code: nextItemCode([...items, { id: savedId ?? Number.MAX_SAFE_INTEGER, code: payload.code }]) })
+      }
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -540,6 +550,8 @@ export default function ItemsPage() {
   const [keyword, setKeyword] = useState('')
   /** 원본 머리 오른쪽 [사용중단포함]. 기본은 꺼져 있다 — 기본 화면에는 사용중단 품목이 안 나온다. */
   const [withStopped, setWithStopped] = useState(false)
+  /** 조건 판 접힌 줄(⌄) — 펼치면 원본 [기본] 탭에 없는 우리 칸이 나온다. */
+  const [moreConds, setMoreConds] = useState(false)
 
   /*
    * 원본 Search(F3) 조건(C000029 실측 차례): 품목코드 · 품목명 · 규격명 · 단위 · 바코드 · 품목구분(체크 · 모두 켜짐) ·
@@ -551,6 +563,8 @@ export default function ItemsPage() {
     cats: CATEGORY_ORDER as string[],
     inFrom: '', inTo: '', outFrom: '', outTo: '',
     supplier: '', group: '', setItem: 'ALL', shared: false, use: 'Y',
+    /* 원본 [기본] 탭 칸(2026-10-31 loginad): 생산공정 · 검색창내용 · 품목계층그룹 · 기타 수정일자순(정렬). */
+    process: '', keyword: '', tree: '', byUpdated: false,
     /* 원본 조건 [최초작성일자] · [최종수정일자](사본 조건표). 서버가 BaseTimeEntity 에서 실어 준다. */
     createdFrom: '', createdTo: '', updatedFrom: '', updatedTo: '',
   })
@@ -577,6 +591,10 @@ export default function ItemsPage() {
     .filter((it) => !cond.group || String(it.itemGroupId ?? '') === cond.group)
     .filter((it) => cond.setItem === 'ALL' || (cond.setItem === 'Y') === !!it.setItem)
     .filter((it) => !cond.shared || !!it.sharedItem)
+    .filter((it) => !cond.process || (it.productionProcessIds ?? []).includes(Number(cond.process)))
+    .filter((it) => !cond.keyword || (it.searchKeyword ?? '').includes(cond.keyword.trim()))
+    /* 품목계층그룹 — 우리 하단 [계층그룹] 이 다루는 품목그룹(품목그룹1 과 같은 마스터)이다. */
+    .filter((it) => !cond.tree || String(it.itemGroupId ?? '') === cond.tree)
     /* 날짜는 yyyy-MM-dd 문자열이라 그대로 견줘도 차례가 맞는다. */
     .filter((it) => !cond.createdFrom || (it.createdDate ?? '') >= cond.createdFrom)
     .filter((it) => !cond.createdTo || (it.createdDate ?? '') <= cond.createdTo)
@@ -584,11 +602,20 @@ export default function ItemsPage() {
     .filter((it) => !cond.updatedTo || (it.updatedDate ?? '') <= cond.updatedTo)
 
   /* 원본은 머리를 눌러 정렬한다 — 품목코드 · 품목명 · 품목그룹 · 규격 · 바코드 · 입고단가 · 출고단가 · 품목구분. */
-  const sort = useTableSort(shownRows, {
+  /* 원본 [기타] 수정일자순(정렬) — 켜면 최근에 고친 품목부터. */
+  const orderedRows = cond.byUpdated
+    ? [...shownRows].sort((a, b) => (b.updatedDate ?? '').localeCompare(a.updatedDate ?? ''))
+    : shownRows
+  const supplierName = (it: Item) => partners.find((p) => p.id === it.supplierId)?.name ?? ''
+  const sort = useTableSort(orderedRows, {
     품목코드: (it) => it.code,
     품목명: (it) => it.name,
-    품목그룹: (it) => it.itemGroupName,
-    규격: (it) => it.spec,
+    구매처명: supplierName,
+    규격정보: (it) => it.spec,
+    재고수량관리: (it) => (it.stockTracked ? '사용' : '사용안함'),
+    품목그룹1명: (it) => it.itemGroupName,
+    검색창내용: (it) => it.searchKeyword,
+    사용: (it) => (it.active ? 'YES' : 'NO'),
     바코드: (it) => it.barcode,
     입고단가: (it) => it.purchasePrice ?? 0,
     출고단가: (it) => it.unitPrice,
@@ -610,7 +637,75 @@ export default function ItemsPage() {
         : <input className={inputCls} placeholder="품목코드" value={form.code} onChange={(e) => set('code', e.target.value)} />}
     </Field>
   )
-  const headFields = (
+  const imageField = (
+    <Field label="이미지">
+      {image ? (
+        <div className="flex items-center gap-[8px] border border-ec-line border-solid p-[6px] bg-ec-page">
+          <img src={`/api/files/${image.id}`} alt={image.name} className="w-[48px] h-[48px] object-cover bg-ec-panel" />
+          <span className="text-[12.5px] text-ec-label flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{image.name}</span>
+          <button type="button" className="ec-btn" onClick={() => setImage(null)}>떼기</button>
+        </div>
+      ) : (
+        <EcFileDrop hint="이미지삽입" busy={uploading} disabled={uploading}
+                    onFiles={(fs) => { if (fs[0]) void uploadImage(fs[0]) }} />
+      )}
+    </Field>
+  )
+  const groupField = (
+    <Field label="품목그룹1">
+      <CodePickerField label="품목그룹1" hideLabel fill pair placeholder="품목그룹1" emptyLabel="선택 해제"
+                       value={form.itemGroupId} onChange={(v) => set('itemGroupId', v)}
+                       items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
+                       onNew={() => setGroupOpen(true)} />
+    </Field>
+  )
+  const processField = (
+    <>
+    {/* 원본 [품목정보] 의 [생산공정] — 공정을 고르는 태그(A001 → 조립). BOR 목록이 이 값을 정한 품목을 보인다. */}
+    <Field label="생산공정" wide>
+      <div className="flex flex-wrap items-center gap-[4px]">
+        {procIds(form.productionProcessIds).map((id) => (
+          <button key={id} type="button" className="ec-btn ec-btn-sm" title="빼기"
+                  onClick={() => set('productionProcessIds', procIds(form.productionProcessIds).filter((x) => x !== id).join(','))}>
+            {processes.find((x) => x.id === id)?.name ?? id} ×
+          </button>
+        ))}
+        <select className="ec-input w-[160px]" value="" aria-label="생산공정 추가"
+                onChange={(e) => { if (e.target.value) set('productionProcessIds', [...procIds(form.productionProcessIds), Number(e.target.value)].join(',')) }}>
+          <option value="">생산공정 추가</option>
+          {processes.filter((x) => x.active && !procIds(form.productionProcessIds).includes(x.id))
+            .map((x) => <option key={x.id} value={x.id}>{x.code} {x.name}</option>)}
+        </select>
+      </div>
+    </Field>
+    </>
+  )
+  const remarkField = (
+    <Field label="적요" wide>
+      <input className={inputCls} placeholder="적요" value={form.remark} onChange={(e) => set('remark', e.target.value)} />
+    </Field>
+  )
+  const safetyField = (
+    <Field label="안전재고수량">
+      <input type="number" step="any" className={inputCls} value={form.safetyStock} onChange={(e) => set('safetyStock', e.target.value)} />
+    </Field>
+  )
+  const supplierField = (
+    <Field label="구매처">
+      {/* inventory 는 trade 를 참조할 수 없어 서버는 id 만 들고, 이름은 이 화면이 붙인다. */}
+      <CodePickerField label="구매처" hideLabel fill placeholder="구매처" emptyLabel="선택 해제"
+                       value={form.supplierId} onChange={(v) => set('supplierId', v)}
+                       items={partnerCodeItems(partners)} />
+    </Field>
+  )
+  const stockField = (
+    <Field label="재고수량관리">
+      {/* 사용안함이면 이 품목은 재고를 잡지 않는다(용역 · 운반비 등). */}
+      <Radios name="item-stock" value={form.stockTracked} options={[['Y', '사용'], ['N', '사용안함']]} onChange={(v) => set('stockTracked', v)} />
+    </Field>
+  )
+  /* 품목코드 ~ 단위 — [기본] · [품목정보] 둘 다 맨 위. */
+  const nameFields = (
     <>
       {codeField}
       <Field label="품목명" wide>
@@ -624,16 +719,18 @@ export default function ItemsPage() {
       <Field label="단위">
         <input className={inputCls} placeholder="단위" value={form.unit} onChange={(e) => set('unit', e.target.value)} />
       </Field>
+    </>
+  )
+  const headFields = (
+    <>
+      {nameFields}
       <Field label="품목구분" wide>
         <Radios name="item-category" value={form.category} options={categoryOptions} onChange={(v) => set('category', v)} />
       </Field>
       <Field label="세트여부">
         <Radios name="item-set" value={form.setItem} options={[['Y', '사용'], ['N', '사용안함']]} onChange={(v) => set('setItem', v)} />
       </Field>
-      <Field label="재고수량관리">
-        {/* 사용안함이면 이 품목은 재고를 잡지 않는다(용역 · 운반비 등). */}
-        <Radios name="item-stock" value={form.stockTracked} options={[['Y', '사용'], ['N', '사용안함']]} onChange={(v) => set('stockTracked', v)} />
-      </Field>
+      {stockField}
     </>
   )
   const priceFields = (
@@ -662,6 +759,21 @@ export default function ItemsPage() {
       onSearchChange={setKeyword}
       onSearch={() => undefined}
       collapseConditions
+      /* 조건 판 아래 줄 맨 앞 [품목이미지 ▾](원본 품목등록 리스트 2026-10-31 loginad — 양식 고르기). */
+      formMenu={{ current: '품목이미지' }}
+      /* 원본 [Option](2026-10-31 loginad) — 우리에게 없는 설정이라 누르면 안내만 한다. */
+      optionMenu={[
+        { label: '품목계정추가', onClick: notHere('품목계정추가') },
+        { label: '다공정품목설정', onClick: notHere('다공정품목설정') },
+        { label: '다규격품목설정', onClick: notHere('다규격품목설정') },
+        { label: '양식설정', sub: [
+          { label: '품목이미지', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+          { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+        ] },
+        { label: '조건양식설정', onClick: notHere('조건양식설정') },
+        { label: '검색항목설정', onClick: notHere('검색항목설정') },
+        { label: '기능설정', onClick: notHere('기능설정') },
+      ]}
       onNew={showForm ? closeForm : openCreate}
       // 원본 차례: 신규(F2) · 바코드 · 관계설정 · 계층그룹 · 변경 · 재고조정 · 사용중단/재사용 ▴ · Excel · 웹자료올리기
       actions={[{ label: '바코드', onClick: () => { if (picked.length === 0) { void ecAlert(NO_PICK); return } setBarcodeOpen(true) } },
@@ -701,6 +813,12 @@ export default function ItemsPage() {
                        onClose={() => setUnusedOpen(false)} />
       {error && !showForm && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
+      {/*
+        원본 조건 판 [기본] 탭(2026-10-31 loginad) 차례: 품목코드 · 품목명 · 규격명 · 단위 · 품목구분 · 구매처 · 생산공정 · 입고단가 ~ ·
+        출고단가 ~ · 검색창내용 · 품목계층그룹 · (품목유형) · 기타 수정일자순(정렬) · 사용구분. 품목유형(품목/다중점품목/다규격품목)은 우리에게 그 자료가 없어 칸을 안 둔다.
+        바코드 · 품목그룹1 · 세트여부 · 품목공유여부 · 최초/최종 일자는 원본 [기본] 탭에 없는 칸(loginaa 사본 C000029 에는 있었다 — 다른 탭 칸은 원본 미측정)이라
+        지우지 않고 접힌 줄(⌄) 안에 둔다.
+      */}
       <ul className="ec-cond">
         <EcCond label="품목코드"><input className="ec-input w-full" placeholder="품목코드" value={cond.code} onChange={(e) => setC({ code: e.target.value })} /></EcCond>
         <EcCond label="품목명">
@@ -710,7 +828,6 @@ export default function ItemsPage() {
           <ItemSuggestInput field="spec" value={cond.spec} onChange={(v) => setC({ spec: v })} width="100%" />
         </EcCond>
         <EcCond label="단위"><input className="ec-input w-full" placeholder="단위" value={cond.unit} onChange={(e) => setC({ unit: e.target.value })} /></EcCond>
-        <EcCond label="바코드"><input className="ec-input w-full" placeholder="바코드" value={cond.barcode} onChange={(e) => setC({ barcode: e.target.value })} /></EcCond>
         <EcCond label="품목구분" span={2}>
           <label className="mr-[10px]">
             <input type="checkbox" checked={cond.cats.length === CATEGORY_ORDER.length}
@@ -723,6 +840,16 @@ export default function ItemsPage() {
             </label>
           ))}
         </EcCond>
+        <EcCond label="구매처" pick>
+          <CodePickerField label="구매처" hideLabel fill emptyLabel="전체"
+                           value={cond.supplier} onChange={(v) => setC({ supplier: v })}
+                           items={partnerCodeItems(partners)} />
+        </EcCond>
+        <EcCond label="생산공정" pick>
+          <CodePickerField label="생산공정" hideLabel fill emptyLabel="전체"
+                           value={cond.process} onChange={(v) => setC({ process: v })}
+                           items={processes.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        </EcCond>
         <EcCond label="입고단가">
           <input type="number" className="ec-input w-[100px]" value={cond.inFrom} onChange={(e) => setC({ inFrom: e.target.value })} />
           <span className="text-ec-label">~</span>
@@ -733,57 +860,95 @@ export default function ItemsPage() {
           <span className="text-ec-label">~</span>
           <input type="number" className="ec-input w-[100px]" value={cond.outTo} onChange={(e) => setC({ outTo: e.target.value })} />
         </EcCond>
-        <EcCond label="구매처" pick>
-          <CodePickerField label="구매처" hideLabel fill emptyLabel="전체"
-                           value={cond.supplier} onChange={(v) => setC({ supplier: v })}
-                           items={partnerCodeItems(partners)} />
-        </EcCond>
-        <EcCond label="품목그룹1" pick>
-          <CodePickerField label="품목그룹1" hideLabel fill emptyLabel="전체"
-                           value={cond.group} onChange={(v) => setC({ group: v })}
+        <EcCond label="검색창내용"><input className="ec-input w-full" placeholder="검색창내용" value={cond.keyword} onChange={(e) => setC({ keyword: e.target.value })} /></EcCond>
+        <EcCond label="품목계층그룹" pick>
+          <CodePickerField label="품목계층그룹" hideLabel fill emptyLabel="전체"
+                           value={cond.tree} onChange={(v) => setC({ tree: v })}
                            items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))} />
         </EcCond>
-        <EcCond label="세트여부">
-          {([['ALL', '전체'], ['Y', '사용'], ['N', '사용안함']] as const).map(([v, l]) => (
-            <label key={v} className="mr-[10px]"><input type="radio" name="item-cond-set" checked={cond.setItem === v} onChange={() => setC({ setItem: v })} /> {l}</label>
-          ))}
-        </EcCond>
-        <EcCond label="품목공유여부">
-          <label><input type="checkbox" checked={cond.shared} onChange={(e) => setC({ shared: e.target.checked })} /> C-Portal공유</label>
-        </EcCond>
-        <EcCond label="최초작성일자">
-          <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.createdFrom, onChange: (e) => setC({ createdFrom: e.target.value }) }} to={{ className: "ec-input w-[140px]", value: cond.createdTo, onChange: (e) => setC({ createdTo: e.target.value }) }} />
-        </EcCond>
-        <EcCond label="최종수정일자">
-          <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.updatedFrom, onChange: (e) => setC({ updatedFrom: e.target.value }) }} to={{ className: "ec-input w-[140px]", value: cond.updatedTo, onChange: (e) => setC({ updatedTo: e.target.value }) }} />
+        <EcCond label="기타">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={cond.byUpdated} onChange={(e) => setC({ byUpdated: e.target.checked })} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
         <EcCond label="사용구분">
           {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
             <label key={v} className="mr-[10px]"><input type="radio" name="item-cond-use" checked={cond.use === v} onChange={() => setC({ use: v })} /> {l}</label>
           ))}
         </EcCond>
+        {moreConds && <>
+          <EcCond label="바코드"><input className="ec-input w-full" placeholder="바코드" value={cond.barcode} onChange={(e) => setC({ barcode: e.target.value })} /></EcCond>
+          <EcCond label="품목그룹1" pick>
+            <CodePickerField label="품목그룹1" hideLabel fill emptyLabel="전체"
+                             value={cond.group} onChange={(v) => setC({ group: v })}
+                             items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))} />
+          </EcCond>
+          <EcCond label="세트여부">
+            {([['ALL', '전체'], ['Y', '사용'], ['N', '사용안함']] as const).map(([v, l]) => (
+              <label key={v} className="mr-[10px]"><input type="radio" name="item-cond-set" checked={cond.setItem === v} onChange={() => setC({ setItem: v })} /> {l}</label>
+            ))}
+          </EcCond>
+          <EcCond label="품목공유여부">
+            <label><input type="checkbox" checked={cond.shared} onChange={(e) => setC({ shared: e.target.checked })} /> C-Portal공유</label>
+          </EcCond>
+          <EcCond label="최초작성일자">
+            <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.createdFrom, onChange: (e) => setC({ createdFrom: e.target.value }) }} to={{ className: "ec-input w-[140px]", value: cond.createdTo, onChange: (e) => setC({ createdTo: e.target.value }) }} />
+          </EcCond>
+          <EcCond label="최종수정일자">
+            <EcDateRange from={{ className: "ec-input w-[140px]", value: cond.updatedFrom, onChange: (e) => setC({ updatedFrom: e.target.value }) }} to={{ className: "ec-input w-[140px]", value: cond.updatedTo, onChange: (e) => setC({ updatedTo: e.target.value }) }} />
+          </EcCond>
+        </>}
+        <li className="full justify-center">
+          <button type="button" className="ec-btn ec-btn-sm" aria-expanded={moreConds}
+                  title={moreConds ? '조건 접기' : '조건 더 보기'} aria-label={moreConds ? '조건 접기' : '조건 더 보기'} onClick={() => setMoreConds((v) => !v)}>
+            <EcIcon name={moreConds ? 'chevron-up' : 'chevron-down'} size={12} glyph={moreConds ? '▴' : '▾'} />
+          </button>
+        </li>
       </ul>
 
 
-      <Modal error={error} open={showForm} title="품목등록" width={760} onClose={closeForm}>{(
+      {/*
+        원본 품목등록 창(2026-10-31 loginad): 목록 위에 떠 있는 창 — 제목줄 [새창] [고정] [새로고침] [최대] [닫기], 머리 오른쪽 [Option],
+        알약 탭 기본 · 품목정보 · 수량 · 단가 · 원가 · 부가정보 · 관리대상.
+      */}
+      {showForm && (
+      <ProductionSlipWindow title="품목등록" popout="/inventory/items" onClose={closeForm}>
         <form onSubmit={submit} className="my-[8px] p-[14px] bg-ec-panel"
               onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void submit() } }}>
-          <ul className="ec-tabs mb-[10px]">
-            {FORM_TABS.map((t) => (
-              <li key={t} className={`ec-tab relative cursor-pointer${formTab === t ? ' active' : ''}`}
-                  onClick={() => setFormTab(t)}>{t}
-                {/* 원본: 빈 칸이 있는 탭 오른쪽 위의 빨간 동그라미 '!'(16×16, 위 -6.3px). 품목명은 [기본] · [품목정보] 둘에 있다. */}
-                {tabBad(t) && (
-                  <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {error && <p role="alert" className="ec-error">{error}</p>}
+          <div className="flex items-center gap-[4px] mb-[10px]">
+            <div className="ec-pills">
+              {FORM_TABS.map((t) => (
+                <button key={t} type="button" className={`ec-pill no-ec relative${formTab === t ? ' active' : ''}`}
+                        onClick={() => setFormTab(t)}>{t}
+                  {/* 원본: 빈 칸이 있는 탭 오른쪽 위의 빨간 동그라미 '!'(16×16, 위 -6.3px). 품목명은 [기본] · [품목정보] 둘에 있다. */}
+                  {tabBad(t) && (
+                    <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {/* 원본 머리 [Option] — 안 항목은 원본 미측정, 우리에게 없는 설정이라 안내만. */}
+            <button type="button" className="ec-btn ec-btn-sm ml-auto" onClick={notHere('품목등록 Option')}>Option</button>
+          </div>
 
+          {/*
+            원본 [기본] 탭(2026-10-31 loginad): 품목코드 · 품목명 · 규격 · 단위 · 구매처 · 이미지 · 생산공정 · 품목그룹1 · 입고단가 · 출고단가 · 적요 ·
+            재고수량관리 · 재고수량 · 안전재고수량. 규격 라디오(규격명/규격그룹/규격계산/규격계산그룹) · 단가 [VAT포함] · 재고수량 [입력] · 안전재고 [창고별지정]은
+            우리에게 그 자료가 없어 칸을 안 둔다. 품목구분 · 세트여부는 [품목정보] 탭에 있다.
+          */}
           {formTab === '기본' && (
             <div className={grid3}>
-              {headFields}
+              {nameFields}
+              {supplierField}
+              {imageField}
+              {processField}
+              {groupField}
               {priceFields}
+              {remarkField}
+              {stockField}
+              {safetyField}
             </div>
           )}
 
@@ -813,44 +978,10 @@ export default function ItemsPage() {
                   <input type="checkbox" checked={form.sharedItem === 'Y'} onChange={(e) => set('sharedItem', e.target.checked ? 'Y' : 'N')} /> C-Portal공유
                 </label>
               </Field>
-              <Field label="이미지">
-                {image ? (
-                  <div className="flex items-center gap-[8px] border border-ec-line border-solid p-[6px] bg-ec-page">
-                    <img src={`/api/files/${image.id}`} alt={image.name} className="w-[48px] h-[48px] object-cover bg-ec-panel" />
-                    <span className="text-[12.5px] text-ec-label flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{image.name}</span>
-                    <button type="button" className="ec-btn" onClick={() => setImage(null)}>떼기</button>
-                  </div>
-                ) : (
-                  <EcFileDrop hint="이미지삽입" busy={uploading} disabled={uploading}
-                              onFiles={(fs) => { if (fs[0]) void uploadImage(fs[0]) }} />
-                )}
-              </Field>
-              <Field label="품목그룹1">
-                <CodePickerField label="품목그룹1" hideLabel fill pair placeholder="품목그룹1" emptyLabel="선택 해제"
-                                 value={form.itemGroupId} onChange={(v) => set('itemGroupId', v)}
-                                 items={itemGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))}
-                                 onNew={() => setGroupOpen(true)} />
-              </Field>
-              {/* 원본 [품목정보] 의 [생산공정] — 공정을 고르는 태그(A001 → 조립). BOR 목록이 이 값을 정한 품목을 보인다. */}
-              <Field label="생산공정" wide>
-                <div className="flex flex-wrap items-center gap-[4px]">
-                  {procIds(form.productionProcessIds).map((id) => (
-                    <button key={id} type="button" className="ec-btn ec-btn-sm" title="빼기"
-                            onClick={() => set('productionProcessIds', procIds(form.productionProcessIds).filter((x) => x !== id).join(','))}>
-                      {processes.find((x) => x.id === id)?.name ?? id} ×
-                    </button>
-                  ))}
-                  <select className="ec-input w-[160px]" value="" aria-label="생산공정 추가"
-                          onChange={(e) => { if (e.target.value) set('productionProcessIds', [...procIds(form.productionProcessIds), Number(e.target.value)].join(',')) }}>
-                    <option value="">생산공정 추가</option>
-                    {processes.filter((x) => x.active && !procIds(form.productionProcessIds).includes(x.id))
-                      .map((x) => <option key={x.id} value={x.id}>{x.code} {x.name}</option>)}
-                  </select>
-                </div>
-              </Field>
-              <Field label="적요" wide>
-                <input className={inputCls} placeholder="적요" value={form.remark} onChange={(e) => set('remark', e.target.value)} />
-              </Field>
+              {imageField}
+              {groupField}
+              {processField}
+              {remarkField}
               <Field label="품질검사유형">
                 <select className={inputCls} value={qcTypeId} aria-label="품질검사유형"
                         onChange={(e) => {
@@ -881,9 +1012,7 @@ export default function ItemsPage() {
           {formTab === '수량' && (
             <div className={grid3}>
               {codeField}
-              <Field label="안전재고수량">
-                <input type="number" step="any" className={inputCls} value={form.safetyStock} onChange={(e) => set('safetyStock', e.target.value)} />
-              </Field>
+              {safetyField}
               <Field label="조달기간">
                 {/* 주문하고 물건이 오기까지 걸리는 날수 — 발주계획이 이 값으로 거꾸로 센다. */}
                 <input type="number" className={inputCls} value={form.leadTimeDays} onChange={(e) => set('leadTimeDays', e.target.value)} title="일 단위" />
@@ -891,12 +1020,7 @@ export default function ItemsPage() {
               <Field label="최소구매단위">
                 <input type="number" step="any" className={inputCls} value={form.minPurchaseUnit} onChange={(e) => set('minPurchaseUnit', e.target.value)} />
               </Field>
-              <Field label="구매처">
-                {/* inventory 는 trade 를 참조할 수 없어 서버는 id 만 들고, 이름은 이 화면이 붙인다. */}
-                <CodePickerField label="구매처" hideLabel fill placeholder="구매처" emptyLabel="선택 해제"
-                                 value={form.supplierId} onChange={(v) => set('supplierId', v)}
-                                 items={partnerCodeItems(partners)} />
-              </Field>
+              {supplierField}
             </div>
           )}
 
@@ -987,7 +1111,9 @@ export default function ItemsPage() {
             수정 저장(F8) · 복사 · 사용중단/재사용 ▴(사용중단 · 삭제) · 다시 작성 · 닫기 · H.
           */}
           <div className="mt-[12px] flex justify-end gap-[4px]">
-            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            {/* 원본 [저장(F8)│▲] — ▲ 안 항목은 원본 미측정이라 다른 마스터 창(자료수집처등록)과 같은 [저장/신규] 만 둔다. */}
+            <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up onMain={() => void submit()}
+                        items={[{ label: '저장/신규', onClick: () => void submit(undefined, true) }]} />
             {editId == null ? (
               <>
                 {/* 다규격품목(규격 여럿을 한 품목에) 은 우리에게 그 자료가 없다 — 남은 것. */}
@@ -1018,7 +1144,8 @@ export default function ItemsPage() {
             <EcHistoryButton target="ITEM" id={editId} />
           </div>
         </form>
-      )}</Modal>
+      </ProductionSlipWindow>
+      )}
 
       {/* 원본 '삭제불가코드' — 전표 · 자료가 걸린 품목을 [삭제](C000029, 2026-10-21 실측: 간편재고조정 한 건 → 자료 '재고조정'). */}
       <Modal open={blocked != null} title="삭제불가코드" width={640} onClose={() => setBlocked(null)}>{blocked && (
@@ -1071,7 +1198,10 @@ export default function ItemsPage() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            {/* 원본 열(C000029 실측): 번호체크 · 품목코드 · 품목명 · 품목그룹 · 규격 · 바코드 · 입고단가 · 출고단가 · 품목구분 · 이미지. 머리 글자 700, 칸은 모두 가운데. */}
+            {/*
+              원본 열(2026-10-31 loginad): 번호체크 · 품목코드 · 품목명 · 이미지 · 구매처명 · 품목구분 · 규격정보 · 재고수량관리 · 품목그룹1명 · 검색창내용 · 사용 · 파일관리.
+              바코드 · 입고단가 · 출고단가는 loginad 에 없는 우리 열(loginaa 사본 C000029 에는 있었다) — 지우지 않고 사용 앞에 둔다. 머리 글자 700, 칸은 모두 가운데.
+            */}
             <tr>
               <th className="w-[29px] text-center" data-export-skip="true">
                 <NumCheck tone="plain" no="" label="전체 선택"
@@ -1080,20 +1210,25 @@ export default function ItemsPage() {
               </th>
               <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
               <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
-              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('품목그룹')}>품목그룹 {sort.mark('품목그룹')}</th>
-              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('규격')}>규격 {sort.mark('규격')}</th>
+              <th className="w-[57px] text-center font-bold">이미지</th>
+              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('구매처명')}>구매처명 {sort.mark('구매처명')}</th>
+              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('품목구분')}>품목구분 {sort.mark('품목구분')}</th>
+              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('규격정보')}>규격정보 {sort.mark('규격정보')}</th>
+              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('재고수량관리')}>재고수량관리 {sort.mark('재고수량관리')}</th>
+              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('품목그룹1명')}>품목그룹1명 {sort.mark('품목그룹1명')}</th>
+              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
               <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('바코드')}>바코드 {sort.mark('바코드')}</th>
               <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('입고단가')}>입고단가 {sort.mark('입고단가')}</th>
               <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('출고단가')}>출고단가 {sort.mark('출고단가')}</th>
-              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('품목구분')}>품목구분 {sort.mark('품목구분')}</th>
-              <th className="w-[57px] text-center font-bold">이미지</th>
+              <th className="text-center font-bold cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
+              <th className="text-center font-bold">파일관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
                 <tr key={it.id} className={it.active ? undefined : 'text-ec-hint ec-row-stopped'}>
@@ -1103,18 +1238,25 @@ export default function ItemsPage() {
                   {/* 원본은 코드 · 이름을 눌러 그 건을 연다(두 칸이 링크다). */}
                   <td className="text-center"><button type="button" className="ec-link" onClick={() => openEdit(it)}>{it.code}</button></td>
                   <td className="text-center"><button type="button" className="ec-link" onClick={() => openEdit(it)}>{it.name}</button></td>
-                  <td className="text-center">{it.itemGroupName ?? ''}</td>
-                  <td className="text-center">{it.spec ?? ''}</td>
-                  <td className="text-center">{it.barcode ?? ''}</td>
-                  <td className="text-center">{(it.purchasePrice ?? 0).toLocaleString('ko-KR')}</td>
-                  <td className="text-center">{it.unitPrice.toLocaleString('ko-KR')}</td>
-                  <td className="text-center">[{it.categoryName}]</td>
+                  {/* 원본은 그림을 칸에 그린다. */}
                   <td className="text-center">
                     {it.imageFileId ? (
                       <img src={`/api/files/${it.imageFileId}`} alt={it.imageFileName ?? it.name}
                            title={it.imageFileName ?? ''} className="w-[24px] h-[24px] object-cover align-middle" />
                     ) : null}
                   </td>
+                  <td className="text-center">{supplierName(it)}</td>
+                  <td className="text-center">[{it.categoryName}]</td>
+                  <td className="text-center">{it.spec ?? ''}</td>
+                  <td className="text-center">{it.stockTracked ? '사용' : '사용안함'}</td>
+                  <td className="text-center">{it.itemGroupName ?? ''}</td>
+                  <td className="text-center">{it.searchKeyword ?? ''}</td>
+                  <td className="text-center">{it.barcode ?? ''}</td>
+                  <td className="text-center">{(it.purchasePrice ?? 0).toLocaleString('ko-KR')}</td>
+                  <td className="text-center">{it.unitPrice.toLocaleString('ko-KR')}</td>
+                  <td className="text-center">{it.active ? 'YES' : 'NO'}</td>
+                  {/* 원본 [파일관리] 링크 — 품목에 파일을 붙이는 창. 우리는 이미지 한 장(품목정보 탭)만 들어 안내만 한다. */}
+                  <td className="text-center"><button type="button" className="ec-link" onClick={notHere('파일관리')}>파일관리</button></td>
                 </tr>
               ))
             )}

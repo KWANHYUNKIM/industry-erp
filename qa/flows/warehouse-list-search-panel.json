@@ -6,11 +6,11 @@
       "path": "/inventory/warehouses",
       "steps": [
         "wait:1500",
-        "expect:(() => { const s = [...document.querySelectorAll('span')].find((x) => x.textContent.trim() === '사용구분' && !x.closest('[role=dialog]')); return !s || s.offsetParent === null })()",
+        "expect:(() => { const s = [...document.querySelectorAll('.ec-cond .title')].find((x) => x.textContent.trim() === '사용구분'); return !s || s.offsetParent === null })()",
         "click:Search(F3)",
         "wait:600",
-        "expect:(() => { const s = [...document.querySelectorAll('span')].find((x) => x.textContent.trim() === '사용구분' && !x.closest('[role=dialog]')); return !!s && s.offsetParent !== null })()",
-        "js:[...document.querySelectorAll('.ec-search-conds label')].find((l) => l.textContent.trim() === '전체').querySelector('input').click(); true",
+        "expect:(() => { const s = [...document.querySelectorAll('.ec-cond .title')].find((x) => x.textContent.trim() === '사용구분'); return !!s && s.offsetParent !== null })()",
+        "js:document.querySelector('input[name=wh-use]').click(); true",
         "click:검색(F8)",
         "wait:600",
         "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.textContent.includes('QA-DW'))"

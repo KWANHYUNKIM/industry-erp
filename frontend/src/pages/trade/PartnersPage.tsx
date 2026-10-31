@@ -5,6 +5,10 @@ import { useSearchParams } from 'react-router-dom'
 import { useTableSort } from '../../utils/useTableSort'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { EcCond } from '../../components/EcStatusPanel'
+import { MenuButton } from '../../components/EcSlipShell'
+import EcIcon from '../../components/ui/EcIcon'
+import ProductionSlipWindow from '../production/ProductionSlipWindow'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
@@ -62,6 +66,29 @@ const empty = {
 const FORM_TABS = ['기본', '거래처정보', '여신/단가', '부가정보'] as const
 type FormTab = typeof FORM_TABS[number]
 
+/** 원본에 있고 우리에게 받쳐 줄 것이 없는 단추 · 메뉴 — 누르면 안내만 한다. */
+const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
+
+/*
+ * 조건 판 처음 값. 원본 거래처리스트 [Search(F3)] [기본] 탭(2026-10-31 loginad 실측) 차례:
+ * 거래처코드 · 상호(이름) · 대표자명 · 업태 · 종목 · 전화 · Fax · Email · 검색창내용 · 주소1 · 거래처계층그룹 · 사용구분(기본 사용).
+ * 종사업장번호 · 영업/구매단가그룹 · 최초작성일자 · 최종수정일자는 원본 [기본] 탭에 없는 우리 칸(원본 다른 탭 몫으로 보이나
+ * 그 탭 칸은 원본 미측정) — 지우지 않고 접힌 줄(⌄) 안에 둔다.
+ */
+const COND0 = {
+  거래처코드: '', '상호(이름)': '', 대표자명: '', 업태: '', 종목: '', 전화: '', Fax: '',
+  Email: '', 검색창내용: '', 주소1: '', 거래처계층그룹: '', 사용구분: 'Y' as 'ALL' | 'Y' | 'N',
+  종사업장번호: '',
+  /* 원본 조건 <b>[영업단가그룹]</b> — 우리 폼은 이 값을 [판매단가그룹]이라 부르고 있었다. 특별단가의 '그룹별' 이 보는 그 값이다. */
+  영업단가그룹: '', 구매단가그룹: '',
+  /*
+   * 원본 조건 <b>[최초작성일자]·[최종수정일자]</b>. BaseTimeEntity 가 진작 들고 있는데
+   * 응답에 안 실어 <b>언제 딴 거래처인지</b>를 화면에서 알 수가 없었다.
+   * 일부만 쳐도 걸린다 — <code>2026-08</code> 이면 그 달에 만든 것만 남는다.
+   */
+  최초작성일자: '', 최종수정일자: '',
+}
+
 export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [types, setTypes] = useState<CodeOption[]>([])
@@ -104,29 +131,19 @@ export default function PartnersPage() {
    *
    * <p>원본 조건 이름을 그대로 쓰되, <b>우리 거래처에 있는 값만</b> 둔다.
    */
-  const [cond, setCond] = useState({
-    /* 원본 조건 판의 차례 그대로다 — 상호 다음이 종사업장번호, 그 다음이 대표자명이다. */
-    '상호(이름)': '', 종사업장번호: '', 대표자명: '', 업태: '', 종목: '', 전화: '',
-    Email: '', 주소1: '', 검색창내용: '',
-    /*
-     * 원본 조건 <b>[영업단가그룹]</b> — 우리 폼은 이 값을 [판매단가그룹]이라 부르고 있었다.
-     * 특별단가의 '그룹별' 이 보는 그 값이다.
-     */
-    영업단가그룹: '', 구매단가그룹: '',
-    /*
-     * 원본 조건 <b>[최초작성일자]·[최종수정일자]</b>. BaseTimeEntity 가 진작 들고 있는데
-     * 응답에 안 실어 <b>언제 딴 거래처인지</b>를 화면에서 알 수가 없었다.
-     * 일부만 쳐도 걸린다 — <code>2026-08</code> 이면 그 달에 만든 것만 남는다.
-     */
-    최초작성일자: '', 최종수정일자: '',
-  })
+  const [cond, setCond] = useState({ ...COND0 })
+  /** 접힌 줄(⌄) — 펼치면 원본 [기본] 탭에 없는 우리 칸이 나온다. */
+  const [moreConds, setMoreConds] = useState(false)
   const setCd = (k: keyof typeof cond, v: string) => setCond((c) => ({ ...c, [k]: v }))
   const hit = (v: string | null, q: string) => !q || (v ?? '').includes(q.trim())
 
   /** 화면에 보이는 거래처. 사용중단은 체크를 켜야 나온다 — 원본도 그렇다. */
   const shownRows = partners
-    .filter((p) => withStopped || p.active)
+    /* 사용구분 기본 '사용' — 머리 [사용중단포함] 을 켜면 사용중단 거래처도 같이 보인다(품목등록과 같다). */
+    .filter((p) => cond.사용구분 === 'ALL' || (cond.사용구분 === 'Y' ? p.active || withStopped : !p.active))
     .filter((p) => !keyword || `${p.code} ${p.name}`.includes(keyword.trim()))
+    .filter((p) => hit(p.code, cond.거래처코드) && hit(p.fax, cond.Fax)
+      && (!cond.거래처계층그룹 || String(p.partnerGroupId ?? '') === cond.거래처계층그룹))
     .filter((p) => hit(p.name, cond['상호(이름)']) && hit(p.ceoName, cond.대표자명)
       && hit(p.bizType, cond.업태) && hit(p.bizItem, cond.종목)
       && hit(p.phone, cond.전화) && hit(p.email, cond.Email)
@@ -176,6 +193,11 @@ export default function PartnersPage() {
   const [webOpen, setWebOpen] = useState(false)      // 웹자료올리기 모달
   const [unusedOpen, setUnusedOpen] = useState(false) // 미사용코드조회 창
   const [dupPartner, setDupPartner] = useState<Partner | null>(null) // 코드가 겹칠 때 [공지] 창에 보일 기존 거래처
+  /** 목록 [이체정보] 열의 [등록] 이 띄운 [이체정보리스트] 창의 거래처. */
+  const [bankOf, setBankOf] = useState<Partner | null>(null)
+  const [bankQ, setBankQ] = useState('')
+  /** 저장 ▲ [저장/신규] — 저장한 뒤 창을 닫지 않고 새 거래처로 비운다. */
+  const saveThenNew = useRef(false)
   const [webFile, setWebFile] = useState<{ name: string; total: number; head: string[] } | null>(null)
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -187,7 +209,7 @@ export default function PartnersPage() {
 
   /* 연달아 저장하면 조회가 겹친다 — 먼저 시작한(느린) 응답이 나중 응답을 덮어 새 거래처가 목록에서 빠지던 것. 마지막에 시작한 조회만 반영한다. */
   const loadSeq = useRef(0)
-  async function load() {
+  async function load(): Promise<Partner[] | null> {
     const seq = ++loadSeq.current
     setLoading(true)
     try {
@@ -196,13 +218,16 @@ export default function PartnersPage() {
         api.get<CodeOption[]>('/meta/partner-types'),
         api.get<GroupMaster[]>('/partner-groups'),
       ])
-      if (seq !== loadSeq.current) return
+      if (seq !== loadSeq.current) return null
       // 계좌 · 카드 · 카드사의 짝 거래처(linkedKind)는 코드도움에만 — 거래처등록 목록은 보통 거래처만
-      setPartners(p.data.filter((x) => !x.linkedKind))
+      const list = p.data.filter((x) => !x.linkedKind)
+      setPartners(list)
       setTypes(t.data)
       setPartnerGroups(g.data)
+      return list
     } catch (err) {
       if (seq === loadSeq.current) setError(extractErrorMessage(err))
+      return null
     } finally {
       if (seq === loadSeq.current) setLoading(false)
     }
@@ -221,14 +246,14 @@ export default function PartnersPage() {
    * 생성기준 '일련번호(5) 00001' — <b>다섯 자리 숫자 코드</b> 중 가장 큰 것 + 1 이다. 10 · 12 자리 숫자 코드(사업자번호 · 1234567101 …)가
    * 있어도 원본은 00017 다음 00018 을 채웠다. 다섯 자리 코드가 없으면 00001. 사람이 지우고 다른 코드를 써도 된다.
    */
-  function nextCode() {
-    const nums = partners.map((x) => x.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
+  function nextCode(list: Partner[] = partners) {
+    const nums = list.map((x) => x.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
     return String((nums.length ? Math.max(...nums) : 0) + 1).padStart(5, '0')
   }
 
-  function openCreate() {
+  function openCreate(list?: Partner[]) {
     setEditId(null)
-    setForm({ ...empty, code: nextCode() })
+    setForm({ ...empty, code: nextCode(list) })
     setInvalid(false)
     setFormTab('기본')
     setShowForm(true)
@@ -273,8 +298,10 @@ export default function PartnersPage() {
     } catch { return null }
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  async function submit(e?: FormEvent) {
+    e?.preventDefault()
+    const again = saveThenNew.current
+    saveThenNew.current = false
     setError('')
     if (!form.name.trim()) { setInvalid(true); setFormTab('기본'); return }
     setInvalid(false)
@@ -305,7 +332,8 @@ export default function PartnersPage() {
       /* 원본은 저장하면 말없이 창을 닫고 목록만 다시 그린다(신규 · 수정 둘 다). */
       setForm({ ...empty })
       setShowForm(false)
-      await load()
+      const fresh = await load()
+      if (again) openCreate(fresh ?? undefined)
     } catch (err) {
       const m = extractErrorMessage(err)
       /* 서버의 중복 안내는 칸 이름이 없다 — 겹친 거래처코드를 붙여 준다. */
@@ -465,9 +493,27 @@ export default function PartnersPage() {
       title="거래처리스트"
       search={keyword}
       onSearchChange={setKeyword}
-      onNew={openCreate}
+      onReset={() => setCond({ ...COND0 })}
+      /* 조건 판 아래 줄 맨 앞 [기본(수정불가) ▾](원본 거래처리스트 2026-10-31 loginad). */
+      formMenu={{ current: '기본(수정불가)' }}
+      /* 원본 [Option](2026-10-31 loginad) — 우리에게 없는 설정이라 누르면 안내만 한다. */
+      optionMenu={[
+        { label: '번호오류리스트', onClick: notHere('번호오류리스트') },
+        { label: '검색항목설정', onClick: notHere('검색항목설정') },
+        { label: '양식설정', sub: [
+          { label: '기본(수정불가)', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+          { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+        ] },
+        { label: '조건양식설정', onClick: notHere('조건양식설정') },
+        { label: '기능설정', onClick: notHere('기능설정') },
+      ]}
       actions={[
-        // 원본 차례(loginaa 거래처리스트 실측): 신규(F2) · 관계설정 · 계층그룹 · 변경 · 사용중단/재사용 ▴ · Excel · 웹자료올리기
+        /*
+         * 원본 차례(2026-10-31 loginad 거래처리스트): [신규(F2)│▲ 국세청거래처가져오기] · 관계설정 · 계층그룹 · 변경 ·
+         * [사용중단/재사용 ▲] · [Excel│▲ Excel(이체정보)] · 웹자료올리기 · SMS. 국세청 · 이체정보 엑셀 · SMS 는 받쳐 줄 것이 없어 안내만.
+         */
+        { label: '신규(F2)', primary: true, onClick: () => openCreate(),
+          menu: [{ label: '국세청거래처가져오기', onClick: notHere('국세청거래처가져오기') }] },
         /* 원본 [관계설정] — 고른 거래처의 대표거래처를 한 번에 정한다. */
         { label: `관계설정${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
           if (checked.size === 0) { void ecAlert(NO_PICK); return }
@@ -485,8 +531,9 @@ export default function PartnersPage() {
           { label: '미사용코드조회', onClick: () => setUnusedOpen(true) },
           { label: '재사용', onClick: () => setActiveChecked(true) },
         ] },
-        { label: 'Excel' },
+        { label: 'Excel', menu: [{ label: 'Excel(이체정보)', onClick: notHere('Excel(이체정보)') }] },
         { label: '웹자료올리기', onClick: () => setWebOpen(true) },
+        { label: 'SMS', onClick: notHere('SMS') },
       ]}
     >
       <UnusedCodeModal open={unusedOpen} title="미사용코드조회" codeLabel="거래처코드" nameLabel="거래처명" endpoint="/partners/unused"
@@ -505,53 +552,70 @@ export default function PartnersPage() {
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
 
-      {/* 원본 거래처검색 조건 판. 이름은 원본 그대로 쓴다. 머리에 검색칸이 있어 접어 두고 [Search(F3)] 로 편다(ec-search-conds). */}
-      <div className="ec-search-conds flex flex-wrap gap-[6px] items-center mb-[8px]">
-        {(Object.keys(cond) as (keyof typeof cond)[])
-          /* 날짜 둘은 아래에서 따로 그린다 — 안내 글이 붙고, 이름표가 정적이어야 검사가 본다. */
-          .filter((k) => !k.endsWith('일자'))
-          .map((k) => (
-            <span key={k} className="inline-flex items-center gap-[4px]">
-              <label className="text-[12.5px] text-ec-label">{k}</label>
-              <input className="ec-input" style={{ width: 120 }} value={cond[k]}
-                     onChange={(e) => setCd(k, e.target.value)} />
-            </span>
+      {/* 원본 거래처리스트 조건 판 [기본] 탭(머리에 검색칸이 있어 접어 두고 [Search(F3)] 로 편다). 이름 · 차례는 원본 그대로. */}
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="거래처코드"><input className="ec-input w-full" value={cond.거래처코드} onChange={(e) => setCd('거래처코드', e.target.value)} /></EcCond>
+        <EcCond label="상호(이름)"><input className="ec-input w-full" value={cond['상호(이름)']} onChange={(e) => setCd('상호(이름)', e.target.value)} /></EcCond>
+        <EcCond label="대표자명"><input className="ec-input w-full" value={cond.대표자명} onChange={(e) => setCd('대표자명', e.target.value)} /></EcCond>
+        <EcCond label="업태"><input className="ec-input w-full" value={cond.업태} onChange={(e) => setCd('업태', e.target.value)} /></EcCond>
+        <EcCond label="종목"><input className="ec-input w-full" value={cond.종목} onChange={(e) => setCd('종목', e.target.value)} /></EcCond>
+        <EcCond label="전화"><input className="ec-input w-full" value={cond.전화} onChange={(e) => setCd('전화', e.target.value)} /></EcCond>
+        <EcCond label="Fax"><input className="ec-input w-full" value={cond.Fax} onChange={(e) => setCd('Fax', e.target.value)} /></EcCond>
+        <EcCond label="Email"><input className="ec-input w-full" value={cond.Email} onChange={(e) => setCd('Email', e.target.value)} /></EcCond>
+        <EcCond label="검색창내용"><input className="ec-input w-full" value={cond.검색창내용} onChange={(e) => setCd('검색창내용', e.target.value)} /></EcCond>
+        <EcCond label="주소1"><input className="ec-input w-full" value={cond.주소1} onChange={(e) => setCd('주소1', e.target.value)} /></EcCond>
+        {/* 원본 [거래처계층그룹] 돋보기 — 우리 하단 [계층그룹] 이 다루는 거래처그룹(거래처그룹1)이다. */}
+        <EcCond label="거래처계층그룹" pick>
+          <CodePickerField label="거래처계층그룹" hideLabel fill emptyLabel="전체"
+                           value={cond.거래처계층그룹} onChange={(v) => setCd('거래처계층그룹', v)}
+                           items={partnerGroups.map((g) => ({ value: String(g.id), code: g.code, name: g.name }))} />
+        </EcCond>
+        <EcCond label="사용구분">
+          {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]"><input type="radio" name="partner-cond-use" checked={cond.사용구분 === v}
+                                                      onChange={() => setCond((c) => ({ ...c, 사용구분: v }))} /> {l}</label>
           ))}
-        {/*
-          원본 조건 [최초작성일자]·[최종수정일자]. <b>일부만 쳐도 걸린다</b> —
-          2026-08 이면 그 달에 만든 거래처만 남는다. 그래서 날짜 칸이 아니라 글자 칸이다.
-        */}
-        <span className="inline-flex items-center gap-[4px]">
-          <label className="text-[12.5px] text-ec-label">최초작성일자</label>
-          <input className="ec-input" style={{ width: 120 }} placeholder="2026-08"
-                 value={cond.최초작성일자} onChange={(e) => setCd('최초작성일자', e.target.value)} />
-        </span>
-        <span className="inline-flex items-center gap-[4px]">
-          <label className="text-[12.5px] text-ec-label">최종수정일자</label>
-          <input className="ec-input" style={{ width: 120 }} placeholder="2026-08"
-                 value={cond.최종수정일자} onChange={(e) => setCd('최종수정일자', e.target.value)} />
-        </span>
-        <button type="button" className="ec-btn" onClick={() => setCond({
-          '상호(이름)': '', 종사업장번호: '', 대표자명: '', 업태: '', 종목: '', 전화: '',
-          Email: '', 주소1: '', 검색창내용: '',
-          영업단가그룹: '', 구매단가그룹: '', 최초작성일자: '', 최종수정일자: '',
-        })}>다시작성</button>
-      </div>
+        </EcCond>
+        {/* 접힌 줄(⌄)을 펼치면 원본 [기본] 탭에 없는 우리 칸이 나온다. */}
+        {moreConds && <>
+          <EcCond label="종사업장번호"><input className="ec-input w-full" value={cond.종사업장번호} onChange={(e) => setCd('종사업장번호', e.target.value)} /></EcCond>
+          <EcCond label="영업단가그룹"><input className="ec-input w-full" value={cond.영업단가그룹} onChange={(e) => setCd('영업단가그룹', e.target.value)} /></EcCond>
+          <EcCond label="구매단가그룹"><input className="ec-input w-full" value={cond.구매단가그룹} onChange={(e) => setCd('구매단가그룹', e.target.value)} /></EcCond>
+          {/* 일부만 쳐도 걸린다 — 2026-08 이면 그 달에 만든 거래처만 남는다. 그래서 날짜 칸이 아니라 글자 칸이다. */}
+          <EcCond label="최초작성일자"><input className="ec-input w-full" value={cond.최초작성일자} placeholder="2026-08" onChange={(e) => setCd('최초작성일자', e.target.value)} /></EcCond>
+          <EcCond label="최종수정일자"><input className="ec-input w-full" value={cond.최종수정일자} placeholder="2026-08" onChange={(e) => setCd('최종수정일자', e.target.value)} /></EcCond>
+        </>}
+        <li className="full justify-center">
+          <button type="button" className="ec-btn ec-btn-sm" aria-expanded={moreConds}
+                  title={moreConds ? '조건 접기' : '조건 더 보기'} aria-label={moreConds ? '조건 접기' : '조건 더 보기'} onClick={() => setMoreConds((v) => !v)}>
+            <EcIcon name={moreConds ? 'chevron-up' : 'chevron-down'} size={12} glyph={moreConds ? '▴' : '▾'} />
+          </button>
+        </li>
+      </ul>
 
-      <Modal error={error} open={showForm} title="거래처등록" onClose={() => { if (!dupPartner) setShowForm(false) }}>{(
-        <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">거래처등록</div>
-          <ul className="ec-tabs" style={{ marginBottom: 10 }}>
-            {FORM_TABS.map((t) => (
-              <li key={t} className={`ec-tab relative${formTab === t ? ' active' : ''}`}
-                  onClick={() => setFormTab(t)} style={{ cursor: 'pointer' }}>{t}
-                {/* 원본: 빈 필수칸이 있는 탭 오른쪽 위의 빨간 동그라미 '!'(16×16, 위 -6.3px). 상호가 [기본] · [거래처정보] 두 탭에 있어 둘 다 붙는다(plans 재고1 거래처등록 ⑥). */}
-                {(t === '기본' || t === '거래처정보') && invalid && !form.name.trim() && (
-                  <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
-                )}
-              </li>
-            ))}
-          </ul>
+      {/*
+        원본 거래처등록 창(2026-10-31 loginad): 목록 위에 떠 있는 창 — 제목줄 [새창] [고정] [새로고침] [최대] [닫기],
+        머리 오른쪽 [Option], 알약 탭 기본 · 거래처정보 · 여신/단가 · 부가정보.
+      */}
+      {showForm && (
+      <ProductionSlipWindow title="거래처등록" popout="/sales/partners" onClose={() => { if (!dupPartner) setShowForm(false) }}>
+        <form onSubmit={submit} className="my-[8px] p-[14px] bg-ec-panel">
+          {error && <p role="alert" className="ec-error">{error}</p>}
+          <div className="flex items-center gap-[4px] mb-[10px]">
+            <div className="ec-pills">
+              {FORM_TABS.map((t) => (
+                <button key={t} type="button" className={`ec-pill no-ec relative${formTab === t ? ' active' : ''}`}
+                        onClick={() => setFormTab(t)}>{t}
+                  {/* 원본: 빈 필수칸이 있는 탭 오른쪽 위의 빨간 동그라미 '!'(16×16, 위 -6.3px). 상호가 [기본] · [거래처정보] 두 탭에 있어 둘 다 붙는다(plans 재고1 거래처등록 ⑥). */}
+                  {(t === '기본' || t === '거래처정보') && invalid && !form.name.trim() && (
+                    <span aria-label="입력 안 된 칸" className="absolute -top-[6.3px] right-0 w-[16px] h-[16px] rounded-full bg-[var(--ec-text-danger)] text-ec-panel text-[11px] font-bold leading-[16px] text-center">!</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {/* 원본 머리 [Option] — 안 항목은 원본 미측정, 우리에게 없는 설정이라 안내만. */}
+            <button type="button" className="ec-btn ec-btn-sm ml-auto" onClick={notHere('거래처등록 Option')}>Option</button>
+          </div>
 
           {formTab === '기본' && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -582,13 +646,19 @@ export default function PartnersPage() {
               <label className="mb-1 block text-sm text-ec-label">전화</label>
               <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} />
             </div>
+            {/* 원본 [기본] 탭은 전화 다음이 Email 이다(2026-10-31 loginad). [거래처정보] 탭의 Email 과 같은 값. */}
+            <div>
+              <label className="mb-1 block text-sm text-ec-label">Email</label>
+              <input className={inputCls} value={form.email} onChange={(e) => set('email', e.target.value)} />
+            </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">주소1 우편번호</label>
               <input className={inputCls} value={form.postalCode} onChange={(e) => set('postalCode', e.target.value)} />
             </div>
+            {/* 원본 주소1 은 여러 줄 칸이다. [주소검색](우편번호 찾기)은 받쳐 줄 것이 없어 두지 않는다. */}
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm text-ec-label">주소1</label>
-              <input className={inputCls} value={form.address} onChange={(e) => set('address', e.target.value)} />
+              <textarea className={`${inputCls} h-[56px]`} value={form.address} onChange={(e) => set('address', e.target.value)} />
             </div>
           </div>
           )}
@@ -889,7 +959,9 @@ export default function PartnersPage() {
           */}
           {editId != null && <CustomFieldsPanel entityType="PARTNER" entityId={editId} />}
           <div className="mt-[12px] flex justify-end gap-[4px]">
-            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            {/* 원본 [저장(F8)│▲] — ▲ 안 항목은 원본 미측정이라 다른 마스터 창(자료수집처등록)과 같은 [저장/신규] 만 둔다. */}
+            <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up onMain={() => void submit()}
+                        items={[{ label: '저장/신규', onClick: () => { saveThenNew.current = true; void submit() } }]} />
             {/*
               복사 — 원본 폼의 버튼이다. 값은 그대로 두고 코드만 비워 '새 거래처' 로 돌린다.
               거래처는 업태·종목·주소가 비슷한 것을 여럿 만드는 일이 잦다.
@@ -902,6 +974,8 @@ export default function PartnersPage() {
               }}>복사</button>
             )}
             <button type="button" className="ec-btn" onClick={() => { setForm(empty); setFormTab('기본') }}>다시 작성</button>
+            {/* 원본 신규 창: 저장(F8)▲ · 다시 작성 · 웹자료올리기 · 닫기 */}
+            {editId == null && <button type="button" className="ec-btn" onClick={() => setWebOpen(true)}>웹자료올리기</button>}
             {/* 원본 수정 창: 저장(F8) · 복사 · 다시 작성 · 사용중단/재사용 · 닫기 · H. 이 거래처 하나를 뒤집고 창을 닫는다. */}
             {editId != null && (
               <button type="button" className="ec-btn" onClick={() => toggleOne(editId)}>사용중단/재사용</button>
@@ -911,7 +985,8 @@ export default function PartnersPage() {
             <EcHistoryButton target="PARTNER" id={editId} />
           </div>
         </form>
-      )}</Modal>
+      </ProductionSlipWindow>
+      )}
 
       {/* 원본: 코드가 겹치면 [공지] 창 — 이미 있는 거래처를 작은 표로 보이고 [거래처등록] 으로 그 거래처를 연다. 입력 창은 그대로. */}
       <Modal open={dupPartner != null} title="공지" width={520} onClose={() => setDupPartner(null)}>
@@ -946,11 +1021,16 @@ export default function PartnersPage() {
                             shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
                           )} />
               </th>
-              {/* 원본 거래처리스트 기본 열(loginaa E010101 실측): 코드 · 거래처명 · 대표자명 · 전화번호 · Email · 주소 · 적요 · 사용구분 · 이체정보. 칸은 모두 가운데. */}
+              {/*
+                원본 거래처리스트 열(2026-10-31 loginad): 거래처코드 · 거래처명 · 대표자명 · 전화 · 모바일 · 검색창내용 · 사용구분 · 이체정보.
+                Email · 주소 · 적요는 원본(loginad)에 없는 우리 열(loginaa 사본 E010101 에는 있었다) — 지우지 않고 사용구분 앞에 둔다. 칸은 모두 가운데.
+              */}
               <th className="cursor-pointer text-center" onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
               <th className="cursor-pointer text-center" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
               <th className="cursor-pointer text-center" onClick={() => sort.toggle('대표자명')}>대표자명 {sort.mark('대표자명')}</th>
-              <th className="cursor-pointer text-center" onClick={() => sort.toggle('전화번호')}>전화번호 {sort.mark('전화번호')}</th>
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('전화')}>전화 {sort.mark('전화')}</th>
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('모바일')}>모바일 {sort.mark('모바일')}</th>
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
               <th className="cursor-pointer text-center" onClick={() => sort.toggle('Email')}>Email {sort.mark('Email')}</th>
               <th className="cursor-pointer text-center" onClick={() => sort.toggle('주소')}>주소 {sort.mark('주소')}</th>
               <th className="text-center">적요</th>
@@ -960,9 +1040,9 @@ export default function PartnersPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((p, i) => (
                 <tr key={p.id} style={{ color: p.active ? undefined : 'var(--ec-text-hint)' }}>
@@ -978,19 +1058,79 @@ export default function PartnersPage() {
                   <td className="text-center"><button type="button" className="ec-link" onClick={() => openEdit(p)}>{p.name}</button></td>
                   <td className="text-center">{p.ceoName ?? ''}</td>
                   <td className="text-center">{p.phone ?? ''}</td>
+                  <td className="text-center">{p.mobile ?? ''}</td>
+                  <td className="text-center">{p.searchKeyword ?? ''}</td>
                   <td className="text-center">{p.email ?? ''}</td>
                   <td className="text-center">{p.address ?? ''}</td>
                   <td className="text-center">{p.remark ?? ''}</td>
                   {/* 원본은 YES / NO 글자 그대로 찍는다. */}
                   <td className="text-center">{p.active ? 'YES' : 'NO'}</td>
-                  {/* 원본은 계좌가 있으면 '등록', 없으면 빈칸이다. 계좌번호를 목록에 늘어놓지 않는다. */}
-                  <td className="text-center">{p.accountNo ? <span className="text-ec-navy">등록</span> : ''}</td>
+                  {/* 원본(2026-10-31 loginad): 줄마다 [등록] 링크 — 계좌가 있으면 파랑, 없으면 주황. 누르면 [이체정보리스트] 창. 계좌번호를 목록에 늘어놓지 않는다. */}
+                  <td className="text-center">
+                    <button type="button" className={`ec-link${p.accountNo ? '' : ' text-ec-btn-warning'}`}
+                            onClick={() => { setBankQ(''); setBankOf(p) }}>등록</button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/*
+        원본 [이체정보리스트] 창(2026-10-31 loginad): 제목줄 다섯 단추 · 머리 검색칸 · 표 은행코드 · 은행 · 계좌번호 · 예금주명 · 적요1 · 적요2 · 기본 · 삭제,
+        하단 [신규(F2)] [닫기]. 우리 거래처는 계좌를 <b>하나</b>(은행 · 계좌번호 · 예금주, 거래처등록 [부가정보] 탭)만 들어 한 줄이고 그 줄이 기본이다.
+        은행코드 · 적요1 · 적요2 는 우리에게 자료가 없어 비운다. [신규(F2)] 는 그 계좌 칸이 있는 거래처등록 [부가정보] 탭을 연다.
+      */}
+      {bankOf && (() => {
+        const rows = bankOf.accountNo ? [bankOf] : []
+        const q = bankQ.trim()
+        const shownBank = rows.filter((x) => !q || `${x.bankName ?? ''} ${x.accountNo ?? ''} ${x.accountHolder ?? ''}`.includes(q))
+        return (
+          <ProductionSlipWindow title="이체정보리스트" popout="/sales/partners" onClose={() => setBankOf(null)}>
+            <div className="flex justify-end mb-[6px]">
+              <input className="ec-input w-[200px]" placeholder="검색" aria-label="이체정보 검색" value={bankQ} onChange={(e) => setBankQ(e.target.value)} />
+            </div>
+            <table className="w-full text-center">
+              <thead><tr>
+                <th className="text-center">은행코드</th><th className="text-center">은행</th><th className="text-center">계좌번호</th>
+                <th className="text-center">예금주명</th><th className="text-center">적요1</th><th className="text-center">적요2</th>
+                <th className="text-center">기본</th><th className="text-center">삭제</th>
+              </tr></thead>
+              <tbody>
+                {shownBank.length === 0 ? (
+                  <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                ) : shownBank.map((x) => (
+                  <tr key={x.id}>
+                    <td className="text-center"></td><td className="text-center">{x.bankName ?? ''}</td>
+                    <td className="text-center">{x.accountNo ?? ''}</td><td className="text-center">{x.accountHolder ?? ''}</td>
+                    <td className="text-center"></td><td className="text-center"></td><td className="text-center">Y</td>
+                    <td className="text-center">
+                      <button type="button" className="ec-link" onClick={async () => {
+                        if (!(await ecConfirm('삭제하겠습니까?'))) return
+                        try {
+                          await api.put(`/partners/${x.id}`, wholePartner(x, { bankName: null, accountNo: null, accountHolder: null }))
+                          setBankOf(null)
+                          load()
+                        } catch (err) { void ecAlert(extractErrorMessage(err)) }
+                      }}>삭제</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-[12px] flex gap-[4px]">
+              <button type="button" className="ec-btn ec-btn-primary" onClick={() => {
+                const p = bankOf
+                setBankOf(null)
+                openEdit(p)
+                setFormTab('부가정보')
+              }}>신규(F2)</button>
+              <button type="button" className="ec-btn" onClick={() => setBankOf(null)}>닫기</button>
+            </div>
+          </ProductionSlipWindow>
+        )
+      })()}
 
       {/*
         원본 [변경] — 고른 거래처의 한 칸을 한 번에 바꾼다. 어떤 칸을 바꿀지 고르고

@@ -1,12 +1,4 @@
 {
- "거래처리스트|SMS": {
-  "claim": "문자 발송을 붙이지 않았다",
-  "absent": [
-   "SmsService",
-   "/api/sms"
-  ],
-  "in": "backend"
- },
  "구매단가일괄변경|환율": {
   "claim": "구매입력 외자 전표는 통화 · 환율을 저장하지만(V473) 단가일괄변경은 외화 단가를 건드리지 않는다 — 원화 단가만 바꾼다",
   "absent": [
@@ -204,14 +196,6 @@
    "SourceType"
   ],
   "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
- },
- "거래처관리대장 II|거래처계층그룹": {
-  "claim": "거래처그룹이 평면이다 — 그룹 위에 그룹이 없다",
-  "absent": [
-   "parent",
-   "Parent"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/partner/PartnerGroup.java"
  },
  "출하현황|시리얼/로트No.": {
   "claim": "출하 라인에 로트를 달지 않는다",

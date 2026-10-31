@@ -9,7 +9,7 @@
         "wait:2500",
         "click:신규",
         "wait:600",
-        "js:[...document.querySelectorAll('li.ec-tab')].find((t) => t.innerText.trim().startsWith('거래처정보')).click()",
+        "js:[...document.querySelectorAll('[role=dialog] .ec-pill')].find((t) => t.innerText.trim().startsWith('거래처정보')).click()",
         "wait:300",
         "expect:['세무신고거래처', '종사업장번호', '업종별구분', '통화', '출하대상거래처', '거래유형(영업)'].every((t) => document.body.innerText.includes(t)) && document.querySelectorAll('input[name=taxReportMode]').length === 3",
         "setnear:거래처코드|QA-T468",
