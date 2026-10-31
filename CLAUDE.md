@@ -101,8 +101,14 @@ controller  →  service  →  repository  →  domain
 > 실제로는 순환이 넷이었습니다. 어음 enum 이 groupware 에 잘못 놓여 생긴 accounting↔groupware 와
 > common 이 다른 모듈을 참조하던 것(MetaController → config 로)은 그날 끊었고, 남은 것은 `qa/arch-check.mjs` 의
 > `KNOWN` 에 적어 두었습니다(14회차에 통화를 settings 로 옮겨 accounting↔trade 를 끊었습니다):
-> `accounting→hr`(급여이체 분개), `hr→auth`, `groupware→accounting`. 그래서 **accounting↔hr 고리가 남아 있습니다**
-> (`accounting→hr` 급여이체 분개가 `PayrollTransfer` 를 받는다 + `hr→accounting` 원천징수). 끊으면 KNOWN 에서 지우세요(안 지우면 검사가 알려 줍니다).
+> `accounting→hr`, `hr→auth`. 그래서 **accounting↔hr 고리가 남아 있습니다** — `accounting→hr` 는 원천징수(`WithholdingService` 가
+> `Payslip`·`PayslipRepository`·`DailyPayService`·`PayLedgerService` 를 읽는다) · 퇴직금(`RetirementPay` 가 `Employee` 를 `@ManyToOne` 으로 든다) ·
+> 급여이체 분개(`JournalService.createFromPayrollTransfer(PayrollTransfer)`), `hr→accounting` 은 원천세 계산 · 연말정산 · 이체 전표입니다.
+> 양쪽이 서로의 엔티티 · 서비스를 깊게 쓰므로 한 방향을 포트(accounting 이 인터페이스를 두고 hr 이 구현)로 뒤집는 큰 일이라 아직 못 끊었습니다.
+> `hr→auth`(근태 · 휴가가 `User` 를 든다)는 순환이 아니고, 화면에 사용자 이름 · 부서를 붙이므로 id 만 들어도 auth 를 거쳐야 해 남겨 둡니다.
+> 끊으면 KNOWN 에서 지우세요(안 지우면 검사가 알려 줍니다).
+> 2026-10-31 `groupware→accounting` 을 끊었습니다 — 결재 연결전표(`ApprovalDocumentVoucher`)가 지출결의를 `@ManyToOne Expense` 가 아니라
+> `Long expenseId`(같은 열 `expense_id`, DB FK 그대로)로 들고, 연결할 때 있는지는 `ApprovalDocumentRepository.expenseExists` 가 봅니다.
 > 2026-10-30 묶음 U 에서 `trade→hr`·`hr→trade` 를 끊었습니다 — 전표의 [담당자] 가 관리 사원(`hr.Employee`)이 아니라 원본처럼
 > 따로인 **사원(담당)** 마스터(`inventory/salesrep/SalesRep`, 표 `sales_reps`, 화면 `/inventory/sales-reps`)를 가리키고,
 > 담당자별 실적은 trade(`SalesRepPerformanceService`, `/api/sales/rep-performance`)로 옮겼습니다.

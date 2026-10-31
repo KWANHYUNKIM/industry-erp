@@ -26,4 +26,12 @@ public interface ApprovalDocumentRepository extends JpaRepository<ApprovalDocume
     @Query(value = "select coalesce(max(cast(split_part(draft_no, '-', 2) as integer)), 0) " +
             "from approval_documents where draft_date = :date", nativeQuery = true)
     int maxDraftSeq(@Param("date") LocalDate date);
+
+    /**
+     * 기안서에 걸 지출결의가 있는지. 전표 연결(linkVoucher)이 없는 id 에 404 를 돌려주던 것을 그대로 지키려고 둔다.
+     * 지출결의는 accounting 의 것이라 ExpenseRepository 를 주입하면 groupware → accounting 의존이 생긴다(CLAUDE.md 4.1) —
+     * 있는지만 보면 되므로 표를 직접 묻는다.
+     */
+    @Query(value = "select exists(select 1 from expenses where id = :id)", nativeQuery = true)
+    boolean expenseExists(@Param("id") Long id);
 }

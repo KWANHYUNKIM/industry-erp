@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import com.erp.accounting.expense.Expense;
 import com.erp.trade.purchase.Purchase;
 import com.erp.trade.sales.Sales;
 
@@ -39,9 +38,12 @@ public class ApprovalDocumentVoucher {
     @JoinColumn(name = "purchase_id")
     private Purchase purchase;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "expense_id")
-    private Expense expense;
+    /**
+     * 지출결의(accounting.expense.Expense) 는 id 만 든다 — groupware → accounting 의존을 끊으려고(CLAUDE.md 4.1).
+     * 쓰는 것이 id 뿐이고(전표번호 'EXP-id'), DB 의 FK(expense_id → expenses) 는 그대로라 고아 행은 여전히 막힌다.
+     */
+    @Column(name = "expense_id")
+    private Long expenseId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -66,13 +68,13 @@ public class ApprovalDocumentVoucher {
     public String getVoucherNo() {
         if (sales != null) return sales.getDocNo();
         if (purchase != null) return purchase.getDocNo();
-        return expense != null ? "EXP-" + expense.getId() : null;
+        return expenseId != null ? "EXP-" + expenseId : null;
     }
 
     @Transient
     public Long getVoucherId() {
         if (sales != null) return sales.getId();
         if (purchase != null) return purchase.getId();
-        return expense != null ? expense.getId() : null;
+        return expenseId;
     }
 }

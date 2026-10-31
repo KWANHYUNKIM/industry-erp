@@ -30,9 +30,8 @@ const ALLOWED = [
 ]
 /** 표에 없는데 지금 있는 간선(부채). 끊으면 여기서 지운다 — 남아 있는데 없어지면 지우라고 알려 준다. */
 const KNOWN = {
-  'hr→auth': '근태가 User 를 든다',
-  'accounting→hr': '급여이체 분개·원천징수가 Payslip·PayrollTransfer 를 읽는다 — accounting↔hr 순환',
-  'groupware→accounting': '전자결재 첨부 전표가 지출(Expense)을 든다',
+  'hr→auth': '근태 · 휴가가 User 를 든다(순환은 아니다 — 화면에 사용자 이름 · 부서를 붙이므로 id 만 들어도 auth 를 거쳐야 한다)',
+  'accounting→hr': '원천징수 · 퇴직금 · 급여이체 분개가 Payslip · Employee · PayrollTransfer 를 읽는다 — accounting↔hr 순환(hr→accounting 은 원천세 계산 · 전표)',
 }
 
 const walk = (d) => readdirSync(d, { withFileTypes: true })

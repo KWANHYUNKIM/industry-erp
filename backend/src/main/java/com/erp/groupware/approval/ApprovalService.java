@@ -16,7 +16,6 @@ import com.erp.groupware.approval.dto.ApprovalDtos.ApprovalResponse;
 import com.erp.groupware.approval.dto.ApprovalDtos.CreateApprovalRequest;
 import com.erp.groupware.approval.dto.ApprovalDtos.ApprovalOutputRequest;
 import com.erp.groupware.approval.dto.ApprovalDtos.LinkVoucherRequest;
-import com.erp.accounting.expense.ExpenseRepository;
 import com.erp.inventory.project.ProjectRepository;
 import com.erp.trade.purchase.PurchaseRepository;
 import com.erp.trade.sales.SalesRepository;
@@ -47,7 +46,6 @@ public class ApprovalService {
     private final ProjectRepository projectRepository;
     private final SalesRepository salesRepository;
     private final PurchaseRepository purchaseRepository;
-    private final ExpenseRepository expenseRepository;
     /** 결재 진행 상황을 기안자·다음 결재자에게 쪽지 자동알림으로 알린다. */
     private final ShortMessageService shortMessageService;
     /** 최종 결재가 끝나면 알린다 — 휴가신청서 → 근태(hr) 처럼 다른 모듈이 이어받는다. */
@@ -378,8 +376,10 @@ public class ApprovalService {
             v.purchase(purchaseRepository.findById(req.purchaseId())
                     .orElseThrow(() -> ApiException.notFound("구매전표를 찾을 수 없습니다. id=" + req.purchaseId())));
         } else {
-            v.expense(expenseRepository.findById(req.expenseId())
-                    .orElseThrow(() -> ApiException.notFound("지출전표를 찾을 수 없습니다. id=" + req.expenseId())));
+            if (!approvalRepository.expenseExists(req.expenseId())) {
+                throw ApiException.notFound("지출전표를 찾을 수 없습니다. id=" + req.expenseId());
+            }
+            v.expenseId(req.expenseId());
         }
 
         ApprovalDocumentVoucher voucher = v.build();
