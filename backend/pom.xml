@@ -104,6 +104,11 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<!-- ./mvnw spring-boot:run(로컬 · 공유 개발 서버)은 dev 프로필로 뜬다. 운영(jar 실행)은 dev 가 아니다 —
+					     dev 만 데모 계정을 심고, 비밀이 없을 때 임시 값으로 뜬다(docs/보안-점검.md H1 · H5). -->
+					<profiles>
+						<profile>dev</profile>
+					</profiles>
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>

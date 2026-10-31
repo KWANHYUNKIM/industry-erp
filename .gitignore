@@ -20,3 +20,6 @@ Thumbs.db
 # 데이터이관 QA 접속 정보(시험 비밀번호)
 .claude/skills/ecount-diff/plans/데이터이관/_접속.md
 backups/
+
+# 백엔드 로컬 비밀(JWT 서명 · 주민번호 암호화 키 …) — 예시는 backend/config/local.properties.example
+backend/config/local.properties

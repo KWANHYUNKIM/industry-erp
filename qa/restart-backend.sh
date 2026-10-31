@@ -76,6 +76,12 @@ start_from() {   # $1 = 폴더
 rm -rf $NEW && mkdir -p $NEW
 git archive "$H" backend | tar -x -C $NEW --strip-components=1
 echo "$H" > $NEW/.head
+# 로컬 비밀(backend/config/local.properties, .gitignore) — 저장소엔 비밀이 없다(docs/보안-점검.md H1). 없으면 처음 한 번 무작위로 만들고,
+# 빠진 열쇠만 덧붙인다. 앱은 작업 디렉터리의 ./config/local.properties 를 읽으므로 새 폴더에 복사한다.
+LOCAL=backend/config/local.properties
+mkdir -p backend/config && touch $LOCAL && chmod 600 $LOCAL
+grep -q '^app.jwt.secret=' $LOCAL || echo "app.jwt.secret=$(openssl rand -base64 48 | tr -d '\n')" >> $LOCAL
+mkdir -p $NEW/config && cp $LOCAL $NEW/config/local.properties
 if ! (cd $NEW && ./mvnw -o -q compile) > /tmp/erp-backend-compile.log 2>&1; then
   echo "HEAD $(git rev-parse --short HEAD) 컴파일 실패 — 서버는 그대로 둔다:"
   grep -E '^\[ERROR\].*\.java' /tmp/erp-backend-compile.log | head -5

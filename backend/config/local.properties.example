@@ -1,0 +1,6 @@
+# 로컬 전용 설정 — 이 파일을 config/local.properties 로 복사해 값을 채운다. config/local.properties 는 .gitignore 돼 있다(커밋 금지).
+# application.yml 이 spring.config.import 로 읽는다(작업 디렉터리 기준 ./config/local.properties — backend/ 에서 띄울 때).
+# 공유 개발 서버는 qa/restart-backend.sh 가 처음 한 번 무작위 값으로 만들어 둔다. 운영은 이 파일 대신 환경변수.
+
+# JWT 서명 비밀(환경변수 JWT_SECRET 과 같다) — 32바이트 이상 무작위: openssl rand -base64 48
+app.jwt.secret=REPLACE_ME

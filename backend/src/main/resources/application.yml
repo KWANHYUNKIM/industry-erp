@@ -2,6 +2,11 @@ spring:
   application:
     name: manufacturing-erp
 
+  # 로컬 전용 설정(비밀값). 저장소에 없다(.gitignore) — 예시는 config/local.properties.example,
+  # 공유 개발 서버는 qa/restart-backend.sh 가 처음 한 번 만들어 둔다. 운영은 이 파일 대신 환경변수로 준다.
+  config:
+    import: optional:file:./config/local.properties
+
   # 파일 업로드 상한. 서비스(FileStorageService.MAX_FILE_BYTES)도 같은 10MB 로 막지만,
   # 여기서 먼저 잘라야 큰 파일이 서버 메모리까지 올라오지 않는다.
   servlet:
@@ -42,8 +47,9 @@ server:
 # JWT 설정
 app:
   jwt:
-    # 개발용 시크릿(운영 시 환경변수로 교체). HS256 이상을 위해 최소 32바이트.
-    secret: ${JWT_SECRET:change-this-in-production-please-use-a-long-random-secret-key-32bytes+}
+    # 서명 비밀 — 기본값이 없다(저장소가 공개라 코드에 적힌 값은 곧 공개 값). 환경변수 JWT_SECRET 또는 config/local.properties.
+    # 없거나 32바이트 미만이면 기동을 멈춘다(dev 프로필만 임시 값으로 뜬다 — JwtTokenProvider).
+    secret: ${JWT_SECRET:}
     # 토큰 유효기간 (밀리초): 8시간
     expiration-ms: 28800000
 
