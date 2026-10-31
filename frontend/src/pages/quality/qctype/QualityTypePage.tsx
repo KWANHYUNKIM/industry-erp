@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { api, extractErrorMessage } from '../../api/client'
-import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
-import CodePickerField from '../../components/codepicker/CodePickerField'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
-import { EcHistoryModal } from '../../components/EcHistory'
+import { api, extractErrorMessage } from '../../../api/client'
+import EcListShell from '../../../components/EcListShell'
+import Modal from '../../../components/Modal'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { ecAlert, ecConfirm } from '../../../components/EcDialog'
+import { EcHistoryModal } from '../../../components/EcHistory'
 
 /**
  * 재고 II › 품질관리 › 품질검사 › <b>품질검사유형등록</b>(E040632 검사유형리스트) — 2026-10-12 loginaa 실측.

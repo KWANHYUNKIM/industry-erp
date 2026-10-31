@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, extractErrorMessage } from '../../api/client'
-import EcSlipShell from '../../components/EcSlipShell'
-import type { CommonCode, Item } from '../../types/api'
-import QualityInspectionForm from '../../features/quality/components/QualityInspectionForm'
+import { api, extractErrorMessage } from '../../../api/client'
+import EcSlipShell from '../../../components/EcSlipShell'
+import type { CommonCode, Item } from '../../../types/api'
+import QualityInspectionForm from '../../../features/quality/components/QualityInspectionForm'
 
 /**
  * 재고 II › 품질관리 › 품질검사 › <b>품질검사입력</b>(E040621) — 따로 된 입력 화면.

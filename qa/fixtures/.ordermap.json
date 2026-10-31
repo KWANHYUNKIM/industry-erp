@@ -385,7 +385,7 @@
  ],
  [
   "불량률파악보고서",
-  "quality/DefectReportPage.tsx"
+  "quality/inspection/DefectReportPage.tsx"
  ],
  [
   "단계별재고조정",
@@ -477,7 +477,7 @@
  ],
  [
   "A/S소모현황",
-  "quality/AsConsumptionPage.tsx"
+  "quality/asrequest/AsConsumptionPage.tsx"
  ],
  [
   "프로젝트계획",
@@ -485,7 +485,7 @@
  ],
  [
   "품목vs시리얼재고수량비교",
-  "quality/LotStockComparePage.tsx"
+  "quality/lot/LotStockComparePage.tsx"
  ],
  [
   "원가생성/수정",
@@ -493,7 +493,7 @@
  ],
  [
   "품질검사현황",
-  "quality/QualityStatusPage.tsx"
+  "quality/inspection/QualityStatusPage.tsx"
  ],
  [
   "품목등록",
@@ -529,23 +529,23 @@
  ],
  [
   "시리얼/로트No.등록",
-  "quality/SerialLotPage.tsx"
+  "quality/lot/SerialLotPage.tsx"
  ],
  [
   "시리얼/로트No.재고수불부",
-  "quality/LotLedgerPage.tsx"
+  "quality/lot/LotLedgerPage.tsx"
  ],
  [
   "시리얼/로트No.재고현황",
-  "quality/LotStockStatusPage.tsx"
+  "quality/lot/LotStockStatusPage.tsx"
  ],
  [
   "시리얼/로트No.재고조정",
-  "quality/LotAdjustPage.tsx"
+  "quality/lot/LotAdjustPage.tsx"
  ],
  [
   "시리얼/로트No.내역현황",
-  "quality/LotTxStatusPage.tsx"
+  "quality/lot/LotTxStatusPage.tsx"
  ],
  [
   "매출계획",
@@ -565,27 +565,27 @@
  ],
  [
   "A/S접수",
-  "quality/AsManagePage.tsx"
+  "quality/asrequest/AsManagePage.tsx"
  ],
  [
   "A/S접수입력",
-  "quality/AsReceiptEntryPage.tsx"
+  "quality/asrequest/AsReceiptEntryPage.tsx"
  ],
  [
   "A/S접수조회",
-  "quality/AsManagePage.tsx"
+  "quality/asrequest/AsManagePage.tsx"
  ],
  [
   "A/S접수현황",
-  "quality/AsStatusPage.tsx"
+  "quality/asrequest/AsStatusPage.tsx"
  ],
  [
   "품질검사요청입력",
-  "quality/QualityRequestEntryPage.tsx"
+  "quality/inspectionrequest/QualityRequestEntryPage.tsx"
  ],
  [
   "품질검사입력",
-  "quality/QualityInspectionEntryPage.tsx"
+  "quality/inspection/QualityInspectionEntryPage.tsx"
  ],
  [
   "창고등록",
@@ -757,11 +757,11 @@
  ],
  [
   "품질검사요청",
-  "quality/QualityRequestPage.tsx"
+  "quality/inspectionrequest/QualityRequestPage.tsx"
  ],
  [
   "품질검사요청조회",
-  "quality/QualityRequestPage.tsx"
+  "quality/inspectionrequest/QualityRequestPage.tsx"
  ],
  [
   "Invoice / Packing List",
@@ -853,19 +853,19 @@
  ],
  [
   "미검사현황",
-  "quality/UninspectedPage.tsx"
+  "quality/inspectionrequest/UninspectedPage.tsx"
  ],
  [
   "품질검사요청현황",
-  "quality/QualityRequestStatusPage.tsx"
+  "quality/inspectionrequest/QualityRequestStatusPage.tsx"
  ],
  [
   "A/S수리현황",
-  "quality/AsRepairStatusPage.tsx"
+  "quality/asrepair/AsRepairStatusPage.tsx"
  ],
  [
   "품질검사조회",
-  "quality/QualityInspectionPage.tsx"
+  "quality/inspection/QualityInspectionPage.tsx"
  ],
  [
   "자가사용조회",
@@ -889,7 +889,7 @@
  ],
  [
   "시리얼/로트No.내역조회",
-  "quality/LotTxListPage.tsx"
+  "quality/lot/LotTxListPage.tsx"
  ],
  [
   "주문서조회",
@@ -921,11 +921,11 @@
  ],
  [
   "A/S수리조회",
-  "quality/AsRepairListPage.tsx"
+  "quality/asrepair/AsRepairListPage.tsx"
  ],
  [
   "A/S수리입력",
-  "quality/AsRepairEntryPage.tsx"
+  "quality/asrepair/AsRepairEntryPage.tsx"
  ],
  [
   "BOM(소요량)조회",
@@ -1121,7 +1121,7 @@
  ],
  [
   "품질검사유형등록",
-  "quality/QualityTypePage.tsx"
+  "quality/qctype/QualityTypePage.tsx"
  ],
  [
   "인쇄용결재라인등록(회계)",

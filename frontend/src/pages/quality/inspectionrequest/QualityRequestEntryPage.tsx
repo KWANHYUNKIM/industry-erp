@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { api, extractErrorMessage } from '../../api/client'
-import EcSlipShell from '../../components/EcSlipShell'
-import type { Item } from '../../types/api'
-import QualityRequestScreen from '../../features/quality/components/QualityRequestForm'
+import { api, extractErrorMessage } from '../../../api/client'
+import EcSlipShell from '../../../components/EcSlipShell'
+import type { Item } from '../../../types/api'
+import QualityRequestScreen from '../../../features/quality/components/QualityRequestForm'
 
 /**
  * 재고 II › 품질관리 › 품질검사요청 › <b>품질검사요청입력</b>(E040628) — 따로 된 입력 화면.

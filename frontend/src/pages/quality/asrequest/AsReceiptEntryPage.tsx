@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, extractErrorMessage } from '../../api/client'
-import EcSlipShell from '../../components/EcSlipShell'
-import type { Item, Partner, Warehouse } from '../../types/api'
-import AsReceiptScreen from '../../features/as/AsReceiptForm'
-import { useRequired } from '../../utils/useRequired'
-import { asReceiptBody, asReceiptCheck, blankAsDraft, emptyAsLines, type AsFormLine, type AsReceiptDraft } from '../../features/as/AsReceiptForm'
+import { api, extractErrorMessage } from '../../../api/client'
+import EcSlipShell from '../../../components/EcSlipShell'
+import type { Item, Partner, Warehouse } from '../../../types/api'
+import AsReceiptScreen from '../../../features/as/AsReceiptForm'
+import { useRequired } from '../../../utils/useRequired'
+import { asReceiptBody, asReceiptCheck, blankAsDraft, emptyAsLines, type AsFormLine, type AsReceiptDraft } from '../../../features/as/AsReceiptForm'
 
 /**
  * 재고 II › A/S관리 › A/S접수 › <b>A/S접수입력</b>(E040601) — 메뉴에서 여는 입력 화면.

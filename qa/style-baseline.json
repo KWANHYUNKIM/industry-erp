@@ -854,62 +854,62 @@
   "color": 0,
   "palette": 0
  },
- "pages/quality/AsConsumptionPage.tsx": {
+ "pages/quality/asrequest/AsConsumptionPage.tsx": {
   "inline": 7,
   "color": 0,
   "palette": 0
  },
- "pages/quality/AsManagePage.tsx": {
+ "pages/quality/asrequest/AsManagePage.tsx": {
   "inline": 5,
   "color": 0,
   "palette": 0
  },
- "pages/quality/AsRepairStatusPage.tsx": {
+ "pages/quality/asrepair/AsRepairStatusPage.tsx": {
   "inline": 2,
   "color": 2,
   "palette": 0
  },
- "pages/quality/AsStatusPage.tsx": {
+ "pages/quality/asrequest/AsStatusPage.tsx": {
   "inline": 45,
   "color": 0,
   "palette": 0
  },
- "pages/quality/LotLedgerPage.tsx": {
+ "pages/quality/lot/LotLedgerPage.tsx": {
   "inline": 2,
   "color": 0,
   "palette": 0
  },
- "pages/quality/LotStockStatusPage.tsx": {
+ "pages/quality/lot/LotStockStatusPage.tsx": {
   "inline": 2,
   "color": 0,
   "palette": 0
  },
- "pages/quality/LotTxListPage.tsx": {
+ "pages/quality/lot/LotTxListPage.tsx": {
   "inline": 2,
   "color": 0,
   "palette": 0
  },
- "pages/quality/LotTxStatusPage.tsx": {
+ "pages/quality/lot/LotTxStatusPage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/quality/QualityRequestPage.tsx": {
+ "pages/quality/inspectionrequest/QualityRequestPage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/quality/QualityRequestStatusPage.tsx": {
+ "pages/quality/inspectionrequest/QualityRequestStatusPage.tsx": {
   "inline": 4,
   "color": 2,
   "palette": 0
  },
- "pages/quality/QualityStatusPage.tsx": {
+ "pages/quality/inspection/QualityStatusPage.tsx": {
   "inline": 42,
   "color": 0,
   "palette": 0
  },
- "pages/quality/UninspectedPage.tsx": {
+ "pages/quality/inspectionrequest/UninspectedPage.tsx": {
   "inline": 6,
   "color": 2,
   "palette": 0

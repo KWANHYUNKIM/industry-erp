@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, extractErrorMessage } from '../../api/client'
-import EcSlipShell from '../../components/EcSlipShell'
-import type { Item, Partner, Warehouse } from '../../types/api'
-import { useRequired } from '../../utils/useRequired'
-import AsRepairScreen, { asRepairBody, asRepairCheck, blankRepairDraft, blankRepairLines, type AsRepairDraft, type AsReqPick, type RepairFormLine } from '../../features/as/AsRepairForm'
+import { api, extractErrorMessage } from '../../../api/client'
+import EcSlipShell from '../../../components/EcSlipShell'
+import type { Item, Partner, Warehouse } from '../../../types/api'
+import { useRequired } from '../../../utils/useRequired'
+import AsRepairScreen, { asRepairBody, asRepairCheck, blankRepairDraft, blankRepairLines, type AsRepairDraft, type AsReqPick, type RepairFormLine } from '../../../features/as/AsRepairForm'
 
 /**
  * 재고 II › A/S관리 › A/S수리 › <b>A/S수리입력</b>(E040605) — 메뉴에서 여는 입력 화면.
