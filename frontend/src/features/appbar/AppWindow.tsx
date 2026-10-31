@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ModalWindow } from '../../components/Modal'
 import { Icon } from './icons'
+import './appbar.css'
 
 /**
  * 앱바에서 여는 창의 틀 — 원본(2026-10-30 loginaa 쪽지 · E Note · 북마크 … 캡처)처럼

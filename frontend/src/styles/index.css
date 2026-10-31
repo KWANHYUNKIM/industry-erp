@@ -1497,10 +1497,6 @@ th.ec-empty {
 .ec-icon { display: inline-block; flex: none; vertical-align: -0.15em; }
 /* 예전 글자 기호(▾ · ✕)를 크기 0 글자로 남긴다 — 단추 글자로 찾는 흐름이 그대로 맞는다(보이지 않고 폭도 없다) */
 .ec-icon-glyph { font-size: 0; line-height: 0; }
-/* MyPage 위젯 [새창] — 그 메뉴 화면 하나를 메인 위 창(레이어)으로 띄운다(features/mypage/PageWindow, 원본 2026-10-30 실측) */
-.ec-pagewin { width: var(--ec-pagewin-w); }
-.ec-pagewin > .ec-modal-body { height: var(--ec-pagewin-h); overflow: auto; }
-.ec-pagewin.is-free > .ec-modal-body { height: auto; }
 /* MyPage 위젯 [펜] · 본문 클릭 — 화면의 입력 · 조회 창만 보이고 화면 자체는 숨긴다(features/mypage/PopupHost) */
 .ec-popup-host { position: fixed; inset: 0; z-index: 70; visibility: hidden; pointer-events: none; overflow: hidden; }
 .ec-popup-host .ec-modal-back { visibility: visible; pointer-events: auto; }
