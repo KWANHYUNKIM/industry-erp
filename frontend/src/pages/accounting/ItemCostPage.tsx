@@ -6,9 +6,9 @@ import type { ItemProfit } from '../../types/api'
 import EcPeriodPicks from '../../components/EcPeriodPicks'
 import { periodOf } from '../../utils/periods'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /* 금액은 원 단위로 — 평균 원가 × 수량이라 소수가 붙어 '28,695,516.08 원' 처럼 찍혔다(24회차). */
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 수량·원가단가는 소수가 뜻이 있다(평균 단가) — 둘째 자리까지. */
 const dec = (n: number) => n.toLocaleString('ko-KR', { maximumFractionDigits: 2 })
 
@@ -85,10 +85,10 @@ export default function ItemCostPage() {
                   <span style={{ background: basisColor(r.costBasis).bg, color: basisColor(r.costBasis).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.costBasis}</span>
                 </td>
                 <td className="text-right">{dec(r.soldQty)}</td>
-                <td className="text-right">{won(r.salesAmount)}</td>
+                <td className="text-right">{fmtAmount(r.salesAmount)}</td>
                 <td className="text-right text-ec-hint">{dec(r.unitCost)}</td>
-                <td className="text-right">{won(r.costAmount)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit >= 0 ? 'var(--ec-blue)' : 'var(--ec-danger)' }}>{won(r.profit)}</td>
+                <td className="text-right">{fmtAmount(r.costAmount)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit >= 0 ? 'var(--ec-blue)' : 'var(--ec-danger)' }}>{fmtAmount(r.profit)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: r.profit >= 0 ? 'var(--ec-blue)' : 'var(--ec-danger)' }}>{r.marginRate}%</td>
               </tr>
             ))

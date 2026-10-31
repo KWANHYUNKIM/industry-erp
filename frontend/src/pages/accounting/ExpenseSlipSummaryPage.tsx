@@ -9,8 +9,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
 const PICKS = [...SETTLE_PICKS, '최근30일'] as const
 type Side = '지출' | '입금' | '가지급금'
@@ -221,16 +221,16 @@ export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Sid
                         <td>{r.account}</td>
                         <td>{r.partner}</td>
                         <td>{r.text}</td>
-                        <td className="text-right">{won(r.amount)}</td>
+                        <td className="text-right">{fmtAmountBlank(r.amount)}</td>
                         <td className="text-right"></td>
-                        <td className="text-right">{won(r.vat)}</td>
+                        <td className="text-right">{fmtAmountBlank(r.vat)}</td>
                       </tr>
                     ))}
                     <tr className="ec-total">
                       <td colSpan={lead} className="text-center">{slash(mo)}  계</td>
-                      <td className="text-right">{won(s.amount)}</td>
+                      <td className="text-right">{fmtAmountBlank(s.amount)}</td>
                       <td className="text-right"></td>
-                      <td className="text-right">{won(s.vat)}</td>
+                      <td className="text-right">{fmtAmountBlank(s.vat)}</td>
                     </tr>
                   </Fragment>
                 )
@@ -238,16 +238,16 @@ export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Sid
                 <tr key={`${g.bank}${g.account}`}>
                   {unit !== '계정별집계' && <td>{g.bank}</td>}
                   <td>{g.account}</td>
-                  <td className="text-right">{won(g.amount)}</td>
+                  <td className="text-right">{fmtAmountBlank(g.amount)}</td>
                   <td className="text-right"></td>
-                  <td className="text-right">{won(g.vat)}</td>
+                  <td className="text-right">{fmtAmountBlank(g.vat)}</td>
                 </tr>
               ))}
               <tr className="ec-total">
                 <td colSpan={lead} className="text-center">합계</td>
-                <td className="text-right">{won(tot.amount)}</td>
+                <td className="text-right">{fmtAmountBlank(tot.amount)}</td>
                 <td className="text-right"></td>
-                <td className="text-right">{won(tot.vat)}</td>
+                <td className="text-right">{fmtAmountBlank(tot.vat)}</td>
               </tr>
             </>
           )}

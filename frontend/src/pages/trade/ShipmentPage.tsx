@@ -9,6 +9,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 영업관리 > 출하현황 — 출하 전표를 기간·조건으로 본다 (/api/shipments).
@@ -87,7 +88,6 @@ interface Shipment {
   lines: ShipLine[]
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 수량 칸 — '3.00' 소수 둘(2026-10-21 E040227 실측). */
 const qty = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -385,7 +385,7 @@ export default function ShipmentPage() {
       {prevTotals && prevRange && (
         <div className="mb-[8px] text-[12.5px] text-ec-hint text-right">
           비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
-          {' '}{prevTotals.count}건 · 수량 {won(prevTotals.qty)} · 금액 {won(prevTotals.amount)}
+          {' '}{prevTotals.count}건 · 수량 {fmtNumber(prevTotals.qty)} · 금액 {fmtNumber(prevTotals.amount)}
         </div>
       )}
 
@@ -413,18 +413,18 @@ export default function ShipmentPage() {
               <tr key={g.partnerId}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.name}</td>
-                <td className="text-right text-ec-hint">{won(g.count)}</td>
-                <td className="text-right">{won(g.qty)}</td>
-                <td className="text-right font-semibold text-ec-blue">{won(g.amount)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                <td className="text-right">{fmtNumber(g.qty)}</td>
+                <td className="text-right font-semibold text-ec-blue">{fmtNumber(g.amount)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={2} className="text-right">합계 ({byPartner.length}거래처)</td>
-              <td className="text-right">{won(shown.length)}</td>
-              <td className="text-right">{won(totals.qty)}</td>
-              <td className="text-right text-ec-blue">{won(totals.amount)}</td>
+              <td className="text-right">{fmtNumber(shown.length)}</td>
+              <td className="text-right">{fmtNumber(totals.qty)}</td>
+              <td className="text-right text-ec-blue">{fmtNumber(totals.amount)}</td>
             </tr>
           </tfoot>
         </table>

@@ -4,8 +4,8 @@ import Modal from '../../components/Modal'
 import { dateNo } from '../../utils/dateNo'
 import type { PurchaseOrder, PurchaseOrderLine } from '../../types/api'
 import { ecAlert } from '../../components/EcDialog'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const slash = (d: string | null) => (d ? d.replace(/-/g, '/') : '')
 
 /**
@@ -72,7 +72,7 @@ export default function PriceRequestPickModal({ onApply, onClose }: {
                 <td>{o.employeeName ?? ''}</td>
                 <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
                 <td className="text-center">{slash(o.priceValidUntil)}</td>
-                <td className="text-right">{cp == null ? '' : won(Number(cp))}</td>
+                <td className="text-right">{cp == null ? '' : fmtAmount(Number(cp))}</td>
               </tr>
             )
           })}

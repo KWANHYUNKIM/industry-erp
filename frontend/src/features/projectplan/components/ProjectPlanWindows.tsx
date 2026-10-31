@@ -6,6 +6,7 @@ import { ecConfirm } from '../../../components/EcDialog'
 import { api, extractErrorMessage } from '../../../api/client'
 import { ymd } from '../../../components/EcPeriodPicks'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 재고 II › 계획관리 › 프로젝트계획조회(E040636)의 창 셋 — 2026-10-14 loginaa 실측(plans/재고2/E040636.md).
@@ -75,7 +76,6 @@ function PlanAccountWindow({ name, onClose }: { name: string; onClose: () => voi
   )
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /** 시작일 ~ 완료일 의 달(YYYY-MM) — 원본 계획 입력 창의 '2026년 10월 · 2026년 11월 · 2026년 12월'. */
 export function planMonths(start: string, end: string): string[] {
@@ -286,7 +286,7 @@ export function PlanLineListWindow({ plan, item, onClose, onChanged }: {
                          onChange={() => setPicked((s) => { const n = new Set(s); n.has(l.id) ? n.delete(l.id) : n.add(l.id); return n })} />
                 </td>
                 <td></td><td></td><td></td><td></td>
-                <td className="text-right"><button type="button" className="ec-link" onClick={() => setEditing(l)}>{won(l.amount)}</button></td>
+                <td className="text-right"><button type="button" className="ec-link" onClick={() => setEditing(l)}>{fmtNumber(l.amount)}</button></td>
                 <td>{l.remark ?? ''}</td>
               </tr>
             ))}

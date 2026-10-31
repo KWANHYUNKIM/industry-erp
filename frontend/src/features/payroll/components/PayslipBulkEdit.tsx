@@ -5,8 +5,8 @@ import EcNumInput from '../../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../../types/api'
 import { ecAlert } from '../../../components/EcDialog'
+import { fmtNumberOf } from '../../../utils/format'
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const slash = (s: string) => s.replace(/-/g, '/')
 /** 원본 머리 이름 — 우리 법정 공제 이름과 다른 것만(급여대장 보고서 · 급여현황과 같다) */
 const LABEL: Record<string, string> = { 지방소득세: '주민세', 장기요양보험: '장기요양' }
@@ -244,12 +244,12 @@ function PayRows({ p, net, gross, deduction, top, bottom }: {
       <tr>
         <td rowSpan={2}>{p.employeeCode}</td>
         <td rowSpan={2}>{p.employeeName}</td>
-        <td rowSpan={2} className="text-right">{won(net)}</td>
-        <td className="text-right">{won(gross)}</td>
+        <td rowSpan={2} className="text-right">{fmtNumberOf(net)}</td>
+        <td className="text-right">{fmtNumberOf(gross)}</td>
         {top}
       </tr>
       <tr>
-        <td className="text-right">{won(deduction)}</td>
+        <td className="text-right">{fmtNumberOf(deduction)}</td>
         {bottom}
       </tr>
     </>

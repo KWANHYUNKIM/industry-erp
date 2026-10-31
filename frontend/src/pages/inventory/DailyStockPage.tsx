@@ -11,6 +11,7 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 재고 > 일별재고현황 (이카운트 E040807)
@@ -58,7 +59,6 @@ interface CostRow {
 }
 
 const num = (n: number) => n.toLocaleString()
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 export default function DailyStockPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -320,10 +320,10 @@ export default function DailyStockPage() {
                   {num(r.quantity)}
                 </td>
                 <td style={{ textAlign: 'right', color: r.price === null ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
-                  {r.price === null ? '단가없음' : won(r.price)}
+                  {r.price === null ? '단가없음' : fmtAmount(r.price)}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount === null ? 'var(--ec-text-off)' : 'var(--ec-blue)' }}>
-                  {r.amount === null ? '—' : won(r.amount)}
+                  {r.amount === null ? '—' : fmtAmount(r.amount)}
                 </td>
               </tr>
             ))}
@@ -334,7 +334,7 @@ export default function DailyStockPage() {
                 <td colSpan={2} className="text-center font-bold bg-ec-page">합계</td>
                 <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
                 <td className="bg-ec-page"></td>
-                <td className="text-right font-bold bg-ec-page text-ec-blue">{won(totalAmount)}</td>
+                <td className="text-right font-bold bg-ec-page text-ec-blue">{fmtAmount(totalAmount)}</td>
               </tr>
             </tfoot>
           )}
@@ -364,7 +364,7 @@ export default function DailyStockPage() {
                     <td className="text-right">{g.count}</td>
                     <td className="text-right font-bold">{num(g.sums.qty)}</td>
                     <td className="text-right font-bold text-ec-blue">
-                      {won(g.sums.amount)}
+                      {fmtAmount(g.sums.amount)}
                     </td>
                   </tr>
                 ))}

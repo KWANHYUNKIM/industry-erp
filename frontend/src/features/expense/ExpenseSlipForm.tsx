@@ -13,6 +13,7 @@ import { bankLabel, type BankAccountOpt } from '../fundplan/types'
 import { slipNo, type ExpenseRow } from './types'
 import EcSlipShell from '../../components/EcSlipShell'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 회계 II › 비용관리 › 비용내역 › <b>비용내역입력</b>(E060812) 판 — 입력 화면과 비용내역조회의 [전표번호] → '비용내역수정' 창이 같이 쓴다.
@@ -44,7 +45,6 @@ const BLANK_LINE: Line = {
   allocAmount: '', amount1: '', amount2: '', memo1: '', memo2: '', memo3: '',
 }
 const blankLines = (n = 3) => Array.from({ length: n }, () => ({ ...BLANK_LINE }))
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const str = (v: number | string | null | undefined) => (v == null ? '' : String(v))
 const num = (v: string) => (v === '' ? undefined : Number(v))
 
@@ -285,10 +285,10 @@ export default function ExpenseSlipForm({ edit, onSaved, onClose, onList }: {
           <tfoot>
             <tr>
               <td colSpan={7}></td>
-              <td className="text-right">{won(sum('amount'))}</td>
+              <td className="text-right">{fmtAmount(sum('amount'))}</td>
               <td colSpan={4}></td>
-              <td className="text-right">{won(sum('amount1'))}</td>
-              <td className="text-right">{won(sum('amount2'))}</td>
+              <td className="text-right">{fmtAmount(sum('amount1'))}</td>
+              <td className="text-right">{fmtAmount(sum('amount2'))}</td>
               <td colSpan={3}></td>
             </tr>
           </tfoot>
@@ -328,10 +328,10 @@ export default function ExpenseSlipForm({ edit, onSaved, onClose, onList }: {
                 <tbody>
                   {printed.map((r) => (
                     <tr key={r.id}><td>{r.expenseItemName ?? r.accountName}</td><td>{r.partnerName ?? ''}</td>
-                      <td className="text-right">{won(Number(r.amount))}</td><td>{r.content ?? ''}</td></tr>
+                      <td className="text-right">{fmtAmount(Number(r.amount))}</td><td>{r.content ?? ''}</td></tr>
                   ))}
                 </tbody>
-                <tfoot><tr><td colSpan={2}>합 계</td><td className="text-right">{won(printed.reduce((s, r) => s + Number(r.amount), 0))}</td><td></td></tr></tfoot>
+                <tfoot><tr><td colSpan={2}>합 계</td><td className="text-right">{fmtAmount(printed.reduce((s, r) => s + Number(r.amount), 0))}</td><td></td></tr></tfoot>
               </table>
               <div className="flex justify-center gap-[6px] mt-[10px]">
                 <button type="button" className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>

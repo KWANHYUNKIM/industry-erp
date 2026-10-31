@@ -21,8 +21,8 @@ import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import EcIcon from '../../components/ui/EcIcon'
 import ProductionSlipWindow from '../production/ProductionSlipWindow'
 import QuotationEntry from './QuotationEntry'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 원본 견적서조회(E040202) 위 알약 — '전체 · 결재중 · 미확인 · 확인 ▸ 진행중 – 완료'(2026-10-14 loginaa 실측, C-Portal 은 견적에 없다).
@@ -600,7 +600,7 @@ export default function QuotationPage() {
               {generated.rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
-                  <td className="text-right">{won(r.quantity)}</td><td className="text-right">{/* 원본은 다 넘어간 줄의 잔량을 비워 둔다(2026-10-14 실측 — 0 이 아니다). */}{r.remaining ? won(r.remaining) : ''}</td>
+                  <td className="text-right">{fmtNumber(r.quantity)}</td><td className="text-right">{/* 원본은 다 넘어간 줄의 잔량을 비워 둔다(2026-10-14 실측 — 0 이 아니다). */}{r.remaining ? fmtNumber(r.remaining) : ''}</td>
                   <td>{r.slipType ?? ''}</td><td>{r.slipDate && r.slipNo ? dateNo({ quoteDate: r.slipDate, quoteNo: r.slipNo }) : ''}</td>
                 </tr>
               ))}
@@ -802,9 +802,9 @@ export default function QuotationPage() {
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td><a className="cursor-pointer" onClick={() => setPopup({ id: q.id, copied: false })}>{dateNo(q)}</a></td>
               <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
-              <td className="text-right">{won(l.quantity)}</td>
-              <td className="text-right">{won(l.unitPrice)}</td>
-              <td className="text-right">{won(l.supplyAmount)}</td>
+              <td className="text-right">{fmtNumber(l.quantity)}</td>
+              <td className="text-right">{fmtNumber(l.unitPrice)}</td>
+              <td className="text-right">{fmtNumber(l.supplyAmount)}</td>
               <td>{q.partnerName}</td>
               <td>{q.remark ?? ''}</td>
             </tr>
@@ -846,7 +846,7 @@ export default function QuotationPage() {
               {/* 원본 '포장재 [30cm*40cm]' · '코카콜라 [355ml] 외 1건' — 첫 품목에 규격을 대괄호로. */}
               <td>{q.lines[0]?.itemName ?? ''}{q.lines[0]?.spec ? ` [${q.lines[0].spec}]` : ''}{q.lines.length > 1 ? ` 외 ${q.lines.length - 1}건` : ''}</td>
               <td>{q.validUntil ? q.validUntil.replace(/-/g, '/') : ''}</td>
-              <td className="text-right">{won(q.totalAmount)}</td>
+              <td className="text-right">{fmtNumber(q.totalAmount)}</td>
               <td className="text-center text-ec-navy">{q.statusName}</td>
               {/* 원본: 다른 전표(주문서)를 만든 줄만 주황 [조회] 배지가 선다 — 안 만든 줄은 빈칸(2026-10-31 loginad). */}
               <td className="text-center">{q.convertedOrderId ? <a className={`cursor-pointer ${GEN_TAG}`} onClick={() => void openGenerated(q)}>조회</a> : null}</td>

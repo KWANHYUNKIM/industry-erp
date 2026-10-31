@@ -9,8 +9,8 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const when = (s: string | null) => (s ? s.replace('T', ' ').slice(0, 16) : '')
 
 const TABS = ['전체', 'DRAFT', 'SENT', 'SIGNED', 'TERMINATED'] as const
@@ -128,7 +128,7 @@ export default function ContractPage() {
           </button>
         ))}
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
-          유효계약 {active.length}건 · <b className="text-ec-navy">{won(activeTotal)}</b>
+          유효계약 {active.length}건 · <b className="text-ec-navy">{fmtNumber(activeTotal)}</b>
           {expiring.length > 0 && (
             <b className="text-ec-danger ml-[8px]">만료임박 {expiring.length}건</b>
           )}
@@ -183,7 +183,7 @@ export default function ContractPage() {
                   <td className="text-center text-ec-label">{c.typeName}</td>
                   <td>{c.partnerName}</td>
                   <td>{dateText(c.startDate)} ~ {dateText(c.endDate)}</td>
-                  <td className="text-right font-bold">{won(c.amount)}</td>
+                  <td className="text-right font-bold">{fmtNumber(c.amount)}</td>
                   <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
                   <td style={{ textAlign: 'center', color: expired ? 'var(--ec-text-hint)' : warn ? 'var(--ec-danger)' : 'var(--ec-label)', fontWeight: warn ? 700 : 400 }}>
                     {c.status === 'TERMINATED' ? '-' : expired ? '만료' : `${c.daysToExpiry}일`}

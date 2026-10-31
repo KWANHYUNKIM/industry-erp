@@ -9,6 +9,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import type { JournalEntry } from '../../types/api'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { pad2 } from '../../utils/periods'
+import { fmtAmount } from '../../utils/format'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 export interface AccountOpt { code: string; detailCategory: string | null }
@@ -104,7 +105,6 @@ function dueOf(year: number, lastMonth: number) {
   const d = new Date(year, lastMonth, 25)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-25`
 }
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const add = (a: Amt, b: Amt): Amt => ({ supply: a.supply + b.supply, vat: a.vat + b.vat })
 const ZERO: Amt = { supply: 0, vat: 0 }
 /** 고정자산 매입 — 부가세 줄 옆 차변이 유형 · 무형자산 계정인 매입. */
@@ -761,9 +761,9 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
   const line = (label: string, no: string, a: Amt | null, rate: string, vatOnly = false, mark = '') => (
     <tr key={no}>
       <td>{label}</td><td className="text-center">{no}</td>
-      <td className="text-right">{vatOnly ? '' : won(a?.supply ?? 0)}</td>
+      <td className="text-right">{vatOnly ? '' : fmtAmount(a?.supply ?? 0)}</td>
       <td className="text-center">{rate}</td>
-      <td className="text-right">{mark}{won(a?.vat ?? 0)}</td>
+      <td className="text-right">{mark}{fmtAmount(a?.vat ?? 0)}</td>
     </tr>
   )
   return (
@@ -809,7 +809,7 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
           {line('차감계 ((16)-(17))', '(18)', purchase, '', false, '㉯ ')}
           <tr className="ec-total">
             <td colSpan={4} className="font-bold">납부(환급)세액 (매출세액 ㉮ - 매입세액 ㉯)</td>
-            <td className="text-right font-bold">㉰ {won(payable)}</td>
+            <td className="text-right font-bold">㉰ {fmtAmount(payable)}</td>
           </tr>
           {line('경감ㆍ공제세액 · 그 밖의 경감ㆍ공제세액', '(19)', ZERO, '', true)}
           {line('경감ㆍ공제세액 · 신용카드매출전표등 발행공제등', '(20)', ZERO, '')}
@@ -824,7 +824,7 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
           {line('가산세액계', '(29)', ZERO, '', true, '㉹ ')}
           <tr className="ec-total">
             <td className="font-bold">차감ㆍ가감하여 납부할 세액(환급받을 세액)</td><td className="text-center">(30)</td>
-            <td colSpan={2} /><td className="text-right font-bold">{won(payable)}</td>
+            <td colSpan={2} /><td className="text-right font-bold">{fmtAmount(payable)}</td>
           </tr>
         </tbody>
       </table>
@@ -835,9 +835,9 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
           <tr><th className="text-center">번호</th><th>업 태</th><th>종 목</th><th className="text-right">금 액</th></tr>
         </thead>
         <tbody>
-          <tr><td className="text-center">(31)</td><td>{c?.bizType ?? ''}</td><td>{c?.bizItem ?? ''}</td><td className="text-right">{won(sales.supply)}</td></tr>
+          <tr><td className="text-center">(31)</td><td>{c?.bizType ?? ''}</td><td>{c?.bizItem ?? ''}</td><td className="text-right">{fmtAmount(sales.supply)}</td></tr>
           <tr><td className="text-center">(34)</td><td>수입금액제외</td><td></td><td className="text-right"></td></tr>
-          <tr className="ec-total"><td className="text-center">(35)</td><td colSpan={2} className="font-bold">합 계</td><td className="text-right font-bold">{won(sales.supply)}</td></tr>
+          <tr className="ec-total"><td className="text-center">(35)</td><td colSpan={2} className="font-bold">합 계</td><td className="text-right font-bold">{fmtAmount(sales.supply)}</td></tr>
         </tbody>
       </table>
 
@@ -916,8 +916,8 @@ export function CardSalesSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
   const rowOf = (label: string, card: number, cash: number, bold = false) => (
     <tr key={label} className={bold ? 'ec-total' : undefined}>
       <td className="text-center">{label}</td>
-      <td className="text-right">{won(card + cash)}</td><td className="text-right">{won(card)}</td>
-      <td className="text-right">{won(cash)}</td><td className="text-right">0</td>
+      <td className="text-right">{fmtAmount(card + cash)}</td><td className="text-right">{fmtAmount(card)}</td>
+      <td className="text-right">{fmtAmount(cash)}</td><td className="text-right">0</td>
     </tr>
   )
   return (
@@ -964,9 +964,9 @@ export function CardReceiptSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) 
     return (
       <tr key={label} className={always ? 'ec-total' : undefined}>
         <td>{label}</td>
-        <td className="text-right">{show && x ? won(x.n) : ''}</td>
-        <td className="text-right">{show && x ? won(x.supply) : ''}</td>
-        <td className="text-right">{show && x ? won(x.vat) : ''}</td>
+        <td className="text-right">{show && x ? fmtAmount(x.n) : ''}</td>
+        <td className="text-right">{show && x ? fmtAmount(x.supply) : ''}</td>
+        <td className="text-right">{show && x ? fmtAmount(x.vat) : ''}</td>
       </tr>
     )
   }
@@ -1026,7 +1026,7 @@ export function InvoiceSummarySheet({ side, s, c, invoices, written }: {
       <tr key={key}>
         <td className={bold ? 'font-bold' : undefined}>{label}</td>
         <td className={cls}>{t.partners || ''}</td><td className={cls}>{t.count || ''}</td>
-        <td className={cls}>{t.count ? won(t.supply) : ''}</td><td className={cls}>{t.count ? won(t.vat) : ''}</td>
+        <td className={cls}>{t.count ? fmtAmount(t.supply) : ''}</td><td className={cls}>{t.count ? fmtAmount(t.vat) : ''}</td>
       </tr>
     )
   }
@@ -1078,7 +1078,7 @@ export function InvoiceSummarySheet({ side, s, c, invoices, written }: {
           ) : byPartner.map((r, i) => (
             <tr key={i}>
               <td className="text-center">{i + 1}</td><td>{r.bizNo}</td><td>{r.name}</td>
-              <td className="text-right">{r.count}</td><td className="text-right">{won(r.supply)}</td><td className="text-right">{won(r.vat)}</td><td></td>
+              <td className="text-right">{r.count}</td><td className="text-right">{fmtAmount(r.supply)}</td><td className="text-right">{fmtAmount(r.vat)}</td><td></td>
             </tr>
           ))}
         </tbody>

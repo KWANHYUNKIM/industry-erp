@@ -4,13 +4,13 @@ import EcNumInput from '../../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { EmployeeMaster, PayItem } from '../../../types/api'
 import { ecAlert, ecConfirm } from '../../../components/EcDialog'
+import { fmtNumberBlank } from '../../../utils/format'
 
 type Kind = 'ALLOWANCE' | 'DEDUCTION'
 interface Summary { employeeId: number; allowanceTotal: number; deductionTotal: number }
 interface Cell { kind: Kind; itemName: string; amount: number; memo: string | null }
 interface Ledger { id: number; payMonth: string }
 
-const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
 /** 원본 칸 이름 — 우리 명세 줄 이름과 다른 법정 공제만 */
 const LABEL: Record<string, string> = { 지방소득세: '주민세', 장기요양보험: '장기요양' }
 const STATUTORY = ['소득세', '지방소득세', '국민연금', '건강보험', '고용보험', '장기요양보험']
@@ -175,8 +175,8 @@ export default function DirectAmountInput({ ledger, onClose, onChanged }: { ledg
                     <td><a href="#" onClick={(ev) => { ev.preventDefault(); open(e) }}>{e.code}</a></td>
                     <td>{e.name}</td>
                     <td>{e.department}</td>
-                    <td className="text-right">{won(sum(e.id)?.allowanceTotal ?? 0)}</td>
-                    <td className="text-right">{won(sum(e.id)?.deductionTotal ?? 0)}</td>
+                    <td className="text-right">{fmtNumberBlank(sum(e.id)?.allowanceTotal ?? 0)}</td>
+                    <td className="text-right">{fmtNumberBlank(sum(e.id)?.deductionTotal ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>

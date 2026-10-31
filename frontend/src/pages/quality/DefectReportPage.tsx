@@ -12,6 +12,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { fmtNumber } from '../../utils/format'
 
 /** 원본 [생산수량]의 재료. 이 화면이 쓰는 칸만 든다. */
 interface ProductionRow {
@@ -81,7 +82,6 @@ type Handling = typeof HANDLINGS[number]
 const handlingOf = (a: StockAdjustment): Handling =>
   a.type === 'DISPOSAL' ? '폐기' : ((a.handling as Handling | null | undefined) || '폐기')
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /**
  * 원본 불량률 — 소수 자리 없이 <b>반올림</b>(합계 2 ÷ 524 → 0, 2026-10-13 실측 줄 10 ÷ 540 = 1.85 → <b>2</b> ·
  * 9 ÷ 540 = 1.67 → 2 · 합계 40 ÷ 2,791 = 1.43 → 1). 버림이었다면 1 이 섰다.
@@ -388,8 +388,8 @@ export default function DefectReportPage() {
               <td>{r.itemCode}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
               {/* 원본은 그 자료가 없는 칸을 <b>빈칸</b>으로 둔다(송풍기 줄: 생산 빈칸 · 불량 2, 반제품 줄: 생산 156 · 불량 빈칸). */}
-              <td className="text-right">{r.producedQty ? won(r.producedQty) : ''}</td>
-              <td className="text-right">{r.defectQty ? won(r.defectQty) : ''}</td>
+              <td className="text-right">{r.producedQty ? fmtNumber(r.producedQty) : ''}</td>
+              <td className="text-right">{r.defectQty ? fmtNumber(r.defectQty) : ''}</td>
               {/* 생산과 불량이 다 있어야 율이 선다 — 원본 실측 줄들은 한쪽만 있어 다 빈칸이었다. */}
               <td className="text-right">{r.producedQty > 0 && r.defectQty > 0 ? rateText(r.defectRate) : ''}</td>
             </tr>
@@ -397,8 +397,8 @@ export default function DefectReportPage() {
             /* 원본 격자의 <b>[창고명] 계</b> 줄. 불량률은 생산 · 불량이 다 있을 때만(위 groups 주석). */
             <tr key={'sub' + gi} className="ec-total">
               <td colSpan={4} className="text-center">{g.label} 계</td>
-              <td className="text-right">{g.sums.produced ? won(g.sums.produced) : ''}</td>
-              <td className="text-right">{g.sums.defect ? won(g.sums.defect) : ''}</td>
+              <td className="text-right">{g.sums.produced ? fmtNumber(g.sums.produced) : ''}</td>
+              <td className="text-right">{g.sums.defect ? fmtNumber(g.sums.defect) : ''}</td>
               <td className="text-right">{g.sums.produced > 0 && g.sums.defect > 0 ? rateText((g.sums.defect / g.sums.produced) * 100) : ''}</td>
             </tr>,
           ])}
@@ -408,8 +408,8 @@ export default function DefectReportPage() {
             {/* 원본 합계줄은 0 도 찍는다(524 · 2 · 0). */}
             <tr>
               <td colSpan={4} className="text-center">합계</td>
-              <td className="text-right">{won(totals.produced)}</td>
-              <td className="text-right">{won(totals.defect)}</td>
+              <td className="text-right">{fmtNumber(totals.produced)}</td>
+              <td className="text-right">{fmtNumber(totals.defect)}</td>
               <td className="text-right">{rateText(overallRate)}</td>
             </tr>
           </tfoot>

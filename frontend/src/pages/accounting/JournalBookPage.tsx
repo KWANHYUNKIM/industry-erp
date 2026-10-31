@@ -13,6 +13,7 @@ import { scopeEntries } from '../../utils/deptProject'
 import SortSubtotalModal from '../../features/ledgersort/SortSubtotalModal'
 import { applySortSubtotal, defaultSortSetting, showTotal } from '../../features/ledgersort/sortSubtotal'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
 /** [정렬/소계기준] 고를 열 — 원본 기준 목록은 코드도움이 자동화로 안 열려 못 잼(2026-10-22), 분개장 열 그대로 둔다. */
 const SORT_KEYS = [
@@ -21,7 +22,6 @@ const SORT_KEYS = [
 ]
 const AMOUNT_KEYS = [{ value: 'debit', name: '차변금액' }, { value: 'credit', name: '대변금액' }]
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 전표번호 모양 — 연도 두 자리 '26/09/17-1-1'(일자 - 전표 - 줄, 2026-10-03 실측). 우리 전표번호는 일련번호가 아니라 문서번호라 그대로 붙인다. */
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
@@ -201,8 +201,8 @@ export default function JournalBookPage() {
           ) : lines.map((ln, i) => ln.type === 'sub' ? (
             <tr key={`sub-${i}`} className="font-bold bg-ec-page">
               <td colSpan={3}>{ln.label}</td>
-              <td className="text-right">{ln.sums.debit == null ? '' : won(ln.sums.debit)}</td>
-              <td className="text-right">{ln.sums.credit == null ? '' : won(ln.sums.credit)}</td>
+              <td className="text-right">{ln.sums.debit == null ? '' : fmtAmountBlank(ln.sums.debit)}</td>
+              <td className="text-right">{ln.sums.credit == null ? '' : fmtAmountBlank(ln.sums.credit)}</td>
               <td></td>
             </tr>
           ) : (
@@ -210,8 +210,8 @@ export default function JournalBookPage() {
               <td className="text-center">{ln.row.no}</td>
               <td>{ln.row.account}</td>
               <td>{ln.row.partner}</td>
-              <td className="text-right">{won(ln.row.debit)}</td>
-              <td className="text-right">{won(ln.row.credit)}</td>
+              <td className="text-right">{fmtAmountBlank(ln.row.debit)}</td>
+              <td className="text-right">{fmtAmountBlank(ln.row.credit)}</td>
               <td>{ln.row.remark}</td>
             </tr>
           ))}
@@ -220,8 +220,8 @@ export default function JournalBookPage() {
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
               <td colSpan={3}>합계</td>
-              <td className="text-right">{showTotal(sortSetting, 'debit') ? won(total.debit) : ''}</td>
-              <td className="text-right">{showTotal(sortSetting, 'credit') ? won(total.credit) : ''}</td>
+              <td className="text-right">{showTotal(sortSetting, 'debit') ? fmtAmountBlank(total.debit) : ''}</td>
+              <td className="text-right">{showTotal(sortSetting, 'credit') ? fmtAmountBlank(total.credit) : ''}</td>
               <td></td>
             </tr>
           </tfoot>

@@ -18,6 +18,7 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 이익관리 > 일별이익현황 (이카운트 C000140)
@@ -114,7 +115,6 @@ type Basis = CostBasis
 
 interface CostRow { itemId: number; period: string; standardTotal: number }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const num = (n: number) => n.toLocaleString()
 /* 원본 [이익율] 은 정수 % 다(2026-10-04 실측: 77%, 합계 41%). */
 const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 100))
@@ -691,18 +691,18 @@ export default function DailyProfitPage() {
                   )}
                   <td className="text-right">{num(r.qty)}</td>
                   <td className="text-right">
-                    {per(r.revenue, r.qty) === null ? '—' : won(Math.round(per(r.revenue, r.qty) as number))}
+                    {per(r.revenue, r.qty) === null ? '—' : fmtAmount(Math.round(per(r.revenue, r.qty) as number))}
                   </td>
-                  <td className="text-right">{won(r.revenue)}</td>
+                  <td className="text-right">{fmtAmount(r.revenue)}</td>
                   <td className="text-right">
-                    {per(r.cost, r.qty) === null ? '—' : won(Math.round(per(r.cost, r.qty) as number))}
+                    {per(r.cost, r.qty) === null ? '—' : fmtAmount(Math.round(per(r.cost, r.qty) as number))}
                   </td>
-                  <td className="text-right">{r.cost === null ? '—' : won(r.cost)}</td>
-                  <td className="text-right">{won(r.extra)}</td>
+                  <td className="text-right">{r.cost === null ? '—' : fmtAmount(r.cost)}</td>
+                  <td className="text-right">{fmtAmount(r.extra)}</td>
                   <td className="text-right">
-                    {per(r.profit, r.qty) === null ? '—' : won(Math.round(per(r.profit, r.qty) as number))}
+                    {per(r.profit, r.qty) === null ? '—' : fmtAmount(Math.round(per(r.profit, r.qty) as number))}
                   </td>
-                  <td className="text-right">{r.profit === null ? '—' : won(r.profit)}</td>
+                  <td className="text-right">{r.profit === null ? '—' : fmtAmount(r.profit)}</td>
                   <td className="text-right">{r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}</td>
                 </tr>
               )
@@ -717,12 +717,12 @@ export default function DailyProfitPage() {
                 {/* 원본 합계 줄은 단가 칸을 비운다(2026-10-04 실측: 72 · · 1,885,292 · · 1,113,858 · 0 · · 771,434 · 41%). */}
                 <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
                 <td className="bg-ec-page"></td>
-                <td className="text-right font-bold bg-ec-page">{won(totals.revenue)}</td>
+                <td className="text-right font-bold bg-ec-page">{fmtAmount(totals.revenue)}</td>
                 <td className="bg-ec-page"></td>
-                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : won(totals.cost)}</td>
-                <td className="text-right font-bold bg-ec-page">{won(extraTotals.extra)}</td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : fmtAmount(totals.cost)}</td>
+                <td className="text-right font-bold bg-ec-page">{fmtAmount(extraTotals.extra)}</td>
                 <td className="bg-ec-page"></td>
-                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : won(totals.profit)}</td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : fmtAmount(totals.profit)}</td>
                 <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}</td>
               </tr>
             </tfoot>

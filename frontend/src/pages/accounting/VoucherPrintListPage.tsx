@@ -7,6 +7,7 @@ import type { FastVoucher, FastVoucherType, JournalEntry } from '../../types/api
 import { JOURNAL_INQUIRY_PICKS } from '../../utils/periods'
 import SlipPrintModal from '../../features/journalprint/SlipPrintModal'
 import { journalSlipHtml, loadSlipHeader, splitPerLine, voucherSlipHtml } from '../../features/journalprint/slipPrint'
+import { fmtAmount } from '../../utils/format'
 
 type Kind = Extract<FastVoucherType, 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT'>
 /** 원본 화면 제목 · 아래 단추 · 거래처 열 이름(2026-10-20 실측). */
@@ -18,7 +19,6 @@ const SPEC: Record<Kind, { title: string; button: string; who: string }> = {
 const TABS = ['전체', '미확인', '확인'] as const
 type Status = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 [전표일자] '2026/10/20 -3' — 일자와 회계전표 일련. */
 const dateNo = (v: FastVoucher) => {
   const m = /-0*(\d+)$/.exec(v.journalDocNo ?? '')
@@ -132,7 +132,7 @@ export default function VoucherPrintListPage({ kind }: { kind: Kind }) {
                        })} />
               </td>
               <td className="text-center">{dateNo(v)}</td>
-              <td className="text-right">{won(v.totalAmount)}</td>
+              <td className="text-right">{fmtAmount(v.totalAmount)}</td>
               <td>{who(v)}</td>
               <td>{v.description ?? ''}</td>
               <td className="text-center"><a className="text-ec-navy cursor-pointer" onClick={() => void printVouchers([v])}>인쇄</a></td>

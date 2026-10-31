@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
 import { dateText } from '../../../utils/dateText'
 import EcIcon from '../../../components/ui/EcIcon'
+import { fmtAmountOf } from '../../../utils/format'
 
 /**
  * 업무관리 예시 게시판 입력 창의 연결 칸 두 가지(2026-10-22 loginaa 실측).
@@ -102,7 +103,6 @@ interface SlipRow {
   id: number; no: string; date: string; partner: string; summary: string; total: number; tradeKind: string; warehouse: string
   reflected: boolean; validUntil: string; status: string; employee: string
 }
-const won = (n: number) => Math.round(Number(n)).toLocaleString('ko-KR')
 const summaryOf = (ls: { itemName: string; spec?: string | null }[] | undefined) => {
   if (!ls || ls.length === 0) return ''
   const f = ls[0].spec ? `${ls[0].itemName} [${ls[0].spec}]` : ls[0].itemName
@@ -163,7 +163,7 @@ export function SlipLinkField({ label, kind, value, onChange }: { label: string;
                 {quote && <td>{r.employee}</td>}
                 <td>{r.summary}</td>
                 {quote && <td className="text-center">{r.validUntil ? dateText(r.validUntil) : ''}</td>}
-                <td className="text-right">{won(r.total)}</td>
+                <td className="text-right">{fmtAmountOf(r.total)}</td>
                 {quote ? <td className="text-center">{r.status}</td> : <><td>{r.tradeKind}</td><td>{r.warehouse}</td><td className="text-center">{r.reflected ? '반영' : '미반영'}</td></>}
                 {quote && <td />}
                 <td className="text-center text-ec-navy">인쇄</td>{!quote && <td className="text-center text-ec-navy">조회</td>}

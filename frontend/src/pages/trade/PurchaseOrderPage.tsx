@@ -31,8 +31,8 @@ import ProductionSlipWindow from '../production/ProductionSlipWindow'
 import { dateNo } from '../../utils/dateNo'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
 /** 생성한 전표가 있으면 원본처럼 주황 꼬리표(QuotationPage GEN_TAG 와 같은 실측 — 바탕 --ec-tag-warn · 흰 글자 · 둥글기 6). */
 const GEN_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
@@ -592,7 +592,7 @@ export default function PurchaseOrderPage() {
                   : ''}
               </td>
               <td className="text-center">{dateText(po.dueDate) || ''}</td>
-              <td className="text-right">{won(po.totalAmount)}</td>
+              <td className="text-right">{fmtNumber(po.totalAmount)}</td>
               <td className={`text-center${progressOf(po.status) === '완료' ? ' text-[var(--ec-done)]' : ''}`} title={po.statusName}>{progressOf(po.status)}</td>
               {/*
                 원본 [생성한 전표] — 구매전표를 만든 줄만 주황 [조회] → '생성한 전표' 창. 우리 응답은 다 사서 닫힌 것(입고전환)만 알려 줘서
@@ -626,8 +626,8 @@ export default function PurchaseOrderPage() {
               {generated.rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
-                  <td className="text-right">{won(r.quantity)}</td>
-                  <td className="text-right">{Number(r.remaining) > 0 ? won(r.remaining) : ''}</td>
+                  <td className="text-right">{fmtNumber(r.quantity)}</td>
+                  <td className="text-right">{Number(r.remaining) > 0 ? fmtNumber(r.remaining) : ''}</td>
                   <td>{r.slipType ?? ''}</td>
                   <td>{r.slipDate && r.slipNo
                     ? <a className="cursor-pointer" onClick={() => void printPurchase(r)}>{dateNo(r.slipDate, r.slipNo)}</a>
@@ -932,7 +932,7 @@ export function PurchaseOrderForm({ items, partners, employees, warehouses, proj
                   <td className="text-right text-ec-label">{stockCell(stockAtOf(l.itemId))}</td>
                   <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
-                  <td className="text-right">{won(calc[i])}</td>
+                  <td className="text-right">{fmtNumber(calc[i])}</td>
                   <td><input className="ec-input" value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} style={{ width: '100%' }} /></td>
                   {/*
                     머리의 추가항목과 <b>같은 잣대로</b> 그린다 — [코드] 형식이면 고르는 칸,
@@ -958,7 +958,7 @@ export function PurchaseOrderForm({ items, partners, employees, warehouses, proj
                   ))}
                   <td className="text-ec-muted">{i + 1}</td>
                   <td className="text-ec-muted">{unitOf(l.itemId)}</td>
-                  <td className="text-right text-ec-muted">{won(Math.round(Number(l.unitPrice || 0) * (taxable ? 1.1 : 1)))}</td>
+                  <td className="text-right text-ec-muted">{fmtNumber(Math.round(Number(l.unitPrice || 0) * (taxable ? 1.1 : 1)))}</td>
                   <td className="text-center">{lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}</td>
                 </tr>
               ))}
@@ -967,7 +967,7 @@ export function PurchaseOrderForm({ items, partners, employees, warehouses, proj
               <tr className="font-bold bg-ec-page">
                 <td colSpan={8} className="text-right">공급가액 / 부가세 / 합계</td>
                 {/* 추가항목 열이 늘어난 만큼 여기도 늘어야 한다 — 안 그러면 합계가 엉뚱한 열 아래 붙는다. */}
-                <td className="text-right" colSpan={6 + lineDefs.length}>{won(supply)} / {won(vat)} / <span className="text-ec-navy">{won(supply + vat)}</span></td>
+                <td className="text-right" colSpan={6 + lineDefs.length}>{fmtNumber(supply)} / {fmtNumber(vat)} / <span className="text-ec-navy">{fmtNumber(supply + vat)}</span></td>
               </tr>
             </tfoot>
           </table>

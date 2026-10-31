@@ -7,8 +7,8 @@ import type { WithholdingReceipt, WithholdingReturn, WithholdingStatement } from
 import { ymd } from '../../components/EcPeriodPicks'
 import EcIcon from '../../components/ui/EcIcon'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 원천징수이행상황신고서 (원본 세무 › 원천징수 › 세무신고 E030101, 2026-10-03 loginaa 실측).
@@ -436,9 +436,9 @@ function LedgerPickModal({ payMonth, picked, onApply, onClose }: {
               <td className="text-center">{r.payMonth.replace('-', '/')}</td>
               <td className="text-center">{r.kind}</td>
               <td>{r.name}</td>
-              <td className="text-right">{won(r.headcount)}</td>
-              <td className="text-right">{won(Number(r.ledgerAmount))}</td>
-              <td className="text-right">{won(Number(r.reportAmount))}</td>
+              <td className="text-right">{fmtNumber(r.headcount)}</td>
+              <td className="text-right">{fmtNumber(Number(r.ledgerAmount))}</td>
+              <td className="text-right">{fmtNumber(Number(r.reportAmount))}</td>
               <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setDetail(r) }}>조회</a></td>
               <td className="text-center"></td>
             </tr>
@@ -480,21 +480,21 @@ function SimpleIncomeModal({ ledger, onClose }: { ledger: LedgerPick; onClose: (
               <td className="text-center">{r.employeeName}</td>
               <td className="text-center">{day(r.hireDate)}</td>
               <td className="text-center">{day(r.resignDate)}</td>
-              <td className="text-right">{won(Number(r.ledgerAmount))}</td>
-              <td className="text-right">{won(Number(r.excludedNonTaxable))}</td>
-              <td className="text-right">{won(Number(r.submittedNonTaxable))}</td>
-              <td className="text-right">{won(Number(r.submitAmount))}</td>
-              <td className="text-right">{won(Number(r.incomeTax))}</td>
+              <td className="text-right">{fmtNumber(Number(r.ledgerAmount))}</td>
+              <td className="text-right">{fmtNumber(Number(r.excludedNonTaxable))}</td>
+              <td className="text-right">{fmtNumber(Number(r.submittedNonTaxable))}</td>
+              <td className="text-right">{fmtNumber(Number(r.submitAmount))}</td>
+              <td className="text-right">{fmtNumber(Number(r.incomeTax))}</td>
             </tr>
           ))}
         </tbody>
         <tfoot><tr className="font-bold">
           <td colSpan={4} className="text-center">합계[{rows.length}]명</td>
-          <td className="text-right">{won(sum('ledgerAmount'))}</td>
-          <td className="text-right">{won(sum('excludedNonTaxable'))}</td>
-          <td className="text-right">{won(sum('submittedNonTaxable'))}</td>
-          <td className="text-right">{won(sum('submitAmount'))}</td>
-          <td className="text-right">{won(sum('incomeTax'))}</td>
+          <td className="text-right">{fmtNumber(sum('ledgerAmount'))}</td>
+          <td className="text-right">{fmtNumber(sum('excludedNonTaxable'))}</td>
+          <td className="text-right">{fmtNumber(sum('submittedNonTaxable'))}</td>
+          <td className="text-right">{fmtNumber(sum('submitAmount'))}</td>
+          <td className="text-right">{fmtNumber(sum('incomeTax'))}</td>
         </tr></tfoot>
       </table>
       <div className="flex gap-[6px] mt-[12px]">
@@ -598,13 +598,13 @@ export function StatementSheet({ ret, stmt }: { ret: WithholdingReturn; stmt: Wi
               <tr key={r.code} className={r.sum || r.code === 'A99' ? 'font-bold' : undefined}>
                 <td>{r.group ? `${r.group} · ` : ''}{r.label}</td>
                 <td className="text-center">{r.code}</td>
-                <td className="text-right">{won(c.count)}</td>
-                <td className="text-right">{won(c.gross)}</td>
-                <td className="text-right">{won(c.tax)}</td>
+                <td className="text-right">{fmtNumber(c.count)}</td>
+                <td className="text-right">{fmtNumber(c.gross)}</td>
+                <td className="text-right">{fmtNumber(c.tax)}</td>
                 <td className="text-right">0</td>
                 <td className="text-right">0</td>
                 <td className="text-right">{r.pay ? '0' : ''}</td>
-                <td className="text-right">{r.pay ? won(c.tax) : ''}</td>
+                <td className="text-right">{r.pay ? fmtNumber(c.tax) : ''}</td>
                 <td className="text-right">{r.pay ? '0' : ''}</td>
               </tr>
             )
@@ -800,18 +800,18 @@ function LocalTaxReceiptModal({ ret, onClose }: { ret: WithholdingReturn; onClos
           <tr><th>전 화 번 호</th><td colSpan={3}>{company?.tel ?? ''}</td></tr>
           <tr><td colSpan={5}>귀속 {ay} 년 {am} 월 (지급 {py} 년 {pm} 월)</td></tr>
           <tr><th>①세목</th><td>지방소득세</td><th colSpan={3}>②신고하는 특별자치시·특별자치도·시·군·구</th></tr>
-          <tr><th>③납부액</th><td colSpan={4}>일금 {won(total.local)} 원정</td></tr>
+          <tr><th>③납부액</th><td colSpan={4}>일금 {fmtNumber(total.local)} 원정</td></tr>
           <tr><th colSpan={2}>구 분</th><th>인 원</th><th>과세표준</th><th>지방소득세</th></tr>
           {lines.map((l, i) => (
             <tr key={i}>
               <td colSpan={2} className="text-left">{l.no} {l.label}{l.sub ? ` ${l.sub}` : ''}</td>
-              <td className="text-right">{won(l.count)}</td>
-              <td className="text-right">{won(l.tax)}</td>
-              <td className="text-right">{won(l.local)}</td>
+              <td className="text-right">{fmtNumber(l.count)}</td>
+              <td className="text-right">{fmtNumber(l.tax)}</td>
+              <td className="text-right">{fmtNumber(l.local)}</td>
             </tr>
           ))}
           <tr><td colSpan={2} className="text-left">⑮ 가산세</td><td></td><td></td><td className="text-right">0</td></tr>
-          <tr className="font-bold"><td colSpan={2}>계</td><td className="text-right">{won(total.count)}</td><td className="text-right">{won(total.tax)}</td><td className="text-right">{won(total.local)}</td></tr>
+          <tr className="font-bold"><td colSpan={2}>계</td><td className="text-right">{fmtNumber(total.count)}</td><td className="text-right">{fmtNumber(total.tax)}</td><td className="text-right">{fmtNumber(total.local)}</td></tr>
           <tr><td colSpan={5}>{foot}<br />{ry} 년 {rm} 월 {rd} 일</td></tr>
         </tbody>
       </table>
@@ -918,11 +918,11 @@ function ReceiptsView() {
               <td>{r.employeeCode}</td>
               <td>{r.employeeName}</td>
               <td className="text-center">{r.months.length}</td>
-              <td className="text-right">{won(r.grossPay)}</td>
-              <td className="text-right text-ec-hint">{won(r.socialInsurance)}</td>
-              <td className="text-right">{won(r.incomeTax)}</td>
-              <td className="text-right text-ec-hint">{won(r.localIncomeTax)}</td>
-              <td className="text-right font-bold">{won(r.totalWithheld)}</td>
+              <td className="text-right">{fmtNumber(r.grossPay)}</td>
+              <td className="text-right text-ec-hint">{fmtNumber(r.socialInsurance)}</td>
+              <td className="text-right">{fmtNumber(r.incomeTax)}</td>
+              <td className="text-right text-ec-hint">{fmtNumber(r.localIncomeTax)}</td>
+              <td className="text-right font-bold">{fmtNumber(r.totalWithheld)}</td>
             </tr>
           ))}
         </tbody>

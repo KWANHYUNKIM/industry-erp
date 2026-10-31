@@ -7,8 +7,8 @@ import { EcCond, EcCondTabs } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingLedgerEmployee } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import { fmtNumberBlank } from '../../utils/format'
 
-const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
 type Company = { name?: string; bizRegNo?: string; address?: string; addressDetail?: string }
 type Status = '전체' | '재직자' | '퇴사자'
 
@@ -182,26 +182,26 @@ function LedgerModal({ emp, month, company, onClose }: {
             <tr key={no}>
               <td className="text-center">{no}</td>
               <td className="text-center">{m ? ym.replace('-', '.') : ''}</td>
-              <td className="text-right">{m ? won(m.taxablePay) : ''}</td>
+              <td className="text-right">{m ? fmtNumberBlank(m.taxablePay) : ''}</td>
               <td className="text-right"></td>
-              <td className="text-right">{m ? won(m.taxablePay) : ''}</td>
+              <td className="text-right">{m ? fmtNumberBlank(m.taxablePay) : ''}</td>
               <td className="text-center whitespace-nowrap">{m?.payBracket ?? ''}</td>
-              <td className="text-right">{m ? won(m.incomeTax) : ''}</td>
-              <td className="text-right">{m ? won(m.localIncomeTax) : ''}</td>
-              <td className="text-right">{m ? won(m.nonTaxablePay) : ''}</td>
+              <td className="text-right">{m ? fmtNumberBlank(m.incomeTax) : ''}</td>
+              <td className="text-right">{m ? fmtNumberBlank(m.localIncomeTax) : ''}</td>
+              <td className="text-right">{m ? fmtNumberBlank(m.nonTaxablePay) : ''}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="font-bold">
             <td colSpan={2} className="text-center">계</td>
-            <td className="text-right">{won(sum('taxablePay'))}</td>
+            <td className="text-right">{fmtNumberBlank(sum('taxablePay'))}</td>
             <td className="text-right"></td>
-            <td className="text-right">{won(sum('taxablePay'))}</td>
+            <td className="text-right">{fmtNumberBlank(sum('taxablePay'))}</td>
             <td></td>
-            <td className="text-right">{won(sum('incomeTax'))}</td>
-            <td className="text-right">{won(sum('localIncomeTax'))}</td>
-            <td className="text-right">{won(sum('nonTaxablePay'))}</td>
+            <td className="text-right">{fmtNumberBlank(sum('incomeTax'))}</td>
+            <td className="text-right">{fmtNumberBlank(sum('localIncomeTax'))}</td>
+            <td className="text-right">{fmtNumberBlank(sum('nonTaxablePay'))}</td>
           </tr>
         </tfoot>
       </table>

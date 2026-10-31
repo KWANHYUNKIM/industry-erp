@@ -1,3 +1,4 @@
+import { fmtAmount } from '../../../utils/format'
 /**
  * 종이 세금계산서 — (세금)계산서발행/수령(원본 E030202) 줄의 [인쇄] · [저장/청구서인쇄] 가 띄우는 '청구서' 창의 서식.
  *
@@ -8,7 +9,6 @@
 export interface PaperParty { bizRegNo?: string | null; name?: string | null; ceo?: string | null; address?: string | null; bizType?: string | null; bizItem?: string | null }
 export interface PaperVoucher { entryDate: string; entryNo: number; supplyAmount: number; vatAmount: number; totalAmount: number; remark: string | null }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 숫자를 n 칸에 오른쪽부터 한 자리씩. 남는 칸은 빈칸. */
 function digits(n: number, cells: number): string[] {
   const s = String(Math.abs(Math.round(n)))
@@ -81,7 +81,7 @@ function Copy({ buyerCopy, v, supplier, buyer, kind, display }: { buyerCopy: boo
           {[0, 1, 2, 3].map((i) => (
             <tr key={i}>
               <td className="c">{i === 0 ? m : ''}</td><td className="c">{i === 0 ? d : ''}</td><td className="v" /><td className="n" /><td className="n" />
-              <td className="n">{i === 0 ? won(v.supplyAmount) : ''}</td><td className="n">{i === 0 ? won(v.vatAmount) : ''}</td><td className="v" />
+              <td className="n">{i === 0 ? fmtAmount(v.supplyAmount) : ''}</td><td className="n">{i === 0 ? fmtAmount(v.vatAmount) : ''}</td><td className="v" />
             </tr>
           ))}
         </tbody>
@@ -90,7 +90,7 @@ function Copy({ buyerCopy, v, supplier, buyer, kind, display }: { buyerCopy: boo
         <tbody>
           <tr><th>합계금액</th><th>현금</th><th>수표</th><th>어음</th><th>외상미수금</th><td rowSpan={2}>이 금액을{' '}
               {display.claim === 'text' ? '청 구' : <>영 수 {display.claim === 'circle' ? <span className="inline-block border border-current rounded-full px-[3px]">청 구</span> : '청 구'}</>} 함.</td></tr>
-          <tr><td className="n">{won(v.totalAmount)}</td><td className="n" /><td className="n" /><td className="n" /><td className="n">{won(v.totalAmount)}</td></tr>
+          <tr><td className="n">{fmtAmount(v.totalAmount)}</td><td className="n" /><td className="n" /><td className="n" /><td className="n">{fmtAmount(v.totalAmount)}</td></tr>
         </tbody>
       </table>
     </div>

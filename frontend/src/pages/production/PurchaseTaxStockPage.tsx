@@ -12,6 +12,7 @@ import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { ecConfirm } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 interface JournalLine { accountCode: string; accountName: string; debit: number; credit: number; description: string | null }
 interface Journal {
@@ -31,7 +32,6 @@ const VAT_RECEIVED = '2559'
 const SOURCES = { PURCHASE: new Set(['PURCHASE', 'SUBCONTRACT']), SALES: new Set(['SALES']) }
 /** 원본 소계 · 합계줄(2026-10-03 매출 쪽 실측): 바탕 rgb(243,243,243) · 굵게 · 앞 두 칸을 묶어 가운데. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 재고 I &gt; 생산/외주 &gt; 생산/외주현황 &gt; <b>매입(세금)계산서현황(재고)</b>(E040320, 2026-10-02 loginaa 실측).
@@ -244,9 +244,9 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
                 {/* 원본 '2026/10/26 -1' — 그날 일련번호만 붙인다. */}
                 <td className="text-center"><a className="ec-link">{dateNo(j.entryDate, j.docNo)}</a></td>
                 <td>{j.partnerName ?? ''}</td>
-                <td className="text-right">{won(s.supply)}</td>
-                <td className="text-right">{won(s.vat)}</td>
-                <td className="text-right">{won(s.total)}</td>
+                <td className="text-right">{fmtAmount(s.supply)}</td>
+                <td className="text-right">{fmtAmount(s.vat)}</td>
+                <td className="text-right">{fmtAmount(s.total)}</td>
                 <td className="text-center"><a className="ec-link" onClick={() => setDetail(j)}>내역보기</a></td>
               </tr>
             )
@@ -259,9 +259,9 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
                   <tr key={j.id}>
                     <td className="text-center">{dateText(j.entryDate)} {j.docNo}</td>
                     <td>{j.partnerName ?? ''}</td>
-                    <td className="text-right">{won(s.supply)}</td>
-                    <td className="text-right">{won(s.vat)}</td>
-                    <td className="text-right font-semibold">{won(s.total)}</td>
+                    <td className="text-right">{fmtAmount(s.supply)}</td>
+                    <td className="text-right">{fmtAmount(s.vat)}</td>
+                    <td className="text-right font-semibold">{fmtAmount(s.total)}</td>
                     <td className="text-center">
                       <button type="button" className="no-ec" onClick={() => setDetail(j)}
                               style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>내역보기</button>
@@ -271,9 +271,9 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
               }),
               <tr key={`m${m}`} style={SUB_ROW}>
                 <td colSpan={2} className="text-center">{m.replace('-', '/')} 계</td>
-                <td className="text-right">{won(sub.supply)}</td>
-                <td className="text-right">{won(sub.vat)}</td>
-                <td className="text-right">{won(sub.total)}</td>
+                <td className="text-right">{fmtAmount(sub.supply)}</td>
+                <td className="text-right">{fmtAmount(sub.vat)}</td>
+                <td className="text-right">{fmtAmount(sub.total)}</td>
                 <td></td>
               </tr>,
             ]
@@ -283,9 +283,9 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={2} className="text-center">합계</td>
-              <td className="text-right">{won(total.supply)}</td>
-              <td className="text-right">{won(total.vat)}</td>
-              <td className="text-right">{won(total.total)}</td>
+              <td className="text-right">{fmtAmount(total.supply)}</td>
+              <td className="text-right">{fmtAmount(total.vat)}</td>
+              <td className="text-right">{fmtAmount(total.total)}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -299,8 +299,8 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
               <tr key={i}>
                 <td>{l.accountCode} {l.accountName}</td>
                 <td>{l.description ?? ''}</td>
-                <td className="text-right">{Number(l.debit) ? won(l.debit) : ''}</td>
-                <td className="text-right">{Number(l.credit) ? won(l.credit) : ''}</td>
+                <td className="text-right">{Number(l.debit) ? fmtAmount(l.debit) : ''}</td>
+                <td className="text-right">{Number(l.credit) ? fmtAmount(l.credit) : ''}</td>
               </tr>
             ))}
           </tbody>

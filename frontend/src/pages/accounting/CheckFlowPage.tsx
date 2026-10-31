@@ -13,8 +13,8 @@ import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 import { CheckSortModal, SortHead, arrange, sortSetup, useHeadSort, type SortSetup } from '../../features/bankcheck/components/CheckSortSetup'
 import type { SortValue } from '../../utils/useTableSort'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 회계 II &gt; 수표관리 &gt; 수령수표 &gt; <b>수령수표증가현황</b>(E060609) · <b>수령수표감소현황</b>(E060610) — 2026-10-02 loginaa 실측.
@@ -149,7 +149,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   const showSub = !!subKey && groups.length >= minGroups
   const subLabel = (c: BankCheck) => subKey === '거래처명'
     ? `${partnerOf(c) != null && c.partnerName ? c.partnerName : `[${partnerOf(c) == null ? '' : codeOf(partnerOf(c))}]`} 계`
-    : subKey === '금액' ? `${won(Number(c.amount))} 계` : subKey === '일자-No.' ? `${dateText(dayOf(c))} ${noOf(c)} 계`
+    : subKey === '금액' ? `${fmtAmount(Number(c.amount))} 계` : subKey === '일자-No.' ? `${dateText(dayOf(c))} ${noOf(c)} 계`
     : `${subKey ? String(getters[subKey](c) ?? '') : ''} 계`
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
   const partners = useMemo(() => {
@@ -251,12 +251,12 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
                 <td>{accountOf(c)}</td>
                 <td>{kindOf(c)}</td>
                 <td>{remarkOf(c) ?? ''}</td>
-                <td className="text-right">{won(Number(c.amount))}</td>
+                <td className="text-right">{fmtAmount(Number(c.amount))}</td>
               </tr>
             )),
             ...(showSub ? [<tr key={`sub-${g.key}`} className="font-bold bg-ec-stripe">
               <td colSpan={6} className="text-center">{subLabel(g.rows[0])}</td>
-              <td className="text-right">{won(g.sum)}</td>
+              <td className="text-right">{fmtAmount(g.sum)}</td>
             </tr>] : []),
           ])}
         </tbody>
@@ -264,7 +264,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
               <td colSpan={6} className="text-center">합계</td>
-              <td className="text-right">{won(total)}</td>
+              <td className="text-right">{fmtAmount(total)}</td>
             </tr>
           </tfoot>
         )}

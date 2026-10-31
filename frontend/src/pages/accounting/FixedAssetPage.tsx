@@ -9,8 +9,8 @@ import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
   id: number
@@ -105,7 +105,7 @@ export default function FixedAssetPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       <div className="text-right mb-[8px] text-[12px] text-ec-label">
-        사용중 {inUse.length}건 · 취득가액 {won(totalCost)} · 장부가액 <b className="text-ec-navy">{won(totalBook)}</b>
+        사용중 {inUse.length}건 · 취득가액 {fmtNumber(totalCost)} · 장부가액 <b className="text-ec-navy">{fmtNumber(totalBook)}</b>
       </div>
       {/*
         화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다.
@@ -179,13 +179,13 @@ function AssetTable({ rows, onDispose, onIncrease, onEdit, onDelete, onCancelDis
             <td className="text-ec-label">{a.assetAccountName}</td>
             <td>{dateText(a.acquisitionDate)}</td>
             {/* 사용중이면 남은 취득가 · 남은 누계(감소 전표를 뺀 것), 처분됐으면 증가 합 그대로 */}
-            <td className="text-right">{won(a.status === 'DISPOSED' ? a.acquisitionCost : a.acquisitionCost - (a.decreasedCost ?? 0))}</td>
+            <td className="text-right">{fmtNumber(a.status === 'DISPOSED' ? a.acquisitionCost : a.acquisitionCost - (a.decreasedCost ?? 0))}</td>
             <td className="text-center text-ec-label">
               {a.methodName}{a.declineRate ? ` ${a.declineRate}%` : ''}
             </td>
             <td className="text-center">{a.usefulLifeYears}년</td>
-            <td className="text-right text-ec-danger">{won(a.status === 'DISPOSED' ? a.accumulatedDepreciation : a.accumulatedDepreciation - (a.decreasedAccum ?? 0))}</td>
-            <td className="text-right font-bold">{won(a.bookValue)}</td>
+            <td className="text-right text-ec-danger">{fmtNumber(a.status === 'DISPOSED' ? a.accumulatedDepreciation : a.accumulatedDepreciation - (a.decreasedAccum ?? 0))}</td>
+            <td className="text-right font-bold">{fmtNumber(a.bookValue)}</td>
             <td style={{ textAlign: 'center', color: a.status === 'IN_USE' ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
               {a.statusName}{a.status === 'DISPOSED' && a.disposalDate ? ` (${a.disposalDate})` : ''}
             </td>
@@ -361,7 +361,7 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
           </Field>
         )}
         <div className="text-[12.5px] pb-[5px] text-ec-navy font-bold">
-          월 상각액 ≈ {won(monthly)}
+          월 상각액 ≈ {fmtNumber(monthly)}
         </div>
         <Field label="수량관리">
           <span className="flex gap-[8px] items-center h-[26px]">
@@ -437,7 +437,7 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
         })
       }
       onSaved(gain === 0 ? '처분했습니다(처분손익 없음).'
-        : gain > 0 ? `처분했습니다. 처분이익 ${won(gain)}원` : `처분했습니다. 처분손실 ${won(-gain)}원`)
+        : gain > 0 ? `처분했습니다. 처분이익 ${fmtNumber(gain)}원` : `처분했습니다. 처분손실 ${fmtNumber(-gain)}원`)
     } catch (err) {
       onError(extractErrorMessage(err))
     }
@@ -463,12 +463,12 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
           </Field>
         </>}
         <Field label="취득원가">
-          <input className="ec-input w-[120px] text-right" name="acquisitionCost" value={won(cost)} disabled />
+          <input className="ec-input w-[120px] text-right" name="acquisitionCost" value={fmtNumber(cost)} disabled />
         </Field>
         <Field label="감가상각누계액">
           {partial
             ? <input className="ec-input w-[120px] text-right" name="accumulatedDepreciation" type="number" step="any" value={accumText} onChange={(e) => setAccumText(e.target.value)} />
-            : <input className="ec-input w-[120px] text-right" name="accumulatedDepreciation" value={won(asset.accumulatedDepreciation)} disabled />}
+            : <input className="ec-input w-[120px] text-right" name="accumulatedDepreciation" value={fmtNumber(asset.accumulatedDepreciation)} disabled />}
         </Field>
         <Field label="공급가액(매각액)">
           <input className="ec-input w-[120px] text-right" name="disposalAmount" type="number" step="any" value={type === 'SCRAP' ? '0' : amount}
@@ -482,7 +482,7 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
           <input className="ec-input w-[100px] text-right" name="disposalFee" type="number" step="any" value={feeText} onChange={(e) => setFeeText(e.target.value)} />
         </Field>
         <Field label="처분이익또는처분손실">
-          <input className="ec-input w-[130px] text-right" name="gain" value={won(gain)} disabled />
+          <input className="ec-input w-[130px] text-right" name="gain" value={fmtNumber(gain)} disabled />
         </Field>
         <Field label="처분손익계정 *">
           <select className="ec-input w-[170px]" name="gainLossAccountId" value={gainAccount} onChange={(e) => setGainAccount(e.target.value)}>

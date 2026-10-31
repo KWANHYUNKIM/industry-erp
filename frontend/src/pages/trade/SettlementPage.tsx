@@ -9,6 +9,7 @@ import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 type SettlementType = 'RECEIPT' | 'PAYMENT'
 
@@ -26,7 +27,6 @@ interface Settlement {
   createdBy: string | null
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const METHODS = ['현금', '계좌이체', '어음', '카드']
 
 export default function SettlementPage() {
@@ -100,7 +100,7 @@ export default function SettlementPage() {
         projectId: projectId ? Number(projectId) : null,
         note: note || undefined,
       })
-      setOk(`${res.data.docNo} 저장 완료 · ${res.data.typeName} ${won(res.data.amount)}원`)
+      setOk(`${res.data.docNo} 저장 완료 · ${res.data.typeName} ${fmtNumber(res.data.amount)}원`)
       setAmount(''); setNote(''); setProjectId('')
       load()
     } catch (err) {
@@ -115,7 +115,7 @@ export default function SettlementPage() {
    * 잔액에 그대로 반영되므로 오타 하나가 잔액을 영구히 틀리게 만든다.
    */
   async function remove(r: Settlement) {
-    if (!(await ecConfirm(`${r.docNo} (${r.typeName} ${won(r.amount)}원) 전표를 삭제할까요?
+    if (!(await ecConfirm(`${r.docNo} (${r.typeName} ${fmtNumber(r.amount)}원) 전표를 삭제할까요?
 거래처 잔액에서 이 금액이 빠집니다.`))) return
     try { await api.delete(`/settlements/${r.id}`); load() }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
@@ -162,10 +162,10 @@ export default function SettlementPage() {
               <input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={amount} onChange={(e) => setAmount(e.target.value)} />
               {open != null && (
                 <div style={{ marginTop: 3, fontSize: 11.5, color: over ? '#b45309' : 'var(--ec-text-hint)' }}>
-                  {type === 'RECEIPT' ? '받을 돈(채권)' : '줄 돈(채무)'} {won(open)}원
-                  {over && ` — ${won(Number(amount) - Math.max(open, 0))}원 넘습니다(${type === 'RECEIPT' ? '선수금' : '선급금'}으로 남음)`}
+                  {type === 'RECEIPT' ? '받을 돈(채권)' : '줄 돈(채무)'} {fmtNumber(open)}원
+                  {over && ` — ${fmtNumber(Number(amount) - Math.max(open, 0))}원 넘습니다(${type === 'RECEIPT' ? '선수금' : '선급금'}으로 남음)`}
                   {open < 0 && ` — ${type === 'RECEIPT' ? '받을 돈이 음수 = 돌려줄 돈입니다. 환불은 금액을 음수로' : '줄 돈이 음수 = 돌려받을 돈입니다. 환급은 금액을 음수로'}`}
-                  {Number(amount) < 0 && ` · ${type === 'RECEIPT' ? '환불' : '환급'} ${won(-Number(amount))}원`}
+                  {Number(amount) < 0 && ` · ${type === 'RECEIPT' ? '환불' : '환급'} ${fmtNumber(-Number(amount))}원`}
                 </div>
               )}
             </div>
@@ -222,7 +222,7 @@ export default function SettlementPage() {
                 <td><span style={{ color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401', fontWeight: 700 }}>{r.typeName}</span></td>
                 <td>{r.partnerName}</td>
                 <td>{r.method ?? ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401' }}>{won(r.amount)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401' }}>{fmtNumber(r.amount)}</td>
                 <td>{r.note ?? ''}</td>
                 <td className="text-center">
                   <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => remove(r)}>삭제</button>

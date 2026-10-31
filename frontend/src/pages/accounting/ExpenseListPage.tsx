@@ -14,8 +14,8 @@ import NumCheck from '../../components/NumCheck'
 import { ecConfirm } from '../../components/EcDialog'
 import type { EmployeeMaster } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 type Expense = ExpenseRow
 /** 비용코드로 넣은 전표는 비용명 · 비용그룹명 · 사원(2026-10-20 비용내역입력 E060812), 옛 지출은 계정 · 계정 세부분류 · 작성자. */
@@ -230,7 +230,7 @@ export default function ExpenseListPage() {
               <td>{groupName(r)}</td>
               <td>{more(itemName(r), g)}</td>
               <td>{more(userName(r), g)}</td>
-              <td className="text-right">{won(g.reduce((s, x) => s + Number(x.amount), 0))}</td>
+              <td className="text-right">{fmtAmount(g.reduce((s, x) => s + Number(x.amount), 0))}</td>
               {/* 원본(2026-10-21 다시 잼): 가지급금정산서로 반영하면 주황 ✓ 링크(fa-check text-warning). 옛 지출은 저장 즉시 분개라 확인(회계). */}
               <td className="text-center">{!r.expenseItemId ? '확인(회계)' : g.some((x) => x.settledJournalId != null)
                 ? <button type="button" className="ec-link text-ec-warn" aria-label={`${slipNo(r)} 회계전표번호보기`} onClick={() => void openJournalNo(g)}>✓</button> : ''}</td>

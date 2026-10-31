@@ -14,6 +14,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 재고 II > 계획관리 > 매출계획 / 매출계획비교표 (이카운트 E040624·E040625·E040626·E040640)
@@ -68,7 +69,6 @@ interface ComparisonRow {
   createdAt: string | null
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const rateColor = (r: number) => (r >= 100 ? 'var(--ec-success)' : r >= 80 ? 'var(--ec-warn)' : 'var(--ec-danger)')
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
@@ -328,9 +328,9 @@ export default function SalesPlanPage() {
         <b className="text-[15px] text-ec-text min-w-[54px] text-center">{year}년</b>
         <button className="ec-btn" onClick={() => setYear((y) => y + 1)}>▶</button>
         <div className="ml-auto text-[12.5px] text-ec-label">
-          계획 <b className="text-ec-text text-[14px]">{won(totals.plan)}</b>
+          계획 <b className="text-ec-text text-[14px]">{fmtNumber(totals.plan)}</b>
           <span className="my-0 mx-[8px] text-ec-off">|</span>
-          실적 <b style={{ color: '#1c6b32', fontSize: 14 }}>{won(totals.actual)}</b>
+          실적 <b style={{ color: '#1c6b32', fontSize: 14 }}>{fmtNumber(totals.actual)}</b>
           <span className="my-0 mx-[8px] text-ec-off">|</span>
           달성률 <b style={{ color: rateColor(totals.rate), fontSize: 14 }}>{totals.rate.toFixed(1)}%</b>
         </div>
@@ -522,9 +522,9 @@ export default function SalesPlanPage() {
                     <td>{g.label}</td>
                     <td className="text-right">{g.count}</td>
                     {withQty && <td className="text-right">{g.sums.planQty.toLocaleString()}</td>}
-                    <td className="text-right">{won(g.sums.plan)}</td>
+                    <td className="text-right">{fmtNumber(g.sums.plan)}</td>
                     {withQty && <td className="text-right">{g.sums.actualQty.toLocaleString()}</td>}
-                    <td className="text-right">{won(g.sums.actual)}</td>
+                    <td className="text-right">{fmtNumber(g.sums.actual)}</td>
                     {withRate && (
                       <td className="text-right">
                         {g.sums.plan > 0 ? (g.sums.actual / g.sums.plan * 100).toFixed(1) : '0.0'}%
@@ -595,11 +595,11 @@ export default function SalesPlanPage() {
               <td className="text-ec-label">{named(r.warehouseName, r.warehouseCode)}</td>
               <td className="text-ec-label">{named(r.projectName, r.projectCode)}</td>
               <td>{named(r.itemName, r.itemCode)} <span className="text-ec-hint text-[11px]">{r.unit}</span></td>
-              {withQty && <td className="text-right">{won(r.planQty)}</td>}
-              {withQty && <td className="text-right">{won(r.unitPrice)}</td>}
-              <td className="text-right">{won(r.planAmount)}</td>
-              {withQty && <td className="text-right text-ec-label">{won(r.actualQty)}</td>}
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{won(r.actualAmount)}</td>
+              {withQty && <td className="text-right">{fmtNumber(r.planQty)}</td>}
+              {withQty && <td className="text-right">{fmtNumber(r.unitPrice)}</td>}
+              <td className="text-right">{fmtNumber(r.planAmount)}</td>
+              {withQty && <td className="text-right text-ec-label">{fmtNumber(r.actualQty)}</td>}
+              <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{fmtNumber(r.actualAmount)}</td>
               {withRate && <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.achieveRate) }}>{r.achieveRate.toFixed(1)}%</td>}
               <td className="text-center">
                 <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(r.id)}>삭제</button>
@@ -655,9 +655,9 @@ export default function SalesPlanPage() {
                     <td>{g.label}</td>
                     <td className="text-right">{g.count}</td>
                     {withQty && <td className="text-right">{g.sums.planQty.toLocaleString()}</td>}
-                    <td className="text-right">{won(g.sums.plan)}</td>
+                    <td className="text-right">{fmtNumber(g.sums.plan)}</td>
                     {withQty && <td className="text-right">{g.sums.actualQty.toLocaleString()}</td>}
-                    <td className="text-right">{won(g.sums.actual)}</td>
+                    <td className="text-right">{fmtNumber(g.sums.actual)}</td>
                     {withRate && (
                       <td className="text-right">
                         {g.sums.plan > 0 ? (g.sums.actual / g.sums.plan * 100).toFixed(1) : '0.0'}%

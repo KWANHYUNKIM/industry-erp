@@ -10,8 +10,8 @@ import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcRepor
 import Modal from '../../components/Modal'
 import { dateNo } from '../../utils/dateNo'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 소계 · 합계줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게 · 앞 네 칸(계정명 · 코드 · 이름 · 취득일자)을 묶는다. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 
@@ -182,8 +182,8 @@ export default function FixedAssetLedgerPage() {
                 <td>{a.name}</td>
                 <td className="text-center">{a.acquisitionDate.replace(/-/g, '/')}</td>
                 <td className="text-right">{a.quantityManaged ? qtyText(Number(a.quantity)) : ''}</td>
-                <td className="text-right">{won(Number(a.acquisitionCost))}</td>
-                <td className="text-right">{won(accumOf.get(a.id) ?? 0)}</td>
+                <td className="text-right">{fmtAmountBlank(Number(a.acquisitionCost))}</td>
+                <td className="text-right">{fmtAmountBlank(accumOf.get(a.id) ?? 0)}</td>
                 <td>{a.remark ?? ''}</td>
                 <td className="text-center">{stateOf(a)}</td>
                 <td className="text-center">계산</td>
@@ -193,8 +193,8 @@ export default function FixedAssetLedgerPage() {
             <tr key={`sub-${g.name}`} style={SUB_ROW}>
               <td colSpan={4}>{g.name} 계</td>
               <td className="text-right">{g.qty ? qtyText(g.qty) : ''}</td>
-              <td className="text-right">{won(g.cost)}</td>
-              <td className="text-right">{won(g.accum)}</td>
+              <td className="text-right">{fmtAmountBlank(g.cost)}</td>
+              <td className="text-right">{fmtAmountBlank(g.accum)}</td>
               <td></td><td></td><td></td><td></td>
             </tr>,
           ])}
@@ -204,8 +204,8 @@ export default function FixedAssetLedgerPage() {
             <tr style={SUB_ROW}>
               <td colSpan={4}>합계</td>
               <td className="text-right">{total.qty ? qtyText(total.qty) : ''}</td>
-              <td className="text-right">{won(total.cost)}</td>
-              <td className="text-right">{won(total.accum)}</td>
+              <td className="text-right">{fmtAmountBlank(total.cost)}</td>
+              <td className="text-right">{fmtAmountBlank(total.accum)}</td>
               <td></td><td></td><td></td><td></td>
             </tr>
           </tfoot>
@@ -253,7 +253,7 @@ function AssetSlips({ asset, deps, onClose }: { asset: Asset; deps: Dep[]; onClo
               <td>{dateNo(r.date, r.no)}</td><td>{r.type}</td><td className="text-right">{r.qty}</td>
               <td className="text-right">{Math.round(r.cost).toLocaleString('ko-KR')}</td>
               <td className="text-right">{Math.round(r.accum).toLocaleString('ko-KR')}</td>
-              <td className="text-right">{r.sold === null ? '' : won(r.sold)}</td>
+              <td className="text-right">{r.sold === null ? '' : fmtAmountBlank(r.sold)}</td>
             </tr>
           ))}
         </tbody>

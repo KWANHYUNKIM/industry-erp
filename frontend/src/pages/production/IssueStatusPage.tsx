@@ -14,6 +14,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 생산관리 > 생산불출현황 — 자재 불출을 기간·조건으로 본다 (/api/material-issues).
@@ -77,7 +78,6 @@ interface MaterialIssue {
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 export default function IssueStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -513,7 +513,7 @@ export default function IssueStatusPage() {
         return (
           <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
-            수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {won(pa)} → {won(ca)}{pct(ca, pa)}
+            수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {fmtAmount(pa)} → {fmtAmount(ca)}{pct(ca, pa)}
           </div>
         )
       })()}
@@ -590,7 +590,7 @@ export default function IssueStatusPage() {
                 <td className="text-right text-ec-hint">{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
                 {ratio && <td className="text-right text-ec-label">{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
-                <td className="text-right">{won(g.supply)}</td>
+                <td className="text-right">{fmtAmount(g.supply)}</td>
               </tr>
             ))}
           </tbody>
@@ -600,7 +600,7 @@ export default function IssueStatusPage() {
               <td className="text-right">{num(shown.length)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
               {ratio && <td className="text-right">100.0</td>}
-              <td className="text-right">{won(aggRows.reduce((n, g) => n + g.supply, 0))}</td>
+              <td className="text-right">{fmtAmount(aggRows.reduce((n, g) => n + g.supply, 0))}</td>
             </tr>
           </tfoot>
         </table>
@@ -683,7 +683,7 @@ export default function IssueStatusPage() {
                 <td style={{ color: r.toWarehouseName ? undefined : 'var(--ec-text-off)' }}>{r.toWarehouseName ?? ''}</td>
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
-                <td className="text-right">{(() => { const a = 'slipAmount' in r ? (r as { slipAmount: number | null }).slipAmount : amountOf(r); return a == null ? '' : won(a) })()}</td>
+                <td className="text-right">{(() => { const a = 'slipAmount' in r ? (r as { slipAmount: number | null }).slipAmount : amountOf(r); return a == null ? '' : fmtAmount(a) })()}</td>
                 <td style={{ color: r.note ? undefined : 'var(--ec-text-off)' }}>{r.note ?? ''}</td>
                 <td className="text-ec-label">{r.workOrderNo}</td>
               </tr>
@@ -693,7 +693,7 @@ export default function IssueStatusPage() {
             <tr className="font-bold bg-ec-page">
               <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
-              <td className="text-right">{won(shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0))}</td>
+              <td className="text-right">{fmtAmount(shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0))}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>

@@ -8,6 +8,7 @@ import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcRep
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /** 서버 한 줄 — [표시조건1 · 2] 로 묶은 칸과 예상매출(계획) · 매출(판매 공급가액). */
 interface Row {
@@ -20,7 +21,6 @@ const AXES = [
   { v: '', label: '없음' }, { v: 'EMPLOYEE', label: '담당자' }, { v: 'WAREHOUSE', label: '창고' },
   { v: 'ITEM', label: '품목명' }, { v: 'PARTNER', label: '거래처' }, { v: 'PROJECT', label: '프로젝트' },
 ] as const
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /* 원본 [차이금액비율] '608536 (%)' — 매출 ÷ 예상 × 100 을 정수로. 예상이 0 이면 0. */
 const rate = (sale: number, plan: number) => `${plan ? Math.round((sale / plan) * 100) : 0} (%)`
@@ -175,9 +175,9 @@ export default function SalesPlanComparePage() {
             <tr key={i}>
               {by1 && <td>{label(r.key1Code, r.key1Name)}</td>}
               {by2 && <td>{label(r.key2Code, r.key2Name)}</td>}
-              <td className="text-right">{won(r.planAmount)}</td>
-              <td className="text-right">{won(r.saleAmount)}</td>
-              <td className="text-right">{won(r.planAmount - r.saleAmount)}</td>
+              <td className="text-right">{fmtAmount(r.planAmount)}</td>
+              <td className="text-right">{fmtAmount(r.saleAmount)}</td>
+              <td className="text-right">{fmtAmount(r.planAmount - r.saleAmount)}</td>
               {withRate && <td className="text-right">{rate(r.saleAmount, r.planAmount)}</td>}
               {withQty && <td className="text-right">{r.planQty ? qty2(r.planQty) : ''}</td>}
               {withQty && <td className="text-right">{qty2(r.saleQty)}</td>}
@@ -190,9 +190,9 @@ export default function SalesPlanComparePage() {
           <tfoot>
             <tr>
               {keyCols > 0 && <td colSpan={keyCols} className="text-center">합계</td>}
-              <td className="text-right">{won(total.planAmount)}</td>
-              <td className="text-right">{won(total.saleAmount)}</td>
-              <td className="text-right">{won(total.planAmount - total.saleAmount)}</td>
+              <td className="text-right">{fmtAmount(total.planAmount)}</td>
+              <td className="text-right">{fmtAmount(total.saleAmount)}</td>
+              <td className="text-right">{fmtAmount(total.planAmount - total.saleAmount)}</td>
               {withRate && <td></td>}
               {withQty && <td className="text-right">{total.planQty ? qty2(total.planQty) : ''}</td>}
               {withQty && <td className="text-right">{qty2(total.saleQty)}</td>}

@@ -10,8 +10,8 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
   id: number
@@ -176,7 +176,7 @@ export default function NonCashPage() {
               <td className="text-ec-blue">{t.typeName}</td>
               <td>{t.debitAccountCode} {t.debitAccountName}</td>
               <td className="text-ec-label">{t.creditAccountCode} {t.creditAccountName}</td>
-              <td className="text-right font-bold">{won(t.amount)}</td>
+              <td className="text-right font-bold">{fmtNumber(t.amount)}</td>
               <td>{t.partnerName ?? ''}</td>
               <td className="text-ec-blue">{t.journalDocNo ?? ''}</td>
               <td className="text-ec-label">{t.description ?? ''}</td>

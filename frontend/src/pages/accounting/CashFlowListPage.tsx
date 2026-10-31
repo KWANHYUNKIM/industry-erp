@@ -10,8 +10,8 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [소계] 줄은 바탕 rgb(243,243,243) · 굵게, [기초잔액] · [기말잔액]은 굵게만(2026-10-03 실측). */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const BOLD: React.CSSProperties = { fontWeight: 700 }
@@ -145,8 +145,8 @@ export default function CashFlowListPage() {
             <>
               <tr style={BOLD}>
                 <td colSpan={2} className="text-center">기초잔액</td>
-                <td className="text-right">{won(cur.open)}</td>
-                <td className="text-right">{won(prev.open)}</td>
+                <td className="text-right">{fmtAmountBlank(cur.open)}</td>
+                <td className="text-right">{fmtAmountBlank(prev.open)}</td>
               </tr>
               {(['inc', 'dec'] as const).map((k) => (
                 <Fragment key={k}>
@@ -154,21 +154,21 @@ export default function CashFlowListPage() {
                     <tr key={`${k}${name}`}>
                       <td className="text-center">{k === 'inc' ? '증가' : '감소'}</td>
                       <td>{name}</td>
-                      <td className="text-right">{won(cur[k].get(name) ?? 0)}</td>
-                      <td className="text-right">{won(prev[k].get(name) ?? 0)}</td>
+                      <td className="text-right">{fmtAmountBlank(cur[k].get(name) ?? 0)}</td>
+                      <td className="text-right">{fmtAmountBlank(prev[k].get(name) ?? 0)}</td>
                     </tr>
                   ))}
                   <tr style={SUB_ROW}>
                     <td colSpan={2} className="text-center">소계</td>
-                    <td className="text-right">{won(sum(cur[k]))}</td>
-                    <td className="text-right">{won(sum(prev[k]))}</td>
+                    <td className="text-right">{fmtAmountBlank(sum(cur[k]))}</td>
+                    <td className="text-right">{fmtAmountBlank(sum(prev[k]))}</td>
                   </tr>
                 </Fragment>
               ))}
               <tr style={BOLD}>
                 <td colSpan={2} className="text-center">기말잔액</td>
-                <td className="text-right">{won(close(cur))}</td>
-                <td className="text-right">{won(close(prev))}</td>
+                <td className="text-right">{fmtAmountBlank(close(cur))}</td>
+                <td className="text-right">{fmtAmountBlank(close(prev))}</td>
               </tr>
             </>
           )}

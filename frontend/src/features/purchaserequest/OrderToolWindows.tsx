@@ -8,8 +8,8 @@ import { dateNo } from '../../utils/dateNo'
 import { exportTableToXlsx } from '../../utils/excel'
 import { ecAlert, requireSelection } from '../../components/EcDialog'
 import type { PurchaseOrder, PurchaseOrderLine } from '../../types/api'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => new Date().toLocaleDateString('sv-SE')
 const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
 
@@ -126,10 +126,10 @@ export function PlanPickModal({ onApply, onClose }: {
               <td>{o.partnerName ?? ''}</td>
               <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
               <td className="text-right">{Number(l.quantity).toLocaleString('ko-KR')}</td>
-              <td className="text-right">{won(Number(l.unitPrice))}</td>
-              <td className="text-right">{won(Number(l.supplyAmount))}</td>
-              <td className="text-right">{won(Number(l.vatAmount))}</td>
-              <td className="text-right">{won(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
+              <td className="text-right">{fmtAmount(Number(l.unitPrice))}</td>
+              <td className="text-right">{fmtAmount(Number(l.supplyAmount))}</td>
+              <td className="text-right">{fmtAmount(Number(l.vatAmount))}</td>
+              <td className="text-right">{fmtAmount(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
               <td>{o.updatedBy ?? o.createdBy ?? ''}</td>
               <td className="text-center"></td>
               <td className="text-center">{l.planClosed ? '완료' : '진행중'}</td>

@@ -5,9 +5,9 @@ import type { ProfitSummary } from '../../types/api'
 import EcPeriodPicks from '../../components/EcPeriodPicks'
 import { periodOf } from '../../utils/periods'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /* 금액은 원 단위로 — 평균 원가 × 수량이라 소수가 붙어 '28,695,516.08 원' 처럼 찍혔다(24회차). */
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 export default function ProfitSummaryPage() {
   const [data, setData] = useState<ProfitSummary | null>(null)
@@ -46,7 +46,7 @@ export default function ProfitSummaryPage() {
         {cards.map((c) => (
           <div key={c.label} style={{ flex: 1, minWidth: 180, border: '1px solid var(--ec-border)', background: c.bg, padding: '12px 16px' }}>
             <div className="text-[12px] text-ec-label">{c.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: c.fg }}>{won(c.value)} <span className="text-[13px] font-normal">원</span></div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: c.fg }}>{fmtAmount(c.value)} <span className="text-[13px] font-normal">원</span></div>
           </div>
         ))}
       </div>

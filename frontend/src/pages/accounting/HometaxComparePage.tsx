@@ -8,6 +8,7 @@ import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface PartnerOpt { id: number; code: string; name: string; bizRegNo: string | null }
@@ -15,7 +16,6 @@ type Basis = '전체' | '일치' | '불일치'
 interface Row { key: string; taxCode: string; name: string; count: number; supply: number; vat: number }
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '이번기수', '직전기수', '직전분기', '직전반기', '종료일', '최근30일'] as const
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
 /**
  * 세무 › 부가세 › 신고전검토자료 › <b>이카운트 vs 홈택스 자료비교</b>(E010726) — 2026-10-04 loginaa 실측.
@@ -148,10 +148,10 @@ export default function HometaxComparePage() {
                   <tr key={r.key}>
                     <td className="text-ec-blue">{r.taxCode}</td><td>{r.name}</td>
                     <td className="text-right">0</td><td className="text-right">{r.count}</td>
-                    <td className="text-right">{won(r.supply)}</td><td className="text-right">{won(r.vat)}</td><td className="text-right">{won(r.supply + r.vat)}</td>
+                    <td className="text-right">{fmtAmountBlank(r.supply)}</td><td className="text-right">{fmtAmountBlank(r.vat)}</td><td className="text-right">{fmtAmountBlank(r.supply + r.vat)}</td>
                     <td className="text-right">0</td><td className="text-right"></td><td className="text-right"></td><td className="text-right"></td>
                     <td className="text-right">{r.count}</td>
-                    <td className="text-right">{won(r.supply)}</td><td className="text-right">{won(r.vat)}</td><td className="text-right">{won(r.supply + r.vat)}</td>
+                    <td className="text-right">{fmtAmountBlank(r.supply)}</td><td className="text-right">{fmtAmountBlank(r.vat)}</td><td className="text-right">{fmtAmountBlank(r.supply + r.vat)}</td>
                   </tr>
                 ))}
               </tbody>

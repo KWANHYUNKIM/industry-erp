@@ -9,8 +9,8 @@ import EcSortSubtotalModal, { emptySortSubtotal, withSubtotals, type SortSubtota
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, Payslip } from '../../types/api'
+import { fmtNumberOf } from '../../utils/format'
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 function pick(label: string) {
   const n = new Date()
@@ -91,7 +91,7 @@ export default function PayTransferStatusPage() {
       default: return ''
     }
   }
-  const sortLabel = (l: Line, key: string) => { const v = sortValue(l, key); return typeof v === 'number' ? won(v) : v }
+  const sortLabel = (l: Line, key: string) => { const v = sortValue(l, key); return typeof v === 'number' ? fmtNumberOf(v) : v }
   const out = withSubtotals(shown, sortCfg, sortValue, sortLabel)
   const sumNet = (ls: Line[]) => ls.reduce((t, { p }) => t + Number(p.netPay), 0)
 
@@ -163,18 +163,18 @@ export default function PayTransferStatusPage() {
                   <td>{o.row.e?.bankName ?? ''}</td>
                   <td>{o.row.e?.accountNo ?? ''}</td>
                   <td>{o.row.e?.accountHolder ?? ''}</td>
-                  <td className="text-right">{won(o.row.p.netPay)}</td>
+                  <td className="text-right">{fmtNumberOf(o.row.p.netPay)}</td>
                 </tr>
               ) : (
                 <tr key={`s-${o.key}`} className="ec-total">
                   <td colSpan={4} className="text-center">{o.label} 계</td>
-                  <td className="text-right">{won(sumNet(o.list))}</td>
+                  <td className="text-right">{fmtNumberOf(sumNet(o.list))}</td>
                 </tr>
               )))}
               {sortCfg.total && (
                 <tr className="ec-total">
                   <td colSpan={4} className="text-center">합계</td>
-                  <td className="text-right">{won(sumNet(shown))}</td>
+                  <td className="text-right">{fmtNumberOf(sumNet(shown))}</td>
                 </tr>
               )}
             </>

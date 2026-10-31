@@ -9,8 +9,8 @@ import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
 
 /**
@@ -62,7 +62,7 @@ export default function DailyWagePage() {
     const total = rows.filter((r) => selected.includes(r.id)).reduce((a, r) => a + r.netPay, 0)
     const via = accounts.find((a) => String(a.id) === payAccountId)
     const viaText = via ? `${via.bankName} ${via.accountNo}` : '현금'
-    if (!(await ecConfirm(`선택한 ${selected.length}건을 지급 처리할까요?\n실지급액 합계: ${won(total)}원 (${viaText})\n회계전표: 차)잡급 / 대)예수금·${via ? '예금' : '현금'}`))) return
+    if (!(await ecConfirm(`선택한 ${selected.length}건을 지급 처리할까요?\n실지급액 합계: ${fmtNumber(total)}원 (${viaText})\n회계전표: 차)잡급 / 대)예수금·${via ? '예금' : '현금'}`))) return
     try {
       await api.post('/daily-works/pay', { ids: selected, paidDate: todayYmd(), bankAccountId: via ? via.id : null })
       flash(`${selected.length}건 지급 완료`)
@@ -102,9 +102,9 @@ export default function DailyWagePage() {
 
       <div className="flex gap-[10px] mb-[10px]">
         <Box label="인원 / 출역일수" value={`${data?.headcount ?? 0}명 / ${data?.workDays ?? 0}일`} color="var(--ec-blue-dark)" bg="var(--ec-bg-page)" />
-        <Box label="일당 합계" value={`${won(data?.totalWage ?? 0)} 원`} color="var(--ec-blue)" bg="var(--ec-blue-wash)" />
-        <Box label="원천징수 (소득세+지방세)" value={`${won((data?.totalIncomeTax ?? 0) + (data?.totalLocalIncomeTax ?? 0))} 원`} color="var(--ec-danger)" bg="var(--ec-danger-bg)" />
-        <Box label="미지급 실지급액" value={`${won(data?.unpaidNetPay ?? 0)} 원`} color="#2f8401" bg="var(--ec-success-bg)" />
+        <Box label="일당 합계" value={`${fmtNumber(data?.totalWage ?? 0)} 원`} color="var(--ec-blue)" bg="var(--ec-blue-wash)" />
+        <Box label="원천징수 (소득세+지방세)" value={`${fmtNumber((data?.totalIncomeTax ?? 0) + (data?.totalLocalIncomeTax ?? 0))} 원`} color="var(--ec-danger)" bg="var(--ec-danger-bg)" />
+        <Box label="미지급 실지급액" value={`${fmtNumber(data?.unpaidNetPay ?? 0)} 원`} color="#2f8401" bg="var(--ec-success-bg)" />
       </div>
 
       <table className="w-full text-left">
@@ -143,10 +143,10 @@ export default function DailyWagePage() {
               <td className="font-semibold">{r.employeeName}</td>
               <td>{r.department || ''}</td>
               <td className="text-center">{r.workHours}h</td>
-              <td className="text-right">{won(r.dailyWage)}</td>
-              <td style={{ textAlign: 'right', color: r.incomeTax > 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{won(r.incomeTax)}</td>
-              <td style={{ textAlign: 'right', color: r.localIncomeTax > 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{won(r.localIncomeTax)}</td>
-              <td className="text-right font-bold">{won(r.netPay)}</td>
+              <td className="text-right">{fmtNumber(r.dailyWage)}</td>
+              <td style={{ textAlign: 'right', color: r.incomeTax > 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{fmtNumber(r.incomeTax)}</td>
+              <td style={{ textAlign: 'right', color: r.localIncomeTax > 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{fmtNumber(r.localIncomeTax)}</td>
+              <td className="text-right font-bold">{fmtNumber(r.netPay)}</td>
               <td className="text-center">
                 {r.paid
                   ? <span style={{ color: 'var(--ec-success)' }} title={r.journalNo ? `회계전표 ${r.journalNo}` : undefined}>지급 {r.paidDate}{r.journalNo ? ` · ${r.journalNo}` : ''}</span>
@@ -162,10 +162,10 @@ export default function DailyWagePage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={6} className="border border-ec-line border-solid py-[5px] px-[8px]">합계 ({data?.workDays}일)</td>
-              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{won(data?.totalWage ?? 0)}</td>
-              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-danger">{won(data?.totalIncomeTax ?? 0)}</td>
-              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-danger">{won(data?.totalLocalIncomeTax ?? 0)}</td>
-              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{won(data?.totalNetPay ?? 0)}</td>
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{fmtNumber(data?.totalWage ?? 0)}</td>
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-danger">{fmtNumber(data?.totalIncomeTax ?? 0)}</td>
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-danger">{fmtNumber(data?.totalLocalIncomeTax ?? 0)}</td>
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{fmtNumber(data?.totalNetPay ?? 0)}</td>
               <td colSpan={2} className="border border-ec-line border-solid"></td>
             </tr>
           </tfoot>
@@ -273,16 +273,16 @@ function DailyWorkForm({ employees, onClose, onSaved }: {
 
           <div className="mt-[10px] p-[10px] bg-ec-page border border-ec-line border-solid text-[12.5px]">
             <div className="flex justify-between">
-              <span>과세대상 (일당 − 15만원)</span><span>{won(taxable)} 원</span>
+              <span>과세대상 (일당 − 15만원)</span><span>{fmtNumber(taxable)} 원</span>
             </div>
             <div className="flex justify-between text-ec-danger">
-              <span>소득세 (2.7%){incomeTax === 0 && taxable > 0 ? ' · 소액부징수' : ''}</span><span>− {won(incomeTax)} 원</span>
+              <span>소득세 (2.7%){incomeTax === 0 && taxable > 0 ? ' · 소액부징수' : ''}</span><span>− {fmtNumber(incomeTax)} 원</span>
             </div>
             <div className="flex justify-between text-ec-danger">
-              <span>지방소득세 (소득세의 10%)</span><span>− {won(localTax)} 원</span>
+              <span>지방소득세 (소득세의 10%)</span><span>− {fmtNumber(localTax)} 원</span>
             </div>
             <div className="flex justify-between font-extrabold border-t border-t-ec-line border-solid mt-[6px] pt-[6px]">
-              <span>실지급액</span><span className="text-ec-navy">{won(net)} 원</span>
+              <span>실지급액</span><span className="text-ec-navy">{fmtNumber(net)} 원</span>
             </div>
           </div>
         </div>

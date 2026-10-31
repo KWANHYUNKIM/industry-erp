@@ -12,8 +12,8 @@ import { dateNo } from '../../utils/dateNo'
 import { ecConfirm } from '../../components/EcDialog'
 import SalesPlanForm, { type SalesPlanDoc as Doc, type SalesPlanRow as PlanRow } from '../../features/salesplan/components/SalesPlanForm'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 재고 II &gt; 계획관리 &gt; 매출계획 &gt; <b>매출계획조회</b>(E040625) · <b>매출계획입력</b>(E040624) — 2026-10-04 loginaa 실측(자료가 든 판).
@@ -148,7 +148,7 @@ export default function SalesPlanListPage() {
                 <td>{h.warehouseName ?? ''}</td>
                 <td>{h.projectName ?? ''}</td>
                 <td>{h.itemName}</td>
-                <td className="text-right">{won(d.amount)}</td>
+                <td className="text-right">{fmtAmount(d.amount)}</td>
               </tr>
             )
           })}

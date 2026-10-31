@@ -7,6 +7,7 @@ import { ecConfirm } from '../../../components/EcDialog'
 import { useCondPickers } from '../../../utils/useCondPickers'
 import { useShortcut } from '../../../utils/useShortcut'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { fmtAmount } from '../../../utils/format'
 
 /** 서버 한 줄 — 같은 planNo 의 줄들이 한 전표다(매출계획조회 · 입력이 같이 쓴다). */
 export interface SalesPlanRow {
@@ -25,7 +26,6 @@ const emptyLine = (): LineForm => ({ partnerId: '', employeeId: '', itemId: '', 
 /* 원본 매출계획입력 격자는 빈 줄 셋으로 시작한다(2026-10-14 실측). */
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (v: string) => Number(v || 0)
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 매출계획 입력 폼 — 재고 II › 계획관리 › 매출계획 › <b>매출계획입력</b>(E040624) 화면과 매출계획조회(E040625)의 수정 창이 같이 쓴다.
@@ -181,7 +181,7 @@ export default function SalesPlanForm({ editing, onSaved, onClose, extraButtons,
             </tr>
           ))}
         </tbody>
-        <tfoot><tr><td colSpan={8}></td><td className="text-right">{won(total)}</td><td></td></tr></tfoot>
+        <tfoot><tr><td colSpan={8}></td><td className="text-right">{fmtAmount(total)}</td><td></td></tr></tfoot>
       </table>
       <div className="flex gap-[4px] mt-[9px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()} disabled={saving}>저장(F8)</button>

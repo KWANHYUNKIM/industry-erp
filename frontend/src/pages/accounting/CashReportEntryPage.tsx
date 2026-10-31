@@ -16,6 +16,7 @@ import SlipPrintModal from '../../features/journalprint/SlipPrintModal'
 import { journalSlipHtml, loadSlipHeader } from '../../features/journalprint/slipPrint'
 import type { BankAccountRow, FastVoucher, JournalEntry, Partner } from '../../types/api'
 import { bankPickLabel } from '../../utils/bankLabel'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 회계 I › 현금거래 › 현금예금출금 [지출결의서](E010408) · 현금예금입금 [입금보고서](E010403).
@@ -66,7 +67,6 @@ interface Line {
 
 const blank = (): Line => ({ settle: '', accountId: '', partnerId: '', amount: '', description: '', vat: null, fee: '', payee: '' })
 const START_ROWS = 3
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface Conf {
   title: string; settleHead: string; settleNameHead: string; accountHead: string; partnerHead: string; defaultAccount: string
@@ -353,7 +353,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                   <td className="pad relative">
                     {l.vat
                       ? <input className="ec-input w-full text-right border-transparent cursor-pointer" readOnly aria-label={`${i + 1}줄 금액`}
-                               value={won(Number(l.amount) || 0)} onClick={() => setVatRow(i)} />
+                               value={fmtNumber(Number(l.amount) || 0)} onClick={() => setVatRow(i)} />
                       : <EcNumInput className={`ec-input w-full text-right border-transparent focus:border-ec-line-focus${errAt(i, 'amount') ? ' outline outline-1 outline-ec-danger' : ''}`}
                                 aria-label={`${i + 1}줄 금액`} value={l.amount} onValue={(v) => setLine(i, { amount: v })} />}
                     {errAt(i, 'amount') && <ErrTip msg={errAt(i, 'amount')!} />}
@@ -387,10 +387,10 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
             <tfoot>
               <tr>
                 <td colSpan={7} />
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtNumber(total)}</td>
                 <td />
                 <td />
-                {hasFee && <td className="text-right">{fees ? won(fees) : ''}</td>}
+                {hasFee && <td className="text-right">{fees ? fmtNumber(fees) : ''}</td>}
               </tr>
             </tfoot>
           </table>

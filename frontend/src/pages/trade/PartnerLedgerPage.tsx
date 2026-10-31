@@ -16,6 +16,7 @@ import { useRequired } from '../../utils/useRequired'
 import TradeEntry from './TradeEntry'
 import { ecAlert } from '../../components/EcDialog'
 import { ymd } from '../../utils/periods'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 영업 > 거래처관리대장 — 거래처별로 <b>기간 동안의 오고 감</b>을 본다.
@@ -75,7 +76,6 @@ interface Entry {
   memo?: string
 }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 그 날의 <b>하루 전</b>. 이월은 기간 시작 <b>전날</b>까지의 잔액이다. */
 const dayBefore = (d: string) => {
@@ -398,7 +398,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
   const headline = (x: Partner) => [
     x.bizRegNo && `사업자등록번호 ${x.bizRegNo}`,
     x.ceoName && `대표자 ${x.ceoName}`,
-    `여신한도 ${won(x.creditLimit ?? 0)}`,
+    `여신한도 ${fmtAmount(x.creditLimit ?? 0)}`,
     x.phone && `전화 ${x.phone}`,
     x.email && `Email ${x.email}`,
     x.fax && `Fax ${x.fax}`,
@@ -421,7 +421,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
       : partner ? [{ partnerId: Number(partner), name: (info(Number(partner))?.name ?? ""), opening: 0, entries: [], rows: [], increase: 0, decrease: 0, closing: 0 }] : []
     if (shown.length === 0) return <table className="w-full text-left"><tbody><tr><td className="ec-empty">등록된 데이터가 없습니다.</td></tr></tbody></table>
     const dayOrMonth = group === '일별' || group === '월별'
-    const money = (n: number) => (n ? won(n) : '')
+    const money = (n: number) => (n ? fmtAmount(n) : '')
     return (
       <>
         {shown.map((p) => {
@@ -446,7 +446,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                   {(p.rows.length > 0 || p.opening !== 0) && (
                     <tr className="font-bold">
                       <td colSpan={2} className="text-center">이월잔액</td><td></td><td></td>
-                      <td className="text-right">{won(p.opening)}</td>
+                      <td className="text-right">{fmtAmount(p.opening)}</td>
                     </tr>
                   )}
                   {(dayOrMonth ? [''] : months).map((m) => {
@@ -465,15 +465,15 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                                   : <a className="cursor-pointer" onClick={() => openEntry(r.entry)}>{dateText(r.entry.date)}{r.entry.docNo ? ` ${r.entry.docNo}` : ''}</a>}</td>
                               <td>{dayOrMonth ? (group === '월별' ? '월계' : '일계')
                                 : <>{r.entry.kind.endsWith('반품') ? `${r.entry.kind} ` : ''}{r.entry.memo ?? ''}</>}</td>
-                              <td className="text-right">{r.entry.increase ? won(r.entry.increase) : ''}</td>
-                              <td className="text-right">{r.entry.decrease ? won(r.entry.decrease) : ''}</td>
-                              <td className="text-right font-bold">{won(r.balance)}</td>
+                              <td className="text-right">{r.entry.increase ? fmtAmount(r.entry.increase) : ''}</td>
+                              <td className="text-right">{r.entry.decrease ? fmtAmount(r.entry.decrease) : ''}</td>
+                              <td className="text-right font-bold">{fmtAmount(r.balance)}</td>
                             </tr>
                             {showDetail && r.entry.lines.map((l, li) => (
                               <tr key={`${r.entry.key}-${li}`}>
                                 <td></td>
-                                <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''} / {l.quantity.toLocaleString('ko-KR', { minimumFractionDigits: 2 })} * {won(l.unitPrice)}</td>
-                                <td className="text-right bg-ec-cell-negative">{won(l.supplyAmount + (l.vatAmount ?? 0))}</td>
+                                <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''} / {l.quantity.toLocaleString('ko-KR', { minimumFractionDigits: 2 })} * {fmtAmount(l.unitPrice)}</td>
+                                <td className="text-right bg-ec-cell-negative">{fmtAmount(l.supplyAmount + (l.vatAmount ?? 0))}</td>
                                 <td></td><td></td>
                               </tr>
                             ))}
@@ -495,7 +495,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                       <td colSpan={2} className="text-center">누계</td>
                       <td className="text-right">{money(p.increase)}</td>
                       <td className="text-right">{money(p.decrease)}</td>
-                      <td className="text-right">{won(p.closing)}</td>
+                      <td className="text-right">{fmtAmount(p.closing)}</td>
                     </tr>
                   )}
                 </tbody>
@@ -575,13 +575,13 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
       {!oneSided && <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         거래처 <b className="text-ec-text">{ledger.length}</b>곳
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        이월 <b>{won(totals.opening)}</b>
+        이월 <b>{fmtAmount(totals.opening)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        증가 <b className="text-ec-blue">{won(totals.increase)}</b>
+        증가 <b className="text-ec-blue">{fmtAmount(totals.increase)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        감소 <b className="text-ec-success">{won(totals.decrease)}</b>
+        감소 <b className="text-ec-success">{fmtAmount(totals.decrease)}</b>
         <span className="my-0 mx-[6px] text-ec-off">|</span>
-        잔액 <b className="text-ec-navy text-[14px]">{won(totals.closing)}</b>
+        잔액 <b className="text-ec-navy text-[14px]">{fmtAmount(totals.closing)}</b>
       </div>}
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -610,7 +610,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                 <td colSpan={4} className="text-ec-navy">{p.name}</td>
                 <td className="text-right text-ec-label">이월잔액</td>
                 <td colSpan={2}></td>
-                <td className="text-right">{won(p.opening)}</td>
+                <td className="text-right">{fmtAmount(p.opening)}</td>
               </tr>
               {/*
                 원본 거래처관리대장 I 의 머리말 실측(사본): 사업자등록번호 · 대표자 ·
@@ -649,8 +649,8 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                       <td colSpan={5} className="text-right">
                         {ym(prev!.entry.date).replace('-', '/')} 소계
                       </td>
-                      <td className="text-right">{monthSum.inc ? won(monthSum.inc) : ''}</td>
-                      <td className="text-right">{monthSum.dec ? won(monthSum.dec) : ''}</td>
+                      <td className="text-right">{monthSum.inc ? fmtAmount(monthSum.inc) : ''}</td>
+                      <td className="text-right">{monthSum.dec ? fmtAmount(monthSum.dec) : ''}</td>
                       <td></td>
                     </tr>
                   )}
@@ -672,20 +672,20 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                         : (r.entry.memo ?? '')}
                     </td>
                     <td style={{ textAlign: 'right', color: r.entry.increase ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
-                      {r.entry.increase ? won(r.entry.increase) : ''}
+                      {r.entry.increase ? fmtAmount(r.entry.increase) : ''}
                     </td>
                     <td style={{ textAlign: 'right', color: r.entry.decrease ? 'var(--ec-success)' : 'var(--ec-text-off)' }}>
-                      {r.entry.decrease ? won(r.entry.decrease) : ''}
+                      {r.entry.decrease ? fmtAmount(r.entry.decrease) : ''}
                     </td>
-                    <td className="text-right font-semibold">{won(r.balance)}</td>
+                    <td className="text-right font-semibold">{fmtAmount(r.balance)}</td>
                   </tr>
                   {showDetail && r.entry.lines.map((l, li) => (
                     <tr key={`${r.entry.key}-${li}`} style={{ color: 'var(--ec-label)', fontSize: 12 }}>
                       <td></td>
                       <td colSpan={3} className="text-right text-ec-hint">└ {l.itemCode}</td>
                       <td>{l.itemName}</td>
-                      <td className="text-right">{won(l.quantity)} × {won(l.unitPrice)}</td>
-                      <td className="text-right">{won(l.supplyAmount)}</td>
+                      <td className="text-right">{fmtAmount(l.quantity)} × {fmtAmount(l.unitPrice)}</td>
+                      <td className="text-right">{fmtAmount(l.supplyAmount)}</td>
                       <td></td>
                     </tr>
                   ))}
@@ -693,9 +693,9 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                 )})}
               <tr className="bg-ec-page font-bold">
                 <td colSpan={5} className="text-right">{p.name} 소계</td>
-                <td className="text-right text-ec-blue">{won(p.increase)}</td>
-                <td className="text-right text-ec-success">{won(p.decrease)}</td>
-                <td className="text-right text-ec-navy">{won(p.closing)}</td>
+                <td className="text-right text-ec-blue">{fmtAmount(p.increase)}</td>
+                <td className="text-right text-ec-success">{fmtAmount(p.decrease)}</td>
+                <td className="text-right text-ec-navy">{fmtAmount(p.closing)}</td>
               </tr>
             </Fragment>
           ))}
@@ -703,9 +703,9 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         <tfoot>
           <tr className="font-bold bg-ec-page">
             <td colSpan={5} className="text-right">합계 ({ledger.length}거래처)</td>
-            <td className="text-right text-ec-blue">{won(totals.increase)}</td>
-            <td className="text-right text-ec-success">{won(totals.decrease)}</td>
-            <td className="text-right text-ec-navy">{won(totals.closing)}</td>
+            <td className="text-right text-ec-blue">{fmtAmount(totals.increase)}</td>
+            <td className="text-right text-ec-success">{fmtAmount(totals.decrease)}</td>
+            <td className="text-right text-ec-navy">{fmtAmount(totals.closing)}</td>
           </tr>
         </tfoot>
       </table>}
@@ -728,7 +728,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                   </tr></thead>
                   <tbody><tr>
                     <td></td><td></td><td></td><td></td><td>{code}</td><td>{settlePopup.partnerName}</td>
-                    <td className="text-right">{won(settlePopup.decrease)}</td><td>{settlePopup.memo ?? ''}</td><td></td>
+                    <td className="text-right">{fmtAmount(settlePopup.decrease)}</td><td>{settlePopup.memo ?? ''}</td><td></td>
                   </tr></tbody>
                 </table>
                 <div className="mt-[10px]"><button type="button" className="ec-btn" onClick={() => setSettlePopup(null)}>닫기</button></div>

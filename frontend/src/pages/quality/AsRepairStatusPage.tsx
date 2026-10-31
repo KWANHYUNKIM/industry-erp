@@ -14,8 +14,8 @@ import { dateNo } from '../../utils/dateNo'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 import { ecAlert } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
 interface Repair {
   id: number; repairNo: string; repairDate: string; partnerId: number; partnerName: string
@@ -272,7 +272,7 @@ export default function AsRepairStatusPage() {
               <td>{r.repairTypeName ?? ''}</td>
               <td>{r.charge}</td>
               <td>{itemName}</td>
-              <td className="text-right">{won(amt)}</td>
+              <td className="text-right">{fmtAmountBlank(amt)}</td>
               <td>{r.content ?? ''}</td>
             </tr>
           ))}
@@ -281,7 +281,7 @@ export default function AsRepairStatusPage() {
           <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
             {/* 원본 합계 줄: 소모금액 앞 칸을 다 묶어 가운데 · 바탕 rgb(243,243,243) · 굵게(2026-10-03 실측). */}
             <td colSpan={6} className="text-center">합계</td>
-            <td className="text-right">{won(total)}</td>
+            <td className="text-right">{fmtAmountBlank(total)}</td>
             <td></td>
           </tr>
         </tfoot>

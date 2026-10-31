@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import { periodOf } from '../../../components/EcPeriodPicks'
 import Modal from '../../../components/Modal'
 import { dateText } from '../../../utils/dateText'
+import { fmtAmount } from '../../../utils/format'
 
 /** GET /sales-orders 한 건 — [주문] 창이 쓰는 것만. */
 export interface SalesOrderLite {
@@ -13,7 +14,6 @@ export interface SalesOrderLite {
 }
 /** 원본 주문서검색창의 기본 기간과 같다(전월 2일 ~ 다음 달 1일 무렵). */
 const ORDER_PERIOD = periodOf('최근30일(+1개월)')!
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 원본 툴바의 <b>[주문]</b> → 주문서검색창(조회). 탭 [전체 | 진행중 | 완료], 줄을 눌러 고르고 [적용(F8)].
@@ -76,7 +76,7 @@ export default function SalesOrderPickModal({ open, onClose, onApply }: {
                 <td>{o.employeeName ?? ''}</td>
                 <td>{o.lines[0]?.itemName ?? ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
                 <td>{dateText(o.dueDate) || ''}</td>
-                <td className="text-right">{won(Number(o.totalAmount))}</td>
+                <td className="text-right">{fmtAmount(Number(o.totalAmount))}</td>
                 <td>{o.statusName}</td>
               </tr>
             ))}

@@ -8,8 +8,8 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { pad2 } from '../../utils/periods'
+import { fmtNumberOrBlank } from '../../utils/format'
 
-const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const dot = (d: string) => d.replace(/-/g, '.')
 export type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; email?: string; address?: string; addressDetail?: string }
 
@@ -371,7 +371,7 @@ function LaborSheet({ sheet, company, address, onEdit }: { sheet: SimplePaymentS
             <th>⑧ 귀속연도</th><td>{s.payYear} 년</td>
             <th>⑨ 지급 시기</th><td colSpan={3}>[{s.period === 1 ? 'V' : ' '}]상반기(1월~6월) [{s.period === 2 ? 'V' : ' '}]하반기(7월~12월)</td>
           </tr>
-          <tr><th>⑩근로자 총 인원</th><td className="text-right">{sheet.labor.length} 명</td><th>⑪과세소득 (⑱번 합계 + ⑲번 합계)</th><td colSpan={3} className="text-right">{won(total)}</td></tr>
+          <tr><th>⑩근로자 총 인원</th><td className="text-right">{sheet.labor.length} 명</td><th>⑪과세소득 (⑱번 합계 + ⑲번 합계)</th><td colSpan={3} className="text-right">{fmtNumberOrBlank(total)}</td></tr>
         </tbody>
       </table>
       <p className="mb-[4px]">② 소득자 인적사항 및 근로소득 내용</p>
@@ -395,13 +395,13 @@ function LaborSheet({ sheet, company, address, onEdit }: { sheet: SimplePaymentS
                 <td className="text-right">
                   {/* 원본: 월별 칸은 입력칸, 사원 합계는 읽기 전용 */}
                   <input className="ec-input w-[120px] text-right" aria-label={`${r.employeeName} ${mo}월`} inputMode="numeric"
-                         value={r.monthlyPay[k] == null ? '' : won(r.monthlyPay[k])}
+                         value={r.monthlyPay[k] == null ? '' : fmtNumberOrBlank(r.monthlyPay[k])}
                          onChange={(e) => { const raw = e.target.value.replace(/[^\d-]/g, ''); onEdit(i, k, raw === '' ? null : Number(raw)) }} />
                 </td>
                 <td></td>
               </tr>
             )),
-            <tr key={`${i}-sum`}><td className="text-center">합계</td><td className="text-right">{won(r.total)}</td><td></td></tr>,
+            <tr key={`${i}-sum`}><td className="text-center">합계</td><td className="text-right">{fmtNumberOrBlank(r.total)}</td><td></td></tr>,
           ])}
         </tbody>
       </table>
@@ -436,10 +436,10 @@ export function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSh
           <tr>
             <td className="text-right">{sheet.daily.length} 명</td>
             <td className="text-right">{sheet.daily.length} 건</td>
-            <td className="text-right">{won(sum('taxable'))}</td>
+            <td className="text-right">{fmtNumberOrBlank(sum('taxable'))}</td>
             <td className="text-right">0</td>
-            <td className="text-right">{won(sum('incomeTax'))}</td>
-            <td className="text-right">{won(sum('localIncomeTax'))}</td>
+            <td className="text-right">{fmtNumberOrBlank(sum('incomeTax'))}</td>
+            <td className="text-right">{fmtNumberOrBlank(sum('localIncomeTax'))}</td>
           </tr>
         </tbody>
       </table>
@@ -465,10 +465,10 @@ export function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSh
               <td className="text-center">{pad2(s.period)}</td>
               <td className="text-right">{Number(r.days)}</td>
               <td className="text-center">{r.lastDate ? r.lastDate.slice(8) : ''}</td>
-              <td className="text-right">{won(r.taxable)}</td>
+              <td className="text-right">{fmtNumberOrBlank(r.taxable)}</td>
               <td className="text-right">0</td>
-              <td className="text-right">{won(r.incomeTax)}</td>
-              <td className="text-right">{won(r.localIncomeTax)}</td>
+              <td className="text-right">{fmtNumberOrBlank(r.incomeTax)}</td>
+              <td className="text-right">{fmtNumberOrBlank(r.localIncomeTax)}</td>
             </tr>
           ))}
         </tbody>
@@ -493,7 +493,7 @@ function PayeeSheet({ sheet, company, address, copy }: { sheet: SimplePaymentShe
       <table className="w-full ec-report ec-report-head400 mb-[12px]">
         <tbody>
           <tr><th>① 상호(법인명, 성명)</th><th>② 사업자(주민)등록번호</th><th>③ 소재지(주소)</th><th>④ 소득인원</th><th>⑤ 총 지급액({other ? '⑮' : '⑭'}번 합계)</th></tr>
-          <tr><td>{company?.name ?? ''}</td><td>{company?.bizRegNo ?? ''}</td><td>{address}</td><td className="text-right">{sheet.payees.length}</td><td className="text-right">{won(gross)}</td></tr>
+          <tr><td>{company?.name ?? ''}</td><td>{company?.bizRegNo ?? ''}</td><td>{address}</td><td className="text-right">{sheet.payees.length}</td><td className="text-right">{fmtNumberOrBlank(gross)}</td></tr>
           {/* 원본: 1~6월 · 7~12월 두 줄, 해당 월에 'O' */}
           {[0, 6].map((from) => (
             <tr key={from}>
@@ -527,12 +527,12 @@ function PayeeSheet({ sheet, company, address, copy }: { sheet: SimplePaymentShe
               <td>{r.payeeRegNo ?? ''}</td>
               <td></td>
               {other && <td className="text-right">{r.count}</td>}
-              <td className="text-right">{won(r.gross)}</td>
-              {other && <><td className="text-right">{won(r.expense)}</td><td className="text-right">{won(r.taxable)}</td></>}
+              <td className="text-right">{fmtNumberOrBlank(r.gross)}</td>
+              {other && <><td className="text-right">{fmtNumberOrBlank(r.expense)}</td><td className="text-right">{fmtNumberOrBlank(r.taxable)}</td></>}
               <td className="text-right">{r.rate}</td>
-              <td className="text-right">{won(r.incomeTax)}</td>
-              <td className="text-right">{won(r.localIncomeTax)}</td>
-              <td className="text-right">{won(Number(r.incomeTax) + Number(r.localIncomeTax))}</td>
+              <td className="text-right">{fmtNumberOrBlank(r.incomeTax)}</td>
+              <td className="text-right">{fmtNumberOrBlank(r.localIncomeTax)}</td>
+              <td className="text-right">{fmtNumberOrBlank(Number(r.incomeTax) + Number(r.localIncomeTax))}</td>
             </tr>
           ))}
           {/* 원본 서식은 소득자가 적어도 일련번호 15 줄까지 빈 줄을 그린다 */}

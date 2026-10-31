@@ -9,8 +9,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 수량관리 자산만 [수량](원본 대장과 같은 규칙) */
 const qtyOf = (a: { quantityManaged?: boolean }, m: Move) => (a.quantityManaged ? String(Number(m.quantity)) : '')
 
@@ -182,9 +182,9 @@ export default function FixedAssetSlipListPage() {
               <td className="text-center">{r.kind}</td>
               <td>{r.name}</td>
               <td className="text-right">{r.qty}</td>
-              <td className="text-right">{won(r.cost)}</td>
-              <td className="text-right">{won(r.dep)}</td>
-              <td className="text-right">{won(r.sold)}</td>
+              <td className="text-right">{fmtAmountBlank(r.cost)}</td>
+              <td className="text-right">{fmtAmountBlank(r.dep)}</td>
+              <td className="text-right">{fmtAmountBlank(r.sold)}</td>
               <td>{r.remark}</td>
             </tr>
           ))}

@@ -3,8 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { VatSummary } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 지금이 속한 과세기간 — 1기 1/1~6/30, 2기 7/1~12/31. 부가세는 이 단위로 신고한다.
@@ -35,9 +35,9 @@ export default function VatSummaryPage() {
   const Row = ({ label, supply, vat, total }: { label: string; supply: number; vat: number; total: number }) => (
     <tr>
       <td className="font-semibold">{label}</td>
-      <td className="text-right">{won(supply)}</td>
-      <td className="text-right">{won(vat)}</td>
-      <td className="text-right font-bold">{won(total)}</td>
+      <td className="text-right">{fmtNumber(supply)}</td>
+      <td className="text-right">{fmtNumber(vat)}</td>
+      <td className="text-right font-bold">{fmtNumber(total)}</td>
     </tr>
   )
 
@@ -67,14 +67,14 @@ export default function VatSummaryPage() {
           <tr>
             <td className="font-semibold">비용 (매입세액)</td>
             <td className="text-right text-ec-hint">—</td>
-            <td className="text-right">{won(d.expenseVat ?? 0)}</td>
+            <td className="text-right">{fmtNumber(d.expenseVat ?? 0)}</td>
             <td className="text-right text-ec-hint">—</td>
           </tr>
           {/* 카드 사용에 붙은 부가세 — 분개가 부가세대급금으로 잡는 매입세액이다. */}
           <tr>
             <td className="font-semibold">카드 (매입세액)</td>
             <td className="text-right text-ec-hint">—</td>
-            <td className="text-right">{won(d.cardVat ?? 0)}</td>
+            <td className="text-right">{fmtNumber(d.cardVat ?? 0)}</td>
             <td className="text-right text-ec-hint">—</td>
           </tr>
         </tbody>
@@ -86,7 +86,7 @@ export default function VatSummaryPage() {
             {refund ? '환급 예상세액 (매입세액 > 매출세액)' : '납부 예상세액 (매출세액 − 매입세액)'}
           </span>
           <span style={{ fontSize: 22, fontWeight: 800, color: refund ? '#2f8401' : '#b6791b' }}>
-            {won(Math.abs(d.vatPayable))} <span className="text-[13px] font-normal">원</span>
+            {fmtNumber(Math.abs(d.vatPayable))} <span className="text-[13px] font-normal">원</span>
           </span>
         </div>
       </div>

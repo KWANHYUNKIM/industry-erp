@@ -11,10 +11,10 @@ import TaxInvoicePaperModal from '../../features/taxvoucher/components/TaxInvoic
 import TaxVoucherForm, { PURCHASE_TYPES, SALES_TYPES, newVoucherForm, voucherFormOf,
   type PartnerOpt, type Side, type Voucher, type VoucherForm } from '../../features/taxvoucher/components/TaxVoucherForm'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '금년', '전년', '직전분기', '직전반기', '종료일'] as const
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 세무 › 부가세 › 신고전검토자료 › <b>(세금)계산서발행/수령</b>(원본 E030202) — 2026-10-12 loginaa 실측.
@@ -163,9 +163,9 @@ export default function TaxVoucherPage() {
               <td className="text-center">{r.partnerCode}</td>
               <td>{r.partnerName}</td>
               <td>{r.remark ?? ''}</td>
-              <td className="text-right">{won(r.supplyAmount)}</td>
-              <td className="text-right">{won(r.vatAmount)}</td>
-              <td className="text-right">{won(r.totalAmount)}</td>
+              <td className="text-right">{fmtAmount(r.supplyAmount)}</td>
+              <td className="text-right">{fmtAmount(r.vatAmount)}</td>
+              <td className="text-right">{fmtAmount(r.totalAmount)}</td>
               <td className="text-center">{r.side === 'SALES' && <button className="ec-link" onClick={() => setPaper(r)}>인쇄</button>}</td>
             </tr>
           ))}

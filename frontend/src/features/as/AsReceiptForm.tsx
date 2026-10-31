@@ -6,6 +6,7 @@ import type { useRequired } from '../../utils/useRequired'
 import type { Item, Partner, Warehouse } from '../../types/api'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 재고 II › A/S관리 › A/S접수 › <b>A/S접수입력</b>(E040601) 의 머리 칸 · 품목 격자.
@@ -41,7 +42,6 @@ export const blankAsDraft = (warehouseId = ''): AsReceiptDraft => ({
   scheduledDate: todayYmd(), projectId: '', title: '', symptom: '', extraNote: '',
 })
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const qtyOk = (s: string) => s.trim() !== '' && Number.isFinite(Number(s)) && Number(s) !== 0
 
 /** 필수칸 { 키: 채워졌나 } — useRequired.check 에 넘긴다. 빈 칸 [창고] · 품목코드 칸(· 고른 품목의 수량)을 한꺼번에 빨갛게 한다(원본, 글 없이 테두리만). */
@@ -200,7 +200,7 @@ export default function AsReceiptScreen({
             )
           })}
         </tbody>
-        <tfoot><tr><td colSpan={3}></td><td className="text-right">{won(totalQty)}</td><td></td></tr></tfoot>
+        <tfoot><tr><td colSpan={3}></td><td className="text-right">{fmtNumber(totalQty)}</td><td></td></tr></tfoot>
       </table>
       <EcWebUploadButton />
     </>

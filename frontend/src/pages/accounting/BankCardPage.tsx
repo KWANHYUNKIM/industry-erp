@@ -12,8 +12,8 @@ import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
   id: number
@@ -250,7 +250,7 @@ export default function BankCardPage() {
           }}>{t} ({count(t)})</button>
         ))}
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
-          사용중 계좌 잔액 합계 <b className="text-ec-navy">{won(totalBalance)}</b>
+          사용중 계좌 잔액 합계 <b className="text-ec-navy">{fmtNumber(totalBalance)}</b>
         </span>
       </div>
 
@@ -342,7 +342,7 @@ export default function BankCardPage() {
             )}
             <BankTxnTable rows={txns} onRemove={async (r) => {
               /* 이 화면에서 넣은 입출금만 지운다 — 다른 전표가 만든 것은 서버가 막고 어디서 지울지 알려 준다(QA 63회차). */
-              if (!(await ecConfirm(`${r.txnNo} ${r.deposit ? '입금' : '출금'} ${won(r.amount)}원을 지울까요? 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`))) return
+              if (!(await ecConfirm(`${r.txnNo} ${r.deposit ? '입금' : '출금'} ${fmtNumber(r.amount)}원을 지울까요? 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`))) return
               setError('')
               try { await api.delete(`/bank-cards/transactions/${r.id}`); flash(`${r.txnNo} 삭제 — 잔액을 되돌리고 회계전표도 지웠습니다.`); load() }
               catch (err) { setError(extractErrorMessage(err)) }
@@ -351,7 +351,7 @@ export default function BankCardPage() {
         )
         : <CardUsageTable rows={usages} onRemove={async (r) => {
             /* 결제 전 사용내역만 지운다 — 결제된 것은 서버가 막는다(QA 56회차). */
-            if (!(await ecConfirm(`${r.usageNo} 카드사용(${r.merchant} ${won(r.totalAmount)}원)을 지울까요? 회계전표도 지워집니다.`))) return
+            if (!(await ecConfirm(`${r.usageNo} 카드사용(${r.merchant} ${fmtNumber(r.totalAmount)}원)을 지울까요? 회계전표도 지워집니다.`))) return
             setError('')
             try { await api.delete(`/bank-cards/usages/${r.id}`); flash(`${r.usageNo} 삭제 — 회계전표도 지웠습니다.`); load() }
             catch (err) { setError(extractErrorMessage(err)) }
@@ -412,7 +412,7 @@ function BankAccountTable({ rows, onEdit, picked, onPick }: {
             <td>{r.accountNo}</td>
             <td>{r.holder ?? ''}</td>
             <td className="text-ec-label">{r.glAccountCode} {r.glAccountName}</td>
-            <td className="text-right font-bold">{won(r.balance)}</td>
+            <td className="text-right font-bold">{fmtNumber(r.balance)}</td>
             <td className="text-ec-label">{r.remark ?? ''}</td>
             {/* 안 정한 통장은 원화라 흐리게 둔다 — 지어내지 않는다. */}
             <td style={{ textAlign: 'center', color: r.currencyName ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.currencyName ?? '원화'}</td>
@@ -512,10 +512,10 @@ function BankTxnTable({ rows, onRemove }: { rows: BankTxn[]; onRemove: (r: BankT
             <td>{dateText(r.txnDate)}</td>
             <td>{r.bankName} {r.accountNo}</td>
             <td style={{ textAlign: 'center', fontWeight: 700, color: r.deposit ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.directionName}</td>
-            <td className="text-right font-semibold">{won(r.amount)}</td>
+            <td className="text-right font-semibold">{fmtNumber(r.amount)}</td>
             <td className="text-ec-label">{r.counterAccountName}</td>
             <td>{r.partnerName ?? ''}</td>
-            <td className="text-right">{won(r.balanceAfter)}</td>
+            <td className="text-right">{fmtNumber(r.balanceAfter)}</td>
             <td className="text-ec-blue">{r.journalDocNo ?? ''}</td>
             <td className="text-ec-label">{r.description ?? ''}</td>
             <td className="text-center">
@@ -559,9 +559,9 @@ function CardUsageTable({ rows, onRemove }: { rows: CardUsage[]; onRemove: (r: C
             <td>{r.cardCompany} {r.cardName}</td>
             <td className="font-semibold">{r.merchant}</td>
             <td className="text-ec-label">{r.expenseAccountName}</td>
-            <td className="text-right">{won(r.supplyAmount)}</td>
-            <td className="text-right text-ec-hint">{won(r.vatAmount)}</td>
-            <td className="text-right font-bold">{won(r.totalAmount)}</td>
+            <td className="text-right">{fmtNumber(r.supplyAmount)}</td>
+            <td className="text-right text-ec-hint">{fmtNumber(r.vatAmount)}</td>
+            <td className="text-right font-bold">{fmtNumber(r.totalAmount)}</td>
             <td className="text-ec-blue">{r.journalDocNo ?? ''}</td>
             <td className="text-center">
               <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
@@ -828,7 +828,7 @@ function BankTxnForm({ accounts, glAccounts, partners, onError, onSaved }: {
       </Field>
       <Field label="현재 잔액">
         <div className="ec-input" style={{ width: 110, textAlign: 'right', background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
-          {selected ? won(selected.balance) : '-'}
+          {selected ? fmtNumber(selected.balance) : '-'}
         </div>
       </Field>
       <Field label="구분 *">

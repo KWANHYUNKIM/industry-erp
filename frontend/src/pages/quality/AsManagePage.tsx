@@ -18,6 +18,7 @@ import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, asReceiptC
 import { ecConfirm } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 재고 II › A/S관리 › A/S접수조회(E040602) · A/S접수입력(E040601) · A/S접수수정
@@ -32,7 +33,6 @@ import { todayYmd } from '../../utils/periods'
  * </ul>
  * 부품 · 수리비는 원본처럼 A/S수리조회 [생성한 전표](판매연결전표)에서 판매로 잡는다 — 접수에는 소모부품이 없다.
  */
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /* 접수진행상태 · 입력 칸은 features/as/AsReceiptForm 에 있다(메뉴의 A/S접수입력 화면과 같이 쓴다). */
 
@@ -437,7 +437,7 @@ export default function AsManagePage() {
                     <thead><tr><th className="w-[34px]"></th><th className="w-[120px]">품목코드</th><th>품목명</th><th className="w-[80px] text-right">수량</th><th>새로운 항목 추가</th></tr></thead>
                     <tbody>
                       {r.lines.map((l) => (
-                        <tr key={l.id}><td className="text-center">{l.lineNo}</td><td>{l.itemCode}</td><td>{l.itemName}{l.itemSpec ? ` [${l.itemSpec}]` : ''}</td><td className="text-right">{won(Number(l.quantity))}</td><td>{l.note ?? ''}</td></tr>
+                        <tr key={l.id}><td className="text-center">{l.lineNo}</td><td>{l.itemCode}</td><td>{l.itemName}{l.itemSpec ? ` [${l.itemSpec}]` : ''}</td><td className="text-right">{fmtNumber(Number(l.quantity))}</td><td>{l.note ?? ''}</td></tr>
                       ))}
                     </tbody>
                   </table>

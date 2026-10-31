@@ -11,8 +11,8 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계 (n 건)] · [누계 (n 건)] 줄(2026-10-03 실측): 바탕 rgb(243,243,243)(--ec-report-stripe) · 굵게. */
 const SUB_ROW = 'font-bold bg-ec-stripe'
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -206,14 +206,14 @@ export default function VatBookPage({ embed }: { embed?: VatEmbed } = {}) {
                     <td>{r.eKind}</td>
                     <td>{r.partner}</td>
                     <td>{r.text}</td>
-                    <td className="text-right">{won(r.supply)}</td>
-                    <td className="text-right">{won(r.vat)}</td>
+                    <td className="text-right">{fmtAmountBlank(r.supply)}</td>
+                    <td className="text-right">{fmtAmountBlank(r.vat)}</td>
                   </tr>
                 ))}
                 <tr className={SUB_ROW}>
                   <td colSpan={5} className="text-center">{slash(mo)}  계 ({ms.length} 건)</td>
-                  <td className="text-right">{won(s.s)}</td>
-                  <td className="text-right">{won(s.v)}</td>
+                  <td className="text-right">{fmtAmountBlank(s.s)}</td>
+                  <td className="text-right">{fmtAmountBlank(s.v)}</td>
                 </tr>
               </Fragment>
             )
@@ -221,8 +221,8 @@ export default function VatBookPage({ embed }: { embed?: VatEmbed } = {}) {
           {rs.length > 0 && (
             <tr className={SUB_ROW}>
               <td colSpan={5} className="text-center">누계 ({rs.length} 건)</td>
-              <td className="text-right">{won(t.s)}</td>
-              <td className="text-right">{won(t.v)}</td>
+              <td className="text-right">{fmtAmountBlank(t.s)}</td>
+              <td className="text-right">{fmtAmountBlank(t.v)}</td>
             </tr>
           )}
         </tbody>
@@ -266,18 +266,18 @@ export default function VatBookPage({ embed }: { embed?: VatEmbed } = {}) {
                     <td>{r.eKind}</td>
                     <td>{r.partner}</td>
                     <td>{r.text}</td>
-                    <td className="text-right">{r.side === '매입' ? won(r.supply) : ''}</td>
-                    <td className="text-right">{r.side === '매입' ? won(r.vat) : ''}</td>
-                    <td className="text-right">{r.side === '매출' ? won(r.supply) : ''}</td>
-                    <td className="text-right">{r.side === '매출' ? won(r.vat) : ''}</td>
+                    <td className="text-right">{r.side === '매입' ? fmtAmountBlank(r.supply) : ''}</td>
+                    <td className="text-right">{r.side === '매입' ? fmtAmountBlank(r.vat) : ''}</td>
+                    <td className="text-right">{r.side === '매출' ? fmtAmountBlank(r.supply) : ''}</td>
+                    <td className="text-right">{r.side === '매출' ? fmtAmountBlank(r.vat) : ''}</td>
                   </tr>
                 ))}
                 <tr className={SUB_ROW}>
                   <td colSpan={5} className="text-center">{slash(mo)}  계 ({ms.length} 건)</td>
-                  <td className="text-right">{won(s.ps)}</td>
-                  <td className="text-right">{won(s.pv)}</td>
-                  <td className="text-right">{won(s.ss)}</td>
-                  <td className="text-right">{won(s.sv)}</td>
+                  <td className="text-right">{fmtAmountBlank(s.ps)}</td>
+                  <td className="text-right">{fmtAmountBlank(s.pv)}</td>
+                  <td className="text-right">{fmtAmountBlank(s.ss)}</td>
+                  <td className="text-right">{fmtAmountBlank(s.sv)}</td>
                 </tr>
               </Fragment>
             )
@@ -285,10 +285,10 @@ export default function VatBookPage({ embed }: { embed?: VatEmbed } = {}) {
           {rows.length > 0 && (
             <tr className={SUB_ROW}>
               <td colSpan={5} className="text-center">누계 ({rows.length} 건)</td>
-              <td className="text-right">{won(t.ps)}</td>
-              <td className="text-right">{won(t.pv)}</td>
-              <td className="text-right">{won(t.ss)}</td>
-              <td className="text-right">{won(t.sv)}</td>
+              <td className="text-right">{fmtAmountBlank(t.ps)}</td>
+              <td className="text-right">{fmtAmountBlank(t.pv)}</td>
+              <td className="text-right">{fmtAmountBlank(t.ss)}</td>
+              <td className="text-right">{fmtAmountBlank(t.sv)}</td>
             </tr>
           )}
         </tbody>
@@ -327,18 +327,18 @@ export default function VatBookPage({ embed }: { embed?: VatEmbed } = {}) {
               <td>{g.reg}</td>
               <td>{g.name}</td>
               <td className="text-right">{g.n}</td>
-              <td className="text-right">{won(g.s)}</td>
-              <td className="text-right">{won(g.v)}</td>
-              <td className="text-right">{won(g.s + g.v)}</td>
+              <td className="text-right">{fmtAmountBlank(g.s)}</td>
+              <td className="text-right">{fmtAmountBlank(g.v)}</td>
+              <td className="text-right">{fmtAmountBlank(g.s + g.v)}</td>
             </tr>
           ))}
           {gs.length > 0 && ['[사업자등록번호] 계', '누계'].map((l) => (
             <tr key={l} className={SUB_ROW}>
               <td colSpan={2} className="text-center">{l}</td>
               <td className="text-right">{t.n}</td>
-              <td className="text-right">{won(t.s)}</td>
-              <td className="text-right">{won(t.v)}</td>
-              <td className="text-right">{won(t.s + t.v)}</td>
+              <td className="text-right">{fmtAmountBlank(t.s)}</td>
+              <td className="text-right">{fmtAmountBlank(t.v)}</td>
+              <td className="text-right">{fmtAmountBlank(t.s + t.v)}</td>
             </tr>
           ))}
         </tbody>

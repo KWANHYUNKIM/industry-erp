@@ -10,8 +10,8 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import EcEmptyRow from '../../components/ui/EcEmptyRow'
 import { pad2 } from '../../utils/periods'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const BOLD: React.CSSProperties = { fontWeight: 700 }
 const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); return `${ym}-${pad2(new Date(y, m, 0).getDate())}` }
 const dayBefore = (d: string) => { const t = new Date(`${d}T00:00:00`); t.setDate(t.getDate() - 1); return `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}` }
@@ -136,8 +136,8 @@ export default function MonthlyCostPage() {
   const row = (name: string, cell: (ym?: string) => number | null, bold: boolean, key: string) => (
     <tr key={key} style={bold ? BOLD : undefined}>
       <td>{name}</td>
-      {months.map((ym) => { const v = cell(ym); return <td key={ym} className="text-right">{v == null ? '' : won(v)}</td> })}
-      <td className="text-right">{(() => { const v = cell(); return v == null ? '' : won(v) })()}</td>
+      {months.map((ym) => { const v = cell(ym); return <td key={ym} className="text-right">{v == null ? '' : fmtAmountBlank(v)}</td> })}
+      <td className="text-right">{(() => { const v = cell(); return v == null ? '' : fmtAmountBlank(v) })()}</td>
     </tr>
   )
 

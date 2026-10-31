@@ -5,8 +5,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingReturn, WithholdingStatement } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; address?: string; addressDetail?: string }
 type Line = { kind: string; attribution: string; pay: string; count: number; gross: number; tax: number }
@@ -130,9 +130,9 @@ export default function WithholdingConfirmPage() {
               <td className="text-center">{l.kind}</td>
               <td className="text-center">{dot(l.attribution)}</td>
               <td className="text-center">{dot(l.pay)}</td>
-              <td className="text-right">{won(l.count)}</td>
-              <td className="text-right">{won(l.gross)}</td>
-              <td className="text-right">{won(l.tax)}</td>
+              <td className="text-right">{fmtNumber(l.count)}</td>
+              <td className="text-right">{fmtNumber(l.gross)}</td>
+              <td className="text-right">{fmtNumber(l.tax)}</td>
               <td className="text-right"></td>
             </tr>
           ) : (

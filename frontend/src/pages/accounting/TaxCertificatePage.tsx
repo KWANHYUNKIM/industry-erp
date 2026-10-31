@@ -6,13 +6,13 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { loadVatSheet, type AccountOpt, type VatReturnRow } from './VatReturnPage'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 interface CompanyInfo {
   name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; address?: string; addressDetail?: string
 }
 interface Row { from: string; to: string; sales: number; tax: number }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 const iso = (d: Date) => `${ym(d)}-${String(d.getDate()).padStart(2, '0')}`
 const slash = (s: string) => s.replace(/-/g, '/')
@@ -134,12 +134,12 @@ export default function TaxCertificatePage() {
               ) : rows.map((r) => (
                 <tr key={r.from}>
                   <td className="text-center">{slash(r.from)}</td><td className="text-center">{slash(r.to)}</td>
-                  <td className="text-right">{won(r.sales)}</td><td className="text-center">부가가치세</td><td className="text-right">{won(r.tax)}</td>
+                  <td className="text-right">{fmtAmount(r.sales)}</td><td className="text-center">부가가치세</td><td className="text-right">{fmtAmount(r.tax)}</td>
                 </tr>
               ))}
               <tr className="ec-total">
                 <td colSpan={2} className="text-center font-bold">합 계</td>
-                <td className="text-right font-bold">{won(total.sales)}</td><td /><td className="text-right font-bold">{won(total.tax)}</td>
+                <td className="text-right font-bold">{fmtAmount(total.sales)}</td><td /><td className="text-right font-bold">{fmtAmount(total.tax)}</td>
               </tr>
             </tbody>
           </table>

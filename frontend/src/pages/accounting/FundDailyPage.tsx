@@ -11,8 +11,8 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /* 원본 [계정 계] · [합계] 줄(2026-10-03 실측): 바탕 회색 243 · 굵게 — 출력물 합계줄 토큰 --ec-report-stripe 로 그린다. */
 const slash = (d: string) => d.replace(/-/g, '/')
 /** 자금 계정 — 현금 · 당좌예금 · 보통예금(StandardAccounts). */
@@ -187,12 +187,12 @@ export default function FundDailyPage({ variant = 'daily', embed }: { variant?: 
           <td>{m.counter}</td>
           <td>{m.partner}</td>
           <td>{m.text}</td>
-          <td className="text-right">{won(m.amount)}</td>
+          <td className="text-right">{fmtAmountBlank(m.amount)}</td>
         </tr>
       ))}
       <tr className="font-bold bg-[var(--ec-report-stripe)]">
         <td colSpan={4} className="text-center">합계</td>
-        <td className="text-right">{won(ms.reduce((s, m) => s + m.amount, 0))}</td>
+        <td className="text-right">{fmtAmountBlank(ms.reduce((s, m) => s + m.amount, 0))}</td>
       </tr>
     </tbody>
   )
@@ -234,12 +234,12 @@ export default function FundDailyPage({ variant = 'daily', embed }: { variant?: 
                 <td className="text-center">{!flow && i > 0 && xfers[i - 1].date === x.date ? '' : slash(x.date)}</td>
                 <td>{x.route}</td>
                 <td>{x.text}</td>
-                <td className="text-right">{won(x.amount)}</td>
+                <td className="text-right">{fmtAmountBlank(x.amount)}</td>
               </tr>
             ))}
             <tr className="font-bold bg-[var(--ec-report-stripe)]">
               <td colSpan={3} className="text-center">합계</td>
-              <td className="text-right">{won(xfers.reduce((s, x) => s + x.amount, 0))}</td>
+              <td className="text-right">{fmtAmountBlank(xfers.reduce((s, x) => s + x.amount, 0))}</td>
             </tr>
           </tbody>
         </table>
@@ -305,27 +305,27 @@ export default function FundDailyPage({ variant = 'daily', embed }: { variant?: 
                         <tr key={b.no + b.label}>
                           <td>{bi === 0 ? f.name : ''}</td>
                           <td>{b.label}</td>
-                          <td className="text-right">{won(b.carry)}</td>
-                          <td className="text-right">{won(b.inc)}</td>
-                          <td className="text-right">{won(b.dec)}</td>
-                          <td className="text-right">{won(b.carry + b.inc - b.dec)}</td>
+                          <td className="text-right">{fmtAmountBlank(b.carry)}</td>
+                          <td className="text-right">{fmtAmountBlank(b.inc)}</td>
+                          <td className="text-right">{fmtAmountBlank(b.dec)}</td>
+                          <td className="text-right">{fmtAmountBlank(b.carry + b.inc - b.dec)}</td>
                         </tr>
                       ))}
                       <tr className="font-bold bg-[var(--ec-report-stripe)]">
                         <td colSpan={2} className="text-center">{f.name} 계</td>
-                        <td className="text-right">{won(f.carry)}</td>
-                        <td className="text-right">{won(f.inc)}</td>
-                        <td className="text-right">{won(f.dec)}</td>
-                        <td className="text-right">{won(f.carry + f.inc - f.dec)}</td>
+                        <td className="text-right">{fmtAmountBlank(f.carry)}</td>
+                        <td className="text-right">{fmtAmountBlank(f.inc)}</td>
+                        <td className="text-right">{fmtAmountBlank(f.dec)}</td>
+                        <td className="text-right">{fmtAmountBlank(f.carry + f.inc - f.dec)}</td>
                       </tr>
                     </Fragment>
                   ))}
                   <tr className="font-bold bg-[var(--ec-report-stripe)]">
                     <td colSpan={2} className="text-center">합계</td>
-                    <td className="text-right">{won(tot.carry)}</td>
-                    <td className="text-right">{won(tot.inc)}</td>
-                    <td className="text-right">{won(tot.dec)}</td>
-                    <td className="text-right">{won(tot.carry + tot.inc - tot.dec)}</td>
+                    <td className="text-right">{fmtAmountBlank(tot.carry)}</td>
+                    <td className="text-right">{fmtAmountBlank(tot.inc)}</td>
+                    <td className="text-right">{fmtAmountBlank(tot.dec)}</td>
+                    <td className="text-right">{fmtAmountBlank(tot.carry + tot.inc - tot.dec)}</td>
                   </tr>
                 </tbody>
               </table>

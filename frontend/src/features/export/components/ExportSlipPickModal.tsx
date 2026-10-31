@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import { periodOf } from '../../../components/EcPeriodPicks'
 import Modal from '../../../components/Modal'
 import { dateText } from '../../../utils/dateText'
+import { fmtAmountOf } from '../../../utils/format'
 
 /** 고른 전표의 품목 줄 — Invoice 격자에 그대로 붙는다. */
 export interface PickedLine {
@@ -24,7 +25,6 @@ interface OrderRow {
 
 /* 원본 두 창 모두 [최근30일(+1개월)] 로 열린다(2026-10-12 실측 2026/09/12 ~ 2026/11/11). */
 const PERIOD = periodOf('최근30일(+1개월)')!
-const won = (n: number) => Math.round(Number(n)).toLocaleString('ko-KR')
 const summary = (ls: SlipLine[]) => {
   if (ls.length === 0) return ''
   const first = ls[0].spec ? `${ls[0].itemName} [${ls[0].spec}]` : ls[0].itemName
@@ -133,7 +133,7 @@ export default function ExportSlipPickModal({ kind, partnerId, onClose, onApply 
                 <td className="ec-link">{slipText(s.saleDate, saleSeq.get(s.id) ?? 1)}</td>
                 <td>{s.partnerName}</td>
                 <td>{summary(s.lines)}</td>
-                <td className="text-right">{won(s.totalAmount)}</td>
+                <td className="text-right">{fmtAmountOf(s.totalAmount)}</td>
                 {/* 원본 [거래유형명] 은 부가세 유형이다('부가세율 적용'). 우리 판매는 과세 여부만 든다 — 면세 이름은 원본에서 못 재어 비운다. */}
                 <td className="text-center">{s.taxable ? '부가세율 적용' : ''}</td>
                 <td className="text-center">{s.warehouseName ?? ''}</td>
@@ -147,7 +147,7 @@ export default function ExportSlipPickModal({ kind, partnerId, onClose, onApply 
                 <td>{o.employeeName ?? ''}</td>
                 <td>{summary(o.lines)}</td>
                 <td>{dateText(o.dueDate) || ''}</td>
-                <td className="text-right">{won(o.totalAmount)}</td>
+                <td className="text-right">{fmtAmountOf(o.totalAmount)}</td>
                 <td className="text-center">{o.statusName}</td>
               </tr>
             ))}

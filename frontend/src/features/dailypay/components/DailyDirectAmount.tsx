@@ -3,6 +3,7 @@ import Modal from '../../../components/Modal'
 import EcNumInput from '../../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../../api/client'
 import { ecAlert, ecConfirm } from '../../../components/EcDialog'
+import { fmtNumberBlank } from '../../../utils/format'
 
 export interface DailyWorkerRow { id: number; code: string; name: string; department: string | null; hireDate: string | null; resignDate: string | null }
 interface Summary { workerId: number; allowanceTotal: number; deductionTotal: number }
@@ -10,7 +11,6 @@ interface Direct { workerId: number; dayAmount: number | null; memo: string | nu
 interface Ledger { id: number }
 interface Vals { amount: string; memo: string; top: string; bottom: string }
 
-const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const EMPTY: Vals = { amount: '', memo: '', top: '', bottom: '' }
 
 /**
@@ -125,8 +125,8 @@ export default function DailyDirectAmount({ ledger, onClose, onChanged }: { ledg
                     <td><a href="#" onClick={(ev) => { ev.preventDefault(); open(w) }}>{w.code}</a></td>
                     <td>{w.name}</td>
                     <td>{w.department}</td>
-                    <td className="text-right">{won(sum(w.id)?.allowanceTotal ?? 0)}</td>
-                    <td className="text-right">{won(sum(w.id)?.deductionTotal ?? 0)}</td>
+                    <td className="text-right">{fmtNumberBlank(sum(w.id)?.allowanceTotal ?? 0)}</td>
+                    <td className="text-right">{fmtNumberBlank(sum(w.id)?.deductionTotal ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>

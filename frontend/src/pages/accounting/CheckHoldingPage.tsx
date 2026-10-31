@@ -13,8 +13,8 @@ import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 import { CheckSortModal, SortHead, arrange, sortSetup, useHeadSort, type SortSetup } from '../../features/bankcheck/components/CheckSortSetup'
 import type { SortValue } from '../../utils/useTableSort'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 소계 · 합계줄 모양(2026-10-02 실측): 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 
@@ -109,7 +109,7 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
   const total = groups.reduce((a, g) => a + g.sum, 0)
   /* '계' 줄 글 — 거래처면 '이름 [코드] 계', 다른 기준이면 그 값 + ' 계'. */
   const subLabel = (c: BankCheck) => subKey === '거래처명' ? `${c.partnerName ? `${c.partnerName} ` : ''}[${codeOf(c.partnerId)}] 계`
-    : subKey === dateHead ? `${dateText(c.issueDate)} 계` : subKey === '금액' ? `${won(Number(c.amount))} 계`
+    : subKey === dateHead ? `${dateText(c.issueDate)} 계` : subKey === '금액' ? `${fmtAmount(Number(c.amount))} 계`
     : `${subKey ? String(getters[subKey](c) ?? '') : ''} 계`
   const showSub = !!subKey && groups.length > 1
   const accounts = useMemo(() => [...new Set(checks.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [checks])
@@ -183,12 +183,12 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
                 <td>{c.partnerName ?? ''}</td>
                 <td>{accountOf(c)}</td>
                 <td>{c.remark ?? ''}</td>
-                <td className="text-right">{won(Number(c.amount))}</td>
+                <td className="text-right">{fmtAmount(Number(c.amount))}</td>
               </tr>
             )),
             ...(showSub ? [<tr key={`sub-${g.key}`} style={SUB_ROW}>
               <td colSpan={5} className="text-center">{subLabel(g.rows[0])}</td>
-              <td className="text-right">{won(g.sum)}</td>
+              <td className="text-right">{fmtAmount(g.sum)}</td>
             </tr>] : []),
           ])}
         </tbody>
@@ -197,7 +197,7 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={5} className="text-center">합계</td>
-              <td className="text-right">{won(total)}</td>
+              <td className="text-right">{fmtAmount(total)}</td>
             </tr>
           </tfoot>
         )}

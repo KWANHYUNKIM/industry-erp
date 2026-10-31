@@ -10,8 +10,8 @@ import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
 import { useAuth } from '../../features/auth/AuthContext'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [월계] · [금일/전일] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const CASH = '1019'
@@ -172,43 +172,43 @@ export default function DayMonthSheetPage() {
             <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : lines.map((l) => (
             <tr key={l.code}>
-              <td className="text-right">{won(l.dCash + l.dTrans)}</td>
-              <td className="text-right">{won(l.dTrans)}</td>
-              <td className="text-right">{won(l.dCash)}</td>
+              <td className="text-right">{fmtAmountBlank(l.dCash + l.dTrans)}</td>
+              <td className="text-right">{fmtAmountBlank(l.dTrans)}</td>
+              <td className="text-right">{fmtAmountBlank(l.dCash)}</td>
               <td className="text-center">{l.name}</td>
-              <td className="text-right">{won(l.cCash)}</td>
-              <td className="text-right">{won(l.cTrans)}</td>
-              <td className="text-right">{won(l.cCash + l.cTrans)}</td>
+              <td className="text-right">{fmtAmountBlank(l.cCash)}</td>
+              <td className="text-right">{fmtAmountBlank(l.cTrans)}</td>
+              <td className="text-right">{fmtAmountBlank(l.cCash + l.cTrans)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr style={SUB_ROW}>
-            <td className="text-right">{won(sum.dCash + sum.dTrans)}</td>
-            <td className="text-right">{won(sum.dTrans)}</td>
-            <td className="text-right">{won(sum.dCash)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.dCash + sum.dTrans)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.dTrans)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.dCash)}</td>
             <td className="text-center">{mode === '월계표' ? '[월계]' : '[일계]'}</td>
-            <td className="text-right">{won(sum.cCash)}</td>
-            <td className="text-right">{won(sum.cTrans)}</td>
-            <td className="text-right">{won(sum.cCash + sum.cTrans)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.cCash)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.cTrans)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.cCash + sum.cTrans)}</td>
           </tr>
           <tr style={SUB_ROW}>
-            <td className="text-right">{won(closeCash)}</td>
+            <td className="text-right">{fmtAmountBlank(closeCash)}</td>
             <td></td>
-            <td className="text-right">{won(closeCash)}</td>
+            <td className="text-right">{fmtAmountBlank(closeCash)}</td>
             <td className="text-center">[금일/전일]</td>
-            <td className="text-right">{won(openCash)}</td>
+            <td className="text-right">{fmtAmountBlank(openCash)}</td>
             <td></td>
-            <td className="text-right">{won(openCash)}</td>
+            <td className="text-right">{fmtAmountBlank(openCash)}</td>
           </tr>
           <tr style={SUB_ROW}>
-            <td className="text-right">{won(sum.dCash + sum.dTrans + closeCash)}</td>
-            <td className="text-right">{won(sum.dTrans)}</td>
-            <td className="text-right">{won(sum.dCash + closeCash)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.dCash + sum.dTrans + closeCash)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.dTrans)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.dCash + closeCash)}</td>
             <td className="text-center">[합계]</td>
-            <td className="text-right">{won(sum.cCash + openCash)}</td>
-            <td className="text-right">{won(sum.cTrans)}</td>
-            <td className="text-right">{won(sum.cCash + sum.cTrans + openCash)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.cCash + openCash)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.cTrans)}</td>
+            <td className="text-right">{fmtAmountBlank(sum.cCash + sum.cTrans + openCash)}</td>
           </tr>
         </tfoot>
       </table>

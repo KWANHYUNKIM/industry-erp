@@ -21,6 +21,7 @@ import EcIcon from '../../components/ui/EcIcon'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import ProductionSlipWindow from '../production/ProductionSlipWindow'
 import SalesOrderEntry from './SalesOrderEntry'
+import { fmtNumber } from '../../utils/format'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 /**
@@ -59,7 +60,6 @@ interface SalesOrder {
   supplyAmount: number; vatAmount: number; totalAmount: number; remark: string | null; lines: OrderLine[]
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 서버(SalesOrderService.delete)가 막을 때 첫 줄 — 원본 '알림' 창의 첫 줄 그대로. */
 const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.'
 const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
@@ -327,7 +327,7 @@ export default function SalesOrderPage() {
               {generated.rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
-                  <td className="text-right">{won(r.quantity)}</td><td className="text-right">{won(r.remaining)}</td>
+                  <td className="text-right">{fmtNumber(r.quantity)}</td><td className="text-right">{fmtNumber(r.remaining)}</td>
                   <td>{r.slipType ?? ''}</td><td>{r.slipDate && r.slipNo ? dateNo(r.slipDate, r.slipNo) : ''}</td>
                 </tr>
               ))}
@@ -465,7 +465,7 @@ export default function SalesOrderPage() {
               {/* 원본 '코카콜라 [355ml] 외 1건' — 첫 품목에 규격을 대괄호로 붙인다. */}
               <td>{o.lines[0]?.itemName}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td>{dateText(o.dueDate) || ''}</td>
-              <td className="text-right">{won(o.totalAmount)}</td>
+              <td className="text-right">{fmtNumber(o.totalAmount)}</td>
               <td className="text-center text-ec-navy">{STATUS_LABEL[o.status]}</td>
               <td className="text-center"><a className="cursor-pointer" onClick={() => openGenerated(o)}>조회</a></td>
               <td className="text-center"><a className="cursor-pointer" onClick={() => printOrder(o)}>인쇄</a></td>

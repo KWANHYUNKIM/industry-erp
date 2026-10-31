@@ -9,6 +9,7 @@ import DailyDirectAmount, { type DailyWorkerRow } from '../../features/dailypay/
 import DailyPayBulkEdit, { type DailyPayLineRow } from '../../features/dailypay/components/DailyPayBulkEdit'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumberOf } from '../../utils/format'
 
 interface Ledger {
   id: number; payMonth: string; seq: number; name: string; paidMonth: string; payDate: string
@@ -32,7 +33,6 @@ function itemColumns(lines: Line[], kind: 'ALLOWANCE' | 'DEDUCTION') {
 interface Slot { itemId: number | null; name: string }
 const itemOf = (l: Line, id: number) => (l.items ?? []).find((i) => i.itemId === id)
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const slash = (s: string) => s.replace(/-/g, '/')
 const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); return ymd(new Date(y, m, 0)) }
 
@@ -385,11 +385,11 @@ export default function DailyPayLedgerPage() {
                            }} />
                   </td>
                 ))}
-                <td className="text-right">{Number(c.amount) ? won(c.amount) : loaded ? '0' : ''}</td>
+                <td className="text-right">{Number(c.amount) ? fmtNumberOf(c.amount) : loaded ? '0' : ''}</td>
                 {confirmItems.map((it) => it.payMethod === '변동(직접입력)' ? (
                   <td key={`${it.id}-amt`}>
                     <input className="ec-input w-full text-right" inputMode="numeric" aria-label={`${c.workerName} ${it.name} 금액`}
-                           value={cellAmt(c, it.id) != null ? won(Number(cellAmt(c, it.id))) : loaded ? '0' : ''}
+                           value={cellAmt(c, it.id) != null ? fmtNumberOf(Number(cellAmt(c, it.id))) : loaded ? '0' : ''}
                            onChange={(e) => {
                              const raw = e.target.value.replace(/[^0-9]/g, '')
                              const a = raw === '' ? null : Number(raw)
@@ -562,7 +562,7 @@ export default function DailyPayLedgerPage() {
                     <tr><td colSpan={7 + dedCols.length + (taxCol ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                   ) : view.lines.flatMap((l) => {
                     const ded = Number(l.deductionTotal ?? Number(l.incomeTax) + Number(l.localTax))
-                    const taxText = (k: number) => (k === 0 ? (Number(l.incomeTax) ? won(l.incomeTax) : '') : k === 1 ? (Number(l.localTax) ? won(l.localTax) : '') : '')
+                    const taxText = (k: number) => (k === 0 ? (Number(l.incomeTax) ? fmtNumberOf(l.incomeTax) : '') : k === 1 ? (Number(l.localTax) ? fmtNumberOf(l.localTax) : '') : '')
                     /** 수당 한 칸 = 일수 | 금액(원본 table-virtual). */
                     const pairCell = (key: string, q: string, a: ReactNode, extra?: ReactNode, title?: string) => (
                       <td key={key} className="relative text-right" title={title}>
@@ -576,11 +576,11 @@ export default function DailyPayLedgerPage() {
                     const slotCells = (sl: Slot | null, key: string) => {
                       if (!sl) return [<td key={key}></td>]
                       if (sl.itemId == null) return [pairCell(key, Number(l.days) ? String(Number(l.days)) : '',
-                        Number(l.dayPay ?? l.grossPay) || l.direct ? won(l.dayPay ?? l.grossPay) : '',
+                        Number(l.dayPay ?? l.grossPay) || l.direct ? fmtNumberOf(l.dayPay ?? l.grossPay) : '',
                         l.direct ? <i aria-hidden className="absolute left-0 top-0 border-t-[6px] border-r-[6px] border-t-ec-danger border-r-transparent" /> : undefined,
                         l.direct ? '금액직접입력' : undefined)]
                       const it = itemOf(l, sl.itemId)
-                      return [pairCell(key, it?.quantity != null ? String(Number(it.quantity)) : '', it ? won(it.amount) : '')]
+                      return [pairCell(key, it?.quantity != null ? String(Number(it.quantity)) : '', it ? fmtNumberOf(it.amount) : '')]
                     }
                     return [
                       ...slotRows.map((pair, k) => (
@@ -588,11 +588,11 @@ export default function DailyPayLedgerPage() {
                           {k === 0 && <td rowSpan={slotRows.length}>{l.workerName}</td>}
                           {k === 0 && <td rowSpan={slotRows.length + 1} className="text-center"></td>}
                           {pair.flatMap((sl, m) => slotCells(sl, String(m)))}
-                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(l.grossPay)}</td>}
+                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{fmtNumberOf(l.grossPay)}</td>}
                           {taxCol && <td className="text-right">{taxText(k)}</td>}
-                          {k === 0 && dedCols.map((c) => <td key={c.itemId} rowSpan={slotRows.length + 1} className="text-right">{itemOf(l, c.itemId) ? won(itemOf(l, c.itemId)!.amount) : ''}</td>)}
-                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{ded ? won(ded) : ''}</td>}
-                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(l.netPay)}</td>}
+                          {k === 0 && dedCols.map((c) => <td key={c.itemId} rowSpan={slotRows.length + 1} className="text-right">{itemOf(l, c.itemId) ? fmtNumberOf(itemOf(l, c.itemId)!.amount) : ''}</td>)}
+                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{ded ? fmtNumberOf(ded) : ''}</td>}
+                          {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{fmtNumberOf(l.netPay)}</td>}
                         </tr>
                       )),
                       <tr key={`${l.id}-b`}>
@@ -605,12 +605,12 @@ export default function DailyPayLedgerPage() {
                   {slotRows.map((pair, k) => (
                     <tr key={`sum-${k}`} className="font-bold">
                       {k === 0 && <td colSpan={2} rowSpan={slotRows.length + 1} className="text-center">총합계</td>}
-                      {pair.map((sl, m) => <td key={m} className="text-right">{!sl ? '' : sl.itemId == null ? won(totals.dayPay) : won(itemSum(sl.itemId, (i) => Number(i.amount)))}</td>)}
-                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(totals.gross)}</td>}
-                      {taxCol && <td className="text-right">{k === 0 && totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>}
-                      {k === 0 && dedCols.map((c) => <td key={c.itemId} rowSpan={slotRows.length + 1} className="text-right">{won(itemSum(c.itemId, (i) => Number(i.amount)))}</td>)}
-                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{totals.ded ? won(totals.ded) : ''}</td>}
-                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{won(totals.net)}</td>}
+                      {pair.map((sl, m) => <td key={m} className="text-right">{!sl ? '' : sl.itemId == null ? fmtNumberOf(totals.dayPay) : fmtNumberOf(itemSum(sl.itemId, (i) => Number(i.amount)))}</td>)}
+                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{fmtNumberOf(totals.gross)}</td>}
+                      {taxCol && <td className="text-right">{k === 0 && totals.tax + totals.local ? fmtNumberOf(totals.tax + totals.local) : ''}</td>}
+                      {k === 0 && dedCols.map((c) => <td key={c.itemId} rowSpan={slotRows.length + 1} className="text-right">{fmtNumberOf(itemSum(c.itemId, (i) => Number(i.amount)))}</td>)}
+                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{totals.ded ? fmtNumberOf(totals.ded) : ''}</td>}
+                      {k === 0 && <td rowSpan={slotRows.length + 1} className="text-right">{fmtNumberOf(totals.net)}</td>}
                     </tr>
                   ))}
                   <tr className="font-bold">

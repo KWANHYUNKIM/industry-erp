@@ -9,8 +9,8 @@ import NumCheck from '../../components/NumCheck'
 import CheckOnlyDecreaseModal from '../../features/bankcheck/components/CheckOnlyDecreaseModal'
 import CheckDepositReportModal, { type CheckDepositPick } from '../../features/bankcheck/components/CheckDepositReportModal'
 import { bankPickLabel } from '../../utils/bankLabel'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 회계 II › 수표관리 › 수령수표 › <b>수령수표입금처리</b>(E060602) — 2026-10-13 loginaa 실측.
@@ -143,10 +143,10 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
               <td>{accountName(c)}</td>
               <td>{partnerCode(c.partnerId)}</td>
               <td>{c.partnerName ?? ''}</td>
-              <td className="text-right">{won(Number(c.amount))}</td>
+              <td className="text-right">{fmtAmount(Number(c.amount))}</td>
               {/* 원본은 체크하면 잔액 전부가 들어간다 — 수표는 한 장을 통째로 입금한다(일부 감소 · 칸 입력은 아직 못 잼, 글자로 보인다). */}
               <td className="text-right cursor-pointer" aria-label={`${c.checkNo} 감소금액`} onClick={() => { if (!picked.has(c.id)) toggle(c.id, true) }}>
-                {picked.has(c.id) ? won(Number(c.amount)) : ''}
+                {picked.has(c.id) ? fmtAmount(Number(c.amount)) : ''}
               </td>
               <td>{c.remark ?? ''}</td>
               <td />
@@ -159,8 +159,8 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
             {/* 원본 합계줄은 700 · 바탕 회색 243(= --ec-report-stripe). 여백 2.7px 은 전역 합계칸 규칙(!important)이 눌러 남은 것 */}
             <tr className="font-bold [&>td]:!bg-[var(--ec-report-stripe)]">
               <td colSpan={7} className="text-center">합 계</td>
-              <td className="text-right">{won(total)}</td>
-              <td className="text-right">{pickedTotal ? won(pickedTotal) : ''}</td>
+              <td className="text-right">{fmtAmount(total)}</td>
+              <td className="text-right">{pickedTotal ? fmtAmount(pickedTotal) : ''}</td>
               <td colSpan={3} />
             </tr>
           </tfoot>

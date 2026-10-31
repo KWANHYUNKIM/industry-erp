@@ -4,8 +4,8 @@ import Modal from '../../components/Modal'
 import { shortDateNo } from '../../utils/dateNo'
 import type { PurchaseOrder } from '../../types/api'
 import { ecAlert } from '../../components/EcDialog'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const yy = (d: string | null) => (d ? `${d.slice(2, 4)}/${d.slice(5, 7)}/${d.slice(8, 10)}` : '')
 type Progress = 'UNCONFIRMED' | 'IN_PROGRESS' | 'COMPLETED'
 type Req = PurchaseOrder & { requestProgress?: Progress | null }
@@ -81,7 +81,7 @@ export default function RequestPickModal({ onApply, onClose }: {
               <td>{o.lines[0]?.itemName ?? ''}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td className="text-center">{yy(o.dueDate)}</td>
               <td className="text-right">{o.lines.reduce((a, l) => a + Number(l.quantity), 0).toLocaleString('ko-KR')}</td>
-              <td className="text-right">{won(Number(o.totalAmount))}</td>
+              <td className="text-right">{fmtAmount(Number(o.totalAmount))}</td>
               <td className="text-center">{LABEL[progressOf(o)]}</td>
             </tr>
           ))}

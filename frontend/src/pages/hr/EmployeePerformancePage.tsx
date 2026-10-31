@@ -4,8 +4,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { PerformanceSummary } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const monthStart = () => todayYmd().slice(0, 8) + '01'
 
 /**
@@ -44,8 +44,8 @@ export default function EmployeePerformancePage() {
 
       {summary && (
         <div className="flex gap-[8px] mb-[10px]">
-          <Tile label="총 매출" value={won(summary.totalSales)} strong />
-          <Tile label="총 매입" value={won(summary.totalPurchase)} />
+          <Tile label="총 매출" value={fmtAmount(summary.totalSales)} strong />
+          <Tile label="총 매입" value={fmtAmount(summary.totalPurchase)} />
           <Tile label="담당자 수" value={`${rows.filter((r) => r.employeeId !== null).length}명`} />
         </div>
       )}
@@ -78,7 +78,7 @@ export default function EmployeePerformancePage() {
                 </td>
                 <td>{r.department ?? ''}</td>
                 <td className="text-right text-ec-hint">{r.salesCount}</td>
-                <td className="text-right font-bold">{won(r.salesAmount)}</td>
+                <td className="text-right font-bold">{fmtAmount(r.salesAmount)}</td>
                 <td>
                   <div className="flex items-center gap-[6px]">
                     <div style={{ flex: 1, height: 8, background: '#eef1f4', borderRadius: 4, overflow: 'hidden' }}>
@@ -91,7 +91,7 @@ export default function EmployeePerformancePage() {
                   </div>
                 </td>
                 <td className="text-right text-ec-hint">{r.purchaseCount}</td>
-                <td className="text-right">{won(r.purchaseAmount)}</td>
+                <td className="text-right">{fmtAmount(r.purchaseAmount)}</td>
               </tr>
             )
           })}

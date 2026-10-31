@@ -13,6 +13,7 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { journalNeighbors } from '../../utils/journalNav'
 import { hasEKind } from '../../utils/vatSlip'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
 /* 원본 [부가세유형] 목록 글자 그대로(2026-10-13 loginaa 매출전표 I 실측 — 세무 (세금)계산서발행/수령과 같은 목록). */
 const SALES_TYPES = [
@@ -73,7 +74,6 @@ const blankDetail = (date: string): DetailState => ({
 })
 const num = (v: string) => Number(v) || 0
 const str = (v: number | null | undefined) => (v == null || v === 0 ? '' : String(v))
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 회계 I › 매출/매입거래 › <b>매출전표 I</b> · <b>매입전표 I</b> — 2026-10-13 loginaa 실측.
@@ -470,8 +470,8 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={6}></td>
-              <td className="text-right">{won(draftSupply)}</td>
-              <td className="text-right">{won(draftVat)}</td>
+              <td className="text-right">{fmtNumber(draftSupply)}</td>
+              <td className="text-right">{fmtNumber(draftVat)}</td>
               <td></td>
             </tr>
           </tfoot>

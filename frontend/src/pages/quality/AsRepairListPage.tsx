@@ -14,6 +14,7 @@ import { useRequired } from '../../utils/useRequired'
 import AsRepairScreen, { asRepairBody, asRepairCheck, blankRepairDraft, blankRepairLines, repairDateNo, type AsRepairDraft, type AsReqPick, type RepairFormLine, type RepairType } from '../../features/as/AsRepairForm'
 import { ecConfirm } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 /**
  * 재고 II › A/S관리 › A/S수리조회(E040606) · A/S수리입력(E040605) · 판매연결전표
@@ -29,7 +30,6 @@ import { EcDateRange } from '../../components/ui/EcDateInput'
  *       원본 판매는 거래처 없이도 저장되지만 우리 판매는 거래처가 있어야 한다(재고1 판매입력 규칙).</li>
  * </ul>
  */
-const won = (n: number) => Math.round(Number(n)).toLocaleString('ko-KR')
 const yy = (d: string | null) => (d ? `${d.slice(2, 4)}/${d.slice(5, 7)}/${d.slice(8, 10)}` : '')
 const dateNo = repairDateNo
 
@@ -286,7 +286,7 @@ export default function AsRepairListPage() {
               <td>{r.content ?? ''}</td>
               <td>{r.lines[0] ? `${r.lines[0].itemName}${r.lines[0].itemSpec ? ` [${r.lines[0].itemSpec}]` : ''}${r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}` : ''}</td>
               <td>{r.charge}</td>
-              <td className="text-right">{won(r.saleAmount)}</td>
+              <td className="text-right">{fmtAmountOf(r.saleAmount)}</td>
               <td className="text-center"><button type="button" className="ec-link" onClick={() => printRepair(r)}>인쇄</button></td>
               <td className="text-center"><button type="button" className="ec-link" onClick={() => openSales(r)}>조회</button></td>
             </tr>
@@ -315,7 +315,7 @@ export default function AsRepairListPage() {
               <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : saleFor!.sales.map((s) => (
               <tr key={s.salesId}>
-                <td>{s.docNo}</td><td className="text-center">{yy(s.saleDate)}</td><td className="text-right">{won(s.totalAmount)}</td>
+                <td>{s.docNo}</td><td className="text-center">{yy(s.saleDate)}</td><td className="text-right">{fmtAmountOf(s.totalAmount)}</td>
                 <td className="text-center"><button type="button" className="ec-link" onClick={() => removeSale(s)}>삭제</button></td>
               </tr>
             ))}

@@ -9,6 +9,7 @@ import type { Partner, Item, Warehouse } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
+import { fmtNumber } from '../../utils/format'
 
 /** 원본 판매단가일괄변경 [저장(F8)] 확인 창 글(2026-10-20 E040224 실측, 줄바꿈 그대로). */
 const BULK_SAVE_CONFIRM = '일괄수정에서는 아래의 사항을 확인바랍니다.\n\n1. 여신한도 및 기간이 체크되지 않습니다.\n'
@@ -69,7 +70,6 @@ interface PriceBulkItem {
 const MODES = ['전표단가', '품목 표준단가'] as const
 type Mode = typeof MODES[number]
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE' }) {
   const sale = trade === 'SALES'
@@ -338,7 +338,7 @@ function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
               <td className="text-right">0</td>
-              <td className="text-right">{won(r.quantity)}</td>
+              <td className="text-right">{fmtNumber(r.quantity)}</td>
               <td>{r.unit ?? ''}</td>
               {/* 원본(2026-10-20 구매단가일괄변경 실측): 고친 칸 바탕은 (246,215,215) 연분홍 — 줄이 아니라 그 칸이다. */}
               <td className="text-right" style={dirty ? { background: 'rgb(246, 215, 215)' } : undefined}>
@@ -349,13 +349,13 @@ function SlipGrid({ rows, edits, setEdits, loading, tableRef }: {
                     onChange={(e) => setEdits((prev) => ({ ...prev, [r.lineId]: e.target.value }))}
                   />
                 ) : (
-                  <span title={r.lockReason ?? undefined} className="text-ec-hint">{won(r.unitPrice)} <EcIcon name="lock" size={11} /></span>
+                  <span title={r.lockReason ?? undefined} className="text-ec-hint">{fmtNumber(r.unitPrice)} <EcIcon name="lock" size={11} /></span>
                 )}
               </td>
               {/* 저장 전 미리보기 — 서버가 부가세를 다시 배분하므로 부가세 열은 저장 뒤에 맞는다. */}
               <td className="text-right">0</td>
-              <td className="text-right">{won(Math.round(r.quantity * next))}</td>
-              <td className="text-right text-ec-hint">{won(r.vatAmount)}</td>
+              <td className="text-right">{fmtNumber(Math.round(r.quantity * next))}</td>
+              <td className="text-right text-ec-hint">{fmtNumber(r.vatAmount)}</td>
               <td>{r.managementItemName ?? ''}</td>
               <td>{r.remark ?? ''}</td>
               <td className="text-right">0</td>

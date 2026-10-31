@@ -9,6 +9,7 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 영업관리 > 현황누계표 (이카운트 E040709)
@@ -58,7 +59,6 @@ interface TransferRow {
   itemId: number; itemName: string; itemCategoryName: string | null
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 수량은 소수 둘째 자리까지('3,179.00' · 2026-10-20 실측). */
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -359,9 +359,9 @@ export default function MonthlyCumulativePage() {
                 <td className="font-bold">{g.name}</td>
                 {g.lines.map((l) => [
                   <td key={l.gubun + 'q'} className="text-right">{l.qty ? qty2(l.qty) : ''}</td>,
-                  <td key={l.gubun + 's'} className="text-right">{g.hasAmount && l.supply ? won(l.supply) : ''}</td>,
-                  <td key={l.gubun + 'v'} className="text-right">{g.hasAmount && l.vat ? won(l.vat) : ''}</td>,
-                  <td key={l.gubun + 't'} className="text-right">{g.hasAmount ? won(l.supply + l.vat) : l.stockTotal ? won(l.stockTotal) : ''}</td>,
+                  <td key={l.gubun + 's'} className="text-right">{g.hasAmount && l.supply ? fmtNumber(l.supply) : ''}</td>,
+                  <td key={l.gubun + 'v'} className="text-right">{g.hasAmount && l.vat ? fmtNumber(l.vat) : ''}</td>,
+                  <td key={l.gubun + 't'} className="text-right">{g.hasAmount ? fmtNumber(l.supply + l.vat) : l.stockTotal ? fmtNumber(l.stockTotal) : ''}</td>,
                 ])}
               </tr>
             ))}
@@ -392,10 +392,10 @@ export default function MonthlyCumulativePage() {
               <td>{l.gubun}</td>
               <td className="text-ec-label">{l.period}</td>
               <td className="text-right">{l.qty ? qty2(l.qty) : ''}</td>
-              <td className="text-right">{g.hasAmount ? (l.supply ? won(l.supply) : '') : ''}</td>
-              <td className="text-right text-ec-hint">{g.hasAmount ? (l.vat ? won(l.vat) : '') : ''}</td>
+              <td className="text-right">{g.hasAmount ? (l.supply ? fmtNumber(l.supply) : '') : ''}</td>
+              <td className="text-right text-ec-hint">{g.hasAmount ? (l.vat ? fmtNumber(l.vat) : '') : ''}</td>
               <td className="text-right font-bold text-ec-blue">
-                {g.hasAmount ? won(l.supply + l.vat) : l.stockTotal ? won(l.stockTotal) : ''}
+                {g.hasAmount ? fmtNumber(l.supply + l.vat) : l.stockTotal ? fmtNumber(l.stockTotal) : ''}
               </td>
             </tr>
           )))}

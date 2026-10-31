@@ -12,8 +12,8 @@ import { useNavigate } from 'react-router-dom'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['전체', '보유', '결제완료', '할인', '부도'] as const
 type Tab = (typeof TABS)[number]
@@ -76,7 +76,7 @@ export default function PromissoryNotePage() {
   function pickAccount(purpose: string): number | null {
     if (accounts.length === 0) { void ecAlert('등록된 계좌가 없습니다. 회계 I > 계좌/카드에서 먼저 등록하세요.'); return null }
     const picked = window.prompt(
-      `${purpose}할 계좌를 선택하세요.\n${accounts.map((a) => `${a.id}: ${a.bankName} ${a.accountNo} (잔액 ${won(a.balance)})`).join('\n')}`,
+      `${purpose}할 계좌를 선택하세요.\n${accounts.map((a) => `${a.id}: ${a.bankName} ${a.accountNo} (잔액 ${fmtNumber(a.balance)})`).join('\n')}`,
       String(accounts[0].id),
     )
     if (picked === null) return null
@@ -96,7 +96,7 @@ export default function PromissoryNotePage() {
   }
 
   async function discount(n: PromissoryNote) {
-    const feeInput = window.prompt(`${n.noteNo} 할인료(원). 어음 금액 ${won(n.amount)}`, '0')
+    const feeInput = window.prompt(`${n.noteNo} 할인료(원). 어음 금액 ${fmtNumber(n.amount)}`, '0')
     if (feeInput === null) return
     const discountFee = Number(feeInput)
     if (!Number.isFinite(discountFee) || discountFee < 0) return ecAlert('할인료를 0 이상 숫자로 입력하세요.')
@@ -110,7 +110,7 @@ export default function PromissoryNotePage() {
   }
 
   async function remove(n: PromissoryNote) {
-    if (!(await ecConfirm(`${n.noteNo} 어음(${won(n.amount)}원)을 지울까요? ${n.type === 'RECEIVABLE' ? '외상매출금' : '외상매입금'}이 되돌아가고 회계전표도 지워집니다.`))) return
+    if (!(await ecConfirm(`${n.noteNo} 어음(${fmtNumber(n.amount)}원)을 지울까요? ${n.type === 'RECEIVABLE' ? '외상매출금' : '외상매입금'}이 되돌아가고 회계전표도 지워집니다.`))) return
     try {
       await api.delete(`/notes/${n.id}`)
       flash(`${n.noteNo} 삭제 — 회계전표도 지웠습니다.`)
@@ -152,10 +152,10 @@ export default function PromissoryNotePage() {
 
       {summary && (
         <div className="flex gap-[8px] mb-[10px]">
-          <Tile label="받을어음 보유" value={won(summary.receivableHeld)} />
-          <Tile label="30일 내 만기(받을)" value={won(summary.receivableDueSoon)} />
-          <Tile label="지급어음 보유" value={won(summary.payableHeld)} />
-          <Tile label="30일 내 만기(지급)" value={won(summary.payableDueSoon)} strong />
+          <Tile label="받을어음 보유" value={fmtNumber(summary.receivableHeld)} />
+          <Tile label="30일 내 만기(받을)" value={fmtNumber(summary.receivableDueSoon)} />
+          <Tile label="지급어음 보유" value={fmtNumber(summary.payableHeld)} />
+          <Tile label="30일 내 만기(지급)" value={fmtNumber(summary.payableDueSoon)} strong />
         </div>
       )}
 
@@ -191,8 +191,8 @@ export default function PromissoryNotePage() {
               <td>{n.partnerName}</td>
               <td>{dateText(n.issueDate)}</td>
               <td style={{ color: n.status === 'HELD' && n.dueDate <= todayYmd() ? 'var(--ec-danger)' : undefined }}>{dateText(n.dueDate)}</td>
-              <td className="text-right font-bold">{won(n.amount)}</td>
-              <td className="text-right text-ec-hint">{n.discountFee ? won(n.discountFee) : ''}</td>
+              <td className="text-right font-bold">{fmtNumber(n.amount)}</td>
+              <td className="text-right text-ec-hint">{n.discountFee ? fmtNumber(n.discountFee) : ''}</td>
               <td>{n.bankName ?? ''}</td>
               <td className="text-center"><span style={{ color: statusColor(n.status) }}>{n.statusName}</span></td>
               <td className="text-center">
@@ -214,7 +214,7 @@ export default function PromissoryNotePage() {
         </tbody>
       </table>
 
-      {showForm && <NoteForm partners={partners} onClose={() => setShowForm(false)} onSaved={(n) => { setShowForm(false); setNotice(`${n.noteNo} 어음 등록 완료 · ${n.typeName} · ${n.partnerName} · ${won(n.amount)}원 — 분개 생성`); load() }} />}
+      {showForm && <NoteForm partners={partners} onClose={() => setShowForm(false)} onSaved={(n) => { setShowForm(false); setNotice(`${n.noteNo} 어음 등록 완료 · ${n.typeName} · ${n.partnerName} · ${fmtNumber(n.amount)}원 — 분개 생성`); load() }} />}
     </EcListShell>
   )
 }

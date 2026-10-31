@@ -19,6 +19,7 @@ import EcSlipPrintModal, { type SlipPrintDoc } from '../../components/EcSlipPrin
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ORDER_LIST_PICKS, SELF_USE_PICKS, periodOf } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /** 불러온 전표가 있는 구매의 [불러온전표] 주황 꼬리표(원본 실측: 바탕 --ec-tag-warn · 흰 글자 · 둥글기 6 — QuotationPage GEN_TAG 와 같다). */
 const SRC_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
@@ -80,7 +81,6 @@ const TAB_STATUS: Record<Exclude<SalesTab, '전체'>, SalesConfirmStatus> = {
   확인: 'CONFIRMED',
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 판매조회 조건 [거래유형] 창의 줄 — 원본 '거래유형(영업)검색'(2026-10-31 loginad 실측). */
 const SALES_TRADE_TYPES = [
   { value: '11', code: '11', name: '부가세율 적용' },
@@ -322,7 +322,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     const ok = (await ecConfirm(isSales
       ? '전표를 삭제하겠습니까?\n - 판매'
       : `${d.docNo} 전표를 삭제합니다.\n\n`
-        + `입고했던 재고가 되돌아갑니다 (품목 ${d.lines.length}건, 합계 ${won(d.totalAmount)}원).\n`
+        + `입고했던 재고가 되돌아갑니다 (품목 ${d.lines.length}건, 합계 ${fmtNumber(d.totalAmount)}원).\n`
         + '이 작업은 되돌릴 수 없습니다. 진행할까요?',
     ))
     if (!ok) return
@@ -544,10 +544,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       ],
       lines: d.lines.map((l) => ({
         date: md, name: l.spec ? `${l.itemName} [${l.spec}]` : l.itemName,
-        qty: `${Number(l.quantity).toLocaleString()}${l.unit ?? ''}`, unitPrice: won(Number(l.unitPrice)),
-        supply: won(Number(l.supplyAmount)), vat: won(Number(l.vatAmount)),
+        qty: `${Number(l.quantity).toLocaleString()}${l.unit ?? ''}`, unitPrice: fmtNumber(Number(l.unitPrice)),
+        supply: fmtNumber(Number(l.supplyAmount)), vat: fmtNumber(Number(l.vatAmount)),
       })),
-      totalQty: qty.toLocaleString(), supply: won(d.supplyAmount), vat: won(d.vatAmount), total: won(d.totalAmount),
+      totalQty: qty.toLocaleString(), supply: fmtNumber(d.supplyAmount), vat: fmtNumber(d.vatAmount), total: fmtNumber(d.totalAmount),
     }
   }
   /**
@@ -564,10 +564,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     return {
       key: d.id, title: '거래명세서', docNo: dateNo(d), date: d.date.replace(/-/g, '/'), right: [],
       lines: lines.map((l) => ({
-        date: md, name: l.name, qty: `${l.q.toLocaleString()}${l.unit}`, unitPrice: won(l.up), supply: won(l.sp), vat: won(l.v),
+        date: md, name: l.name, qty: `${l.q.toLocaleString()}${l.unit}`, unitPrice: fmtNumber(l.up), supply: fmtNumber(l.sp), vat: fmtNumber(l.v),
         num: { qty: l.q, supply: l.sp, vat: l.v },
       })),
-      totalQty: lines.reduce((a, l) => a + l.q, 0).toLocaleString(), supply: won(d.supplyAmount), vat: won(d.vatAmount), total: won(d.totalAmount),
+      totalQty: lines.reduce((a, l) => a + l.q, 0).toLocaleString(), supply: fmtNumber(d.supplyAmount), vat: fmtNumber(d.vatAmount), total: fmtNumber(d.totalAmount),
       statement: {
         to: { name: d.partnerName, address: p?.address ?? '', tel: p?.phone ?? '' },
         supplier: { docNo: dateNo(d), tel: company?.tel ?? '', bizRegNo: company?.bizRegNo ?? '', ceo: company?.ceo ?? '',
@@ -923,7 +923,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 <td>
                   {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
                 </td>
-                <td className="text-right">{won(d.totalAmount)}</td>
+                <td className="text-right">{fmtNumber(d.totalAmount)}</td>
                 <td className="text-center">{tradeTypeOf(d)}</td>
                 <td>{d.warehouseName}</td>
                 <td className="text-center">
@@ -985,10 +985,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                             <td>{l.itemCode}</td>
                             <td>{l.itemName}</td>
                             <td className="text-ec-label">{l.spec ?? ''}</td>
-                            <td className="text-right">{won(l.quantity)} {l.unit}</td>
-                            <td className="text-right">{won(l.unitPrice)}</td>
-                            <td className="text-right">{won(l.supplyAmount)}</td>
-                            <td className="text-right text-ec-hint">{won(l.vatAmount)}</td>
+                            <td className="text-right">{fmtNumber(l.quantity)} {l.unit}</td>
+                            <td className="text-right">{fmtNumber(l.unitPrice)}</td>
+                            <td className="text-right">{fmtNumber(l.supplyAmount)}</td>
+                            <td className="text-right text-ec-hint">{fmtNumber(l.vatAmount)}</td>
                             <td className="text-ec-label">{l.remark ?? ''}</td>
                           </tr>
                         ))}

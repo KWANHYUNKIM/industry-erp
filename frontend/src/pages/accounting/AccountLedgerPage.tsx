@@ -12,8 +12,8 @@ import type { AccountDivision, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { lineInDeptProject } from '../../utils/deptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
 /** 예금 계정 — 이 줄의 거래처명 자리는 전표의 거래처가 아니라 통장이다(원본: 기업은행-1122). 자금일보와 같은 가름. */
 const DEPOSIT_CODES = ['1029', '1039']
@@ -169,9 +169,9 @@ export default function AccountLedgerPage() {
             {withCarry && (
               <tr>
                 <td colSpan={lead} className="text-center">이월잔액</td>
-                <td className="text-right">{b.debitSide ? won(b.carry) : ''}</td>
-                <td className="text-right">{b.debitSide ? '' : won(b.carry)}</td>
-                <td className="text-right">{won(b.carry)}</td>
+                <td className="text-right">{b.debitSide ? fmtAmountBlank(b.carry) : ''}</td>
+                <td className="text-right">{b.debitSide ? '' : fmtAmountBlank(b.carry)}</td>
+                <td className="text-right">{fmtAmountBlank(b.carry)}</td>
               </tr>
             )}
             {months.map((mo) => {
@@ -188,17 +188,17 @@ export default function AccountLedgerPage() {
                         <td className={mode === '건별' ? 'text-ec-blue' : ''}>{mode === '건별' ? dateNo(r.date, r.no) : slash(g.key)}</td>
                         <td>{mode === '건별' ? r.text : mode === '일별' ? '일계' : '월계'}</td>
                         {mode === '건별' && <td>{r.partner}</td>}
-                        <td className="text-right">{won(x.d)}</td>
-                        <td className="text-right">{won(x.c)}</td>
-                        <td className="text-right">{won(bal)}</td>
+                        <td className="text-right">{fmtAmountBlank(x.d)}</td>
+                        <td className="text-right">{fmtAmountBlank(x.c)}</td>
+                        <td className="text-right">{fmtAmountBlank(bal)}</td>
                       </tr>
                     )
                   })}
                   {mode !== '월별' && (
                     <tr className="ec-total">
                       <td colSpan={lead} className="text-center">{slash(mo)} 계</td>
-                      <td className="text-right">{won(ms.d)}</td>
-                      <td className="text-right">{won(ms.c)}</td>
+                      <td className="text-right">{fmtAmountBlank(ms.d)}</td>
+                      <td className="text-right">{fmtAmountBlank(ms.c)}</td>
                       <td className="text-right"></td>
                     </tr>
                   )}
@@ -207,9 +207,9 @@ export default function AccountLedgerPage() {
             })}
             <tr className="ec-total">
               <td colSpan={lead} className="text-center">합계</td>
-              <td className="text-right">{won((b.debitSide ? b.carry : 0) + s.d)}</td>
-              <td className="text-right">{won((b.debitSide ? 0 : b.carry) + s.c)}</td>
-              <td className="text-right">{won(b.carry + step(s))}</td>
+              <td className="text-right">{fmtAmountBlank((b.debitSide ? b.carry : 0) + s.d)}</td>
+              <td className="text-right">{fmtAmountBlank((b.debitSide ? 0 : b.carry) + s.c)}</td>
+              <td className="text-right">{fmtAmountBlank(b.carry + step(s))}</td>
             </tr>
           </tbody>
         </table>
@@ -241,18 +241,18 @@ export default function AccountLedgerPage() {
             <tr key={x.b.id}>
               <td>{x.b.code}</td>
               <td>{x.b.name}</td>
-              <td className="text-right">{won(x.b.carry)}</td>
-              <td className="text-right">{won(x.d)}</td>
-              <td className="text-right">{won(x.c)}</td>
-              <td className="text-right">{won(x.bal)}</td>
+              <td className="text-right">{fmtAmountBlank(x.b.carry)}</td>
+              <td className="text-right">{fmtAmountBlank(x.d)}</td>
+              <td className="text-right">{fmtAmountBlank(x.c)}</td>
+              <td className="text-right">{fmtAmountBlank(x.bal)}</td>
             </tr>
           ))}
           <tr className="ec-total">
             <td colSpan={2} className="text-center">합계</td>
-            <td className="text-right">{won(tot.carry)}</td>
-            <td className="text-right">{won(tot.d)}</td>
-            <td className="text-right">{won(tot.c)}</td>
-            <td className="text-right">{won(tot.bal)}</td>
+            <td className="text-right">{fmtAmountBlank(tot.carry)}</td>
+            <td className="text-right">{fmtAmountBlank(tot.d)}</td>
+            <td className="text-right">{fmtAmountBlank(tot.c)}</td>
+            <td className="text-right">{fmtAmountBlank(tot.bal)}</td>
           </tr>
         </tbody>
       </table>

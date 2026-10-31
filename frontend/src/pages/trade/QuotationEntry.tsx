@@ -23,6 +23,7 @@ import { useSubmitting } from '../../utils/useSubmitting'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import EcIcon from '../../components/ui/EcIcon'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 견적서입력 — 원본 영업관리 &gt; 견적서 &gt; <b>견적서입력</b>(E040201). 주문서입력 · 출하지시서입력과 같은 큰 입력 화면이다
@@ -54,7 +55,6 @@ interface LineInput { itemId: string; quantity: string; unitPrice: string; remar
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '', spec: null, name: null })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
-const won = (n: number) => n.toLocaleString('ko-KR')
 const MEM_KEY = 'quotation-head'
 interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
 
@@ -623,9 +623,9 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
                     <td><input className="cell" value={l.spec ?? it?.spec ?? ''} maxLength={200} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'spec', e.target.value)} /></td>
                     <td><EcNumInput className="cell text-right" value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} /></td>
                     <td><EcNumInput className="cell text-right" value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} /></td>
-                    <td className="pad text-right">{l.itemId ? won(computed[idx].supply) : ''}</td>
-                    <td className="pad text-right">{l.itemId ? won(computed[idx].vat) : ''}</td>
-                    <td className="pad text-right font-semibold text-ec-text">{l.itemId ? won(computed[idx].total) : ''}</td>
+                    <td className="pad text-right">{l.itemId ? fmtNumber(computed[idx].supply) : ''}</td>
+                    <td className="pad text-right">{l.itemId ? fmtNumber(computed[idx].vat) : ''}</td>
+                    <td className="pad text-right font-semibold text-ec-text">{l.itemId ? fmtNumber(computed[idx].total) : ''}</td>
                     <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                     <td className="text-center">
                       {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint"><EcIcon name="close" size={12} glyph="✕" /></button>}
@@ -638,11 +638,11 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
               <tr>
                 <td />
                 <td colSpan={3} className="pl-[6px]">합계 ({lineCount}건)</td>
-                <td className="text-right">{won(totals.qty)}</td>
+                <td className="text-right">{fmtNumber(totals.qty)}</td>
                 <td />
-                <td className="text-right">{won(totals.supply)}</td>
-                <td className="text-right">{won(totals.vat)}</td>
-                <td className="text-right font-bold text-ec-blue">{won(totals.total)}</td>
+                <td className="text-right">{fmtNumber(totals.supply)}</td>
+                <td className="text-right">{fmtNumber(totals.vat)}</td>
+                <td className="text-right font-bold text-ec-blue">{fmtNumber(totals.total)}</td>
                 <td />
                 <td />
               </tr>
@@ -676,7 +676,7 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
               {generated.map((r, i) => (
                 <tr key={i}>
                   <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
-                  <td className="text-right">{won(r.quantity)}</td><td className="text-right">{r.remaining ? won(r.remaining) : ''}</td>
+                  <td className="text-right">{fmtNumber(r.quantity)}</td><td className="text-right">{r.remaining ? fmtNumber(r.remaining) : ''}</td>
                   <td>{r.slipType ?? ''}</td><td>{r.slipDate && r.slipNo ? dateNo(r.slipDate, r.slipNo) : ''}</td>
                 </tr>
               ))}

@@ -6,6 +6,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import type { Partner, SalesDoc, PurchaseDoc, Project } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 그룹웨어 > 공유정보 > 조건별검색 (이카운트 E070203)
@@ -19,7 +20,6 @@ type Basis = 'INDIVIDUAL' | 'GROUP' | 'SELECTED'
 const BASIS_LABEL: Record<Basis, string> = {
   INDIVIDUAL: '개별거래처기준', GROUP: '연결거래처합산', SELECTED: '선택거래처합산',
 }
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 export default function ConditionSearchPage() {
   const [partners, setPartners] = useState<Partner[]>([])
@@ -205,18 +205,18 @@ export default function ConditionSearchPage() {
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.name}</td>
-              <td className="text-right text-ec-blue">{won(r.sale)}</td>
-              <td className="text-right text-ec-warn">{won(r.purchase)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(r.net)}</td>
+              <td className="text-right text-ec-blue">{fmtAmount(r.sale)}</td>
+              <td className="text-right text-ec-warn">{fmtAmount(r.purchase)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{fmtAmount(r.net)}</td>
             </tr>
           ))}
         </tbody>
         {ran && rows.length > 0 && (
           <tfoot><tr className="font-bold bg-ec-page">
             <td colSpan={2} className="text-right">합계 ({BASIS_LABEL[basis]})</td>
-            <td className="text-right text-ec-blue">{won(totals.sale)}</td>
-            <td className="text-right text-ec-warn">{won(totals.purchase)}</td>
-            <td style={{ textAlign: 'right', color: totals.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(totals.net)}</td>
+            <td className="text-right text-ec-blue">{fmtAmount(totals.sale)}</td>
+            <td className="text-right text-ec-warn">{fmtAmount(totals.purchase)}</td>
+            <td style={{ textAlign: 'right', color: totals.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{fmtAmount(totals.net)}</td>
           </tr></tfoot>
         )}
       </table>

@@ -8,6 +8,7 @@ import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import { PLAN_ITEMS, PlanHeadWindow, PlanLineListWindow, type PlanHead, type PlanItem } from '../../features/projectplan/components/ProjectPlanWindows'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 재고 II &gt; 계획관리 &gt; 프로젝트계획조회 / 프로젝트계획·실적현황
@@ -50,7 +51,6 @@ interface ComparisonRow {
   remark: string | null
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 금액 구간 조건. 원본은 [판매계획]·[구매계획]·[노무비계획]·[경비계획] 넷을 다
@@ -290,7 +290,7 @@ export default function ProjectPlanPage() {
               <td>{dateText(r.endDate) || ''}</td>
               {([r.planRevenue, r.planPurchase, r.planLabor, r.planExpense] as number[]).map((v, k) => (
                 <td key={k} className="text-right">
-                  <button type="button" className="ec-link" onClick={() => setListOf({ plan: toHead(r), item: PLAN_ITEMS[k] })}>{won(v)}</button>
+                  <button type="button" className="ec-link" onClick={() => setListOf({ plan: toHead(r), item: PLAN_ITEMS[k] })}>{fmtNumber(v)}</button>
                 </td>
               ))}
             </tr>

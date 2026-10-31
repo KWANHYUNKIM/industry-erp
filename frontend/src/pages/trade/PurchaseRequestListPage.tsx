@@ -17,8 +17,8 @@ import { EcDateRange } from '../../components/ui/EcDateInput'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 날짜 모양 — 연도를 두 자리로 찍는다(26/10/12-2 · 25/07/12, 2026-10-03 실측). */
 const yy = (d: string | null) => (d ? `${d.slice(2, 4)}/${d.slice(5, 7)}/${d.slice(8, 10)}` : '')
 type Progress = 'UNCONFIRMED' | 'IN_PROGRESS' | 'COMPLETED'
@@ -367,7 +367,7 @@ export default function PurchaseRequestListPage() {
               <td>{o.lines[0]?.itemName ?? ''}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td className="text-center">{yy(o.dueDate)}</td>
               <td className="text-right">{o.lines.reduce((a, l) => a + Number(l.quantity), 0).toLocaleString('ko-KR')}</td>
-              <td className="text-right">{won(Number(o.totalAmount))}</td>
+              <td className="text-right">{fmtAmount(Number(o.totalAmount))}</td>
               <td className="text-center">
                 {/* 원본: 누르면 그 줄의 상태 메뉴(미확인 / 진행중 · 완료). 완료는 주황 글자. */}
                 <a className={`cursor-pointer${progressOf(o) === 'COMPLETED' ? ' text-[var(--ec-done)]' : ''}`}

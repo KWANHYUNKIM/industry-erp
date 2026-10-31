@@ -6,6 +6,7 @@ import { stockCostMapFromLast, sumStockValue } from '../../utils/stockValue'
 import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { ymd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 재고 > 경영자보고서 (이카운트 E040704)
@@ -16,7 +17,6 @@ import { ymd } from '../../utils/periods'
  * 기간 매입 기준이라 실제 매출원가와 다를 수 있어 '추정'으로 표기한다. 정밀 손익은 이익관리 화면 참조.
  */
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /*
  * 원본 경영자보고서의 [기준일자] 기본값은 <b>금월(~오늘)</b> 이다(2026-09-08 실측).
  *
@@ -321,23 +321,23 @@ export default function ExecutiveReportPage() {
                 <tr key={name}>
                   <td>{name}</td>
                   <td className="text-ec-label">{dot(to)}</td>
-                  <td className="text-right">{won(amt)}</td>
+                  <td className="text-right">{fmtNumber(amt)}</td>
                 </tr>
               ))}
               <tr className="font-bold bg-ec-page">
                 <td>합계</td>
                 <td className="text-ec-label">{dot(to)}</td>
-                <td className="text-right">{won(report.stockValue)}</td>
+                <td className="text-right">{fmtNumber(report.stockValue)}</td>
               </tr>
               <tr>
                 <td>판매액</td>
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.saleAmt)}</td>
+                <td className="text-right">{fmtNumber(report.saleAmt)}</td>
               </tr>
               <tr>
                 <td>구매액</td>
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.buyAmt)}</td>
+                <td className="text-right">{fmtNumber(report.buyAmt)}</td>
               </tr>
               {/*
                 <b>[미판매금액]·[미입고금액]</b> — 아직 안 판 주문, 아직 안 들어온 발주.
@@ -348,54 +348,54 @@ export default function ExecutiveReportPage() {
               <tr>
                 <td>미판매금액</td>
                 <td className="text-ec-label">{dot(yearBefore(to))} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.unsoldAmt)}</td>
+                <td className="text-right">{fmtNumber(report.unsoldAmt)}</td>
               </tr>
               <tr>
                 <td>미입고금액</td>
                 <td className="text-ec-label">{dot(yearBefore(to))} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.unreceivedAmt)}</td>
+                <td className="text-right">{fmtNumber(report.unreceivedAmt)}</td>
               </tr>
               {/* 값은 기간 끝 시점의 잔액이다(위 실측). 칸에 적히는 글자는 원본대로 기간이다. */}
               <tr>
                 <td>채권</td>
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.receivable)}</td>
+                <td className="text-right">{fmtNumber(report.receivable)}</td>
               </tr>
               <tr>
                 <td>채무</td>
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.payable)}</td>
+                <td className="text-right">{fmtNumber(report.payable)}</td>
               </tr>
               <tr>
                 <td>판매 할인액</td>
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.saleDiscAmt)}</td>
+                <td className="text-right">{fmtNumber(report.saleDiscAmt)}</td>
               </tr>
               <tr>
                 <td>구매 할인액</td>
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.buyDiscAmt)}</td>
+                <td className="text-right">{fmtNumber(report.buyDiscAmt)}</td>
               </tr>
               <tr>
                 <td>재고조정액</td>
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.adjustAmt)}</td>
+                <td className="text-right">{fmtNumber(report.adjustAmt)}</td>
               </tr>
               <tr>
                 <td>자가사용액</td>
                 <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.selfUseAmt)}</td>
+                <td className="text-right">{fmtNumber(report.selfUseAmt)}</td>
               </tr>
               {/* 미청구액 = 기준일−1년 ~ 기준일 사이 세금계산서를 안 끊은(안 받은) 판매(구매) 합계, 부가세 포함(2026-10-20 실측 규칙). */}
               <tr>
                 <td>미청구액 (판매)</td>
                 <td className="text-ec-label">{dot(yearBefore(to))} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.unbilledSales)}</td>
+                <td className="text-right">{fmtNumber(report.unbilledSales)}</td>
               </tr>
               <tr>
                 <td>미청구액 (구매)</td>
                 <td className="text-ec-label">{dot(yearBefore(to))} ~ {dot(to)}</td>
-                <td className="text-right">{won(report.unbilledBuy)}</td>
+                <td className="text-right">{fmtNumber(report.unbilledBuy)}</td>
               </tr>
             </tbody>
           </table>

@@ -35,6 +35,7 @@ import { isAnyPartner } from '../../utils/anyPartner'
 import EcIcon from '../../components/ui/EcIcon'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -153,7 +154,6 @@ interface LineInput {
   checked: boolean
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 판매입력 II [금액조정] 할인 합계 → 공급가액 · 부가세. 원본 창은 할인의 [합계] 칸만 고칠 수 있고
@@ -1227,10 +1227,10 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
             <td>{dateText(r.date)}</td>
             <td>{r.partnerName}</td>
             <td>{r.itemName}</td>
-            <td className="text-right">{won(r.orderedQty)}</td>
-            <td className="text-right text-ec-hint">{won(r.doneQty)}</td>
-            <td className="text-right font-bold">{won(r.restQty)}</td>
-            <td className="text-right">{won(r.unitPrice)}</td>
+            <td className="text-right">{fmtNumber(r.orderedQty)}</td>
+            <td className="text-right text-ec-hint">{fmtNumber(r.doneQty)}</td>
+            <td className="text-right font-bold">{fmtNumber(r.restQty)}</td>
+            <td className="text-right">{fmtNumber(r.unitPrice)}</td>
             <td className="text-ec-hint">{r.statusName}</td>
           </tr>
         ))}
@@ -1423,7 +1423,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     total: computed.reduce((s, c) => s + c.total, 0),
   }
   /** 합계행의 전표 합계 칸 — 합계 열이 켜져 있으면 그 아래, 아니면 적요 칸 자리에 선다. */
-  const totalTd = <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
+  const totalTd = <td style={{ textAlign: 'right', color: cfg.accent }}>{fmtNumber(totals.total)}</td>
   /** 금액조정 할인을 나눈 값과 조정 후 합계(판매입력 II). 판매입력(I)에서는 늘 0 이라 net = totals. */
   const discount = splitDiscount(isAdjust ? discountTotal : 0, taxable)
   const net = { supply: totals.supply - discount.supply, vat: totals.vat - discount.vat, total: totals.total - discount.total }
@@ -1486,7 +1486,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     if (!v) return flash('변경할 단가를 입력하세요.')
     const idxs = targetIdx()
     setLines((ls) => ls.map((l, i) => (idxs.includes(i) ? { ...l, unitPrice: String(v) } : l)))
-    flash(`${idxs.length}개 행의 단가를 ${won(v)}원으로 바꿨습니다.`)
+    flash(`${idxs.length}개 행의 단가를 ${fmtNumber(v)}원으로 바꿨습니다.`)
   }
 
   /** 부대비용 총액을 공급가액 비율로 라인에 배분한다 — 원본 [부대비용] 적용과 같은 방식. */
@@ -1500,7 +1500,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       const share = base > 0 ? (computed[i].supply / base) * amt : amt / idxs.length
       return { ...l, extraCost: String(Math.round(share)) }
     }))
-    flash(`부대비용 ${won(amt)}원을 공급가액 비율로 배분했습니다.`)
+    flash(`부대비용 ${fmtNumber(amt)}원을 공급가액 비율로 배분했습니다.`)
   }
 
   function applyQtyStep() {
@@ -1554,7 +1554,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       if (mode === 'sales' && stocks.length > 0 && num(l.quantity) > 0) {
         const have = stockWhOf(l.itemId)
         if (have < num(l.quantity)) {
-          msgs.push(`${i + 1}행: ${itemById.get(l.itemId)?.name} 창고재고 ${won(have)} < 출고 ${won(num(l.quantity))}`)
+          msgs.push(`${i + 1}행: ${itemById.get(l.itemId)?.name} 창고재고 ${fmtNumber(have)} < 출고 ${fmtNumber(num(l.quantity))}`)
         }
       }
     })
@@ -1856,7 +1856,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
       })
       setCashOpen(false)
-      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${won(num(cashForm.amount))}원${num(cashForm.fee) > 0 ? ` · 수수료 ${won(num(cashForm.fee))}원` : ''})`)
+      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${fmtNumber(num(cashForm.amount))}원${num(cashForm.fee) > 0 ? ` · 수수료 ${fmtNumber(num(cashForm.fee))}원` : ''})`)
     } catch (err) {
       setCashMsg(extractErrorMessage(err))
     }
@@ -2280,7 +2280,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               {(totals.total / rate).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}
             </b>
             {'  ·  원화금액 '}
-            <b style={{ color: cfg.accent }}>{won(totals.total)}</b>
+            <b style={{ color: cfg.accent }}>{fmtNumber(totals.total)}</b>
           </div>
         )}
 
@@ -2640,10 +2640,10 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                     </td>
                     {!lotAfterQty && lotCell(l, idx)}
                     {cols.stockAll && (
-                      <td className="pad text-right text-ec-hint">{l.itemId ? won(stockAllOf(l.itemId)) : ''}</td>
+                      <td className="pad text-right text-ec-hint">{l.itemId ? fmtNumber(stockAllOf(l.itemId)) : ''}</td>
                     )}
                     {cols.stockWh && (
-                      <td className="pad text-right text-ec-hint">{l.itemId ? won(stockWhOf(l.itemId)) : ''}</td>
+                      <td className="pad text-right text-ec-hint">{l.itemId ? fmtNumber(stockWhOf(l.itemId)) : ''}</td>
                     )}
                     {cols.unit && <td className="pad text-center text-ec-label">{it?.unit ?? ''}</td>}
                     <td className="relative">
@@ -2658,7 +2658,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                     </td>
                     {cols.priceVat && !fx && (
                       <td className="pad text-right text-ec-hint">
-                        {l.itemId ? won(Math.round(num(l.unitPrice) * (taxable ? 1.1 : 1))) : ''}
+                        {l.itemId ? fmtNumber(Math.round(num(l.unitPrice) * (taxable ? 1.1 : 1))) : ''}
                       </td>
                     )}
                     {fx && (
@@ -2674,7 +2674,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                       </td>
                     )}
                     <td className={fx ? 'pad text-right' : undefined}>
-                      {fx ? (l.itemId ? won(computed[idx].supply) : '') : (
+                      {fx ? (l.itemId ? fmtNumber(computed[idx].supply) : '') : (
                       <EcNumInput className="cell text-right" disabled={!l.itemId}
                              aria-label="공급가액"
                              value={l.itemId ? (overriddenSupply(l) != null ? l.supplyOverride : String(computed[idx].supply)) : ''}
@@ -2693,7 +2693,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                     )}
                     {cols.lineTotal && (
                       <td className="pad text-right font-semibold text-ec-text">
-                        {l.itemId ? won(computed[idx].supply + computed[idx].vat) : ''}
+                        {l.itemId ? fmtNumber(computed[idx].supply + computed[idx].vat) : ''}
                       </td>
                     )}
                     {showExtraCost && (
@@ -2776,16 +2776,16 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 {cols.stockAll && <td />}
                 {cols.stockWh && <td />}
                 {cols.unit && <td />}
-                <td className="text-right">{won(totals.qty)}</td>
+                <td className="text-right">{fmtNumber(totals.qty)}</td>
                 {lotAfterQty && lineLotCol && <td />}
                 <td />
                 {cols.priceVat && !fx && <td />}
                 {fx && <td className="text-right">{totals.foreign.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}</td>}
                 {fx && <td />}
-                <td className="text-right">{won(totals.supply)}</td>
-                {!fx && <td className="text-right">{won(totals.vat)}</td>}
+                <td className="text-right">{fmtNumber(totals.supply)}</td>
+                {!fx && <td className="text-right">{fmtNumber(totals.vat)}</td>}
                 {cols.lineTotal && totalTd}
-                {showExtraCost && <td className="text-right">{won(totals.extra)}</td>}
+                {showExtraCost && <td className="text-right">{fmtNumber(totals.extra)}</td>}
                 {/*
                   합계행은 헤더와 칸 수가 정확히 같아야 한다. 선택 열을 켜면 그만큼 빈 칸을 끼워야
                   숫자가 제 열 아래에 선다. (관리항목은 부대비용과 적요 사이, 불러온 전표 3열은 적요 뒤다.)
@@ -2823,25 +2823,25 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               <tr>
                 <td>거래별 부가세 합계</td>
                 <td />
-                <td className="text-right">{won(totals.supply)}</td>
-                <td className="text-right">{won(totals.vat)}</td>
-                <td className="text-right">{won(totals.total)}</td>
+                <td className="text-right">{fmtNumber(totals.supply)}</td>
+                <td className="text-right">{fmtNumber(totals.vat)}</td>
+                <td className="text-right">{fmtNumber(totals.total)}</td>
               </tr>
               {discount.total > 0 && (
                 <>
                   <tr>
                     <td>할인</td>
                     <td className="text-center">감소(-)</td>
-                    <td className="text-right">{won(discount.supply)}</td>
-                    <td className="text-right">{won(discount.vat)}</td>
-                    <td className="text-right">{won(discount.total)}</td>
+                    <td className="text-right">{fmtNumber(discount.supply)}</td>
+                    <td className="text-right">{fmtNumber(discount.vat)}</td>
+                    <td className="text-right">{fmtNumber(discount.total)}</td>
                   </tr>
                   <tr>
                     <td>조정 후 합계</td>
                     <td />
-                    <td className="text-right">{won(net.supply)}</td>
-                    <td className="text-right">{won(net.vat)}</td>
-                    <td className="text-right">{won(net.total)}</td>
+                    <td className="text-right">{fmtNumber(net.supply)}</td>
+                    <td className="text-right">{fmtNumber(net.vat)}</td>
+                    <td className="text-right">{fmtNumber(net.total)}</td>
                   </tr>
                 </>
               )}
@@ -2976,7 +2976,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                   <td>{d.docNo}</td>
                   <td>{(d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate}</td>
                   <td>{d.lines[0]?.itemName}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}</td>
-                  <td className="text-right">{won(d.totalAmount)}</td>
+                  <td className="text-right">{fmtNumber(d.totalAmount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -3044,7 +3044,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                   <td>{(d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate}</td>
                   <td>{d.partnerName}</td>
                   <td>{d.lines[0]?.itemName}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{won(d.totalAmount)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{fmtNumber(d.totalAmount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -3154,8 +3154,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 <tr key={i}>
                   <td>{itemById.get(l.itemId)?.name}</td>
                   <td>{warehouses.find((w) => String(w.id) === warehouseId)?.name ?? ''}</td>
-                  <td style={{ textAlign: 'right', color: mode === 'sales' && have < need ? 'var(--ec-danger)' : undefined }}>{won(have)}</td>
-                  <td className="text-right">{won(need)}</td>
+                  <td style={{ textAlign: 'right', color: mode === 'sales' && have < need ? 'var(--ec-danger)' : undefined }}>{fmtNumber(have)}</td>
+                  <td className="text-right">{fmtNumber(need)}</td>
                 </tr>
               )
             })}
@@ -3191,31 +3191,31 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                   <tr className="bg-ec-page">
                     <td>▴ 합계</td>
                     <td />
-                    <td className="text-right">{won(after.supply)}</td>
-                    <td className="text-right">{won(after.vat)}</td>
-                    <td className="text-right">{won(after.total)}</td>
+                    <td className="text-right">{fmtNumber(after.supply)}</td>
+                    <td className="text-right">{fmtNumber(after.vat)}</td>
+                    <td className="text-right">{fmtNumber(after.total)}</td>
                   </tr>
                   {!adjFolded && (
                     <>
                       <tr className="bg-ec-page">
                         <td className="pl-[18px]">▴ {taxable ? '부가세율 10% 계' : '면세 계'}</td>
                         <td />
-                        <td className="text-right">{won(after.supply)}</td>
-                        <td className="text-right">{won(after.vat)}</td>
-                        <td className="text-right">{won(after.total)}</td>
+                        <td className="text-right">{fmtNumber(after.supply)}</td>
+                        <td className="text-right">{fmtNumber(after.vat)}</td>
+                        <td className="text-right">{fmtNumber(after.total)}</td>
                       </tr>
                       <tr>
                         <td className="pl-[36px]">판매</td>
                         <td />
-                        <td className="text-right">{won(totals.supply)}</td>
-                        <td className="text-right">{won(totals.vat)}</td>
-                        <td className="text-right">{won(totals.total)}</td>
+                        <td className="text-right">{fmtNumber(totals.supply)}</td>
+                        <td className="text-right">{fmtNumber(totals.vat)}</td>
+                        <td className="text-right">{fmtNumber(totals.total)}</td>
                       </tr>
                       <tr className="bg-ec-page">
                         <td className="pl-[36px]">할인</td>
                         <td className="text-center">감소(-)</td>
-                        <td className="text-right">{won(d.supply)}</td>
-                        <td className="text-right">{won(d.vat)}</td>
+                        <td className="text-right">{fmtNumber(d.supply)}</td>
+                        <td className="text-right">{fmtNumber(d.vat)}</td>
                         <td className="bg-ec-panel p-0">
                           <EcNumInput
                             className="ec-input w-full text-right"
@@ -3261,18 +3261,18 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
                 {profitRows.map((r, i) => (
                   <tr key={i}>
                     <td className="pad">{r.code} {r.name}</td>
-                    <td className="pad text-right">{won(r.qty)}</td>
-                    <td className="pad text-right">{won(r.revenue)}</td>
+                    <td className="pad text-right">{fmtNumber(r.qty)}</td>
+                    <td className="pad text-right">{fmtNumber(r.revenue)}</td>
                     {r.cost === null ? (
                       <td className="pad" colSpan={4} style={{ textAlign: 'center', color: '#c98a00' }}>
                         원가 미등록 — [회계 &gt; 원가] 에서 등록해야 이익이 잡힙니다
                       </td>
                     ) : (
                       <>
-                        <td className="pad text-right">{won(Math.round(r.unitCost!))}</td>
-                        <td className="pad text-right">{won(Math.round(r.cost))}</td>
+                        <td className="pad text-right">{fmtNumber(Math.round(r.unitCost!))}</td>
+                        <td className="pad text-right">{fmtNumber(Math.round(r.cost))}</td>
                         <td className="pad" style={{ textAlign: 'right', color: r.profit! < 0 ? '#d03a3a' : '#1a7f37' }}>
-                          {won(Math.round(r.profit!))}
+                          {fmtNumber(Math.round(r.profit!))}
                         </td>
                         <td className="pad" style={{ textAlign: 'right', color: r.profit! < 0 ? '#d03a3a' : '#1a7f37' }}>
                           {r.rate === null ? '' : `${r.rate.toFixed(1)}%`}
@@ -3285,11 +3285,11 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               <tfoot>
                 <tr style={{ fontWeight: 600, background: '#f6f7f9' }}>
                   <td className="pad" colSpan={2}>합계 (원가 등록분)</td>
-                  <td className="pad text-right">{won(profitTotals.revenue)}</td>
+                  <td className="pad text-right">{fmtNumber(profitTotals.revenue)}</td>
                   <td className="pad" />
-                  <td className="pad text-right">{won(Math.round(profitTotals.cost))}</td>
+                  <td className="pad text-right">{fmtNumber(Math.round(profitTotals.cost))}</td>
                   <td className="pad text-right">
-                    {won(Math.round(profitTotals.revenue - profitTotals.cost))}
+                    {fmtNumber(Math.round(profitTotals.revenue - profitTotals.cost))}
                   </td>
                   <td className="pad text-right">
                     {profitTotals.revenue === 0 ? ''

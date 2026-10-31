@@ -8,6 +8,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
+import { fmtNumberOf } from '../../utils/format'
 
 /**
  * 재고 I &gt; 생산/외주 &gt; 외주비회계반영 &gt; <b>외주비일괄회계반영</b>.
@@ -33,7 +34,6 @@ interface Row {
 
 const MODES = ['거래처별', '전표별'] as const
 type Mode = (typeof MODES)[number]
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const init = periodOf('전월')!
 
 export default function SubcontractReflectionPage() {
@@ -214,13 +214,13 @@ export default function SubcontractReflectionPage() {
                   </td>
                 )}
                 <td>{g.partnerName}</td>
-                <td className="text-right">{won(g.supply)}</td>
+                <td className="text-right">{fmtNumberOf(g.supply)}</td>
                 <td className="text-right" />
                 <td className="text-right" />
                 <td className="text-right" />
-                <td className="text-right">{won(g.supply)}</td>
-                <td className="text-right">{won(g.vat)}</td>
-                <td className="text-right font-bold">{won(g.supply + g.vat)}</td>
+                <td className="text-right">{fmtNumberOf(g.supply)}</td>
+                <td className="text-right">{fmtNumberOf(g.vat)}</td>
+                <td className="text-right font-bold">{fmtNumberOf(g.supply + g.vat)}</td>
                 <td className="text-center">
                   <button type="button" className="no-ec" style={{ color: 'var(--ec-blue)', background: 'none', border: 0, cursor: 'pointer' }}
                           onClick={() => setOpen((o) => toggle(o, g.key))}>{open.has(g.key) ? '접기' : `${g.rows.length}건`}</button>
@@ -232,13 +232,13 @@ export default function SubcontractReflectionPage() {
                 <tr key={r.productionId} className="bg-ec-page text-ec-label text-[12px]">
                   <td />
                   <td colSpan={mode === '전표별' ? 2 : 1}>
-                    {dateNo(r.productionDate, r.prodNo)} · {r.productName} {won(r.producedQty)} × {won(r.unitPrice)}
+                    {dateNo(r.productionDate, r.prodNo)} · {r.productName} {fmtNumberOf(r.producedQty)} × {fmtNumberOf(r.unitPrice)}
                   </td>
-                  <td className="text-right">{won(r.amount)}</td>
+                  <td className="text-right">{fmtNumberOf(r.amount)}</td>
                   <td colSpan={3} />
-                  <td className="text-right">{won(r.amount)}</td>
-                  <td className="text-right">{won(r.vat)}</td>
-                  <td className="text-right">{won(r.total)}</td>
+                  <td className="text-right">{fmtNumberOf(r.amount)}</td>
+                  <td className="text-right">{fmtNumberOf(r.vat)}</td>
+                  <td className="text-right">{fmtNumberOf(r.total)}</td>
                   <td colSpan={3}>{r.fromWarehouseName ?? ''}</td>
                 </tr>
               ))}
@@ -248,11 +248,11 @@ export default function SubcontractReflectionPage() {
         <tfoot>
           <tr>
             <td colSpan={mode === '전표별' ? 3 : 2} className="text-right font-bold">합계</td>
-            <td className="text-right font-bold">{won(sum((g) => g.supply))}</td>
+            <td className="text-right font-bold">{fmtNumberOf(sum((g) => g.supply))}</td>
             <td colSpan={3} />
-            <td className="text-right font-bold">{won(sum((g) => g.supply))}</td>
-            <td className="text-right font-bold">{won(sum((g) => g.vat))}</td>
-            <td className="text-right font-bold">{won(sum((g) => g.supply + g.vat))}</td>
+            <td className="text-right font-bold">{fmtNumberOf(sum((g) => g.supply))}</td>
+            <td className="text-right font-bold">{fmtNumberOf(sum((g) => g.vat))}</td>
+            <td className="text-right font-bold">{fmtNumberOf(sum((g) => g.supply + g.vat))}</td>
             <td colSpan={3} />
           </tr>
         </tfoot>

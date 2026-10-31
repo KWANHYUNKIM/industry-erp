@@ -8,8 +8,8 @@ import { JournalVatCompareView, VAT_TYPES, type JvcInit } from './JournalVatComp
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcReportFoot } from '../../components/EcReportFrame'
 import { pad2 } from '../../utils/periods'
+import { fmtNumberOrBlank } from '../../utils/format'
 
-const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const ymOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`
 const lastDay = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0).getDate()
 /** 원본 머리의 기간 — '2026/01/01 ~2026/10/31'(물결 앞에만 띄어 쓴다) */
@@ -78,7 +78,7 @@ export default function ExpenseEvidenceStatusPage() {
   const rows = data?.rows ?? []
   const colTotal = (k: string) => rows.reduce((t, r) => t + Number(r.amounts[k] ?? 0), 0)
   const amountLink = (n: number | undefined, accountId: number | null, kind: string | null) =>
-    n ? <button className="ec-link" onClick={() => setCompare({ accountId, kind })}>{won(n)}</button> : ''
+    n ? <button className="ec-link" onClick={() => setCompare({ accountId, kind })}>{fmtNumberOrBlank(n)}</button> : ''
 
   return (
     <EcListShell title="지출증빙현황" onSearch={() => search()} collapseConditions={data !== null}
@@ -122,7 +122,7 @@ export default function ExpenseEvidenceStatusPage() {
                   <td>{r.accountCode}</td>
                   <td>{r.accountName}</td>
                   {kinds.map((k) => <td key={k} className="text-right">{amountLink(r.amounts[k], r.accountId, k)}</td>)}
-                  <td className="text-right">{won(r.total)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -130,8 +130,8 @@ export default function ExpenseEvidenceStatusPage() {
               <tfoot>
                 <tr>
                   <td colSpan={2} className="text-center">합계</td>
-                  {kinds.map((k) => <td key={k} className="text-right">{colTotal(k) ? won(colTotal(k)) : ''}</td>)}
-                  <td className="text-right">{won(rows.reduce((t, r) => t + Number(r.total), 0))}</td>
+                  {kinds.map((k) => <td key={k} className="text-right">{colTotal(k) ? fmtNumberOrBlank(colTotal(k)) : ''}</td>)}
+                  <td className="text-right">{fmtNumberOrBlank(rows.reduce((t, r) => t + Number(r.total), 0))}</td>
                 </tr>
               </tfoot>
             )}

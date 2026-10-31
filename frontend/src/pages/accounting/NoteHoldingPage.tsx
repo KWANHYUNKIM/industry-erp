@@ -8,8 +8,8 @@ import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriod
 import { dateText } from '../../utils/dateText'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 회계 I &gt; 어음거래 &gt; <b>보유어음현황</b>(E010626) · <b>미지급어음현황</b>(E010634) — 2026-10-02 loginaa 실측.
@@ -150,14 +150,14 @@ export default function NoteHoldingPage({ type }: { type: NoteType }) {
               <td className="text-center">{dateText(n.issueDate)}</td>
               <td className="text-center">{dateText(n.dueDate)}</td>
               <td>{n.remark ?? ''}</td>
-              <td className="text-right">{won(Number(n.amount))}</td>
+              <td className="text-right">{fmtAmount(Number(n.amount))}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
             <td colSpan={6} className="text-right">합계 ({shown.length}장)</td>
-            <td className="text-right">{won(total)}</td>
+            <td className="text-right">{fmtAmount(total)}</td>
           </tr>
         </tfoot>
       </table>

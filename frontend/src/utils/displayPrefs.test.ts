@@ -1,13 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { zeroText, timeText, printPageCss, toDisplayPrefs, DEFAULT_DISPLAY_PREFS } from './displayPrefs.ts'
+import { fmtNumber } from './format.ts'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 test('0값표시 — 표시안함이면 0 만 공란', () => {
-  assert.equal(zeroText(0, won, false), '')
-  assert.equal(zeroText(1200, won, false), '1,200')
-  assert.equal(zeroText(0, won, true), '0')
+  assert.equal(zeroText(0, fmtNumber, false), '')
+  assert.equal(zeroText(1200, fmtNumber, false), '1,200')
+  assert.equal(zeroText(0, fmtNumber, true), '0')
 })
 
 test('12시간제 — 원본 적용예시 오전 0:03, 정오는 오후 12', () => {

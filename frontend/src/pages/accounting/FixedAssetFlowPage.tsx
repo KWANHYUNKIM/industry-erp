@@ -8,8 +8,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 증가 · 감소내역은 0 도 '0' 으로 찍는다(수량 · 감가상각충당금 · 매매가액, 2026-10-21 실측). */
 const won0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 고정자산 출력물의 소계 · 합계줄 모양(고정자산대장 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -161,7 +161,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
                 <td>{a.name}</td>
                 <td className="text-center">{dayOf(a).replace(/-/g, '/')}</td>
                 <td className="text-right">{won0(qtyOf(a))}</td>
-                <td className="text-right">{won(Number(a.acquisitionCost))}</td>
+                <td className="text-right">{fmtAmountBlank(Number(a.acquisitionCost))}</td>
                 {inc ? <td>{a.remark ?? ''}</td> : <td className="text-right">{won0(Number(a.accumulatedDepreciation))}</td>}
                 {!inc && <td className="text-right">{won0(Number(a.disposalAmount ?? 0))}</td>}
               </tr>
@@ -169,7 +169,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
             <tr key={`sub-${g.code}`} style={SUB_ROW}>
               <td colSpan={5}>{g.code} 계</td>
               <td className="text-right">{won0(g.qty)}</td>
-              <td className="text-right">{won(g.cost)}</td>
+              <td className="text-right">{fmtAmountBlank(g.cost)}</td>
               {inc ? <td></td> : <td className="text-right">{won0(g.accum)}</td>}
               {!inc && <td className="text-right">{won0(g.sold)}</td>}
             </tr>,
@@ -180,7 +180,7 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
             <tr style={SUB_ROW}>
               <td colSpan={5}>합계</td>
               <td className="text-right">{won0(total.qty)}</td>
-              <td className="text-right">{won(total.cost)}</td>
+              <td className="text-right">{fmtAmountBlank(total.cost)}</td>
               {inc ? <td></td> : <td className="text-right">{won0(total.accum)}</td>}
               {!inc && <td className="text-right">{won0(total.sold)}</td>}
             </tr>

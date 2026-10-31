@@ -8,6 +8,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { pad2 } from '../../utils/periods'
+import { fmtNumberBlank } from '../../utils/format'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 
@@ -22,7 +23,6 @@ const STATUTORY: [string, string[]][] = [
 ]
 const colOf = (name: string) => STATUTORY.find(([, from]) => from.includes(name))?.[0] ?? name
 
-const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 /** 원본 기본 기간 = 전월+금월 (2026/09 ~ 2026/10). */
 const defaultRange = () => {
@@ -254,12 +254,12 @@ export default function EmployeePayListPage() {
                 <td>급여</td>
                 <td>{p.employeeCode}</td>
                 <td>{p.employeeName}</td>
-                <td className="text-right">{won(p.baseSalary)}</td>
-                {allowanceCols.map((c) => <td key={`a-${c}`} className="text-right">{won(amountOf(p, c, 'ALLOWANCE'))}</td>)}
-                <td className="text-right">{won(p.grossPay)}</td>
-                {deductionCols.map((c) => <td key={`d-${c}`} className="text-right">{won(amountOf(p, c, 'DEDUCTION'))}</td>)}
-                <td className="text-right">{won(p.deductionTotal)}</td>
-                <td className="text-right">{won(p.netPay)}</td>
+                <td className="text-right">{fmtNumberBlank(p.baseSalary)}</td>
+                {allowanceCols.map((c) => <td key={`a-${c}`} className="text-right">{fmtNumberBlank(amountOf(p, c, 'ALLOWANCE'))}</td>)}
+                <td className="text-right">{fmtNumberBlank(p.grossPay)}</td>
+                {deductionCols.map((c) => <td key={`d-${c}`} className="text-right">{fmtNumberBlank(amountOf(p, c, 'DEDUCTION'))}</td>)}
+                <td className="text-right">{fmtNumberBlank(p.deductionTotal)}</td>
+                <td className="text-right">{fmtNumberBlank(p.netPay)}</td>
               </tr>
             ))}
           </tbody>

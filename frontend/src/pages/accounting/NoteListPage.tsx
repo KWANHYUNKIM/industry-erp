@@ -17,8 +17,8 @@ import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { useRequired } from '../../utils/useRequired'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 원본 [내역만등록]으로 넣은 어음은 분개가 없다(recordOnly). 감소로 닫으면 상태 RECORD_DECREASED('어음만감소'). */
 type Note = PromissoryNote & { issueVia?: string | null; issueJournalEntryId?: number | null;   recordOnly?: boolean; departmentId?: number | null; projectId?: number | null
@@ -339,7 +339,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
               <td>{m.n.noteNo}</td>
               <td>{m.inc ? '증가' : '감소'}</td>
               <td>{m.n.partnerName}</td>
-              <td className="text-right">{won(Number(m.n.amount))}</td>
+              <td className="text-right">{fmtAmount(Number(m.n.amount))}</td>
               <td className="text-center">{dateText(m.n.dueDate)}</td>
               <td>{lineRemark(m)}</td>
               <td className="text-center">{kindOf(m)}</td>
@@ -398,7 +398,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={2}></td>
-              <td className="text-right">{won(recLines.reduce((a, l) => a + (Number(l.amount) || 0), 0))}</td>
+              <td className="text-right">{fmtAmount(recLines.reduce((a, l) => a + (Number(l.amount) || 0), 0))}</td>
               <td colSpan={recDec ? 3 : 4}></td>
             </tr>
           </tfoot>

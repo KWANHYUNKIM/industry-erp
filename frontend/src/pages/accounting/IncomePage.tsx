@@ -7,8 +7,8 @@ import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const monthStart = () => todayYmd().slice(0, 8) + '01'
 
 type Tab = '수입등록' | '수입비용현황'
@@ -95,7 +95,7 @@ export default function IncomePage() {
                 <td>{i.accountCode} {i.accountName}</td>
                 <td>{i.content}</td>
                 <td>{i.partnerName ?? ''}</td>
-                <td className="text-right font-bold">{won(i.amount)}</td>
+                <td className="text-right font-bold">{fmtNumber(i.amount)}</td>
                 <td>{i.receiptMethodName}{i.bankAccountName ? ` (${i.bankAccountName})` : ''}</td>
                 <td className="text-ec-blue">{i.journalDocNo ?? ''}</td>
                 <td className="text-center">
@@ -109,9 +109,9 @@ export default function IncomePage() {
         <>
           {status && (
             <div className="flex gap-[8px] mb-[10px]">
-              <Tile label="수입 합계" value={won(status.totalIncome)} />
-              <Tile label="비용 합계" value={won(status.totalExpense)} />
-              <Tile label="순수지 (수입 − 비용)" value={won(status.net)} strong negative={status.net < 0} />
+              <Tile label="수입 합계" value={fmtNumber(status.totalIncome)} />
+              <Tile label="비용 합계" value={fmtNumber(status.totalExpense)} />
+              <Tile label="순수지 (수입 − 비용)" value={fmtNumber(status.net)} strong negative={status.net < 0} />
             </div>
           )}
           <div className="flex gap-[12px]">
@@ -160,7 +160,7 @@ function SummaryTable({ title, rows }: { title: string; rows: IncomeExpenseStatu
             <tr key={r.accountId}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.accountCode} {r.accountName}</td>
-              <td className="text-right">{won(r.amount)}</td>
+              <td className="text-right">{fmtNumber(r.amount)}</td>
               <td>
                 <div className="flex items-center gap-[6px]">
                   <div style={{ flex: 1, height: 8, background: '#eef1f4', borderRadius: 4, overflow: 'hidden' }}>
@@ -275,7 +275,7 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
             </tbody>
           </table>
           <div className="mt-[10px] py-[8px] px-[10px] bg-ec-page border border-ec-line border-solid rounded-[3px] text-[12.5px]">
-            분개 미리보기: 차){debitLabel} {amount ? won(Number(amount)) : 0} / 대){creditLabel} {amount ? won(Number(amount)) : 0}
+            분개 미리보기: 차){debitLabel} {amount ? fmtNumber(Number(amount)) : 0} / 대){creditLabel} {amount ? fmtNumber(Number(amount)) : 0}
             {receiptMethod === 'BANK' && <span className="text-ec-hint"> — 계좌 잔액도 함께 오릅니다.</span>}
           </div>
         </div>

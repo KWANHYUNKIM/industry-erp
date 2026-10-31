@@ -9,6 +9,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { monthsBetween, partnerYearRows, type PartnerYearRow } from '../../utils/monthlyArAp'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 영업관리 > 월별채권/채무증감내역 (이카운트 E040713·E040714)
@@ -29,7 +30,6 @@ interface Settlement {
 /** /ledger/partner-balances 한 줄 — 그 시점의 거래처별 채권·채무. */
 interface Opening { partnerId: number; name: string; receivable: number; payable: number }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 기본 기간은 금월 하나(2026/10 ~ 2026/10). 달마다 열이 하나씩 선다. */
 const thisMonth = () => ymd(new Date()).slice(0, 7)
 /** 너무 긴 기간은 열이 화면을 덮는다 — 원본처럼 열은 달 수만큼 서되 상한을 둔다. */
@@ -347,31 +347,31 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
                 <td>{incWord}</td>
                 <td className="text-right" />
                 {months.map((ym, i) => (
-                  <td key={ym} className="text-right">{r.inc[i] ? won(r.inc[i]) : ''}</td>
+                  <td key={ym} className="text-right">{r.inc[i] ? fmtNumber(r.inc[i]) : ''}</td>
                 ))}
-                <td className="text-right">{sumInc ? won(sumInc) : ''}</td>
+                <td className="text-right">{sumInc ? fmtNumber(sumInc) : ''}</td>
               </tr>,
               <tr key={`${r.name}-dec`} className={stripe}>
                 <td>{decWord}</td>
                 <td className="text-right" />
                 {months.map((ym, i) => (
-                  <td key={ym} className="text-right">{r.dec[i] ? won(r.dec[i]) : ''}</td>
+                  <td key={ym} className="text-right">{r.dec[i] ? fmtNumber(r.dec[i]) : ''}</td>
                 ))}
-                <td className="text-right">{sumDec ? won(sumDec) : ''}</td>
+                <td className="text-right">{sumDec ? fmtNumber(sumDec) : ''}</td>
               </tr>,
               blank('etc'),
               <tr key={`${r.name}-bal`} className={stripe}>
                 <td>잔액</td>
-                <td className="text-right">{r.opening ? won(r.opening) : ''}</td>
+                <td className="text-right">{r.opening ? fmtNumber(r.opening) : ''}</td>
                 {months.map((ym, i) => (
-                  <td key={ym} className="text-right">{running[i] ? won(running[i]) : ''}</td>
+                  <td key={ym} className="text-right">{running[i] ? fmtNumber(running[i]) : ''}</td>
                 ))}
-                <td className="text-right">{r.closing ? won(r.closing) : ''}</td>
+                <td className="text-right">{r.closing ? fmtNumber(r.closing) : ''}</td>
               </tr>,
               <tr key={`${r.name}-unpaid`} className={stripe}>
                 <td>{unpaidWord}</td>
                 <td className="text-right" />
-                {months.map((ym, i) => <td key={ym} className="text-right">{unpaid[i] ? won(unpaid[i]) : ''}</td>)}
+                {months.map((ym, i) => <td key={ym} className="text-right">{unpaid[i] ? fmtNumber(unpaid[i]) : ''}</td>)}
                 <td className="text-right" />
               </tr>,
             ]
@@ -381,14 +381,14 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
             <td colSpan={2} rowSpan={5}>[누계]</td>
             <td>{incWord}</td>
             <td className="text-right" />
-            {months.map((ym, i) => <td key={ym} className="text-right">{total.inc[i] ? won(total.inc[i]) : ''}</td>)}
-            <td className="text-right">{total.sumInc ? won(total.sumInc) : ''}</td>
+            {months.map((ym, i) => <td key={ym} className="text-right">{total.inc[i] ? fmtNumber(total.inc[i]) : ''}</td>)}
+            <td className="text-right">{total.sumInc ? fmtNumber(total.sumInc) : ''}</td>
           </tr>,
           <tr key="total-dec">
             <td>{decWord}</td>
             <td className="text-right" />
-            {months.map((ym, i) => <td key={ym} className="text-right">{total.dec[i] ? won(total.dec[i]) : ''}</td>)}
-            <td className="text-right">{total.sumDec ? won(total.sumDec) : ''}</td>
+            {months.map((ym, i) => <td key={ym} className="text-right">{total.dec[i] ? fmtNumber(total.dec[i]) : ''}</td>)}
+            <td className="text-right">{total.sumDec ? fmtNumber(total.sumDec) : ''}</td>
           </tr>,
           <tr key="total-etc">
             <td>기타할인등차액</td>
@@ -398,14 +398,14 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
           </tr>,
           <tr key="total-bal">
             <td>잔액</td>
-            <td className="text-right">{total.opening ? won(total.opening) : ''}</td>
-            {months.map((ym, i) => <td key={ym} className="text-right">{total.running[i] ? won(total.running[i]) : ''}</td>)}
-            <td className="text-right">{total.closing ? won(total.closing) : ''}</td>
+            <td className="text-right">{total.opening ? fmtNumber(total.opening) : ''}</td>
+            {months.map((ym, i) => <td key={ym} className="text-right">{total.running[i] ? fmtNumber(total.running[i]) : ''}</td>)}
+            <td className="text-right">{total.closing ? fmtNumber(total.closing) : ''}</td>
           </tr>,
           <tr key="total-unpaid">
             <td>{unpaidWord}</td>
             <td className="text-right" />
-            {months.map((ym, i) => <td key={ym} className="text-right">{total.unpaid[i] ? won(total.unpaid[i]) : ''}</td>)}
+            {months.map((ym, i) => <td key={ym} className="text-right">{total.unpaid[i] ? fmtNumber(total.unpaid[i]) : ''}</td>)}
             <td className="text-right" />
           </tr>]}
         </tbody>

@@ -32,8 +32,8 @@ import { ecAlert } from '../../components/EcDialog'
 import type { FastVoucher } from '../../types/api'
 import SlipPrintModal from '../../features/journalprint/SlipPrintModal'
 import { journalSlipHtml, loadSlipHeader, voucherSlipHtml, VOUCHER_ONLY_MESSAGE } from '../../features/journalprint/slipPrint'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 기본 기간 [6개월(+1개월)] — 2026-10-13 에 2026/04/01 ~ 2026/11/12 였다. */
 const defaultPeriod = () => periodOf('6개월(+1개월)')!
 
@@ -422,7 +422,7 @@ export default function JournalListPage() {
                   </a>
                 </td>
                 <td>{typeLabel(r)}</td>
-                <td className="text-right">{won(amountOf(r))}</td>
+                <td className="text-right">{fmtNumber(amountOf(r))}</td>
                 <td>{r.partnerName ?? payeeOf[r.id] ?? ''}</td>
                 <td>{r.description}</td>
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
@@ -446,8 +446,8 @@ export default function JournalListPage() {
                             <td>{l.accountCode}</td>
                             <td>{l.accountName}</td>
                             <td className="text-ec-hint">{l.description ?? ''}</td>
-                            <td style={{ textAlign: 'right', color: l.debit > 0 ? '#1a4d8f' : 'var(--ec-text-off)' }}>{l.debit > 0 ? won(l.debit) : ''}</td>
-                            <td style={{ textAlign: 'right', color: l.credit > 0 ? '#a5561b' : 'var(--ec-text-off)' }}>{l.credit > 0 ? won(l.credit) : ''}</td>
+                            <td style={{ textAlign: 'right', color: l.debit > 0 ? '#1a4d8f' : 'var(--ec-text-off)' }}>{l.debit > 0 ? fmtNumber(l.debit) : ''}</td>
+                            <td style={{ textAlign: 'right', color: l.credit > 0 ? '#a5561b' : 'var(--ec-text-off)' }}>{l.credit > 0 ? fmtNumber(l.credit) : ''}</td>
                           </tr>
                         ))}
                       </tbody>

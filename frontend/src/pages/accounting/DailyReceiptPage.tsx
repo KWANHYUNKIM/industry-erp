@@ -7,10 +7,10 @@ import type { DailyReceipt } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { Company } from './SimplePaymentPage'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtNumberOf } from '../../utils/format'
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 /** 원본 목록은 0 을 빈칸으로 둔다(2026-10-14 총지급액 600,000 · 비과세 · 소득세 · 지방소득세 빈칸). */
-const wonBlank = (n: number) => (Number(n) === 0 ? '' : won(n))
+const wonBlank = (n: number) => (Number(n) === 0 ? '' : fmtNumberOf(n))
 
 /**
  * 원천징수영수증(일용직) (원본 세무 › 원천징수 › 일용근로 C000733 '일용근로소득지급명세서(원천징수영수증)', 2026-10-04 실측).
@@ -174,10 +174,10 @@ function ReceiptSheet({ r, year, month, submitDate, purpose, company, address }:
             <td className="text-center">{month}</td>
             <td className="text-right">{Number(r.days)}</td>
             <td className="text-center">{r.lastDate ? r.lastDate.slice(8) : ''}</td>
-            <td className="text-right">{won(r.totalPay)}</td>
-            <td className="text-right">{won(r.nonTaxable)}</td>
-            <td className="text-right">{won(r.incomeTax)}</td>
-            <td className="text-right">{won(r.localIncomeTax)}</td>
+            <td className="text-right">{fmtNumberOf(r.totalPay)}</td>
+            <td className="text-right">{fmtNumberOf(r.nonTaxable)}</td>
+            <td className="text-right">{fmtNumberOf(r.incomeTax)}</td>
+            <td className="text-right">{fmtNumberOf(r.localIncomeTax)}</td>
             <td></td>
           </tr>
         </tbody>

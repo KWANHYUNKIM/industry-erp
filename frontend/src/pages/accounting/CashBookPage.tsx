@@ -10,10 +10,10 @@ import { useAuth } from '../../features/auth/AuthContext'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
 /** 원본 [YYYY/MM 계] · [합계] 줄: 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
 interface AccountOpt { id: number; code: string; name: string }
 /** 현금 계정과 [예금포함]으로 더하는 예금 계정(StandardAccounts — 101 현금 · 102 당좌예금 · 103 보통예금). */
@@ -150,9 +150,9 @@ export default function CashBookPage() {
               {carry !== 0 && (
                 <tr className="font-bold">
                   <td colSpan={4} className="text-center">이월잔액</td>
-                  <td className="text-right">{won(carry)}</td>
+                  <td className="text-right">{fmtAmountBlank(carry)}</td>
                   <td></td>
-                  <td className="text-right">{won(carry)}</td>
+                  <td className="text-right">{fmtAmountBlank(carry)}</td>
                 </tr>
               )}
               {months.map((mo) => {
@@ -165,16 +165,16 @@ export default function CashBookPage() {
                         <td>{r.counterAccountName ?? ''}</td>
                         <td>{r.partnerName ?? ''}</td>
                         <td>{r.description ?? ''}</td>
-                        <td className="text-right">{won(Number(r.debit))}</td>
-                        <td className="text-right">{won(Number(r.credit))}</td>
+                        <td className="text-right">{fmtAmountBlank(Number(r.debit))}</td>
+                        <td className="text-right">{fmtAmountBlank(Number(r.credit))}</td>
                         {/* 원본(2026-10-22 실측): 잔액은 그날 마지막 줄에만 찍는다('10/21 -1' 빈칸 · '-25' 잔액, 같은 날 전표가 둘이어도). */}
                         <td className="text-right">{ms[i + 1]?.r.entryDate === r.entryDate ? '' : Math.round(bal).toLocaleString('ko-KR')}</td>
                       </tr>
                     ))}
                     <tr style={SUB_ROW}>
                       <td colSpan={4} className="text-center">{mo.replace('-', '/')} 계</td>
-                      <td className="text-right">{won(ms.reduce((s, x) => s + Number(x.r.debit), 0))}</td>
-                      <td className="text-right">{won(ms.reduce((s, x) => s + Number(x.r.credit), 0))}</td>
+                      <td className="text-right">{fmtAmountBlank(ms.reduce((s, x) => s + Number(x.r.debit), 0))}</td>
+                      <td className="text-right">{fmtAmountBlank(ms.reduce((s, x) => s + Number(x.r.credit), 0))}</td>
                       <td></td>
                     </tr>
                   </Fragment>
@@ -188,8 +188,8 @@ export default function CashBookPage() {
             {/* 원본(2026-10-20 실측): '2026/10 계 | 5,000 | | ' · '합계 | 5,000 | | 5,000' — 합계 차변 = 이월 + 차변(계정별원장과 같다). */}
             <tr style={SUB_ROW}>
               <td colSpan={4} className="text-center">합계</td>
-              <td className="text-right">{won(carry + totalDebit)}</td>
-              <td className="text-right">{won(totalCredit)}</td>
+              <td className="text-right">{fmtAmountBlank(carry + totalDebit)}</td>
+              <td className="text-right">{fmtAmountBlank(totalCredit)}</td>
               <td className="text-right">{Math.round(carry + totalDebit - totalCredit).toLocaleString('ko-KR')}</td>
             </tr>
           </tfoot>

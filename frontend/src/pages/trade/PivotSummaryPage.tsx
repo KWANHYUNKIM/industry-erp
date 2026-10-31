@@ -12,6 +12,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { periodOf } from '../../utils/periods'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 영업관리 > 집계표 (이카운트 E040710)
@@ -57,7 +58,6 @@ interface PivotRow {
   qty: number; supply: number; vat: number
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 [기준일자] 기본값은 전월+금월(2026-10-20 실측). */
 const initP = periodOf('전월+금월')!
 /** 원본 집계표의 수량은 소수 둘째 자리까지 찍힌다('2.00' · 2026-10-20 실측). */
@@ -445,9 +445,9 @@ export default function PivotSummaryPage() {
               <tr key={r.key}>
                 <td className="sticky left-0 bg-white font-semibold">{r.name}</td>
                 <td style={{ ...cell, textAlign: 'right' }}>{r.qty ? qty2(r.qty) : ''}</td>
-                <td style={{ ...cell, textAlign: 'right' }}>{r.supply ? won(r.supply) : ''}</td>
-                <td style={{ ...cell, textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.vat ? won(r.vat) : ''}</td>
-                <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.supply + r.vat)}</td>
+                <td style={{ ...cell, textAlign: 'right' }}>{r.supply ? fmtNumber(r.supply) : ''}</td>
+                <td style={{ ...cell, textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.vat ? fmtNumber(r.vat) : ''}</td>
+                <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{fmtNumber(r.supply + r.vat)}</td>
               </tr>
             ))}
           </tbody>
@@ -456,9 +456,9 @@ export default function PivotSummaryPage() {
               <tr className="font-bold bg-ec-page">
                 <td className="sticky left-0 bg-ec-page">합계</td>
                 <td style={cell}>{qty2(colTotals.qty)}</td>
-                <td style={cell}>{won(colTotals.supply)}</td>
-                <td style={cell}>{won(colTotals.vat)}</td>
-                <td style={{ ...cell, color: 'var(--ec-blue)' }}>{won(colTotals.supply + colTotals.vat)}</td>
+                <td style={cell}>{fmtNumber(colTotals.supply)}</td>
+                <td style={cell}>{fmtNumber(colTotals.vat)}</td>
+                <td style={{ ...cell, color: 'var(--ec-blue)' }}>{fmtNumber(colTotals.supply + colTotals.vat)}</td>
               </tr>
             </tfoot>
           )}

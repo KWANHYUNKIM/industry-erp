@@ -6,6 +6,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import type { useRequired } from '../../utils/useRequired'
 import type { Item, Partner, Warehouse } from '../../types/api'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 /**
  * 재고 II › A/S관리 › A/S수리 › <b>A/S수리입력</b>(E040605) 의 머리 칸 · 품목 격자.
@@ -84,7 +85,6 @@ export function pullAsRequest(f: AsRepairDraft, a: AsReqPick): { f: AsRepairDraf
   }
 }
 
-const won = (n: number) => Math.round(Number(n)).toLocaleString('ko-KR')
 
 export default function AsRepairScreen({ f, setF, lines, setLines, editing, saleAmount = 0, partners, warehouses, items, asReqs, req }: {
   f: AsRepairDraft; setF: (fn: (x: AsRepairDraft) => AsRepairDraft) => void
@@ -136,7 +136,7 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
       <li className="wide"><div className="title">제목</div><div className="form">
         <input className="ec-input w-full" placeholder="제목" value={f.title} onChange={(e) => setFv('title', e.target.value)} />
       </div></li>
-      <li className="wide"><div className="title">소모(판매)금액</div><div className="form">{won(saleAmount)}</div></li>
+      <li className="wide"><div className="title">소모(판매)금액</div><div className="form">{fmtAmountOf(saleAmount)}</div></li>
       <li className="wide"><div className="title">수리내용</div><div className="form">
         <textarea className="ec-input w-full h-[52px]" placeholder="수리내용" value={f.content} onChange={(e) => setFv('content', e.target.value)} />
       </div></li>
@@ -176,7 +176,7 @@ export default function AsRepairScreen({ f, setF, lines, setLines, editing, sale
           )
         })}
       </tbody>
-      <tfoot><tr><td colSpan={4}></td><td className="text-right">{won(filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0))}</td><td></td></tr></tfoot>
+      <tfoot><tr><td colSpan={4}></td><td className="text-right">{fmtAmountOf(filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0))}</td><td></td></tr></tfoot>
     </table>
     <EcWebUploadButton />
   </>)

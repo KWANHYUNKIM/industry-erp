@@ -10,8 +10,8 @@ import type { IncomeStatement } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import { pad2 } from '../../utils/periods'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const BOLD: React.CSSProperties = { fontWeight: 700 }
 const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); return `${ym}-${pad2(new Date(y, m, 0).getDate())}` }
 /** from ~ to 의 달 목록(YYYY-MM). */
@@ -113,8 +113,8 @@ export default function MonthlyPnlPage() {
   const row = (name: string, cell: (ym?: string) => number, bold: boolean, key: string, sub = false) => (
     <tr key={key} style={bold ? BOLD : undefined}>
       <td className={sub ? 'pl-[30px]' : undefined}>{name}</td>
-      {months.map((ym) => <td key={ym} className="text-right">{won(cell(ym))}</td>)}
-      <td className="text-right">{won(cell())}</td>
+      {months.map((ym) => <td key={ym} className="text-right">{fmtAmountBlank(cell(ym))}</td>)}
+      <td className="text-right">{fmtAmountBlank(cell())}</td>
     </tr>
   )
 

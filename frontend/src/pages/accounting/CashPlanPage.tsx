@@ -5,10 +5,10 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { CashFlowType, CashPlanStatus } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
-const signed = (n: number) => (n > 0 ? `+${won(n)}` : won(n))
+const signed = (n: number) => (n > 0 ? `+${fmtNumber(n)}` : fmtNumber(n))
 
 /** 자금계획 — 월별 수입·지출 계획 대비 실적(그 달의 계좌 입출금 집계). */
 export default function CashPlanPage() {
@@ -68,20 +68,20 @@ export default function CashPlanPage() {
           <tbody>
             <tr>
               <td>수입</td>
-              <td className="text-right">{won(status.plannedInflow)}</td>
-              <td className="text-right">{won(status.actualInflow)}</td>
+              <td className="text-right">{fmtNumber(status.plannedInflow)}</td>
+              <td className="text-right">{fmtNumber(status.actualInflow)}</td>
               <td style={{ textAlign: 'right', color: status.inflowDiff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{signed(status.inflowDiff)}</td>
             </tr>
             <tr>
               <td>지출</td>
-              <td className="text-right">{won(status.plannedOutflow)}</td>
-              <td className="text-right">{won(status.actualOutflow)}</td>
+              <td className="text-right">{fmtNumber(status.plannedOutflow)}</td>
+              <td className="text-right">{fmtNumber(status.actualOutflow)}</td>
               <td style={{ textAlign: 'right', color: status.outflowDiff > 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{signed(status.outflowDiff)}</td>
             </tr>
             <tr className="font-bold bg-ec-page">
               <td>수지(수입 − 지출)</td>
-              <td className="text-right">{won(status.plannedNet)}</td>
-              <td style={{ textAlign: 'right', color: status.actualNet < 0 ? 'var(--ec-danger)' : 'var(--ec-blue-dark)' }}>{won(status.actualNet)}</td>
+              <td className="text-right">{fmtNumber(status.plannedNet)}</td>
+              <td style={{ textAlign: 'right', color: status.actualNet < 0 ? 'var(--ec-danger)' : 'var(--ec-blue-dark)' }}>{fmtNumber(status.actualNet)}</td>
               <td className="text-right">{signed(status.actualNet - status.plannedNet)}</td>
             </tr>
           </tbody>
@@ -128,7 +128,7 @@ function PlanTable({ title, rows, onRemove }: {
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.category}</td>
-              <td className="text-right">{won(r.amount)}</td>
+              <td className="text-right">{fmtNumber(r.amount)}</td>
               <td className="text-[12px] text-ec-hint">{r.remark ?? ''}</td>
               <td className="text-center">
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: 'var(--ec-danger)' }} onClick={() => onRemove(r.id, r.category)}>×</button>
@@ -139,7 +139,7 @@ function PlanTable({ title, rows, onRemove }: {
         <tfoot>
           <tr className="font-bold bg-ec-page">
             <td colSpan={2} className="text-right">합계</td>
-            <td className="text-right">{won(total)}</td>
+            <td className="text-right">{fmtNumber(total)}</td>
             <td colSpan={2}></td>
           </tr>
         </tfoot>

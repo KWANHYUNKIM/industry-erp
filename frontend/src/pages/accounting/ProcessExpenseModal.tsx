@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import Modal from '../../components/Modal'
 import type { Warehouse } from '../../types/api'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 원가생성/수정(E040802) 사전작업 [노무비/경비등록] · 지나간 줄 [사전작업 › 노무비/경비조회] — 2026-10-20 loginaa 실측.
@@ -27,7 +28,6 @@ interface Line {
   expenseId: number | null; labor: string; overhead: string
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const num = (s: string) => Number(String(s).replace(/,/g, '')) || 0
 const ymText = (m: string) => m.replace('-', '/')
 
@@ -65,7 +65,7 @@ export default function ProcessExpenseModal({ period, endMonth, readOnly = false
             out.push({
               key: `${proc.id}:${wh?.id ?? ''}`, processId: proc.id, processName: proc.name,
               warehouseId: wh?.id ?? null, warehouseCode: wh?.code ?? '', warehouseName: wh?.name ?? '',
-              expenseId: ex?.id ?? null, labor: won(ex?.laborCost ?? 0), overhead: won(ex?.overheadCost ?? 0),
+              expenseId: ex?.id ?? null, labor: fmtNumber(ex?.laborCost ?? 0), overhead: fmtNumber(ex?.overheadCost ?? 0),
             })
           }
         }
@@ -129,18 +129,18 @@ export default function ProcessExpenseModal({ period, endMonth, readOnly = false
                       <td className="text-right">{readOnly ? l.labor : (
                         <input className="ec-input w-full text-right h-[17.55px] py-0" aria-label={`${l.processName} ${l.warehouseCode} 노무비`} value={l.labor}
                                onChange={(e) => setLine(l.key, 'labor', e.target.value)} onFocus={(e) => e.target.select()}
-                               onBlur={(e) => setLine(l.key, 'labor', won(num(e.target.value)))} />
+                               onBlur={(e) => setLine(l.key, 'labor', fmtNumber(num(e.target.value)))} />
                       )}</td>
                       <td className="text-right">{readOnly ? l.overhead : (
                         <input className="ec-input w-full text-right h-[17.55px] py-0" aria-label={`${l.processName} ${l.warehouseCode} 경비`} value={l.overhead}
                                onChange={(e) => setLine(l.key, 'overhead', e.target.value)} onFocus={(e) => e.target.select()}
-                               onBlur={(e) => setLine(l.key, 'overhead', won(num(e.target.value)))} />
+                               onBlur={(e) => setLine(l.key, 'overhead', fmtNumber(num(e.target.value)))} />
                       )}</td>
                     </tr>
                   ))}
                   <tr className="font-bold bg-ec-stripe h-[29.7px]">
                     <td colSpan={3} className="text-center">{g.name} 계</td>
-                    <td className="text-right">{won(s.lab)}</td><td className="text-right">{won(s.oh)}</td>
+                    <td className="text-right">{fmtNumber(s.lab)}</td><td className="text-right">{fmtNumber(s.oh)}</td>
                   </tr>
                 </Fragment>
               )
@@ -148,7 +148,7 @@ export default function ProcessExpenseModal({ period, endMonth, readOnly = false
             {!loading && groups.length > 0 && (
               <tr className="font-bold bg-ec-stripe h-[29.7px]">
                 <td colSpan={3} className="text-center">합계</td>
-                <td className="text-right">{won(total.lab)}</td><td className="text-right">{won(total.oh)}</td>
+                <td className="text-right">{fmtNumber(total.lab)}</td><td className="text-right">{fmtNumber(total.oh)}</td>
               </tr>
             )}
           </tbody>

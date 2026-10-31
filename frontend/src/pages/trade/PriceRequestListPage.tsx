@@ -15,8 +15,8 @@ import { dateText } from '../../utils/dateText'
 import Modal from '../../components/Modal'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 단가를 회신받은 발주서 — 단가확정 뒤로만 발주확정 · 입고전환이 있다(PurchaseOrderService). */
 /** 단가요청은 따로 된 전표다(PRICE_REQUESTED, 2026-10-21) — 발주서를 만들어도 단가요청은 그대로(요청 · 계획과 같은 틀). */
 const isPriceRequest = (s: PurchaseOrderStatus) => s === 'PRICE_REQUESTED'
@@ -200,7 +200,7 @@ export default function PriceRequestListPage() {
                 onChange={(e) => setChecked((c) => { const n = new Set(c); if (e.target.checked) n.add(o.id); else n.delete(o.id); return n })} /></td>
               <td className="text-center"><a className="cursor-pointer" onClick={() => setForm({ key: Date.now(), order: o })}>{dateNo(o.orderDate, o.orderNo)}</a></td>
               <td>{o.lines[0]?.itemName ?? ''}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
-              <td className="text-right">{won(Number(o.totalAmount))}</td>
+              <td className="text-right">{fmtAmount(Number(o.totalAmount))}</td>
               <td className="text-center">{o.priceValidUntil ? dateText(o.priceValidUntil) : ''}</td>
               <td className="text-center">진행중</td>
               <td className="text-center">{madeFrom(o).length > 0 && <a className="cursor-pointer" onClick={() => setMadeOf(o)}>조회</a>}</td>

@@ -10,8 +10,8 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
@@ -241,7 +241,7 @@ export default function JournalHistoryPage() {
               <td className="text-center">{slash(r.at.slice(0, 10))}</td>
               <td className="text-center text-ec-blue">{dateNo(r.e.entryDate, r.e.docNo)}</td>
               <td>{r.e.sourceTypeName}</td>
-              <td className="text-right">{won(Number(r.e.totalDebit))}</td>
+              <td className="text-right">{fmtAmountBlank(Number(r.e.totalDebit))}</td>
               <td className="text-center">{r.act}</td>
               <td>{r.e.partnerId != null ? codeOf.get(r.e.partnerId) ?? '' : ''}</td>
               <td>{r.e.partnerName ?? ''}</td>

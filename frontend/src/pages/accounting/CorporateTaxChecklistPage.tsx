@@ -8,8 +8,8 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { EcReportFoot } from '../../components/EcReportFrame'
 import { loadVatSheet, type AccountOpt, type VatReturnRow } from './VatReturnPage'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtNumberOrBlank } from '../../utils/format'
 
-const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const mm = (m: number) => `${String(m).padStart(2, '0')}월`
 /** 1번 표 한 줄 — 부가세신고서 한 장(기준월 = 신고기간 마지막 달). 기타 · 예정누락 · 면세는 우리 자료에 없어 0. */
 interface VatRow { key: number; month: number; taxInvoice: number; zeroInvoice: number }
@@ -128,13 +128,13 @@ export default function CorporateTaxChecklistPage() {
               ) : vatRows.map((r) => (
                 <tr key={r.key}>
                   <td>{mm(r.month)}</td>
-                  <td className="text-right">{won(r.taxInvoice)}</td>
-                  <td className="text-right">{won(0)}</td>
-                  <td className="text-right">{won(r.zeroInvoice)}</td>
-                  <td className="text-right">{won(0)}</td>
-                  <td className="text-right">{won(0)}</td>
-                  <td className="text-right">{won(0)}</td>
-                  <td className="text-right">{won(r.taxInvoice + r.zeroInvoice)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.taxInvoice)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(0)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.zeroInvoice)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(0)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(0)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(0)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.taxInvoice + r.zeroInvoice)}</td>
                 </tr>
               ))}
             </tbody>
@@ -142,13 +142,13 @@ export default function CorporateTaxChecklistPage() {
               <tfoot>
                 <tr className="font-bold">
                   <td>합계</td>
-                  <td className="text-right">{won(vatRows.reduce((t, r) => t + r.taxInvoice, 0))}</td>
-                  <td className="text-right">{won(0)}</td>
-                  <td className="text-right">{won(vatRows.reduce((t, r) => t + r.zeroInvoice, 0))}</td>
-                  <td className="text-right">{won(0)}</td>
-                  <td className="text-right">{won(0)}</td>
-                  <td className="text-right">{won(0)}</td>
-                  <td className="text-right">{won(vatRows.reduce((t, r) => t + r.taxInvoice + r.zeroInvoice, 0))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(vatRows.reduce((t, r) => t + r.taxInvoice, 0))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(0)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(vatRows.reduce((t, r) => t + r.zeroInvoice, 0))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(0)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(0)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(0)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(vatRows.reduce((t, r) => t + r.taxInvoice + r.zeroInvoice, 0))}</td>
                 </tr>
               </tfoot>
             )}
@@ -163,11 +163,11 @@ export default function CorporateTaxChecklistPage() {
               {data.sales.map((r) => (
                 <tr key={r.month}>
                   <td>{mm(r.month)}</td>
-                  <td className="text-right">{won(r.sales)}</td>
-                  <td className="text-right">{won(r.quarterOnly)}</td>
-                  <td className="text-right">{won(r.quarterCumulative)}</td>
-                  <td className="text-right">{won(r.halfCumulative)}</td>
-                  <td className="text-right">{won(r.total)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.sales)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.quarterOnly)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.quarterCumulative)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.halfCumulative)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -189,15 +189,15 @@ export default function CorporateTaxChecklistPage() {
               ) : payroll.map((r) => (
                 <tr key={r.month}>
                   <td>{mm(r.month)}</td>
-                  <td className="text-right">{won(r.reported)}</td>
-                  <td className="text-right">{won(r.difference)}</td>
-                  <td className="text-right">{won(r.salary)}</td>
-                  <td className="text-right">{won(r.bonus)}</td>
-                  <td className="text-right">{won(r.incomeTax)}</td>
-                  <td className="text-right">{won(r.localIncomeTax)}</td>
-                  <td className="text-right">{won(r.pension)}</td>
-                  <td className="text-right">{won(r.health)}</td>
-                  <td className="text-right">{won(r.employment)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.reported)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.difference)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.salary)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.bonus)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.incomeTax)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.localIncomeTax)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.pension)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.health)}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.employment)}</td>
                 </tr>
               ))}
             </tbody>
@@ -205,15 +205,15 @@ export default function CorporateTaxChecklistPage() {
               <tfoot>
                 <tr className="font-bold">
                   <td>합계</td>
-                  <td className="text-right">{won(sum('reported'))}</td>
-                  <td className="text-right">{won(sum('difference'))}</td>
-                  <td className="text-right">{won(sum('salary'))}</td>
-                  <td className="text-right">{won(sum('bonus'))}</td>
-                  <td className="text-right">{won(sum('incomeTax'))}</td>
-                  <td className="text-right">{won(sum('localIncomeTax'))}</td>
-                  <td className="text-right">{won(sum('pension'))}</td>
-                  <td className="text-right">{won(sum('health'))}</td>
-                  <td className="text-right">{won(sum('employment'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('reported'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('difference'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('salary'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('bonus'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('incomeTax'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('localIncomeTax'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('pension'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('health'))}</td>
+                  <td className="text-right">{fmtNumberOrBlank(sum('employment'))}</td>
                 </tr>
               </tfoot>
             )}

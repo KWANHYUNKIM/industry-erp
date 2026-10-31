@@ -12,11 +12,11 @@ import LedgerLabelMenu from '../../features/payroll/components/LedgerLabelMenu'
 import PayrollSlipCreate from '../../features/payroll/components/PayrollSlipCreate'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtNumberOf } from '../../utils/format'
 
 interface Ledger { id: number; payMonth: string; name: string; payDate: string; headcount: number; grossTotal: number; confirmedCount: number; workConfirmCount: number; directAmountCount: number }
 interface ConfirmRow { employeeId: number; employeeCode: string; employeeName: string; payItemId: number; payItemName: string; quantity: number }
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const slash = (s: string) => s.replace(/-/g, '/')
 
 /**
@@ -320,7 +320,7 @@ export default function PayLedgerPage() {
               </td>
                 </>
               )}
-              <td className="text-right">{l.headcount ? won(l.grossTotal) : ''}</td>
+              <td className="text-right">{l.headcount ? fmtNumberOf(l.grossTotal) : ''}</td>
               {/* 급여구분이 '급여' 하나라(상여 대장 없음) 늘 빈칸 — 원본 급여 대장도 빈칸이다. */}
               <td className="text-right"></td>
             </tr>

@@ -11,6 +11,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 영업관리 > 단가변동표 (이카운트 E040819)
@@ -75,7 +76,6 @@ interface PriceRow {
   saleAvg: number | null; buyAvg: number | null
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 export default function PriceMovementPage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
@@ -521,8 +521,8 @@ export default function PriceMovementPage() {
               out.push(
                 <tr key={`${r.key}-avg`} className="font-bold bg-ec-page">
                   <td colSpan={showQty ? 6 : 5} className="text-center">[단가]의 평균</td>
-                  <td className="text-right">{sAvg != null ? won(sAvg) : ''}</td>
-                  <td className="text-right">{bAvg != null ? won(bAvg) : ''}</td>
+                  <td className="text-right">{sAvg != null ? fmtNumber(sAvg) : ''}</td>
+                  <td className="text-right">{bAvg != null ? fmtNumber(bAvg) : ''}</td>
                 </tr>,
               )
             }
@@ -583,27 +583,27 @@ export default function PriceMovementPage() {
                 <td>{r.itemName}</td>
                 <td className="text-ec-hint">{r.spec ?? ''}</td>
                 <td className="text-center text-ec-hint">{r.unit}</td>
-                <td className="text-right text-ec-hint">{won(r.standard)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(r.standard)}</td>
                 <td className="text-right text-ec-label">{r.count}</td>
                 {showQty && <td className="text-right text-ec-label">{r.quantity.toLocaleString()}</td>}
                 {/* 거래가 한쪽만 있으면 다른 쪽은 빈칸이다 — 0 으로 채우지 않는다. */}
                 {mode === 'ALL' && (
                   <td style={{ textAlign: 'right', color: r.saleAvg == null ? 'var(--ec-text-off)' : undefined }}>
-                    {r.saleAvg == null ? '' : won(r.saleAvg)}
+                    {r.saleAvg == null ? '' : fmtNumber(r.saleAvg)}
                   </td>
                 )}
                 {mode === 'ALL' && (
                   <td style={{ textAlign: 'right', color: r.buyAvg == null ? 'var(--ec-text-off)' : undefined }}>
-                    {r.buyAvg == null ? '' : won(r.buyAvg)}
+                    {r.buyAvg == null ? '' : fmtNumber(r.buyAvg)}
                   </td>
                 )}
-                {mode !== 'ALL' && withMin && <td className="text-right">{won(r.min)}</td>}
-                {mode !== 'ALL' && withMax && <td className="text-right">{won(r.max)}</td>}
-                {mode !== 'ALL' && withAvg && <td className="text-right text-ec-label">{won(r.avg)}</td>}
+                {mode !== 'ALL' && withMin && <td className="text-right">{fmtNumber(r.min)}</td>}
+                {mode !== 'ALL' && withMax && <td className="text-right">{fmtNumber(r.max)}</td>}
+                {mode !== 'ALL' && withAvg && <td className="text-right text-ec-label">{fmtNumber(r.avg)}</td>}
                 {mode !== 'ALL' && (
-                  <td className="text-right font-semibold text-ec-blue">{won(r.latest)}</td>
+                  <td className="text-right font-semibold text-ec-blue">{fmtNumber(r.latest)}</td>
                 )}
-                {mode !== 'ALL' && showSwing && <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>{range ? won(range) : ''}</td>}
+                {mode !== 'ALL' && showSwing && <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>{range ? fmtNumber(range) : ''}</td>}
                 {mode !== 'ALL' && (
                   <td style={{ textAlign: 'right', fontWeight: 600, color: vsStd > 0 ? 'var(--ec-success)' : vsStd < 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                     {r.standard > 0 ? `${vsStd > 0 ? '+' : ''}${vsStd.toFixed(1)}%` : '-'}

@@ -10,8 +10,8 @@ import { dateText } from '../../utils/dateText'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 소계 · 누계줄 모양(2026-10-02 실측): 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 
@@ -176,7 +176,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
             ...(g.opening !== 0 ? [
               <tr key={`${g.c.id}-open`}>
                 <td colSpan={11} className="text-center">이월잔액</td>
-                <td className="text-right">{won(g.opening)}</td>
+                <td className="text-right">{fmtAmountBlank(g.opening)}</td>
               </tr>,
             ] : []),
             ...g.lines.map((l, i) => (
@@ -191,16 +191,16 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
                 <td>{deptName(g.c.departmentId)}</td>
                 <td>{g.c.projectName ?? ''}</td>
                 <td>{(l.dec ? g.c.outRemark ?? g.c.remark : g.c.remark) ?? ''}</td>
-                <td className="text-right">{won(l.inc)}</td>
-                <td className="text-right">{won(l.dec)}</td>
+                <td className="text-right">{fmtAmountBlank(l.inc)}</td>
+                <td className="text-right">{fmtAmountBlank(l.dec)}</td>
                 {/* 원본은 잔액 0 을 빈칸으로 그린다(발행수표거래내역 감소 줄) */}
                 <td className="text-right">{Math.round(l.bal) === 0 ? '' : Math.round(l.bal).toLocaleString('ko-KR')}</td>
               </tr>
             )),
             <tr key={`${g.c.id}-sub`} style={SUB_ROW}>
               <td colSpan={9} className="text-center">{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
-              <td className="text-right">{won(g.inc)}</td>
-              <td className="text-right">{won(g.dec)}</td>
+              <td className="text-right">{fmtAmountBlank(g.inc)}</td>
+              <td className="text-right">{fmtAmountBlank(g.dec)}</td>
               <td></td>
             </tr>,
           ])}
@@ -208,8 +208,8 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
         <tfoot>
           <tr style={SUB_ROW}>
             <td colSpan={9} className="text-center">누계</td>
-            <td className="text-right">{won(total.inc)}</td>
-            <td className="text-right">{won(total.dec)}</td>
+            <td className="text-right">{fmtAmountBlank(total.inc)}</td>
+            <td className="text-right">{fmtAmountBlank(total.dec)}</td>
             <td></td>
           </tr>
         </tfoot>

@@ -14,6 +14,7 @@ import TradeDetailModal from '../../features/taxvoucher/components/TradeDetailMo
 import TaxInvoicePaperModal from '../../features/taxvoucher/components/TaxInvoicePaperModal'
 import TaxVoucherForm, { voucherFormOf, type PartnerOpt, type Voucher, type VoucherForm } from '../../features/taxvoucher/components/TaxVoucherForm'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
 type Side = '매출' | '매입'
 type Status = '전체' | '결재중' | '미확인' | '확인'
@@ -22,7 +23,6 @@ interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: bool
 type Source = '거래명세서' | '회계 I' | '세무'
 interface Row { key: string; date: string; no: string; partnerId: number | null; partner: string; supply: number; vat: number; source: Source; voucher?: Voucher; sourceId?: number | null }
 const STATUSES: Status[] = ['전체', '결재중', '미확인', '확인']
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
 /**
  * 세무 › 부가세 › 신고전검토자료 › <b>매출(세금)계산서조회(세무)</b>(E030203) · <b>매입(세금)계산서조회(세무)</b>(E030204, 원본 화면 제목은
@@ -202,9 +202,9 @@ export default function TaxInvoiceListPage({ side, title: titleProp }: { side: S
                   : dateNo(r.date, r.no)}
               </td>
               <td>{r.partner}</td>
-              <td className="text-right">{won(r.supply)}</td>
-              <td className="text-right">{won(r.vat)}</td>
-              <td className="text-right">{won(r.supply + r.vat)}</td>
+              <td className="text-right">{fmtAmountBlank(r.supply)}</td>
+              <td className="text-right">{fmtAmountBlank(r.vat)}</td>
+              <td className="text-right">{fmtAmountBlank(r.supply + r.vat)}</td>
               <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>
                 {r.source === '거래명세서'
                   ? <><button className="ec-link" onClick={() => setDetail(r)}>내역보기</button>{sales ? ' 거래명세서' : ''}</>

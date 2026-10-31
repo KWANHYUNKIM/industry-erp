@@ -11,8 +11,8 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import CodePickerField from '../../components/CodePickerField'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [계정 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -199,20 +199,20 @@ export default function FundStatusPage() {
                     <tr key={x.key}>
                       <td>{i === 0 ? b.accName : ''}</td>
                       <td>{x.partner}</td>
-                      <td className="text-right">{won(x.carry)}</td>
-                      <td className="text-right">{won(x.inc)}</td>
-                      <td className="text-right">{won(x.dec)}</td>
-                      <td className="text-right">{won(bal(x))}</td>
+                      <td className="text-right">{fmtAmountBlank(x.carry)}</td>
+                      <td className="text-right">{fmtAmountBlank(x.inc)}</td>
+                      <td className="text-right">{fmtAmountBlank(x.dec)}</td>
+                      <td className="text-right">{fmtAmountBlank(bal(x))}</td>
                       <td>{x.code}</td>
                       <td>{i === 0 ? b.accCode : ''}</td>
                     </tr>
                   ))}
                   <tr style={SUB_ROW}>
                     <td colSpan={2} className="text-center">{b.accName} 계</td>
-                    <td className="text-right">{won(b.carry)}</td>
-                    <td className="text-right">{won(b.inc)}</td>
-                    <td className="text-right">{won(b.dec)}</td>
-                    <td className="text-right">{won(bal(b))}</td>
+                    <td className="text-right">{fmtAmountBlank(b.carry)}</td>
+                    <td className="text-right">{fmtAmountBlank(b.inc)}</td>
+                    <td className="text-right">{fmtAmountBlank(b.dec)}</td>
+                    <td className="text-right">{fmtAmountBlank(bal(b))}</td>
                     <td></td>
                     <td></td>
                   </tr>
@@ -220,10 +220,10 @@ export default function FundStatusPage() {
               ))}
               <tr style={SUB_ROW}>
                 <td colSpan={2} className="text-center">합계</td>
-                <td className="text-right">{won(tot.carry)}</td>
-                <td className="text-right">{won(tot.inc)}</td>
-                <td className="text-right">{won(tot.dec)}</td>
-                <td className="text-right">{won(bal(tot))}</td>
+                <td className="text-right">{fmtAmountBlank(tot.carry)}</td>
+                <td className="text-right">{fmtAmountBlank(tot.inc)}</td>
+                <td className="text-right">{fmtAmountBlank(tot.dec)}</td>
+                <td className="text-right">{fmtAmountBlank(bal(tot))}</td>
                 <td></td>
                 <td></td>
               </tr>

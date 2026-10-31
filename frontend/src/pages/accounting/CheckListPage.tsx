@@ -14,8 +14,8 @@ import { useNavigate } from 'react-router-dom'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import NumCheck from '../../components/NumCheck'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 수표 한 장이 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(입금 · 부도 · 결제완료) 감소. */
 interface Move { key: string; date: string; inc: boolean; c: BankCheck }
@@ -276,7 +276,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
                 <td>{m.c.checkNo}</td>
                 <td>{m.inc ? '증가' : '감소'}</td>
                 <td>{byVoucher(m) && !m.inc ? '' : m.c.partnerName ?? ''}</td>
-                <td className="text-right">{won(Number(m.c.amount))}</td>
+                <td className="text-right">{fmtAmount(Number(m.c.amount))}</td>
                 <td>{(m.inc ? m.c.remark : m.c.outRemark ?? m.c.remark) ?? ''}</td>
                 {!received && <td className="text-ec-navy">인쇄</td>}
                 <td>{kindOf(m)}</td>

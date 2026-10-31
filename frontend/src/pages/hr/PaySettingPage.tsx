@@ -10,9 +10,9 @@ import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 const thisMonth = () => ymd(new Date()).slice(0, 7)
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['수당/공제 항목', '수당/공제 그룹', '급여이체'] as const
 type Tab = (typeof TABS)[number]
@@ -123,7 +123,7 @@ export default function PaySettingPage() {
                       {i.kind === 'DEDUCTION' ? <span className="text-ec-off">-</span>
                         : i.taxable ? '과세' : <b className="text-ec-blue">비과세</b>}
                     </td>
-                    <td className="text-right">{won(i.defaultAmount)}</td>
+                    <td className="text-right">{fmtNumber(i.defaultAmount)}</td>
                     <td style={{ textAlign: 'center', color: i.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{i.active ? '사용' : '중지'}</td>
                     <td className="text-ec-hint text-[11.5px]">
                       {i.kind === 'ALLOWANCE' && !i.taxable && '4대보험·소득세 기준에서 빠집니다'}
@@ -166,13 +166,13 @@ export default function PaySettingPage() {
                     <td className="text-[12px] text-ec-label">
                       {g.lines.map((l) => (
                         <span key={l.payItemId} className="mr-[8px]">
-                          {l.name} {won(l.amount)}
+                          {l.name} {fmtNumber(l.amount)}
                           {l.kind === 'ALLOWANCE' && !l.taxable && <span className="text-ec-blue"> (비과세)</span>}
                         </span>
                       ))}
                     </td>
-                    <td className="text-right text-ec-success font-semibold">{won(g.allowanceTotal)}</td>
-                    <td className="text-right text-ec-danger">{won(g.deductionTotal)}</td>
+                    <td className="text-right text-ec-success font-semibold">{fmtNumber(g.allowanceTotal)}</td>
+                    <td className="text-right text-ec-danger">{fmtNumber(g.deductionTotal)}</td>
                     <td style={{ textAlign: 'center', color: g.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{g.active ? '사용' : '중지'}</td>
                     <td className="text-center">
                       <div className="inline-flex gap-[3px]">
@@ -372,9 +372,9 @@ function GroupForm({ group, items, onError, onClose, onSaved }: {
           <tr className="font-bold bg-ec-page">
             <td colSpan={4} className="text-right">수당 / 공제 합계</td>
             <td className="text-right">
-              <span className="text-ec-success">{won(total('ALLOWANCE'))}</span>
+              <span className="text-ec-success">{fmtNumber(total('ALLOWANCE'))}</span>
               <span className="text-ec-off"> / </span>
-              <span className="text-ec-danger">{won(total('DEDUCTION'))}</span>
+              <span className="text-ec-danger">{fmtNumber(total('DEDUCTION'))}</span>
             </td>
             <td></td>
           </tr>
@@ -438,13 +438,13 @@ function TransferTab({ transfers, onError, onDone }: {
     onError('')
     if (!bankAccountId) return onError('출금할 회사 계좌를 선택하세요.')
     if (pending.length === 0) return onError('이체할 확정 급여명세가 없습니다.')
-    if (!(await ecConfirm(`${payMonth} 급여 ${pending.length}건 · 실지급액 ${won(totalNet)}원을 이체할까요?`))) return
+    if (!(await ecConfirm(`${payMonth} 급여 ${pending.length}건 · 실지급액 ${fmtNumber(totalNet)}원을 이체할까요?`))) return
     setRunning(true)
     try {
       const { data } = await api.post<PayrollTransfer>('/pay-settings/transfers', {
         payMonth, bankAccountId: Number(bankAccountId), transferDate,
       })
-      onDone(`${data.transferNo} 이체 완료 — 실지급 ${won(data.netPay)}원 (회계전표 ${data.journalDocNo})`)
+      onDone(`${data.transferNo} 이체 완료 — 실지급 ${fmtNumber(data.netPay)}원 (회계전표 ${data.journalDocNo})`)
       await loadPending(payMonth)
     } catch (err) {
       onError(extractErrorMessage(err))
@@ -466,13 +466,13 @@ function TransferTab({ transfers, onError, onDone }: {
           <Field label="출금 계좌 *">
             <select className="ec-input" value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} style={{ width: 240 }}>
               <option value="">선택하세요</option>
-              {banks.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {won(b.balance)})</option>)}
+              {banks.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {fmtNumber(b.balance)})</option>)}
             </select>
           </Field>
           <button className="ec-btn ec-btn-primary" onClick={run} disabled={running}>{running ? '이체 중…' : '급여이체 실행'}</button>
           <div className="text-[12.5px] pb-[5px]">
-            대상 <b>{pending.length}건</b> · 지급총액 {won(totalPay)} · 공제 {won(totalDeduction)} ·
-            실지급 <b className="text-ec-navy">{won(totalNet)}</b>
+            대상 <b>{pending.length}건</b> · 지급총액 {fmtNumber(totalPay)} · 공제 {fmtNumber(totalDeduction)} ·
+            실지급 <b className="text-ec-navy">{fmtNumber(totalNet)}</b>
           </div>
         </div>
         <div className="mt-[8px] text-[11.5px] text-ec-hint">
@@ -499,9 +499,9 @@ function TransferTab({ transfers, onError, onDone }: {
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td className="font-semibold">{p.employeeName}</td>
                 <td className="text-ec-label">{p.department ?? ''}</td>
-                <td className="text-right">{won(p.baseSalary + p.allowanceTotal)}</td>
-                <td className="text-right text-ec-danger">{won(p.deductionTotal)}</td>
-                <td className="text-right font-bold">{won(p.netPay)}</td>
+                <td className="text-right">{fmtNumber(p.baseSalary + p.allowanceTotal)}</td>
+                <td className="text-right text-ec-danger">{fmtNumber(p.deductionTotal)}</td>
+                <td className="text-right font-bold">{fmtNumber(p.netPay)}</td>
                 <td></td>
               </tr>
             ))}
@@ -539,9 +539,9 @@ function TransferTab({ transfers, onError, onDone }: {
                 <td>{dateText(t.transferDate)}</td>
                 <td className="text-ec-label">{t.bankAccountName}</td>
                 <td className="text-center">{t.lines.length}명</td>
-                <td className="text-right">{won(t.totalPay)}</td>
-                <td className="text-right text-ec-danger">{won(t.totalDeduction)}</td>
-                <td className="text-right font-bold">{won(t.netPay)}</td>
+                <td className="text-right">{fmtNumber(t.totalPay)}</td>
+                <td className="text-right text-ec-danger">{fmtNumber(t.totalDeduction)}</td>
+                <td className="text-right font-bold">{fmtNumber(t.netPay)}</td>
                 <td className="text-ec-blue">{t.journalDocNo ?? ''}</td>
               </tr>
               {openId === t.id && (
@@ -563,7 +563,7 @@ function TransferTab({ transfers, onError, onDone }: {
                             <td className="text-center text-ec-hint">{idx + 1}</td>
                             <td>{l.employeeName}</td>
                             <td className="text-ec-label">{l.department ?? ''}</td>
-                            <td className="text-right font-semibold">{won(l.netPay)}</td>
+                            <td className="text-right font-semibold">{fmtNumber(l.netPay)}</td>
                             <td></td>
                           </tr>
                         ))}

@@ -8,8 +8,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { periodOf } from '../../components/EcPeriodPicks'
 import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface Opt { id: number; code: string; name: string }
@@ -271,14 +271,14 @@ export default function AccountingVsStockPage() {
               <td>{r.a?.dept ?? ''}</td>
               <td>{r.a?.project ?? ''}</td>
               <td>{r.a?.partner ?? ''}</td>
-              <td className="text-right">{r.a ? won(r.a.amount) : ''}</td>
+              <td className="text-right">{r.a ? fmtAmountBlank(r.a.amount) : ''}</td>
               <td className="text-center">{r.a ? '내역' : ''}</td>
               <td className="text-center">{r.s ? dateNo(r.s.slipDate, r.s.docNo) : ''}</td>
               <td>{r.s?.itemSummary ?? ''}</td>
               <td>{r.s?.warehouseName ?? ''}</td>
               <td>{r.s?.projectName ?? ''}</td>
               <td>{r.s?.partnerName ?? ''}</td>
-              <td className="text-right">{r.s ? won(stockAmt(r.s)) : ''}</td>
+              <td className="text-right">{r.s ? fmtAmountBlank(stockAmt(r.s)) : ''}</td>
               <td className="text-center">{r.s?.journalDocNo ? (r.a?.docNo ?? dateNo(r.s.slipDate, r.s.journalDocNo)) : ''}</td>
             </tr>
           ))}
@@ -287,10 +287,10 @@ export default function AccountingVsStockPage() {
           <tfoot>
             <tr className="font-bold">
               <td colSpan={5} className="text-center">합계</td>
-              <td className="text-right">{won(sumA)}</td>
+              <td className="text-right">{fmtAmountBlank(sumA)}</td>
               <td />
               <td colSpan={5} className="text-center">합계</td>
-              <td className="text-right">{won(sumS)}</td>
+              <td className="text-right">{fmtAmountBlank(sumS)}</td>
               <td />
             </tr>
           </tfoot>

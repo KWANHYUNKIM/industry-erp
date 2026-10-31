@@ -11,8 +11,8 @@ import { PARTNER_LEDGER_PICKS } from '../../utils/periods'
 import { useRequired } from '../../utils/useRequired'
 import type { JournalEntry, SalesDoc, PurchaseDoc, TradeLine } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
@@ -192,7 +192,7 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
   const headline = (p: PartnerOpt | undefined) => [
     `사업자등록번호 : ${p?.bizRegNo ?? ''}`,
     `대표자 : ${p?.ceoName ?? ''}`,
-    `여신한도 : ${won(Number(p?.creditLimit ?? 0)) || '0'}`,
+    `여신한도 : ${fmtAmountBlank(Number(p?.creditLimit ?? 0)) || '0'}`,
     `전화(모바일) : ${p?.phone ?? ''}${p?.mobile ? ` (${p.mobile})` : ''}`,
     `Email : ${p?.email ?? ''}`,
     `Fax : ${p?.fax ?? ''}`,
@@ -242,7 +242,7 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
           <table className="w-full text-left mb-[6px]">
             <tbody>
               <tr><th className="w-[110px]">사업자등록번호</th><td>{p?.bizRegNo ?? ''}</td><th className="w-[70px]">대표자</th><td>{p?.ceoName ?? ''}</td></tr>
-              <tr><th>여신한도</th><td>{won(Number(p?.creditLimit ?? 0)) || '0'}</td><th>전화</th><td>{p?.phone ?? ''}{p?.mobile ? ` (${p.mobile})` : ''}</td></tr>
+              <tr><th>여신한도</th><td>{fmtAmountBlank(Number(p?.creditLimit ?? 0)) || '0'}</td><th>전화</th><td>{p?.phone ?? ''}{p?.mobile ? ` (${p.mobile})` : ''}</td></tr>
               <tr><th>Email</th><td>{p?.email ?? ''}</td><th>Fax</th><td>{p?.fax ?? ''}</td></tr>
               <tr><th>주 소</th><td colSpan={3}>{p?.address ?? ''}</td></tr>
               <tr><th>기타사항</th><td colSpan={3}>{p?.remark ?? ''}</td></tr>
@@ -286,7 +286,7 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
             <tr>
               <td colSpan={two ? 2 : cols - 1} className="text-center">이월잔액</td>
               {two && <><td></td><td></td><td></td><td></td></>}
-              <td className="text-right">{won(b.carry)}</td>
+              <td className="text-right">{fmtAmountBlank(b.carry)}</td>
             </tr>
             {months.map((mo) => {
               const mg = gs.filter((g) => g.rows[0].date.slice(0, 7) === mo)
@@ -304,25 +304,25 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
                         <td>{mode === '일별' || mode === '월별' ? '' : r.text}</td>
                         {two ? (
                           <>
-                            <td className="text-right">{won(x.si)}</td>
-                            <td className="text-right">{won(x.sd)}</td>
-                            <td className="text-right">{won(x.ai)}</td>
-                            <td className="text-right">{won(x.ad)}</td>
+                            <td className="text-right">{fmtAmountBlank(x.si)}</td>
+                            <td className="text-right">{fmtAmountBlank(x.sd)}</td>
+                            <td className="text-right">{fmtAmountBlank(x.ai)}</td>
+                            <td className="text-right">{fmtAmountBlank(x.ad)}</td>
                           </>
                         ) : (
                           <>
-                            <td className="text-right">{won(x.inc)}</td>
-                            <td className="text-right">{won(x.dec)}</td>
+                            <td className="text-right">{fmtAmountBlank(x.inc)}</td>
+                            <td className="text-right">{fmtAmountBlank(x.dec)}</td>
                           </>
                         )}
-                        <td className="text-right">{won(bal)}</td>
+                        <td className="text-right">{fmtAmountBlank(bal)}</td>
                       </tr>
                       {two && mode !== '일별' && mode !== '월별' && g.rows.flatMap((gr) => gr.items ?? []).map((it, k) => (
                         <tr key={`${g.key}i${k}`}>
                           <td></td>
                           <td>{it.text}</td>
-                          <td className="text-right">{r.stock && r.inc > 0 ? won(it.amount) : ''}</td>
-                          <td className="text-right">{r.stock && r.inc <= 0 ? won(it.amount) : ''}</td>
+                          <td className="text-right">{r.stock && r.inc > 0 ? fmtAmountBlank(it.amount) : ''}</td>
+                          <td className="text-right">{r.stock && r.inc <= 0 ? fmtAmountBlank(it.amount) : ''}</td>
                           <td></td><td></td><td></td>
                         </tr>
                       ))}
@@ -333,15 +333,15 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
                     <td colSpan={2} className="text-center">{slash(mo)} {two ? '월계' : '계'}</td>
                     {two ? (
                       <>
-                        <td className="text-right">{won(ms.si)}</td>
-                        <td className="text-right">{won(ms.sd)}</td>
-                        <td className="text-right">{won(ms.ai)}</td>
-                        <td className="text-right">{won(ms.ad)}</td>
+                        <td className="text-right">{fmtAmountBlank(ms.si)}</td>
+                        <td className="text-right">{fmtAmountBlank(ms.sd)}</td>
+                        <td className="text-right">{fmtAmountBlank(ms.ai)}</td>
+                        <td className="text-right">{fmtAmountBlank(ms.ad)}</td>
                       </>
                     ) : (
                       <>
-                        <td className="text-right">{won(ms.inc)}</td>
-                        <td className="text-right">{won(ms.dec)}</td>
+                        <td className="text-right">{fmtAmountBlank(ms.inc)}</td>
+                        <td className="text-right">{fmtAmountBlank(ms.dec)}</td>
                       </>
                     )}
                     <td></td>
@@ -353,18 +353,18 @@ export default function PartnerBookPage({ kind }: { kind: 'I' | 'II' }) {
               <td colSpan={2} className="text-center">누계</td>
               {two ? (
                 <>
-                  <td className="text-right">{won(all.si)}</td>
-                  <td className="text-right">{won(all.sd)}</td>
-                  <td className="text-right">{won(all.ai)}</td>
-                  <td className="text-right">{won(all.ad)}</td>
+                  <td className="text-right">{fmtAmountBlank(all.si)}</td>
+                  <td className="text-right">{fmtAmountBlank(all.sd)}</td>
+                  <td className="text-right">{fmtAmountBlank(all.ai)}</td>
+                  <td className="text-right">{fmtAmountBlank(all.ad)}</td>
                 </>
               ) : (
                 <>
-                  <td className="text-right">{won(all.inc)}</td>
-                  <td className="text-right">{won(all.dec)}</td>
+                  <td className="text-right">{fmtAmountBlank(all.inc)}</td>
+                  <td className="text-right">{fmtAmountBlank(all.dec)}</td>
                 </>
               )}
-              <td className="text-right">{won(b.carry + all.inc - all.dec)}</td>
+              <td className="text-right">{fmtAmountBlank(b.carry + all.inc - all.dec)}</td>
             </tr>
           </tbody>
         </BookTable>

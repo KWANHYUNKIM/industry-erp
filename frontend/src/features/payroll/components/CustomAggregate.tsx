@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
+import { fmtNumberBlank } from '../../../utils/format'
 
 /**
  * 집계조건 하나 — 원본 '집계조건검색' 창의 갈래(귀속연월 · 급여정보 · 사원정보 …) 아래 항목.
@@ -20,7 +21,6 @@ export interface AggState { conds: string[]; targets: string[]; ratio: boolean; 
 export const EMPTY_AGG: AggState = { conds: [], targets: [], ratio: false, withCode: false, horizontal: false }
 
 const MAX_CONDS = 5
-const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const codeHead = (d: AggDim | undefined, key: string) => (d?.codeLabel === undefined ? `${d?.label ?? key}코드` : d.codeLabel)
 const byCode = (a: string, b: string) => a.localeCompare(b, 'ko', { numeric: true })
 
@@ -129,7 +129,7 @@ export function CustomAggregateTable({ dims, targets, records, agg: value, name,
     : pivotKey ? pivots.map(([code, nm], i) => ({ prefix: `${i}${SEP}`, label: nm || code })) : [{ prefix: '', label: '' }]
   const banded = bands.length > 1 || !!pivotKey
   const cols = bands.flatMap((b) => base.map((c) => b.prefix + c))
-  const baseFmts = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.format ?? won))
+  const baseFmts = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.format ?? fmtNumberBlank))
   const fmts = bands.flatMap(() => baseFmts)
   useTableColumnCheck(ref, `${name} 사용자지정집계`, [allConds.join(), cols.join(), value.ratio, value.withCode, !!compare, !!pivotKey])
 

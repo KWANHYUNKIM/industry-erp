@@ -5,11 +5,11 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 interface Account { id: number; code: string; name: string; division: string }
 interface Partner { id: number; code: string; name: string }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /** 현금거래 — 입금/출금 간편입력. 입금은 차)현금·대)상대계정, 출금은 차)상대계정·대)현금 분개가 자동 생성된다. */
 export default function CashTxnPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
@@ -106,13 +106,13 @@ export default function CashTxnPage({ mode }: { mode: 'deposit' | 'withdraw' }) 
           <div style={{ fontWeight: 700, color: accent, marginBottom: 4 }}>분개 미리보기</div>
           {deposit ? (
             <>
-              <div>차) 현금 {won(amountNum)}</div>
-              <div className="ml-[16px]">대) {counterName} {won(amountNum)}</div>
+              <div>차) 현금 {fmtNumber(amountNum)}</div>
+              <div className="ml-[16px]">대) {counterName} {fmtNumber(amountNum)}</div>
             </>
           ) : (
             <>
-              <div>차) {counterName} {won(amountNum)}</div>
-              <div className="ml-[16px]">대) 현금 {won(amountNum)}</div>
+              <div>차) {counterName} {fmtNumber(amountNum)}</div>
+              <div className="ml-[16px]">대) 현금 {fmtNumber(amountNum)}</div>
             </>
           )}
         </div>

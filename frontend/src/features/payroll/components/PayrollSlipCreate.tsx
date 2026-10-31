@@ -4,12 +4,12 @@ import { api, extractErrorMessage } from '../../../api/client'
 import { ymd } from '../../../utils/periods'
 import type { Payslip } from '../../../types/api'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { fmtNumberOf } from '../../../utils/format'
 
 interface Account { id: number; code: string; name: string }
 interface Ledger { payMonth: string; name: string }
 interface Line { side: '차변' | '대변'; accountId: string; amount: number; memo: string }
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 
 /**
  * 확정 대장 [급여대장 ▸ 전표생성] (원본 E090106, 2026-10-13 실측 · 2026-10-21 저장까지 해 봄 — 실지급액 줄 계정 비면 말풍선 '계정코드를 입력 바랍니다.', 보통예금(1039) 고르고 저장 → 안내 없이 닫힘).
@@ -86,14 +86,14 @@ export default function PayrollSlipCreate({ ledger, onClose, onSaved }: { ledger
                     {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
                   </select>
                 </td>
-                <td className="text-right">{l.side === '차변' ? won(l.amount) : 0}</td>
-                <td className="text-right">{l.side === '대변' ? won(l.amount) : 0}</td>
+                <td className="text-right">{l.side === '차변' ? fmtNumberOf(l.amount) : 0}</td>
+                <td className="text-right">{l.side === '대변' ? fmtNumberOf(l.amount) : 0}</td>
                 <td>{l.memo}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr><td colSpan={2}></td><td className="text-right">{won(debit)}</td><td className="text-right">{won(credit)}</td><td></td></tr>
+            <tr><td colSpan={2}></td><td className="text-right">{fmtNumberOf(debit)}</td><td className="text-right">{fmtNumberOf(credit)}</td><td></td></tr>
           </tfoot>
         </table>
         <div className="flex gap-[6px] mt-[12px]">

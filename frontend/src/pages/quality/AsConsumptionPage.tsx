@@ -12,6 +12,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
 const fullDateNo = (date: string, no: string) => `${date.replace(/-/g, '/')}-${Number(no.split('-').pop()) || no.split('-').pop()}`
 
@@ -44,7 +45,6 @@ interface Line {
 /* 원본 [수리유형] — A/S수리입력과 같은 코드. */
 const REPAIR_TYPES: Record<string, string> = { FREE_EXCHANGE: '무상교환', FREE_REPAIR: '무상수리', PAID_EXCHANGE: '유상교환', PAID_REPAIR: '유상수리', RETURN: '반품' }
 const STATUS_NAME = { IN_PROGRESS: '진행중', COMPLETED: '완료' } as const
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 const initP = periodOf('금월(~오늘)')!
 
@@ -330,10 +330,10 @@ export default function AsConsumptionPage() {
               <td>{l.charge}</td>
               <td>{fullDateNo(l.saleDate, l.salesDocNo)}</td>
               <td>{l.itemName}</td>
-              <td className="text-right">{won(Number(l.quantity))}</td>
-              <td className="text-right">{l.unitPrice != null ? won(Number(l.unitPrice)) : ''}</td>
-              <td className="text-right">{l.supplyAmount != null ? won(Number(l.supplyAmount)) : ''}</td>
-              <td className="text-right">{l.vatAmount != null ? won(Number(l.vatAmount)) : ''}</td>
+              <td className="text-right">{fmtNumber(Number(l.quantity))}</td>
+              <td className="text-right">{l.unitPrice != null ? fmtNumber(Number(l.unitPrice)) : ''}</td>
+              <td className="text-right">{l.supplyAmount != null ? fmtNumber(Number(l.supplyAmount)) : ''}</td>
+              <td className="text-right">{l.vatAmount != null ? fmtNumber(Number(l.vatAmount)) : ''}</td>
             </tr>
           ))}
         </tbody>
@@ -341,10 +341,10 @@ export default function AsConsumptionPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={6} className="text-right">합계</td>
-              <td className="text-right">{won(lineTotals.qty)}</td>
+              <td className="text-right">{fmtNumber(lineTotals.qty)}</td>
               <td></td>
-              <td className="text-right">{won(lineTotals.amount)}</td>
-              <td className="text-right">{won(lineTotals.vat)}</td>
+              <td className="text-right">{fmtNumber(lineTotals.amount)}</td>
+              <td className="text-right">{fmtNumber(lineTotals.vat)}</td>
             </tr>
           </tfoot>
         )}
@@ -379,9 +379,9 @@ export default function AsConsumptionPage() {
                   <tr key={g.label}>
                     <td className="font-semibold">{g.label}</td>
                     <td className="text-right">{g.count}</td>
-                    <td className="text-right text-ec-warn">{won(g.sums.qty)}</td>
+                    <td className="text-right text-ec-warn">{fmtNumber(g.sums.qty)}</td>
                     <td className="text-right font-bold text-ec-blue">
-                      {won(g.sums.amount)}
+                      {fmtNumber(g.sums.amount)}
                     </td>
                   </tr>
                 ))}

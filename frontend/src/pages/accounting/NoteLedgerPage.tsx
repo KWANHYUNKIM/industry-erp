@@ -10,8 +10,8 @@ import { dateText } from '../../utils/dateText'
 import { noteLedgerGroups } from '../../utils/noteLedger'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
 
 /**
@@ -191,16 +191,16 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
                 <td>{nameOf(deptProject.departments, lineOf(l.note, l.dec > 0).dept)}</td>
                 <td>{nameOf(deptProject.projects, lineOf(l.note, l.dec > 0).project)}</td>
                 <td>{lineOf(l.note, l.dec > 0).remark}</td>
-                <td className="text-right">{won(l.inc)}</td>
-                <td className="text-right">{won(l.dec)}</td>
+                <td className="text-right">{fmtAmountBlank(l.inc)}</td>
+                <td className="text-right">{fmtAmountBlank(l.dec)}</td>
                 <td className="text-right">{Math.round(l.bal).toLocaleString('ko-KR')}</td>
               </tr>
             )),
             <tr key={`${g.key}-sub`} style={{ fontWeight: 700, background: '#f7f7f7' }}>
               {/* 원본 '받을어음 / QA(00018) 계'(거래처코드까지) */}
               <td colSpan={8} className="text-right">{account} / {g.key} 계</td>
-              <td className="text-right">{won(g.inc)}</td>
-              <td className="text-right">{won(g.dec)}</td>
+              <td className="text-right">{fmtAmountBlank(g.inc)}</td>
+              <td className="text-right">{fmtAmountBlank(g.dec)}</td>
               <td className="text-right">{Math.round(g.bal).toLocaleString('ko-KR')}</td>
             </tr>,
           ])}
@@ -208,8 +208,8 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
         <tfoot>
           <tr className="font-bold bg-ec-page">
             <td colSpan={8} className="text-right">누계</td>
-            <td className="text-right">{won(total.inc)}</td>
-            <td className="text-right">{won(total.dec)}</td>
+            <td className="text-right">{fmtAmountBlank(total.inc)}</td>
+            <td className="text-right">{fmtAmountBlank(total.dec)}</td>
             <td className="text-right">{Math.round(total.bal).toLocaleString('ko-KR')}</td>
           </tr>
         </tfoot>

@@ -14,8 +14,8 @@ import AggregateTable from '../../features/journalstatus/AggregateTable'
 import { AggregateConditions, useAggState, type AggSnapshot } from '../../features/journalstatus/useAggregate'
 import { AGG_GROUPS, TARGETS, buildTree, shiftPeriod, type AggEntry } from '../../utils/journalAggregate'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -277,7 +277,7 @@ export default function JournalStatusPage() {
                       <tr key={r.key}>
                         <td className="text-center text-ec-blue">{r.label}</td>
                         <td className="text-center">{r.kind}</td>
-                        <td className="text-right">{won(r.amount)}</td>
+                        <td className="text-right">{fmtAmountBlank(r.amount)}</td>
                         <td>{unit === '거래처별' ? '' : r.partner}</td>
                         <td>{r.text}</td>
                       </tr>
@@ -285,7 +285,7 @@ export default function JournalStatusPage() {
                     {mo && (
                       <tr style={SUB_ROW}>
                         <td colSpan={2} className="text-center">{slash(mo)}  계</td>
-                        <td className="text-right">{won(ms.reduce((s, r) => s + r.amount, 0))}</td>
+                        <td className="text-right">{fmtAmountBlank(ms.reduce((s, r) => s + r.amount, 0))}</td>
                         <td></td>
                         <td></td>
                       </tr>
@@ -295,7 +295,7 @@ export default function JournalStatusPage() {
               })}
               <tr style={SUB_ROW}>
                 <td colSpan={2} className="text-center">합계</td>
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtAmountBlank(total)}</td>
                 <td></td>
                 <td></td>
               </tr>

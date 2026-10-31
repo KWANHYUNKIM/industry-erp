@@ -11,8 +11,8 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -141,23 +141,23 @@ export default function PartnerTxListPage() {
                       <tr key={g.key}>
                         <td className="text-ec-blue">{unit === '건별' ? dateNo(r.date, r.no) : slash(g.key)}</td>
                         <td>{unit === '건별' ? r.text : ''}</td>
-                        <td className="text-right">{won(x.d)}</td>
-                        <td className="text-right">{won(x.c)}</td>
+                        <td className="text-right">{fmtAmountBlank(x.d)}</td>
+                        <td className="text-right">{fmtAmountBlank(x.c)}</td>
                       </tr>
                     )
                   })}
                   <tr style={SUB_ROW}>
                     <td colSpan={2} className="text-center">{slash(mo)}  계</td>
-                    <td className="text-right">{won(ms.d)}</td>
-                    <td className="text-right">{won(ms.c)}</td>
+                    <td className="text-right">{fmtAmountBlank(ms.d)}</td>
+                    <td className="text-right">{fmtAmountBlank(ms.c)}</td>
                   </tr>
                 </Fragment>
               )
             })}
             <tr style={SUB_ROW}>
               <td colSpan={2} className="text-center">합계</td>
-              <td className="text-right">{won(t.d)}</td>
-              <td className="text-right">{won(t.c)}</td>
+              <td className="text-right">{fmtAmountBlank(t.d)}</td>
+              <td className="text-right">{fmtAmountBlank(t.c)}</td>
             </tr>
           </tbody>
         </table>
@@ -246,8 +246,8 @@ export default function PartnerTxListPage() {
                     <tr key={b.key}>
                       <td>{b.code}</td>
                       <td>{b.name}</td>
-                      <td className="text-right">{won(x.d)}</td>
-                      <td className="text-right">{won(x.c)}</td>
+                      <td className="text-right">{fmtAmountBlank(x.d)}</td>
+                      <td className="text-right">{fmtAmountBlank(x.c)}</td>
                     </tr>
                   )
                 })}
@@ -255,8 +255,8 @@ export default function PartnerTxListPage() {
               <tfoot>
                 <tr style={SUB_ROW}>
                   <td colSpan={2} className="text-center">합계</td>
-                  <td className="text-right">{won(total.d)}</td>
-                  <td className="text-right">{won(total.c)}</td>
+                  <td className="text-right">{fmtAmountBlank(total.d)}</td>
+                  <td className="text-right">{fmtAmountBlank(total.c)}</td>
                 </tr>
               </tfoot>
             </table>

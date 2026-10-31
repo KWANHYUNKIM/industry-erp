@@ -8,8 +8,8 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 소계 · 합계줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게 · 앞 다섯 칸(계정코드 … 취득일자)을 묶는다. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 
@@ -112,16 +112,16 @@ export default function FixedAssetMovementPage() {
   const showDep = mode !== '취득원가'
   const showNet = mode === '원가+충당금'
   const money = (v: Record<typeof KEYS[number], number>) => [
-    showCost && <td key="oc" className="text-right">{won(v.openCost)}</td>,
-    showDep && <td key="od" className="text-right">{won(v.openDep)}</td>,
-    showNet && <td key="on" className="text-right">{won(v.openCost - v.openDep)}</td>,
-    showCost && <td key="ic" className="text-right">{won(v.incCost)}</td>,
-    showDep && <td key="id" className="text-right">{won(v.incDep)}</td>,
-    showCost && <td key="dc" className="text-right">{won(v.decCost)}</td>,
-    showDep && <td key="dd" className="text-right">{won(v.decDep)}</td>,
-    showCost && <td key="ec" className="text-right">{won(v.endCost)}</td>,
-    showDep && <td key="ed" className="text-right">{won(v.endDep)}</td>,
-    showNet && <td key="en" className="text-right">{won(v.endCost - v.endDep)}</td>,
+    showCost && <td key="oc" className="text-right">{fmtAmountBlank(v.openCost)}</td>,
+    showDep && <td key="od" className="text-right">{fmtAmountBlank(v.openDep)}</td>,
+    showNet && <td key="on" className="text-right">{fmtAmountBlank(v.openCost - v.openDep)}</td>,
+    showCost && <td key="ic" className="text-right">{fmtAmountBlank(v.incCost)}</td>,
+    showDep && <td key="id" className="text-right">{fmtAmountBlank(v.incDep)}</td>,
+    showCost && <td key="dc" className="text-right">{fmtAmountBlank(v.decCost)}</td>,
+    showDep && <td key="dd" className="text-right">{fmtAmountBlank(v.decDep)}</td>,
+    showCost && <td key="ec" className="text-right">{fmtAmountBlank(v.endCost)}</td>,
+    showDep && <td key="ed" className="text-right">{fmtAmountBlank(v.endDep)}</td>,
+    showNet && <td key="en" className="text-right">{fmtAmountBlank(v.endCost - v.endDep)}</td>,
   ]
   const moneyCols = (showCost ? 4 : 0) + (showDep ? 4 : 0) + (showNet ? 2 : 0)
   const cols = 8 + moneyCols

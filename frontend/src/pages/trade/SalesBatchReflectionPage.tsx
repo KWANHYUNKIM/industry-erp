@@ -12,6 +12,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import AccountingReflectionPage from './AccountingReflectionPage'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 판매일괄회계반영 (원본 E040215, 2026-10-22 loginaa 실측 — plans/재고1.md 97행).
@@ -78,7 +79,6 @@ interface Row {
 const SALES_VAT_TYPES = ['세금계산서', '영세율', '계산서', '소매매출', '수출', '카드매출', '계산서(고정자산)', '세.계(고정자산)',
   '소매(면세)', '카드매출(면세)', '현금영수증(면세)', '현금영수증', '매입자발행세금계산서', '영세율(기타)', '기타매출']
 const vatOptions = SALES_VAT_TYPES.map((v) => <option key={v} value={v}>{v}</option>)
-const won = (n: number) => n.toLocaleString('ko-KR')
 const num = (v: string | undefined) => Number(String(v ?? '').replace(/,/g, '')) || 0
 const initP = periodOf('전월')!
 /** 원본 [거래유형] 선택상자 — 판매입력의 거래유형과 같은 이름(부가세율 적용 = 과세 · 미적용 = 면세). */
@@ -330,14 +330,14 @@ function SalesBatch() {
                 <td className="text-center"><input type="checkbox" checked={checked.has(r.key)} onChange={() => toggle(r.key)} /></td>
                 <td>{r.docNo ? <span className="ec-link">{dateText(r.date)}-{seqOf(r.docNo)}</span> : dateText(r.date)}</td>
                 <td>{r.partnerName}</td>
-                <td className="text-right">{won(r.supply)}</td>
+                <td className="text-right">{fmtNumber(r.supply)}</td>
                 <td className="text-right">
                   <input className="ec-input w-full text-right" aria-label="조정" inputMode="numeric"
                          value={adjust[r.key] ?? '0'} onChange={(e) => setAdjust((m) => ({ ...m, [r.key]: e.target.value }))} />
                 </td>
-                <td className="text-right">{won(a.supply)}</td>
-                <td className="text-right">{won(a.vat)}</td>
-                <td className="text-right">{won(a.supply + a.vat)}</td>
+                <td className="text-right">{fmtNumber(a.supply)}</td>
+                <td className="text-right">{fmtNumber(a.vat)}</td>
+                <td className="text-right">{fmtNumber(a.supply + a.vat)}</td>
                 <td>{r.items}</td>
                 <td className="text-center">
                   <select className="ec-input w-full" aria-label="부가세유형" value={vatOf(r)}
@@ -354,11 +354,11 @@ function SalesBatch() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={3}></td>
-              <td className="text-right">{won(sum.trade)}</td>
-              <td className="text-right">{won(sum.adj)}</td>
-              <td className="text-right">{won(sum.supply)}</td>
-              <td className="text-right">{won(sum.vat)}</td>
-              <td className="text-right">{won(sum.supply + sum.vat)}</td>
+              <td className="text-right">{fmtNumber(sum.trade)}</td>
+              <td className="text-right">{fmtNumber(sum.adj)}</td>
+              <td className="text-right">{fmtNumber(sum.supply)}</td>
+              <td className="text-right">{fmtNumber(sum.vat)}</td>
+              <td className="text-right">{fmtNumber(sum.supply + sum.vat)}</td>
               <td colSpan={3}></td>
             </tr>
           </tfoot>
@@ -387,22 +387,22 @@ function SalesBatch() {
                   <td>{s.partnerName}</td>
                   <td className="text-center">{dateText(s.slipDate)} -{seqOf(s.docNo)}</td>
                   <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
-                  <td className="text-right">{won(Number(l.quantity))}</td>
-                  <td className="text-right">{won(Number(l.unitPrice))}</td>
-                  <td className="text-right">{won(Number(l.supplyAmount))}</td>
-                  <td className="text-right">{won(Number(l.vatAmount))}</td>
-                  <td className="text-right">{won(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
+                  <td className="text-right">{fmtNumber(Number(l.quantity))}</td>
+                  <td className="text-right">{fmtNumber(Number(l.unitPrice))}</td>
+                  <td className="text-right">{fmtNumber(Number(l.supplyAmount))}</td>
+                  <td className="text-right">{fmtNumber(Number(l.vatAmount))}</td>
+                  <td className="text-right">{fmtNumber(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
                   <td>{l.remark ?? ''}</td>
                 </tr>
               )))}
               <tr className="ec-total">
                 <td />
                 <td colSpan={3} className="text-center">합계</td>
-                <td className="text-right">{won(detail.slips.reduce((t, s) => t + s.lines.reduce((u, l) => u + Number(l.quantity), 0), 0))}</td>
-                <td className="text-right">{won(detail.slips.reduce((t, s) => t + s.lines.reduce((u, l) => u + Number(l.unitPrice), 0), 0))}</td>
-                <td className="text-right">{won(detail.supply)}</td>
-                <td className="text-right">{won(detail.vat)}</td>
-                <td className="text-right">{won(detail.supply + detail.vat)}</td>
+                <td className="text-right">{fmtNumber(detail.slips.reduce((t, s) => t + s.lines.reduce((u, l) => u + Number(l.quantity), 0), 0))}</td>
+                <td className="text-right">{fmtNumber(detail.slips.reduce((t, s) => t + s.lines.reduce((u, l) => u + Number(l.unitPrice), 0), 0))}</td>
+                <td className="text-right">{fmtNumber(detail.supply)}</td>
+                <td className="text-right">{fmtNumber(detail.vat)}</td>
+                <td className="text-right">{fmtNumber(detail.supply + detail.vat)}</td>
                 <td />
               </tr>
             </tbody>
@@ -449,10 +449,10 @@ function SalesBatch() {
             </EcCond>
             {/* 원본 공급가액은 입력 칸 — 바꾸면 부가세가 10% 로 다시 매겨진다(5,000 → 4,000 · 부가세 400). 우리는 그 차이를 [조정]으로 넘긴다. */}
             <EcCond label="공급가액">
-              <input className="ec-input w-full text-right" aria-label="매출전표 공급가액" inputMode="numeric" value={won(curAmt.supply)}
+              <input className="ec-input w-full text-right" aria-label="매출전표 공급가액" inputMode="numeric" value={fmtNumber(curAmt.supply)}
                      onChange={(e) => setAdjust((m) => ({ ...m, [cur.key]: String(cur.supply - num(e.target.value)) }))} />
             </EcCond>
-            <EcCond label="부가세"><span aria-label="매출전표 부가세">{won(curAmt.vat)}</span></EcCond>
+            <EcCond label="부가세"><span aria-label="매출전표 부가세">{fmtNumber(curAmt.vat)}</span></EcCond>
             <EcCond label="적요" span={2}>
               <input className="ec-input w-full" aria-label="매출전표 적요" maxLength={200} value={slipForm.note}
                      onChange={(e) => setSlipForm((f) => ({ ...f, note: e.target.value }))} />

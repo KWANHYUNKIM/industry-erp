@@ -1,7 +1,7 @@
 import EcNumInput from '../../../components/EcNumInput'
 import type { PayItem } from '../../../types/api'
+import { fmtNumber } from '../../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const num = (s: string) => Number(String(s).replace(/,/g, '')) || 0
 
 /**
@@ -64,7 +64,7 @@ export default function EmployeePayItemTables({ items, baseSalary, onBaseSalary,
           {fixed.map(cell)}
           <tr>
             <td></td>
-            <td className="text-right font-bold">{won(fixedTotal)}</td>
+            <td className="text-right font-bold">{fmtNumber(fixedTotal)}</td>
           </tr>
         </tbody>
       </table>

@@ -7,6 +7,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks from '../../components/EcPeriodPicks'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
+import { fmtAmountBlank } from '../../utils/format'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 type Kind = '세금계산서' | '계산서'
@@ -28,7 +29,6 @@ const GROUPS: { kind: string; total: string; rows: { key: string; label: string 
   { kind: '기한후발행', total: '기한후발행 계', rows: [{ key: 'LATE', label: '기한후발행' }] },
 ]
 const PICKS = ['금월(~오늘)', '전월', '이번기수', '직전기수', '직전분기', '직전반기'] as const
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 const lastDay = (m: string) => {
   const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)
@@ -153,24 +153,24 @@ export default function SalesTaxSummaryPage() {
                         <td>{g.kind}</td>
                         <td className="text-ec-blue">{r.label}</td>
                         <td className="text-right">{c?.count || ''}</td>
-                        <td className="text-right">{won(c?.supply ?? 0)}</td>
-                        <td className="text-right">{won(c?.vat ?? 0)}</td>
+                        <td className="text-right">{fmtAmountBlank(c?.supply ?? 0)}</td>
+                        <td className="text-right">{fmtAmountBlank(c?.vat ?? 0)}</td>
                       </tr>
                     )
                   }),
                   <tr key={g.total} className="ec-total">
                     <td colSpan={2} className="text-center font-bold">{g.total}</td>
                     <td className="text-right font-bold">{t.count || ''}</td>
-                    <td className="text-right font-bold">{won(t.supply)}</td>
-                    <td className="text-right font-bold">{won(t.vat)}</td>
+                    <td className="text-right font-bold">{fmtAmountBlank(t.supply)}</td>
+                    <td className="text-right font-bold">{fmtAmountBlank(t.vat)}</td>
                   </tr>,
                 ]
               })}
               <tr className="ec-total">
                 <td colSpan={2} className="text-center font-bold">합계</td>
                 <td className="text-right font-bold">{total.count || ''}</td>
-                <td className="text-right font-bold">{won(total.supply)}</td>
-                <td className="text-right font-bold">{won(total.vat)}</td>
+                <td className="text-right font-bold">{fmtAmountBlank(total.supply)}</td>
+                <td className="text-right font-bold">{fmtAmountBlank(total.vat)}</td>
               </tr>
             </tbody>
           </table>

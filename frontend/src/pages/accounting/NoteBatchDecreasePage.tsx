@@ -5,8 +5,8 @@ import EcListShell from '../../components/EcListShell'
 import type { NoteSummary, Partner, PromissoryNote } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import NoteVoucherReportModal, { type NoteVoucherPick } from '../../features/promissorynote/components/NoteVoucherReportModal'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 type Note = PromissoryNote & { recordOnly?: boolean }
 
@@ -111,11 +111,11 @@ export default function NoteBatchDecreasePage({ receivable }: { receivable: bool
               <td>{receivable ? '받을어음' : '지급어음'}</td>
               <td>{partnerCode(n.partnerId)}</td>
               <td>{n.partnerName}</td>
-              <td className="text-right">{won(Number(n.amount))}</td>
+              <td className="text-right">{fmtAmount(Number(n.amount))}</td>
               {receivable && <td className="text-right" />}
               {/* 어음 한 장은 통째로 감소한다 — 체크하면 잔액 전부(일부 감소는 원본도 못 잼) */}
               <td className="text-right cursor-pointer" aria-label={`${n.noteNo} 감소금액`} onClick={() => { if (!picked.has(n.id)) toggle(n.id, true) }}>
-                {picked.has(n.id) ? won(Number(n.amount)) : ''}
+                {picked.has(n.id) ? fmtAmount(Number(n.amount)) : ''}
               </td>
               <td>{n.remark ?? ''}</td>
               <td />
@@ -127,9 +127,9 @@ export default function NoteBatchDecreasePage({ receivable }: { receivable: bool
           <tfoot>
             <tr className="font-bold">
               <td colSpan={7} className="text-center">합 계</td>
-              <td className="text-right">{won(total)}</td>
+              <td className="text-right">{fmtAmount(total)}</td>
               {receivable && <td className="text-right" />}
-              <td className="text-right">{pickedTotal ? won(pickedTotal) : ''}</td>
+              <td className="text-right">{pickedTotal ? fmtAmount(pickedTotal) : ''}</td>
               <td colSpan={3} />
             </tr>
           </tfoot>

@@ -9,6 +9,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumberBlank } from '../../utils/format'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 interface Ledger { payMonth: string; name: string; payDate: string | null }
@@ -40,7 +41,6 @@ const DEFAULT_SORT: SortSubtotal = {
 /** [양식] — 원본 기본(수정불가) · 부서별(2026-10-21 실측: 부서별도 같은 열 · 같은 '성명 계' 줄을 냈다). */
 const FORMS = ['기본(수정불가)', '부서별'] as const
 
-const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 /** 원본 [귀속연월] 빠른선택 — 금월 · 전월 · 전월+금월(기본) · 금년 · 전년. */
 function pick(label: string) {
@@ -230,19 +230,19 @@ export default function PayrollStatusPage() {
       default: return ''   // 프로젝트명 · 프로젝트코드 — 명세에 프로젝트가 없다
     }
   }
-  const sortLabel = (r: Row, key: string) => { const v = sortValue(r, key); return typeof v === 'number' ? won(v) : v }
+  const sortLabel = (r: Row, key: string) => { const v = sortValue(r, key); return typeof v === 'number' ? fmtNumberBlank(v) : v }
   const out = withSubtotals(lines, sortCfg, sortValue, sortLabel)
   const total = sumRows(lines, { key: 'total', label: '합계', ledgerName: '', department: '', employeeName: '' })
 
   const cells = (r: Row) => (
     <>
-      {allowanceCols.map((c) => <td key={`a-${c}`} className="text-right">{won(r.amounts.get(c) ?? 0)}</td>)}
+      {allowanceCols.map((c) => <td key={`a-${c}`} className="text-right">{fmtNumberBlank(r.amounts.get(c) ?? 0)}</td>)}
       <td></td>
-      {deductionCols.map((c) => <td key={`d-${c}`} className="text-right">{won(r.amounts.get(c) ?? 0)}</td>)}
+      {deductionCols.map((c) => <td key={`d-${c}`} className="text-right">{fmtNumberBlank(r.amounts.get(c) ?? 0)}</td>)}
       <td></td>
-      <td className="text-right">{won(r.gross)}</td>
-      <td className="text-right">{won(r.deduction)}</td>
-      <td className="text-right">{won(r.net)}</td>
+      <td className="text-right">{fmtNumberBlank(r.gross)}</td>
+      <td className="text-right">{fmtNumberBlank(r.deduction)}</td>
+      <td className="text-right">{fmtNumberBlank(r.net)}</td>
     </>
   )
 

@@ -12,6 +12,7 @@ import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import { fmtAmount } from '../../utils/format'
 
 /** 원본 [Option] (이익관리 현황 3화면 2026-10-22 실측) — 검색항목설정 · 양식설정 ▸(✓ 기본(수정불가) · ✓ 현재 양식 · 신규양식추가). 양식 · 검색항목 디자이너는 두지 않는다. */
 const OPTION_MENU = [
@@ -64,12 +65,11 @@ function unitCostOf(r: CostLedgerRow): number | null {
 }
 interface CostPeriod { id: number; startMonth: string; endMonth: string; methodName: string; latest: boolean }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const num = (n: number) => n.toLocaleString()
 /** 원본 이익율은 정수 % 다(98% · -8%). */
 const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 100))
 /** 원본은 0 을 찍지 않는다 — 판매금액 0 인 줄(A003 수량 2)은 단가 · 금액 · 이익 · 이익율이 모두 빈칸. */
-const nz = (n: number | null) => (n == null || Math.round(n) === 0 ? '' : won(n))
+const nz = (n: number | null) => (n == null || Math.round(n) === 0 ? '' : fmtAmount(n))
 const rateText = (profit: number, revenue: number) => (revenue === 0 ? '' : `${rate(profit, revenue)}%`)
 const ymSlash = (ym: string) => ym.replace('-', '/')
 const periodText = (p: CostPeriod) => `${ymSlash(p.startMonth)} ~ ${ymSlash(p.endMonth)} (${p.methodName})`
@@ -407,7 +407,7 @@ export default function MonthlyProfitPage() {
                 <td className="text-right">{nz(r.revenue)}</td>
                 <td className="text-right">{nz(per(r.cost, r.qty))}</td>
                 <td className="text-right">{nz(r.cost)}</td>
-                <td className="text-right">{r.extra === 0 ? '' : won(r.extra)}</td>
+                <td className="text-right">{r.extra === 0 ? '' : fmtAmount(r.extra)}</td>
                 <td className="text-right">{nz(per(r.profit, r.qty))}</td>
                 <td className="text-right">{nz(r.profit)}</td>
                 <td className="text-right">{rateText(r.profit, r.revenue)}</td>
@@ -424,7 +424,7 @@ export default function MonthlyProfitPage() {
                 <td className="text-right font-bold bg-ec-page">{nz(totals.revenue)}</td>
                 <td className="bg-ec-page"></td>
                 <td className="text-right font-bold bg-ec-page">{nz(totals.cost)}</td>
-                <td className="text-right font-bold bg-ec-page">{totals.extra === 0 ? '' : won(totals.extra)}</td>
+                <td className="text-right font-bold bg-ec-page">{totals.extra === 0 ? '' : fmtAmount(totals.extra)}</td>
                 <td className="bg-ec-page"></td>
                 <td className="text-right font-bold bg-ec-page">{nz(totals.profit)}</td>
                 <td className="text-right font-bold bg-ec-page">{rateText(totals.profit, totals.revenue)}</td>

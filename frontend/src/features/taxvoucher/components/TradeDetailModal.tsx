@@ -4,11 +4,11 @@ import { EcReportFoot, EcReportHead } from '../../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../../api/client'
 import { dateNo } from '../../../utils/dateNo'
 import DropUpButton from './DropUpButton'
+import { fmtAmount } from '../../../utils/format'
 
 interface Line { itemName: string; spec: string | null; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }
 interface Slip { id: number; docNo: string; partnerName: string; lines: Line[]; saleDate?: string; purchaseDate?: string }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * (세금)계산서조회(세무)의 [내역보기] 창 '거래내역보기' — 계산서가 된 판매 · 구매 전표의 줄을 보인다(2026-10-22 loginaa 실측).
@@ -62,17 +62,17 @@ export default function TradeDetailModal({ side, entryDate, entryNo, slipId, onC
               <td className="text-center">{jno}</td>
               <td className="text-center text-ec-blue">{r.no}</td>
               <td>{r.l.itemName}{r.l.spec ? `[${r.l.spec}]` : ''}</td>
-              <td className="text-right">{won(r.l.quantity)}</td><td className="text-right">{won(r.l.unitPrice)}</td>
-              <td className="text-right">{won(r.l.supplyAmount)}</td><td className="text-right">{won(r.l.vatAmount)}</td>
-              <td className="text-right">{won(Number(r.l.supplyAmount) + Number(r.l.vatAmount))}</td>
+              <td className="text-right">{fmtAmount(r.l.quantity)}</td><td className="text-right">{fmtAmount(r.l.unitPrice)}</td>
+              <td className="text-right">{fmtAmount(r.l.supplyAmount)}</td><td className="text-right">{fmtAmount(r.l.vatAmount)}</td>
+              <td className="text-right">{fmtAmount(Number(r.l.supplyAmount) + Number(r.l.vatAmount))}</td>
               <td>{r.partner}</td>
             </tr>
           ))}
           {rows.length > 0 && (
             <tr className="font-bold">
               <td colSpan={4} className="text-center">{slipDate.replaceAll('-', '/')} 계</td>
-              <td className="text-right">{won(sum.q)}</td><td className="text-right">{rows.length === 1 ? won(rows[0].l.unitPrice) : ''}</td>
-              <td className="text-right">{won(sum.s)}</td><td className="text-right">{won(sum.v)}</td><td className="text-right">{won(sum.s + sum.v)}</td><td />
+              <td className="text-right">{fmtAmount(sum.q)}</td><td className="text-right">{rows.length === 1 ? fmtAmount(rows[0].l.unitPrice) : ''}</td>
+              <td className="text-right">{fmtAmount(sum.s)}</td><td className="text-right">{fmtAmount(sum.v)}</td><td className="text-right">{fmtAmount(sum.s + sum.v)}</td><td />
             </tr>
           )}
           {rows.length === 0 && <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}

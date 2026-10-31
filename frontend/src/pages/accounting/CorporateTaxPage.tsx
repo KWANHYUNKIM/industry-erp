@@ -3,8 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { TaxAdjustmentType, TaxReturn } from '../../types/api'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const thisYear = () => new Date().getFullYear()
 
 /**
@@ -99,12 +99,12 @@ export default function CorporateTaxPage() {
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="font-bold">{r.fiscalYear}년</td>
               <td className="text-ec-label">{r.periodFrom} ~ {r.periodTo}</td>
-              <td style={{ textAlign: 'right', color: r.netIncome < 0 ? 'var(--ec-danger)' : undefined }}>{won(r.netIncome)}</td>
-              <td className="text-right">{won(r.taxBase)}</td>
-              <td className="text-right">{won(r.calculatedTax)}</td>
-              <td className="text-right font-semibold">{won(r.totalTax)}</td>
+              <td style={{ textAlign: 'right', color: r.netIncome < 0 ? 'var(--ec-danger)' : undefined }}>{fmtAmount(r.netIncome)}</td>
+              <td className="text-right">{fmtAmount(r.taxBase)}</td>
+              <td className="text-right">{fmtAmount(r.calculatedTax)}</td>
+              <td className="text-right font-semibold">{fmtAmount(r.totalTax)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.payableTax < 0 ? '#2f8401' : 'var(--ec-blue-dark)' }}>
-                {won(r.payableTax)}{r.payableTax < 0 && <span className="text-[11px]"> (환급)</span>}
+                {fmtAmount(r.payableTax)}{r.payableTax < 0 && <span className="text-[11px]"> (환급)</span>}
               </td>
               <td className="text-center">
                 <span style={{ color: r.status === 'CONFIRMED' ? 'var(--ec-success)' : 'var(--ec-label)' }}>{r.statusName}</span>
@@ -182,7 +182,7 @@ export default function CorporateTaxPage() {
                     <td className="text-center text-ec-hint">{i + 1}</td>
                     <td style={{ color: a.type === 'ADD' ? 'var(--ec-danger)' : '#2f8401' }}>{a.typeName}</td>
                     <td>{a.name}</td>
-                    <td className="text-right font-semibold">{won(a.amount)}</td>
+                    <td className="text-right font-semibold">{fmtAmount(a.amount)}</td>
                     <td className="text-center">
                       {selected.status === 'DRAFT' && (
                         <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: 'var(--ec-danger)' }} onClick={() => removeAdjustment(a.id)}>×</button>
@@ -216,7 +216,7 @@ function Row({ label, value, sign, bold, highlight }: {
         color: highlight ? (value < 0 ? '#2f8401' : 'var(--ec-blue-dark)')
           : sign === 'add' ? 'var(--ec-danger)' : sign === 'sub' ? '#2f8401' : undefined,
       }}>
-        {won(value)}
+        {fmtAmount(value)}
       </td>
     </tr>
   )

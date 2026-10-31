@@ -4,8 +4,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { PartnerBalance, PurchaseDoc } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 매입일로부터 오늘까지 경과일 */
 const daysSince = (date: string) =>
@@ -169,11 +169,11 @@ export default function PayablePage() {
       <div className="flex gap-[10px] mb-[10px]">
         <div className="flex-1 border border-ec-line border-solid bg-ec-success-bg py-[12px] px-[16px]">
           <div style={{ fontSize: 12, color: '#1c6b32' }}>총 미지급 (줄 돈)</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{won(total)} <span className="text-[13px] font-normal">원</span></div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{fmtAmount(total)} <span className="text-[13px] font-normal">원</span></div>
         </div>
         <div className="flex-1 border border-ec-line border-solid bg-ec-danger-bg py-[12px] px-[16px]">
           <div className="text-[12px] text-ec-danger">90일 초과 (장기 미지급)</div>
-          <div className="text-[22px] font-extrabold text-ec-danger">{won(overdue)} <span className="text-[13px] font-normal">원</span></div>
+          <div className="text-[22px] font-extrabold text-ec-danger">{fmtAmount(overdue)} <span className="text-[13px] font-normal">원</span></div>
         </div>
         <div className="flex-1 border border-ec-line border-solid bg-ec-page py-[12px] px-[16px]">
           <div className="text-[12px] text-ec-label">미지급 거래처</div>
@@ -214,16 +214,16 @@ export default function PayablePage() {
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{openId === r.partnerId ? '▾ ' : '▸ '}{r.code}</td>
                 <td>{r.name}</td>
-                <td className="text-right text-ec-label">{won(r.purchased)}</td>
-                <td className="text-right text-ec-label">{won(r.paid)}</td>
+                <td className="text-right text-ec-label">{fmtAmount(r.purchased)}</td>
+                <td className="text-right text-ec-label">{fmtAmount(r.paid)}</td>
                 {/* 음수 = 줄 돈보다 더 준 것(선급금). 0 과 같은 회색으로 죽이면 놓친다. */}
                 <td style={{ textAlign: 'right', fontWeight: 700, color: r.balance > 0 ? '#2f8401' : r.balance < 0 ? 'var(--ec-danger)' : '#bbb' }}>
-                  {won(r.balance)}{r.balance < 0 ? ' (선급금)' : ''}
+                  {fmtAmount(r.balance)}{r.balance < 0 ? ' (선급금)' : ''}
                 </td>
                 {r.buckets.map((v, bi) => (
-                  <td key={bi} style={{ textAlign: 'right', color: v === 0 ? '#ccd1d7' : bi === 3 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>{won(v)}</td>
+                  <td key={bi} style={{ textAlign: 'right', color: v === 0 ? '#ccd1d7' : bi === 3 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>{fmtAmount(v)}</td>
                 ))}
-                <td style={{ textAlign: 'right', color: r.extra === 0 ? '#ccd1d7' : 'var(--ec-label)' }}>{won(r.extra)}</td>
+                <td style={{ textAlign: 'right', color: r.extra === 0 ? '#ccd1d7' : 'var(--ec-label)' }}>{fmtAmount(r.extra)}</td>
                 <td style={{ textAlign: 'center', color: r.oldestDays > 90 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
                   {r.balance > 0 ? `${r.oldestDays}일` : '-'}
                 </td>
@@ -251,8 +251,8 @@ export default function PayablePage() {
                               <td className="text-center text-ec-hint">{di + 1}</td>
                               <td className="text-ec-blue">{d.docNo}</td>
                               <td>{dateText(d.purchaseDate)}</td>
-                              <td className="text-right text-ec-hint">{won(d.totalAmount)}</td>
-                              <td className="text-right font-semibold">{won(d.balance)}</td>
+                              <td className="text-right text-ec-hint">{fmtAmount(d.totalAmount)}</td>
+                              <td className="text-right font-semibold">{fmtAmount(d.balance)}</td>
                               <td style={{ textAlign: 'center', color: d.days > 90 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>{d.days}일</td>
                             </tr>
                           ))}
@@ -269,11 +269,11 @@ export default function PayablePage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={5} className="border border-ec-line border-solid py-[5px] px-[8px]">합계</td>
-              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{won(total)}</td>
+              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{fmtAmount(total)}</td>
               {totalBuckets.map((v, i) => (
-                <td key={i} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: i === 3 && v > 0 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>{won(v)}</td>
+                <td key={i} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: i === 3 && v > 0 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>{fmtAmount(v)}</td>
               ))}
-              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-label">{won(totalExtra)}</td>
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-label">{fmtAmount(totalExtra)}</td>
               <td className="border border-ec-line border-solid"></td>
             </tr>
           </tfoot>

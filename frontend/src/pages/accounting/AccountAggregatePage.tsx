@@ -10,8 +10,8 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 회계집계표 원본 빠른선택 — 금일 … 전월 · 금년 · 전년 · 종료일 · 최근30일(기본). */
 const AGG_PICKS = [...PRICE_REQUEST_PICKS, '최근30일'] as const
 
@@ -168,10 +168,10 @@ export default function AccountAggregatePage() {
 
   const nums = (c: Cell) => (
     <>
-      <td className="text-right">{won(c.carry)}</td>
-      <td className="text-right">{won(c.d)}</td>
-      <td className="text-right">{won(c.c)}</td>
-      <td className="text-right">{won(amt(c))}</td>
+      <td className="text-right">{fmtAmountBlank(c.carry)}</td>
+      <td className="text-right">{fmtAmountBlank(c.d)}</td>
+      <td className="text-right">{fmtAmountBlank(c.c)}</td>
+      <td className="text-right">{fmtAmountBlank(amt(c))}</td>
       {ratio && <td className="text-right">{pct(c)}</td>}
     </>
   )

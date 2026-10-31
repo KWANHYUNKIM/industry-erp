@@ -15,6 +15,7 @@ import {
 } from '../../utils/salesInvoice'
 import { ecConfirm } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface Row { e: JournalEntry; inv: SalesInvoice; bucket: Bucket }
@@ -35,7 +36,6 @@ const GROUPS: { title: string; cards: { key: Card; label: string }[] }[] = [
 ]
 const BUCKET_LABEL: Record<Bucket, string> = { UNSENT: '미발행', PAPER: '종이', ELSEWHERE: '타발행', LATE: '기한후발행' }
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월', '이번기수', '직전기수', '종료일'] as const
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 회계 I › 전자(세금)계산서 › <b>(세금)계산서진행단계</b>(C000045) — 2026-10-13 loginaa 실측.
@@ -268,9 +268,9 @@ export default function TaxInvoiceProgressPage() {
                 <td className="text-center"><a className="text-ec-navy cursor-pointer" onClick={() => openSlip(r)}>{dateNo(r.e.entryDate, r.e.docNo)}</a></td>
                 <td></td>
                 <td>{r.e.partnerName ?? ''}</td>
-                <td className="text-right">{won(r.inv.supply)}</td>
-                <td className="text-right">{won(r.inv.vat)}</td>
-                <td className="text-right">{won(r.inv.supply + r.inv.vat)}</td>
+                <td className="text-right">{fmtAmount(r.inv.supply)}</td>
+                <td className="text-right">{fmtAmount(r.inv.vat)}</td>
+                <td className="text-right">{fmtAmount(r.inv.supply + r.inv.vat)}</td>
                 <td className="text-ec-navy">{r.bucket === 'PAPER' ? '종이' : '전자'}</td>
                 <td>
                   {/* 원본: 다섯 단계 점 가운데 지금 단계까지 채우고 옆에 단계 이름. 국세청으로 보내지 않으므로 늘 첫 단계다. */}

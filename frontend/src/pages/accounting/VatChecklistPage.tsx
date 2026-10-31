@@ -9,6 +9,7 @@ import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { EcReportFoot, reportDate } from '../../components/EcReportFrame'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { IncomeStatement, JournalEntry } from '../../types/api'
+import { fmtAmountBlank } from '../../utils/format'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface AccountOpt { code: string; detailCategory: string | null; division: string }
@@ -31,7 +32,6 @@ const FUND_ACCOUNTS = ['현금', '당좌예금', '보통예금', '외상매출�
 const CASH_CODES = ['1019', '1029', '1039']
 /** 원본 4. 의 상대 — 이카운트(회사)와 주고받은 세금계산서. */
 const ECOUNT = '이카운트'
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 6. 중복거래의 부가세는 0 도 찍는다(원본 계산서 줄 '100,000 · 0 · 100,000'). */
 const num = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const lastDay = (m: string) => {
@@ -209,23 +209,23 @@ export default function VatChecklistPage() {
 
           <div className="ec-report-meta"><span>1. 매출액비교</span><span>{sheet.from.replace('-', '/')} ~{sheet.to.replace('-', '/')}</span></div>
           <CheckTable title="1. 매출액비교" head={['기간', '부가세매출액', '손익계산서매출액']} right={[1, 2]} cols={[249, 250, 250]}
-                      rows={[[`${ymLabel(sheet.from)} ~ ${ymLabel(sheet.to)}`, won(sheet.vatSales), won(sheet.plSales)]]} />
+                      rows={[[`${ymLabel(sheet.from)} ~ ${ymLabel(sheet.to)}`, fmtAmountBlank(sheet.vatSales), fmtAmountBlank(sheet.plSales)]]} />
 
           <p className="mt-[12px] mb-[4px]">2.지출결의서중 부가세가 등록된 상황</p>
           <CheckTable title="2. 지출결의서" head={['계정코드', '계정명', '금액', '수수료', '부가세']} right={[2, 3, 4]} cols={[99, 260, 130, 130, 130]}
-                      rows={sheet.expense.map((r) => [r.code, r.name, won(r.amount), '', won(r.vat)])} />
+                      rows={sheet.expense.map((r) => [r.code, r.name, fmtAmountBlank(r.amount), '', fmtAmountBlank(r.vat)])} />
 
           <p className="mt-[12px] mb-[4px]">3.가지급금정산서중 부가세가 등록된 상황</p>
           <CheckTable title="3. 가지급금정산서" head={['계정코드', '계정명', '금액', '수수료', '부가세']} right={[2, 3, 4]} cols={[99, 260, 130, 130, 130]}
-                      rows={sheet.advance.map((r) => [r.code, r.name, won(r.amount), '', won(r.vat)])} />
+                      rows={sheet.advance.map((r) => [r.code, r.name, fmtAmountBlank(r.amount), '', fmtAmountBlank(r.vat)])} />
 
           <p className="mt-[12px] mb-[4px]">4.이카운트 매출 매입과 맞는지 확인</p>
           <p className="mb-[4px]">{ECOUNT}가 {company}에게 발행한 세금계산서</p>
           <CheckTable title="4. 이카운트 발행" head={['일자', '거래처명', '금액', '수수료', '적요']} right={[2, 3]} cols={[99, 240, 140, 140, 130]}
-                      rows={sheet.fromEcount.map((r) => [reportDate(r.date), r.partner, won(r.supply), won(r.vat), r.description])} />
+                      rows={sheet.fromEcount.map((r) => [reportDate(r.date), r.partner, fmtAmountBlank(r.supply), fmtAmountBlank(r.vat), r.description])} />
           <p className="mt-[8px] mb-[4px]">{company}이(가) {ECOUNT}로 입력한 세금계산서</p>
           <CheckTable title="4. 이카운트 입력" head={['일자', '거래처명', '금액', '수수료', '적요']} right={[2, 3]} cols={[99, 240, 140, 140, 130]}
-                      rows={sheet.toEcount.map((r) => [reportDate(r.date), r.partner, won(r.supply), won(r.vat), r.description])} />
+                      rows={sheet.toEcount.map((r) => [reportDate(r.date), r.partner, fmtAmountBlank(r.supply), fmtAmountBlank(r.vat), r.description])} />
 
           <p className="mt-[12px] mb-[4px]">5.자금현황표상 마이너스인 계정</p>
           <CheckTable title="5. 자금현황표" head={['계정명', '거래처명', '잔액']} right={[2]} cols={[249, 250, 250]}
@@ -234,10 +234,10 @@ export default function VatChecklistPage() {
           <p className="mt-[12px] mb-[4px]">6.중복거래 확인대상 자료</p>
           <p className="mb-[4px]">매출</p>
           <CheckTable title="6. 중복 매출" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]} cols={[99, 290, 120, 120, 120]}
-                      rows={sheet.dupSales.map((r) => [reportDate(r.date), r.partner, won(r.supply), num(r.vat), won(r.supply + r.vat)])} />
+                      rows={sheet.dupSales.map((r) => [reportDate(r.date), r.partner, fmtAmountBlank(r.supply), num(r.vat), fmtAmountBlank(r.supply + r.vat)])} />
           <p className="mt-[8px] mb-[4px]">매입</p>
           <CheckTable title="6. 중복 매입" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]} cols={[99, 290, 120, 120, 120]}
-                      rows={sheet.dupPurchases.map((r) => [reportDate(r.date), r.partner, won(r.supply), num(r.vat), won(r.supply + r.vat)])} />
+                      rows={sheet.dupPurchases.map((r) => [reportDate(r.date), r.partner, fmtAmountBlank(r.supply), num(r.vat), fmtAmountBlank(r.supply + r.vat)])} />
 
           <EcReportFoot page={false} />
         </div>

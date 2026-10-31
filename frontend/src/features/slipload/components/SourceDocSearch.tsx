@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import EcIcon from '../../../components/ui/EcIcon'
 import { FooterButton } from '../../../components/EcListShell'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 원본 '…검색창(조회)' — 다른 전표를 불러오는 창의 전표 단위 꼴(2026-10-28 loginaa 실측).
@@ -68,7 +69,6 @@ interface Props<T extends string> {
   afterClose?: ReactNode
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 export default function SourceDocSearch<T extends string>(p: Props<T>) {
   const allPicked = p.docs.length > 0 && p.docs.every((d) => p.picked[d.key])
@@ -120,7 +120,7 @@ export default function SourceDocSearch<T extends string>(p: Props<T>) {
                   <td>{d.employeeName}</td>
                   <td>{d.itemSummary}</td>
                   <td>{d.date2}</td>
-                  <td className="text-right">{won(d.total)}</td>
+                  <td className="text-right">{fmtNumber(d.total)}</td>
                   <td className="text-center text-ec-navy">{d.statusLabel}</td>
                   {/* 원본은 다른 전표로 이어진 것만 [생성한전표] 가 주황이다. */}
                   <td className="text-center">

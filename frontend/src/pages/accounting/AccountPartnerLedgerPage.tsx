@@ -10,8 +10,8 @@ import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, AccountLedger, LedgerRow } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -179,9 +179,9 @@ export default function AccountPartnerLedgerPage() {
               <tr className="font-bold">
                 <td colSpan={2} className="text-center">이월잔액</td>
                 {/* 원본: 대변 계정(부가세예수금 …)의 이월은 대변 칸에 — 2026-10-20 실측 '이월잔액 | | 252,000 | 252,000'. */}
-                <td className="text-right">{debitSide ? won(b.carry) : ''}</td>
-                <td className="text-right">{debitSide ? '' : won(b.carry)}</td>
-                <td className="text-right">{won(b.carry)}</td>
+                <td className="text-right">{debitSide ? fmtAmountBlank(b.carry) : ''}</td>
+                <td className="text-right">{debitSide ? '' : fmtAmountBlank(b.carry)}</td>
+                <td className="text-right">{fmtAmountBlank(b.carry)}</td>
               </tr>
             )}
             {months.map((mo) => {
@@ -199,16 +199,16 @@ export default function AccountPartnerLedgerPage() {
                       <tr key={g.key}>
                         <td className="text-ec-blue">{mode === '건별' ? dateNo(r.entryDate, r.docNo) : slash(g.key)}</td>
                         <td>{mode === '건별' ? r.description ?? '' : ''}</td>
-                        <td className="text-right">{won(x.d)}</td>
-                        <td className="text-right">{won(x.c)}</td>
-                        <td className="text-right">{lastOfDay ? won(bal) : ''}</td>
+                        <td className="text-right">{fmtAmountBlank(x.d)}</td>
+                        <td className="text-right">{fmtAmountBlank(x.c)}</td>
+                        <td className="text-right">{lastOfDay ? fmtAmountBlank(bal) : ''}</td>
                       </tr>
                     )
                   })}
                   <tr style={SUB_ROW}>
                     <td colSpan={2} className="text-center">{slash(mo)} 계</td>
-                    <td className="text-right">{won(ms.d)}</td>
-                    <td className="text-right">{won(ms.c)}</td>
+                    <td className="text-right">{fmtAmountBlank(ms.d)}</td>
+                    <td className="text-right">{fmtAmountBlank(ms.c)}</td>
                     <td></td>
                   </tr>
                 </Fragment>
@@ -216,9 +216,9 @@ export default function AccountPartnerLedgerPage() {
             })}
             <tr style={SUB_ROW}>
               <td colSpan={2} className="text-center">합계</td>
-              <td className="text-right">{won(debitSide ? b.carry + s.d : s.d)}</td>
-              <td className="text-right">{won(debitSide ? s.c : b.carry + s.c)}</td>
-              <td className="text-right">{won(net(b.carry, s.d, s.c))}</td>
+              <td className="text-right">{fmtAmountBlank(debitSide ? b.carry + s.d : s.d)}</td>
+              <td className="text-right">{fmtAmountBlank(debitSide ? s.c : b.carry + s.c)}</td>
+              <td className="text-right">{fmtAmountBlank(net(b.carry, s.d, s.c))}</td>
             </tr>
           </tbody>
         </table>
@@ -314,10 +314,10 @@ export default function AccountPartnerLedgerPage() {
                     <tr key={b.key}>
                       <td>{b.code}</td>
                       <td>{b.name}</td>
-                      <td className="text-right">{won(b.carry)}</td>
-                      <td className="text-right">{won(x.d)}</td>
-                      <td className="text-right">{won(x.c)}</td>
-                      <td className="text-right">{won(net(b.carry, x.d, x.c))}</td>
+                      <td className="text-right">{fmtAmountBlank(b.carry)}</td>
+                      <td className="text-right">{fmtAmountBlank(x.d)}</td>
+                      <td className="text-right">{fmtAmountBlank(x.c)}</td>
+                      <td className="text-right">{fmtAmountBlank(net(b.carry, x.d, x.c))}</td>
                     </tr>
                   )
                 })}
@@ -325,10 +325,10 @@ export default function AccountPartnerLedgerPage() {
               <tfoot>
                 <tr style={SUB_ROW}>
                   <td colSpan={2} className="text-center">합계</td>
-                  <td className="text-right">{won(total.carry)}</td>
-                  <td className="text-right">{won(total.d)}</td>
-                  <td className="text-right">{won(total.c)}</td>
-                  <td className="text-right">{won(net(total.carry, total.d, total.c))}</td>
+                  <td className="text-right">{fmtAmountBlank(total.carry)}</td>
+                  <td className="text-right">{fmtAmountBlank(total.d)}</td>
+                  <td className="text-right">{fmtAmountBlank(total.c)}</td>
+                  <td className="text-right">{fmtAmountBlank(net(total.carry, total.d, total.c))}</td>
                 </tr>
               </tfoot>
             </table>

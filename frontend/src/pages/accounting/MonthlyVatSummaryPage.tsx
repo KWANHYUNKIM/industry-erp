@@ -11,8 +11,8 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 빠른선택 — 결산 묶음 뒤에 최근30일(기본). */
 const PICKS = [...SETTLE_PICKS, '최근30일'] as const
 
@@ -188,14 +188,14 @@ export default function MonthlyVatSummaryPage({ side }: { side: Side }) {
                 <tr key={r.key}>
                   <td>{r.code}</td>
                   <td>{r.name}</td>
-                  {months.map((m) => <td key={m} className="text-right">{won(r.by[m] ?? 0)}</td>)}
-                  <td className="text-right">{won(sumOf(r.by))}</td>
+                  {months.map((m) => <td key={m} className="text-right">{fmtAmountBlank(r.by[m] ?? 0)}</td>)}
+                  <td className="text-right">{fmtAmountBlank(sumOf(r.by))}</td>
                 </tr>
               ))}
               <tr className="ec-total">
                 <td colSpan={2} className="text-center">합계</td>
-                {months.map((m) => <td key={m} className="text-right">{won(colTotal(m))}</td>)}
-                <td className="text-right">{won(rows.reduce((s, r) => s + sumOf(r.by), 0))}</td>
+                {months.map((m) => <td key={m} className="text-right">{fmtAmountBlank(colTotal(m))}</td>)}
+                <td className="text-right">{fmtAmountBlank(rows.reduce((s, r) => s + sumOf(r.by), 0))}</td>
               </tr>
             </>
           )}

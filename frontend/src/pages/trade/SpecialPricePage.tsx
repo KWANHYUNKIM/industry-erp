@@ -11,6 +11,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { EcCond } from '../../components/EcStatusPanel'
 import NumCheck from '../../components/NumCheck'
+import { fmtNumberOrBlank } from '../../utils/format'
 
 /**
  * 재고 I › 기초등록 › 단가관리 › <b>특별단가등록</b> (원본 E040124, 화면 제목 '특별단가리스트').
@@ -36,7 +37,6 @@ const NO_PICK = '리스트에 선택된 자료가 없습니다.\n\n체크박스�
 /** 원본 [특별단가그룹] 삭제 확인 글(2026-10-14 실측) — 막지 않고 그 그룹의 줄을 함께 지운다. */
 const GROUP_DELETE_CONFIRM = '해당 특별단가그룹으로 등록된\n품목별, 품목그룹별, 적용단가 설정도 모두 삭제됩니다.\n\n계속 진행하시겠습니까?'
 const LAST_GROUP_KEY = 'erp.specialPrice.lastGroup'
-const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const SET_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
 const BAD = 'border-[color:var(--ec-text-danger)]'
 /** 코드도움 칸이 비어 막혔을 때 — 원본처럼 글 없이 빨간 테두리만 */
@@ -402,7 +402,7 @@ export default function SpecialPricePage() {
                   <td className="text-center"><NumCheck tone="plain" no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id)} /></td>
                   <td><a href="#" onClick={(e) => { e.preventDefault(); openItemForm(r) }}>{r.itemCode}</a></td>
                   <td>{itemLabel(r)}</td><td>{r.itemGroupName ?? ''}</td><td>{r.groupName}</td>
-                  <td className="text-right">{won(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td>
                 </tr>
               ))}
           </tbody>
@@ -439,7 +439,7 @@ export default function SpecialPricePage() {
                 <tr key={`${r.itemId}-${r.groupCode}`}>
                   <td>{r.itemCode}</td><td>{itemLabel(r)}</td><td>{r.itemGroupName ?? ''}</td><td>{r.kind}</td>
                   <td>{r.groupName}</td><td>{r.adjustText}</td>
-                  <td className="text-right">{won(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td>
+                  <td className="text-right">{fmtNumberOrBlank(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td>
                 </tr>
               ))}
           </tbody>
@@ -631,7 +631,7 @@ export default function SpecialPricePage() {
                 {scopeRows.items.length === 0 ? <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                   : scopeRows.items.map((r) => (
                     <tr key={r.id}><td>{r.itemCode}</td><td>{itemLabel(r)}</td><td>{r.itemGroupName ?? ''}</td><td>{r.groupName}</td>
-                      <td className="text-right">{won(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td></tr>
+                      <td className="text-right">{fmtNumberOrBlank(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td></tr>
                   ))}
               </tbody>
             </table>

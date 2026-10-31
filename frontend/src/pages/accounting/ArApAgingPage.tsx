@@ -10,8 +10,8 @@ import type { AccountDivision, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -209,13 +209,13 @@ export default function ArApAgingPage() {
                 <tr key={r.key}>
                   <td>{r.code}</td>
                   <td>{r.name}</td>
-                  <td className="text-right">{won(r.bal)}</td>
+                  <td className="text-right">{fmtAmountBlank(r.bal)}</td>
                   <td className="text-right">{r.months == null ? '' : `${r.months} 개월`}</td>
                 </tr>
               ))}
               <tr style={SUB_ROW}>
                 <td colSpan={2} className="text-center">합계</td>
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtAmountBlank(total)}</td>
                 <td></td>
               </tr>
             </tbody>

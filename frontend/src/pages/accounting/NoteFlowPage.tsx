@@ -9,8 +9,8 @@ import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPer
 import { dateText } from '../../utils/dateText'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 회계 I &gt; 어음거래 &gt; 받을어음 &gt; <b>받을어음증가현황</b>(E010624) · <b>받을어음감소현황</b>(E010625) — 2026-10-02 loginaa 실측.
@@ -180,14 +180,14 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
               <td>{account}</td>
               <td>{dpOf(n).remark ?? ''}</td>
               {flow === '증가' && <td className="text-center">{dateText(n.dueDate)}</td>}
-              <td className="text-right">{won(Number(n.amount))}</td>
+              <td className="text-right">{fmtAmount(Number(n.amount))}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
             <td colSpan={cols - 1} className="text-right">합계 ({shown.length}장)</td>
-            <td className="text-right">{won(total)}</td>
+            <td className="text-right">{fmtAmount(total)}</td>
           </tr>
         </tfoot>
       </table>

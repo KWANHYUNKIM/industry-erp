@@ -10,8 +10,8 @@ import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['계좌간이동', '법인카드 대금결제'] as const
 type Tab = (typeof TABS)[number]
@@ -124,7 +124,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
     onError('')
     try {
       await api.delete(`/cash-details/account-transfers/${t.id}`)
-      onDone(`${t.transferNo} 삭제 — ${won(t.amount)}원이 출금 계좌로 돌아갔습니다.`)
+      onDone(`${t.transferNo} 삭제 — ${fmtNumber(t.amount)}원이 출금 계좌로 돌아갔습니다.`)
     } catch (err) { onError(extractErrorMessage(err)) }
   }
 
@@ -142,7 +142,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
         transferDate: form.transferDate,
         description: form.description || undefined,
       })
-      onDone(`${data.transferNo} 이동 완료 — ${won(data.amount)}원 (회계전표 ${data.journalDocNo})`)
+      onDone(`${data.transferNo} 이동 완료 — ${fmtNumber(data.amount)}원 (회계전표 ${data.journalDocNo})`)
       setForm((f) => ({ ...f, amount: '', description: '' }))
     } catch (err) {
       onError(extractErrorMessage(err))
@@ -166,14 +166,14 @@ function TransferTab({ banks, rows, onError, onDone }: {
           <Field label="출금 계좌 *">
             <select className="ec-input" value={form.fromAccountId} onChange={(e) => set('fromAccountId', e.target.value)} style={{ width: 230 }}>
               <option value="">선택하세요</option>
-              {usable.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {won(b.balance)})</option>)}
+              {usable.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {fmtNumber(b.balance)})</option>)}
             </select>
           </Field>
           <span className="text-[16px] text-ec-blue pb-[4px]">→</span>
           <Field label="입금 계좌 *">
             <select className="ec-input" value={form.toAccountId} onChange={(e) => set('toAccountId', e.target.value)} style={{ width: 230 }}>
               <option value="">선택하세요</option>
-              {usable.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {won(b.balance)})</option>)}
+              {usable.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {fmtNumber(b.balance)})</option>)}
             </select>
           </Field>
           <Field label="금액 *">
@@ -186,7 +186,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
         </div>
         <div className="mt-[8px] text-[11.5px] text-ec-hint">
           ※ 차)입금계좌 예금계정 / 대)출금계좌 예금계정으로 분개됩니다. 회사 밖으로 나가는 돈이 아니라 손익에 영향이 없습니다.
-          출금 계좌 잔액{from ? ` (현재 ${won(from.balance)}원)` : ''}이 모자라면 거절됩니다.
+          출금 계좌 잔액{from ? ` (현재 ${fmtNumber(from.balance)}원)` : ''}이 모자라면 거절됩니다.
         </div>
       </div>
 
@@ -214,7 +214,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
               <td>{dateText(t.transferDate)}</td>
               <td className="text-ec-danger">{t.fromAccountName}</td>
               <td className="text-ec-success">{t.toAccountName}</td>
-              <td className="text-right font-bold">{won(t.amount)}</td>
+              <td className="text-right font-bold">{fmtNumber(t.amount)}</td>
               <td className="text-ec-blue">{t.journalDocNo ?? ''}</td>
               <td className="text-ec-label">{t.description ?? ''}</td>
               <td className="text-center">
@@ -261,12 +261,12 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
 
   /* 결제를 지우면 결제계좌로 돈이 돌아오고 묶였던 사용내역은 다시 미결제가 된다(QA 56회차). */
   async function removePayment(p: CardPayment) {
-    if (!(await ecConfirm(`${p.paymentNo} 카드대금결제를 지울까요? 결제계좌로 ${won(p.amount)}원이 돌아가고 사용내역 ${p.lines.length}건은 다시 미결제가 됩니다.`))) return
+    if (!(await ecConfirm(`${p.paymentNo} 카드대금결제를 지울까요? 결제계좌로 ${fmtNumber(p.amount)}원이 돌아가고 사용내역 ${p.lines.length}건은 다시 미결제가 됩니다.`))) return
     onError('')
     try {
       await api.delete(`/cash-details/card-payments/${p.id}`)
       await loadUnpaid(cardId)
-      onDone(`${p.paymentNo} 삭제 — ${won(p.amount)}원이 결제계좌로 돌아갔습니다.`)
+      onDone(`${p.paymentNo} 삭제 — ${fmtNumber(p.amount)}원이 결제계좌로 돌아갔습니다.`)
     } catch (err) { onError(extractErrorMessage(err)) }
   }
 
@@ -274,7 +274,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
     onError('')
     if (!cardId) return onError('카드를 선택하세요.')
     if (unpaid.length === 0) return onError('미결제 사용내역이 없습니다.')
-    if (!(await ecConfirm(`${card?.cardName} 미결제 ${unpaid.length}건 · ${won(total)}원을 결제할까요?`))) return
+    if (!(await ecConfirm(`${card?.cardName} 미결제 ${unpaid.length}건 · ${fmtNumber(total)}원을 결제할까요?`))) return
     setSaving(true)
     try {
       const { data } = await api.post<CardPayment>('/cash-details/card-payments', {
@@ -282,7 +282,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
         bankAccountId: bankAccountId ? Number(bankAccountId) : undefined,
         paymentDate,
       })
-      onDone(`${data.paymentNo} 결제 완료 — ${won(data.amount)}원 (회계전표 ${data.journalDocNo})`)
+      onDone(`${data.paymentNo} 결제 완료 — ${fmtNumber(data.amount)}원 (회계전표 ${data.journalDocNo})`)
       await loadUnpaid(cardId)
     } catch (err) {
       onError(extractErrorMessage(err))
@@ -310,7 +310,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
               <option value="">
                 {card?.settlementAccountName ? `카드 등록계좌 (${card.settlementAccountName})` : '선택하세요'}
               </option>
-              {usableBanks.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {won(b.balance)})</option>)}
+              {usableBanks.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {fmtNumber(b.balance)})</option>)}
             </select>
           </Field>
           <Field label="결제일">
@@ -318,7 +318,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
           </Field>
           <button className="ec-btn ec-btn-primary" onClick={pay} disabled={saving}>{saving ? '결제 중…' : '카드대금 결제'}</button>
           <div className="text-[12.5px] pb-[5px]">
-            미결제 <b>{unpaid.length}건</b> · <b className="text-ec-navy">{won(total)}</b>
+            미결제 <b>{unpaid.length}건</b> · <b className="text-ec-navy">{fmtNumber(total)}</b>
           </div>
         </div>
         <div className="mt-[8px] text-[11.5px] text-ec-hint">
@@ -347,14 +347,14 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
                 <td>{dateText(u.usageDate)}</td>
                 <td className="font-semibold">{u.merchant}</td>
                 <td className="text-ec-label">{u.expenseAccountName}</td>
-                <td className="text-right font-semibold">{won(u.totalAmount)}</td>
+                <td className="text-right font-semibold">{fmtNumber(u.totalAmount)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={5} className="text-right">미결제 합계</td>
-              <td className="text-right text-ec-navy">{won(total)}</td>
+              <td className="text-right text-ec-navy">{fmtNumber(total)}</td>
             </tr>
           </tfoot>
         </table>
@@ -389,7 +389,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
                 <td>{p.cardCompany} {p.cardName}</td>
                 <td className="text-ec-label">{p.bankAccountName}</td>
                 <td className="text-center">{p.lines.length}건</td>
-                <td className="text-right font-bold">{won(p.amount)}</td>
+                <td className="text-right font-bold">{fmtNumber(p.amount)}</td>
                 <td className="text-ec-blue">{p.journalDocNo ?? ''}</td>
                 <td className="text-center">
                   <button className="no-ec" onClick={(e) => { e.stopPropagation(); removePayment(p) }} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
@@ -417,7 +417,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
                             <td>{dateText(l.usageDate)}</td>
                             <td>{l.merchant}</td>
                             <td className="text-ec-label">{l.expenseAccountName}</td>
-                            <td className="text-right">{won(l.amount)}</td>
+                            <td className="text-right">{fmtNumber(l.amount)}</td>
                           </tr>
                         ))}
                       </tbody>

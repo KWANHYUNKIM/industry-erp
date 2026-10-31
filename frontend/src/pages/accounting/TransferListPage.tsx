@@ -13,8 +13,8 @@ import AggregateTable from '../../features/journalstatus/AggregateTable'
 import { AggregateConditions, useAggState, type AggSnapshot } from '../../features/journalstatus/useAggregate'
 import { TRANSFER_GROUPS, TRANSFER_TARGETS, buildTree, shiftPeriod, type AggEntry } from '../../utils/journalAggregate'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 여섯 칸 묶음. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -264,13 +264,13 @@ export default function TransferListPage() {
                         <td>{r.text1}</td>
                         <td>{r.bank}</td>
                         <td>{r.acct}</td>
-                        <td className="text-right">{won(r.amount)}</td>
+                        <td className="text-right">{fmtAmountBlank(r.amount)}</td>
                       </tr>
                     ))}
                     {mo && (
                       <tr style={SUB_ROW}>
                         <td colSpan={6} className="text-center">{slash(mo)}  계</td>
-                        <td className="text-right">{won(ms.reduce((s, r) => s + r.amount, 0))}</td>
+                        <td className="text-right">{fmtAmountBlank(ms.reduce((s, r) => s + r.amount, 0))}</td>
                       </tr>
                     )}
                   </Fragment>
@@ -278,7 +278,7 @@ export default function TransferListPage() {
               })}
               <tr style={SUB_ROW}>
                 <td colSpan={6} className="text-center">합계</td>
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtAmountBlank(total)}</td>
               </tr>
             </>
           )}

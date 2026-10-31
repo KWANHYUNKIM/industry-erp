@@ -14,6 +14,7 @@ import { dateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { ymd } from '../../utils/periods'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 구매관리 > 단가요청진행단계 (이카운트 E040323) — 2026-10-21 loginaa 실측.
@@ -27,7 +28,6 @@ const STEP_LABEL: Record<Step, string> = { received: '수취단가확인', confi
 /** 오늘보다 지난 날짜인가. 목록에 날짜만 적어 두면 지났는지를 <b>사람이 세어야</b> 한다. */
 const expired = (d: string | null) => !!d && d < ymd(new Date())
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const stepDone = (r: PurchaseOrder, s: Step) => r.lines.length > 0
   && r.lines.every((l) => (s === 'received' ? l.receivedPrice : l.confirmedPrice) != null)
 const stepAmount = (r: PurchaseOrder, s: Step) => r.lines.reduce((a, l) => {
@@ -106,17 +106,17 @@ function PriceCompareModal({ order, selecting, onClose, onSaved }: { order: Purc
           {order.lines.map((l, i) => (
             <tr key={l.id}>
               <td>{l.itemCode}</td><td>{l.itemName}</td><td>{l.spec ?? ''}</td>
-              <td className="text-right">{won(Number(l.quantity))}</td>
-              <td className="text-right">{won(supply(l))}</td>
-              <td className="text-right">{radio(i, 'req')}{won(Number(l.unitPrice))}</td>
-              <td className="text-right">{radio(i, 'recv')}{l.receivedPrice == null ? '' : won(Number(l.receivedPrice))}</td>
+              <td className="text-right">{fmtAmount(Number(l.quantity))}</td>
+              <td className="text-right">{fmtAmount(supply(l))}</td>
+              <td className="text-right">{radio(i, 'req')}{fmtAmount(Number(l.unitPrice))}</td>
+              <td className="text-right">{radio(i, 'recv')}{l.receivedPrice == null ? '' : fmtAmount(Number(l.receivedPrice))}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr>
             <td colSpan={4} className="text-center">계</td>
-            <td className="text-right">{won(order.lines.reduce((a, l) => a + supply(l), 0))}</td>
+            <td className="text-right">{fmtAmount(order.lines.reduce((a, l) => a + supply(l), 0))}</td>
             <td></td><td></td>
           </tr>
         </tfoot>
@@ -164,11 +164,11 @@ function ReceivedPriceModal({ order, onClose, onSaved }: { order: PurchaseOrder;
           {order.lines.map((l, i) => (
             <tr key={l.id}>
               <td>{l.itemCode}</td><td>{l.itemName}</td><td>{l.spec ?? ''}</td>
-              <td className="text-right">{won(Number(l.quantity))}</td>
+              <td className="text-right">{fmtAmount(Number(l.quantity))}</td>
               <td><EcNumInput className="ec-input w-full text-right" value={prices[i]}
                               onValue={(v) => setPrices((p) => p.map((x, k) => (k === i ? v : x)))} /></td>
-              <td className="text-right">{won(amt(i))}</td>
-              <td className="text-right">{won(Math.round(amt(i) / 10))}</td>
+              <td className="text-right">{fmtAmount(amt(i))}</td>
+              <td className="text-right">{fmtAmount(Math.round(amt(i) / 10))}</td>
             </tr>
           ))}
         </tbody>
@@ -393,8 +393,8 @@ export default function PriceRequestProgressPage() {
                 ))}
               </td>
               <td>{r.partnerName}</td>
-              <td className="text-right">{stepDone(r, 'received') ? won(stepAmount(r, 'received')) : ''}</td>
-              <td className="text-right">{stepDone(r, 'confirmed') ? won(stepAmount(r, 'confirmed')) : ''}</td>
+              <td className="text-right">{stepDone(r, 'received') ? fmtAmount(stepAmount(r, 'received')) : ''}</td>
+              <td className="text-right">{stepDone(r, 'confirmed') ? fmtAmount(stepAmount(r, 'confirmed')) : ''}</td>
               <td className={`text-center ${expired(r.priceValidUntil) ? 'text-ec-danger font-bold' : 'text-ec-label'}`}>
                 {r.priceValidUntil ? dateText(r.priceValidUntil) : ''}
               </td>

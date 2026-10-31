@@ -1,6 +1,7 @@
 import type { SlipPrintDoc, SlipPrintLine } from '../components/EcSlipPrintModal'
 import { amountToKorean } from './amountToKorean'
 import type { DocParty } from './printDocument'
+import { fmtNumberOf } from './format.ts'
 
 /**
  * 견적서 · 주문서 인쇄 미리보기 종이(EcSlipPrintModal 의 letter 양식)를 짠다 — 원본 C000071 견적서조회 ·
@@ -26,14 +27,13 @@ interface LetterSrc {
   lines: LetterLine[]
 }
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const slash = (v?: string | null) => (v ?? '').replace(/^(\d{4})-(\d{2})-(\d{2})/, '$1/$2/$3')
 
 function linesOf(src: LetterSrc): SlipPrintLine[] {
   return src.lines.map((l) => ({
     date: l.itemCode ?? '', name: l.spec ? `${l.itemName} [${l.spec}]` : l.itemName,
-    qty: `${Number(l.quantity).toLocaleString()}${l.unit ?? ''}`, unitPrice: won(l.unitPrice),
-    supply: won(l.supplyAmount), vat: won(l.vatAmount),
+    qty: `${Number(l.quantity).toLocaleString()}${l.unit ?? ''}`, unitPrice: fmtNumberOf(l.unitPrice),
+    supply: fmtNumberOf(l.supplyAmount), vat: fmtNumberOf(l.vatAmount),
   }))
 }
 
@@ -42,7 +42,7 @@ function base(src: LetterSrc, title: string) {
     key: src.key, title, docNo: src.dateNo, date: '', right: [],
     lines: linesOf(src),
     totalQty: src.lines.reduce((a, l) => a + Number(l.quantity), 0).toLocaleString(),
-    supply: won(src.supplyAmount), vat: won(src.vatAmount), total: won(src.totalAmount),
+    supply: fmtNumberOf(src.supplyAmount), vat: fmtNumberOf(src.vatAmount), total: fmtNumberOf(src.totalAmount),
   }
 }
 

@@ -10,8 +10,8 @@ import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 바깥 쇼핑몰과 주고받아야 하는 버튼의 안내. 원본은 연동 계정이 있어야 동작한다 — 원본 문구가 아니라 지은 문구(plans/재고1). */
 const MALL_LINK_MSG = '쇼핑몰 연동이 필요합니다.'
@@ -175,8 +175,8 @@ export default function MallPage({ mode = 'progress' }: { mode?: MallMode }) {
       case '결제일자': return dateText(o.orderDate)
       case '오픈마켓상품명': return o.productName
       case '오픈마켓품목key': return o.mallProductCode ?? ''
-      case '수량': return won(o.quantity)
-      case '주문금액': return won(o.totalAmount)
+      case '수량': return fmtAmount(o.quantity)
+      case '주문금액': return fmtAmount(o.totalAmount)
       case '주문상태': return (
         <>
           {STAGE_OF[o.status]}
@@ -477,7 +477,7 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
               <input className="ec-input" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ width: 80, textAlign: 'right' }} />
               <span className="my-0 mx-[6px]">×</span>
               <input className="ec-input" type="number" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
-              <span className="ml-[8px] font-bold">= {won(total)} 원</span>
+              <span className="ml-[8px] font-bold">= {fmtAmount(total)} 원</span>
             </td>
           </tr>
         </tbody>
@@ -522,7 +522,7 @@ function ConvertForm({ order, partners, warehouses, onClose, onSaved }: {
         <tbody>
           <tr>
             <th className="w-[110px] bg-ec-page">주문</th>
-            <td>{order.productName} · {won(order.quantity)}개 × {won(order.unitPrice)}원 = <b>{won(order.totalAmount)}원</b></td>
+            <td>{order.productName} · {fmtAmount(order.quantity)}개 × {fmtAmount(order.unitPrice)}원 = <b>{fmtAmount(order.totalAmount)}원</b></td>
           </tr>
           <tr>
             <th className="bg-ec-page">품목</th>

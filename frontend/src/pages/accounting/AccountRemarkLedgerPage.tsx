@@ -11,8 +11,8 @@ import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -175,16 +175,16 @@ export default function AccountRemarkLedgerPage() {
                   ) : (
                     <tr>
                       <td>[{ETC_CODE}]</td>
-                      <td className="text-right">{won(total.d)}</td>
-                      <td className="text-right">{won(total.c)}</td>
+                      <td className="text-right">{fmtAmountBlank(total.d)}</td>
+                      <td className="text-right">{fmtAmountBlank(total.c)}</td>
                     </tr>
                   )}
                 </tbody>
                 <tfoot>
                   <tr style={SUB_ROW}>
                     <td className="text-center">합계</td>
-                    <td className="text-right">{won(total.d)}</td>
-                    <td className="text-right">{won(total.c)}</td>
+                    <td className="text-right">{fmtAmountBlank(total.d)}</td>
+                    <td className="text-right">{fmtAmountBlank(total.c)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -214,21 +214,21 @@ export default function AccountRemarkLedgerPage() {
                           <td className="text-center text-ec-blue">{dateNo(r.date, r.no)}</td>
                           <td>{r.text}</td>
                           <td>{r.partner}</td>
-                          <td className="text-right">{won(r.d)}</td>
-                          <td className="text-right">{won(r.c)}</td>
+                          <td className="text-right">{fmtAmountBlank(r.d)}</td>
+                          <td className="text-right">{fmtAmountBlank(r.c)}</td>
                         </tr>
                       )),
                       <tr key={`m${mo}`} style={SUB_ROW}>
                         <td colSpan={3} className="text-center">{slash(mo)} 계</td>
-                        <td className="text-right">{won(s.d)}</td>
-                        <td className="text-right">{won(s.c)}</td>
+                        <td className="text-right">{fmtAmountBlank(s.d)}</td>
+                        <td className="text-right">{fmtAmountBlank(s.c)}</td>
                       </tr>,
                     ]
                   })}
                   <tr style={SUB_ROW}>
                     <td colSpan={3} className="text-center">합계</td>
-                    <td className="text-right">{won(total.d)}</td>
-                    <td className="text-right">{won(total.c)}</td>
+                    <td className="text-right">{fmtAmountBlank(total.d)}</td>
+                    <td className="text-right">{fmtAmountBlank(total.c)}</td>
                   </tr>
                 </tbody>
               </table>

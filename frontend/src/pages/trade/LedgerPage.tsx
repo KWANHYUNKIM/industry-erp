@@ -14,8 +14,8 @@ import type { LedgerBasis } from '../../utils/partnerRollup'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { Link, useNavigate } from 'react-router-dom'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 잔액 칸 색.
@@ -503,11 +503,11 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
       <div className="flex gap-[10px] mb-[10px]">
         {showAr && <div className="flex-1 border border-ec-line border-solid bg-ec-blue-wash py-[12px] px-[16px]">
           <div className="text-[12px] text-ec-navy">총 채권 (받을 돈)</div>
-          <div className="text-[22px] font-extrabold text-ec-blue">{won(totalReceivable)} <span className="text-[13px] font-normal">원</span></div>
+          <div className="text-[22px] font-extrabold text-ec-blue">{fmtNumber(totalReceivable)} <span className="text-[13px] font-normal">원</span></div>
         </div>}
         {showAp && <div className="flex-1 border border-ec-line border-solid bg-ec-success-bg py-[12px] px-[16px]">
           <div style={{ fontSize: 12, color: '#1c6b32' }}>총 채무 (줄 돈)</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{won(totalPayable)} <span className="text-[13px] font-normal">원</span></div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{fmtNumber(totalPayable)} <span className="text-[13px] font-normal">원</span></div>
         </div>}
       </div>
 
@@ -540,18 +540,18 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
               <tr key={g.key}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td style={{ color: g.key === '(미지정)' ? 'var(--ec-text-hint)' : undefined }}>{g.key}</td>
-                <td className="text-right text-ec-hint">{won(g.count)}</td>
-                {showAr && <td style={balanceStyle(g.receivable, 'var(--ec-blue)')}>{won(g.receivable)}{balanceNote(g.receivable, '채권')}</td>}
-                {showAp && <td style={balanceStyle(g.payable, '#2f8401')}>{won(g.payable)}{balanceNote(g.payable, '채무')}</td>}
+                <td className="text-right text-ec-hint">{fmtNumber(g.count)}</td>
+                {showAr && <td style={balanceStyle(g.receivable, 'var(--ec-blue)')}>{fmtNumber(g.receivable)}{balanceNote(g.receivable, '채권')}</td>}
+                {showAp && <td style={balanceStyle(g.payable, '#2f8401')}>{fmtNumber(g.payable)}{balanceNote(g.payable, '채무')}</td>}
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={2} className="border border-ec-line border-solid py-[5px] px-[8px]">합계</td>
-              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{won(shownRolled.length)}</td>
-              {showAr && <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-blue">{won(totalReceivable)}</td>}
-              {showAp && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{won(totalPayable)}</td>}
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{fmtNumber(shownRolled.length)}</td>
+              {showAr && <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-blue">{fmtNumber(totalReceivable)}</td>}
+              {showAp && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{fmtNumber(totalPayable)}</td>}
             </tr>
           </tfoot>
         </table>
@@ -580,7 +580,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
               <td colSpan={group === '전표별' ? 4 : 2}>기초잔액 ({dateText(from)} 전날까지)</td>
               <td className="text-right"></td>
               <td className="text-right"></td>
-              <td className="text-right">{won(moveTotal.opening)}</td>
+              <td className="text-right">{fmtNumber(moveTotal.opening)}</td>
             </tr>
             {entryRows.length === 0 ? (
               <tr><td colSpan={group === '전표별' ? 7 : 5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
@@ -591,19 +591,19 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
                 {group === '전표별' && <td>{e.docNo ?? ''}</td>}
                 <td className="text-center">{e.kind}</td>
                 {group === '전표별' && <td>{e.name}</td>}
-                <td style={{ textAlign: 'right', color: e.increase === 0 ? 'var(--ec-text-off)' : undefined }}>{won(e.increase)}</td>
-                <td style={{ textAlign: 'right', color: e.decrease === 0 ? 'var(--ec-text-off)' : undefined }}>{won(e.decrease)}</td>
-                <td style={balanceStyle(e.balance, showAr ? 'var(--ec-blue)' : '#2f8401')}>{won(e.balance)}</td>
+                <td style={{ textAlign: 'right', color: e.increase === 0 ? 'var(--ec-text-off)' : undefined }}>{fmtNumber(e.increase)}</td>
+                <td style={{ textAlign: 'right', color: e.decrease === 0 ? 'var(--ec-text-off)' : undefined }}>{fmtNumber(e.decrease)}</td>
+                <td style={balanceStyle(e.balance, showAr ? 'var(--ec-blue)' : '#2f8401')}>{fmtNumber(e.balance)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={group === '전표별' ? 5 : 3} className="text-right">합계 ({entryRows.length}줄)</td>
-              <td className="text-right">{won(entryTotal.inc)}</td>
-              <td className="text-right">{won(entryTotal.dec)}</td>
+              <td className="text-right">{fmtNumber(entryTotal.inc)}</td>
+              <td className="text-right">{fmtNumber(entryTotal.dec)}</td>
               <td style={{ textAlign: 'right', color: showAr ? 'var(--ec-blue)' : '#2f8401' }}>
-                {won(entryRows.length ? entryRows[entryRows.length - 1].balance : moveTotal.opening)}
+                {fmtNumber(entryRows.length ? entryRows[entryRows.length - 1].balance : moveTotal.opening)}
               </td>
             </tr>
           </tfoot>
@@ -629,15 +629,15 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
               <tr key={m.partnerId}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{m.name}</td>
-                <td className="text-right">{won(m.opening)}</td>
-                <td className="text-right">{won(m.stockAmount)}</td>
-                <td style={{ textAlign: 'right', color: m.accountingAmount === 0 ? 'var(--ec-text-off)' : undefined }}>{won(m.accountingAmount)}</td>
-                <td className="text-right">{won(m.settledAmount)}</td>
+                <td className="text-right">{fmtNumber(m.opening)}</td>
+                <td className="text-right">{fmtNumber(m.stockAmount)}</td>
+                <td style={{ textAlign: 'right', color: m.accountingAmount === 0 ? 'var(--ec-text-off)' : undefined }}>{fmtNumber(m.accountingAmount)}</td>
+                <td className="text-right">{fmtNumber(m.settledAmount)}</td>
                 <td style={{ textAlign: 'right', color: m.otherDiff === 0 ? 'var(--ec-text-off)' : 'var(--ec-warn)', fontWeight: m.otherDiff === 0 ? 400 : 700 }}>
-                  {won(m.otherDiff)}
+                  {fmtNumber(m.otherDiff)}
                 </td>
                 <td style={balanceStyle(m.closing, showAr ? 'var(--ec-blue)' : '#2f8401')}>
-                  {won(m.closing)}{balanceNote(m.closing, showAr ? '채권' : '채무')}
+                  {fmtNumber(m.closing)}{balanceNote(m.closing, showAr ? '채권' : '채무')}
                 </td>
               </tr>
             ))}
@@ -645,12 +645,12 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={2} className="text-right">합계 ({movesRolled.length}곳)</td>
-              <td className="text-right">{won(moveTotal.opening)}</td>
-              <td className="text-right">{won(moveTotal.stock)}</td>
-              <td className="text-right">{won(moveTotal.acct)}</td>
-              <td className="text-right">{won(moveTotal.settled)}</td>
-              <td style={{ textAlign: 'right', color: moveTotal.other === 0 ? undefined : 'var(--ec-warn)' }}>{won(moveTotal.other)}</td>
-              <td style={{ textAlign: 'right', color: showAr ? 'var(--ec-blue)' : '#2f8401' }}>{won(moveTotal.closing)}</td>
+              <td className="text-right">{fmtNumber(moveTotal.opening)}</td>
+              <td className="text-right">{fmtNumber(moveTotal.stock)}</td>
+              <td className="text-right">{fmtNumber(moveTotal.acct)}</td>
+              <td className="text-right">{fmtNumber(moveTotal.settled)}</td>
+              <td style={{ textAlign: 'right', color: moveTotal.other === 0 ? undefined : 'var(--ec-warn)' }}>{fmtNumber(moveTotal.other)}</td>
+              <td style={{ textAlign: 'right', color: showAr ? 'var(--ec-blue)' : '#2f8401' }}>{fmtNumber(moveTotal.closing)}</td>
             </tr>
           </tfoot>
         </table>
@@ -687,8 +687,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
               </td>
               <td className="text-center">{r.typeName}</td>
               <td className="text-ec-muted">{aliasOf.get(r.partnerId) ?? ''}</td>
-              {showAr && <td style={balanceStyle(r.receivable, 'var(--ec-blue)')}>{won(r.receivable)}{balanceNote(r.receivable, '채권')}</td>}
-              {showAp && <td style={balanceStyle(r.payable, '#2f8401')}>{won(r.payable)}{balanceNote(r.payable, '채무')}</td>}
+              {showAr && <td style={balanceStyle(r.receivable, 'var(--ec-blue)')}>{fmtNumber(r.receivable)}{balanceNote(r.receivable, '채권')}</td>}
+              {showAp && <td style={balanceStyle(r.payable, '#2f8401')}>{fmtNumber(r.payable)}{balanceNote(r.payable, '채무')}</td>}
               <td>
                 {/* 그 거래처만 남기면 아래 움직임 표가 그 거래처 것만 된다 */}
                 <button type="button" onClick={() => setPartner(r.name)}
@@ -703,8 +703,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={5} className="border border-ec-line border-solid py-[5px] px-[8px]">합계</td>
-              {showAr && <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-blue">{won(totalReceivable)}</td>}
-              {showAp && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{won(totalPayable)}</td>}
+              {showAr && <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-blue">{fmtNumber(totalReceivable)}</td>}
+              {showAp && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{fmtNumber(totalPayable)}</td>}
               <td className="border border-ec-line border-solid py-[5px] px-[8px]"></td>
             </tr>
           </tfoot>
@@ -727,8 +727,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
                 <tr key={g.label}>
                   <td className="font-semibold">{g.label}</td>
                   <td className="text-right">{g.count}</td>
-                  {showAr && <td className="text-right">{won(g.sums.receivable)}</td>}
-                  {showAp && <td className="text-right">{won(g.sums.payable)}</td>}
+                  {showAr && <td className="text-right">{fmtNumber(g.sums.receivable)}</td>}
+                  {showAp && <td className="text-right">{fmtNumber(g.sums.payable)}</td>}
                 </tr>
               ))}
             </tbody>

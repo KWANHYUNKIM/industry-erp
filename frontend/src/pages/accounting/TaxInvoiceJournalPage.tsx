@@ -15,8 +15,8 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import TradeDetailModal from '../../features/taxvoucher/components/TradeDetailModal'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [YYYY/MM 계] · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게, 앞 두 칸 묶음. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -275,9 +275,9 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
                       <tr key={r.key}>
                         <td className="text-center text-ec-blue">{dateNo(r.date, r.no)}</td>
                         <td>{r.partner}</td>
-                        <td className="text-right">{won(r.supply)}</td>
-                        <td className="text-right">{won(r.vat)}</td>
-                        <td className="text-right">{won(r.supply + r.vat)}</td>
+                        <td className="text-right">{fmtAmountBlank(r.supply)}</td>
+                        <td className="text-right">{fmtAmountBlank(r.vat)}</td>
+                        <td className="text-right">{fmtAmountBlank(r.supply + r.vat)}</td>
                         <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>
                           {r.source === '거래명세서' ? <><button className="ec-link" onClick={() => setDetail(r)}>내역보기</button> 거래명세서</> : r.source}
                         </td>
@@ -285,9 +285,9 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
                     ))}
                     <tr className={tax ? 'ec-total' : undefined} style={tax ? undefined : SUB_ROW}>
                       <td colSpan={2} className="text-center">{slash(mo)}  계</td>
-                      <td className="text-right">{won(s.s)}</td>
-                      <td className="text-right">{won(s.v)}</td>
-                      <td className="text-right">{won(s.s + s.v)}</td>
+                      <td className="text-right">{fmtAmountBlank(s.s)}</td>
+                      <td className="text-right">{fmtAmountBlank(s.v)}</td>
+                      <td className="text-right">{fmtAmountBlank(s.s + s.v)}</td>
                       <td></td>
                     </tr>
                   </Fragment>
@@ -295,9 +295,9 @@ function TaxInvoiceJournal({ side, menu }: { side: Side; menu?: '세무' }) {
               })}
               <tr className={tax ? 'ec-total' : undefined} style={tax ? undefined : SUB_ROW}>
                 <td colSpan={2} className="text-center">합계</td>
-                <td className="text-right">{won(total.s)}</td>
-                <td className="text-right">{won(total.v)}</td>
-                <td className="text-right">{won(total.s + total.v)}</td>
+                <td className="text-right">{fmtAmountBlank(total.s)}</td>
+                <td className="text-right">{fmtAmountBlank(total.v)}</td>
+                <td className="text-right">{fmtAmountBlank(total.s + total.v)}</td>
                 <td></td>
               </tr>
             </>

@@ -12,8 +12,8 @@ import { groupSlips, slipNo, type ExpenseRow } from '../../features/expense/type
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { EmployeeMaster } from '../../types/api'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 회계 II › 비용관리 › 비용내역 › <b>전표별회계반영(비용)</b>(E060814) — 2026-10-20 loginaa 실측(plans/회계2/비용관리.md 4장).
@@ -192,7 +192,7 @@ export default function ExpenseSettlePage() {
               <td>{r.expenseGroupName ?? ''}</td>
               <td>{r.expenseItemName ?? ''}</td>
               <td>{empName(r.employeeId)}</td>
-              <td className="text-right">{won(g.reduce((s, x) => s + Number(x.amount), 0))}</td>
+              <td className="text-right">{fmtAmount(g.reduce((s, x) => s + Number(x.amount), 0))}</td>
               <td></td>
             </tr>
           ) })}
@@ -201,7 +201,7 @@ export default function ExpenseSettlePage() {
           <tfoot>
             <tr>
               <td colSpan={6} className="text-center">합계</td>
-              <td className="text-right">{won(total)}</td>
+              <td className="text-right">{fmtAmount(total)}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -244,7 +244,7 @@ export default function ExpenseSettlePage() {
                   <td>{r.accountName}</td>
                   <td></td>
                   <td></td>
-                  <td className="text-right">{won(Number(r.amount))}</td>
+                  <td className="text-right">{fmtAmount(Number(r.amount))}</td>
                   <td>{r.content ?? ''}</td>
                 </tr>
               ))}

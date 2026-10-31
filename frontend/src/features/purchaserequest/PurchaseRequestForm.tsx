@@ -19,6 +19,7 @@ import RequestPickModal from './RequestPickModal'
 import PriceRequestPickModal from './PriceRequestPickModal'
 import { PlanPickModal, RequirementCalcModal } from './OrderToolWindows'
 import SalesOrderPickModal, { type SalesOrderLite } from '../salesorder/components/SalesOrderPickModal'
+import { fmtAmount } from '../../utils/format'
 
 /** 서버 줄 응답은 줄 거래처도 싣는다(OrderLineResponse.partnerId · partnerName) — 공용 타입에 없어 여기서만 넓힌다. */
 type RequestLine = PurchaseOrderLine & {
@@ -59,7 +60,6 @@ export const copyLines = (orders: PurchaseOrder[]): LineForm[] => orders.flatMap
 /** 원본 [발주요청] 열 '20261020' · [No] '1'. */
 const srcDate = (d?: string) => (d ? d.replace(/-/g, '') : '')
 const srcNo = (n?: string) => { const seq = (n ?? '').split('-').pop() ?? ''; return n ? String(Number(seq) || seq) : '' }
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => new Date().toLocaleDateString('sv-SE')
 /** 원본 격자는 빈 줄 셋으로 열린다(신규 2026-10-13 실측). 고칠 때는 담긴 줄 뒤에 한 줄을 더 둔다. */
 const MIN_ROWS = 3
@@ -596,9 +596,9 @@ export default function PurchaseRequestForm({ editing, page, bare, plan, order, 
               <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
               <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
               {fx && <td className="text-right">{l.itemId ? fxNum(calc[i].foreign) : ''}</td>}
-              <td className="text-right">{l.itemId ? won(calc[i].supply) : ''}</td>
-              {!fx && <td className="text-right">{l.itemId ? won(calc[i].vat) : ''}</td>}
-              {!plan && !headParty && !fx && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
+              <td className="text-right">{l.itemId ? fmtAmount(calc[i].supply) : ''}</td>
+              {!fx && <td className="text-right">{l.itemId ? fmtAmount(calc[i].vat) : ''}</td>}
+              {!plan && !headParty && !fx && <td className="text-right">{l.itemId ? fmtAmount(calc[i].total) : ''}</td>}
               {hasRef && <td><input className="ec-input w-full" aria-label="줄 적요" placeholder="새로운 항목 추가" maxLength={200} disabled={!l.itemId}
                 value={l.remark ?? ''} onChange={(e) => setLine(i, { remark: e.target.value })} /></td>}
               {srcHead && <td className="text-center">{srcDate(l.sourceDate)}</td>}
@@ -612,9 +612,9 @@ export default function PurchaseRequestForm({ editing, page, bare, plan, order, 
             <td className="text-right">{qtySum.toLocaleString('ko-KR')}</td>
             <td></td>
             {fx && <td className="text-right">{fxNum(sum('foreign'))}</td>}
-            <td className="text-right">{won(sum('supply'))}</td>
-            {!fx && <td className="text-right">{won(sum('vat'))}</td>}
-            {!plan && !headParty && !fx && <td className="text-right">{won(sum('total'))}</td>}
+            <td className="text-right">{fmtAmount(sum('supply'))}</td>
+            {!fx && <td className="text-right">{fmtAmount(sum('vat'))}</td>}
+            {!plan && !headParty && !fx && <td className="text-right">{fmtAmount(sum('total'))}</td>}
             {hasRef && <td></td>}
             {srcHead && <td colSpan={2}></td>}
           </tr>

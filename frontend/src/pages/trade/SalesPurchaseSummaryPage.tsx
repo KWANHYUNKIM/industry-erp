@@ -11,6 +11,7 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { ymd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 영업관리 > 판매구매집계표 (이카운트 E040725)
@@ -87,7 +88,6 @@ interface Agg {
   buyVat: number
 }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 판매구매집계표의 수량은 소수 둘째 자리까지 찍힌다('1.00' · 2026-10-20 실측). */
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /** 원본 축 이름 열은 '품목명[규격]' 이다. */
@@ -124,7 +124,7 @@ function metricOf(a: Agg, side: Side, m: Target): number {
 const metricLabel = (side: Side, m: Target) => m === '수량' ? '수량' : m === '부가세' ? '부가세' : m === '합계' ? '합계'
   : side === 'sale' ? '판매금액' : side === 'buy' ? '구매금액' : '차이금액'
 const sideLabel = (s: Side) => s === 'sale' ? '판매' : s === 'buy' ? '구매' : '차이'
-const fmtMetric = (m: Target, v: number) => m === '수량' ? qty2(v) : won(v)
+const fmtMetric = (m: Target, v: number) => m === '수량' ? qty2(v) : fmtNumber(v)
 /** 원본 비율표시 — 합계 대비 % 정수 반올림, 0 이면 빈칸. */
 const ratioOf = (v: number, tot: number) => { if (tot <= 0) return ''; const r = Math.round(v / tot * 100); return r === 0 ? '' : String(r) }
 const sumAgg = (list: Agg[]): Agg => list.reduce((s, a) => ({ ...s,

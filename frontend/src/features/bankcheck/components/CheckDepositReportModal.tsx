@@ -8,6 +8,7 @@ import type { CodeItem } from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
 import type { BankAccountRow, BankCheck, CheckType } from '../../../types/api'
 import { bankPickLabel } from '../../../utils/bankLabel'
+import { fmtAmount } from '../../../utils/format'
 
 type MemoMode = 'SAME' | 'CHECKNO' | 'DIRECT'
 type Group = 'LINE' | 'PARTNER'
@@ -23,7 +24,6 @@ export interface CheckDepositPick {
 
 interface Line { pick: CheckDepositPick; memo: string }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 원본 계좌검색의 [계좌명] — 등록한 이름이 없으면 '은행-끝 4자리'(기업은행-1122). */
 /**
@@ -190,7 +190,7 @@ export default function CheckDepositReportModal({ type = 'RECEIVED', picks, onCl
                   <td>{l.pick.accountName}</td>
                   <td>{l.pick.partnerCode}</td>
                   <td>{l.pick.check.partnerName ?? ''}</td>
-                  <td className="text-right">{won(Number(l.pick.check.amount))}</td>
+                  <td className="text-right">{fmtAmount(Number(l.pick.check.amount))}</td>
                   <td>
                     <input className="ec-input w-full" aria-label={`${i + 1}줄 적요명`} maxLength={200} value={l.memo}
                            onChange={(e) => setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, memo: e.target.value } : x)))} />
@@ -202,7 +202,7 @@ export default function CheckDepositReportModal({ type = 'RECEIVED', picks, onCl
             <tfoot>
               <tr>
                 <td colSpan={7} />
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtAmount(total)}</td>
                 <td colSpan={2} />
               </tr>
             </tfoot>

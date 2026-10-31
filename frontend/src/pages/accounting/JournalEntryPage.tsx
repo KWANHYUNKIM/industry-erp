@@ -15,6 +15,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { journalNeighbors } from '../../utils/journalNav'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 interface Account { id: number; code: string; name: string }
 /**
@@ -27,7 +28,6 @@ type Side = '1' | '2' | '3' | '4'
 const isDebitIn = (s: Side) => s === '1' || s === '3'
 interface Row { side: Side; accountId: string; partnerId: string; debit: string; credit: string; description: string; departmentId: string; currencyCode: string; foreignAmount: string }
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const num = (v: string) => Number(String(v).replace(/,/g, '')) || 0
 const emptyRow = (side: Side = '3'): Row => ({ side, accountId: '', partnerId: '', debit: '', credit: '', description: '', departmentId: '', currencyCode: '', foreignAmount: '' })
 const blankRows = () => [emptyRow(), emptyRow(), emptyRow()]
@@ -398,10 +398,10 @@ export default function JournalEntryPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={6}></td>
-              <td className="text-right">{won(totalDebit)}</td>
-              <td className="text-right">{won(totalCredit)}</td>
+              <td className="text-right">{fmtNumber(totalDebit)}</td>
+              <td className="text-right">{fmtNumber(totalCredit)}</td>
               <td></td>
-              <td className="text-right">{diff ? won(diff) : ''}</td>
+              <td className="text-right">{diff ? fmtNumber(diff) : ''}</td>
               <td colSpan={4}></td>
             </tr>
           </tfoot>

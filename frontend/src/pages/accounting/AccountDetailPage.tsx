@@ -10,8 +10,8 @@ import type { AccountDivision, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243) · 굵게. */
 const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const slash = (d: string) => d.replace(/-/g, '/')
@@ -140,12 +140,12 @@ export default function AccountDetailPage() {
         <tr key={r.key}>
           <td className="text-ec-blue">{b.name}</td>
           <td className="text-ec-blue">{r.partner}</td>
-          <td className="text-right">{won(r.amt)}</td>
+          <td className="text-right">{fmtAmount(r.amt)}</td>
         </tr>
       ))}
       <tr style={SUB_ROW}>
         <td colSpan={2} className="text-center">합계</td>
-        <td className="text-right">{won(b.rows.reduce((s, r) => s + r.amt, 0))}</td>
+        <td className="text-right">{fmtAmount(b.rows.reduce((s, r) => s + r.amt, 0))}</td>
       </tr>
     </tbody>
   </>

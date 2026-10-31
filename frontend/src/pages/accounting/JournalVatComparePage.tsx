@@ -10,6 +10,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 type SideCond = '전체' | VatSide
@@ -38,7 +39,6 @@ export const VAT_TYPES: { side: VatSide; code: string; name: string }[] = ([
 const PER_PAGE = 15
 
 const PICKS = ['금일', '전일', '금월(~오늘)', '전월', '직전분기', '직전반기', '종료일'] as const
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const radio = <T extends string>(name: string, values: readonly T[], value: T, set: (v: T) => void, labels?: Record<string, string>) =>
   values.map((v) => (
     <label key={v} className="inline-flex items-center gap-[3px] mr-[10px]">
@@ -256,26 +256,26 @@ export function JournalVatCompareView({ init }: { init?: JvcInit }) {
                     <td>{head ? dateNo(e.entryDate, e.docNo) : ''}</td>
                     <td>{l.accountName}</td>
                     <td>{e.partnerName ?? ''}</td>
-                    <td className="text-right">{won(Number(l.debit))}</td>
-                    <td className="text-right">{won(Number(l.credit))}</td>
+                    <td className="text-right">{fmtAmount(Number(l.debit))}</td>
+                    <td className="text-right">{fmtAmount(Number(l.credit))}</td>
                     <td>{head && m ? dateNo(e.entryDate, e.docNo) : ''}</td>
                     <td>{head && m ? m.name : ''}</td>
                     <td>{head && m ? e.partnerName ?? '' : ''}</td>
                     {/* 자료가 없는 전표도 첫 줄엔 0 을 찍는다(원본) */}
-                    <td className="text-right">{head ? won(m?.supply ?? 0) : ''}</td>
-                    <td className="text-right">{head ? won(m?.vat ?? 0) : ''}</td>
-                    <td className="text-right">{head ? won(m?.total ?? 0) : ''}</td>
+                    <td className="text-right">{head ? fmtAmount(m?.supply ?? 0) : ''}</td>
+                    <td className="text-right">{head ? fmtAmount(m?.vat ?? 0) : ''}</td>
+                    <td className="text-right">{head ? fmtAmount(m?.total ?? 0) : ''}</td>
                   </tr>
                 )
               }))}
               <tr className="ec-total">
                 <td colSpan={3} className="text-center font-bold">합계</td>
-                <td className="text-right font-bold">{won(total.debit)}</td>
-                <td className="text-right font-bold">{won(total.credit)}</td>
+                <td className="text-right font-bold">{fmtAmount(total.debit)}</td>
+                <td className="text-right font-bold">{fmtAmount(total.credit)}</td>
                 <td colSpan={3} />
-                <td className="text-right font-bold">{won(total.supply)}</td>
-                <td className="text-right font-bold">{won(total.vat)}</td>
-                <td className="text-right font-bold">{won(total.sum)}</td>
+                <td className="text-right font-bold">{fmtAmount(total.supply)}</td>
+                <td className="text-right font-bold">{fmtAmount(total.vat)}</td>
+                <td className="text-right font-bold">{fmtAmount(total.sum)}</td>
               </tr>
             </tbody>
           </table>

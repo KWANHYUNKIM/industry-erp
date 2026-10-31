@@ -8,6 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { dateNo } from '../../utils/dateNo'
 import type { BankAccountRow, BankTxn, CardUsage, Partner } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtNumberOrBlank } from '../../utils/format'
 
 /**
  * 회계 I › <b>계좌/카드</b> 네 화면 — 2026-10-14 loginaa 실측(입/출금계좌 조회 C001137 · 카드매입조회 E010206 ·
@@ -53,7 +54,6 @@ const MAKE: Record<LinkedKind, { label: string; to: string }> = {
 interface AccountLite { id: number; code: string; name: string }
 interface Row { id: number; cells: string[]; reflected: boolean; date: string; amount: number; text: string }
 
-const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replaceAll('-', '/')
 
 export default function LinkedTxnListPage({ kind }: { kind: LinkedKind }) {
@@ -97,7 +97,7 @@ export default function LinkedTxnListPage({ kind }: { kind: LinkedKind }) {
           text: `${x.accountNo} ${x.partnerName ?? ''} ${x.description ?? ''}`,
           cells: [slash(x.txnDate), x.directionName, x.accountNo, acctName.get(x.bankAccountId) ?? '',
             x.partnerId != null ? pCode.get(x.partnerId) ?? '' : '', x.partnerName ?? '', x.description ?? '',
-            won(x.amount), won(x.balanceAfter), '', x.journalDocNo ? dateNo(x.txnDate, x.journalDocNo) : ''],
+            fmtNumberOrBlank(x.amount), fmtNumberOrBlank(x.balanceAfter), '', x.journalDocNo ? dateNo(x.txnDate, x.journalDocNo) : ''],
         })))
       } else if (kind === 'cardBuy') {
         const [u, accts] = await Promise.all([
@@ -108,7 +108,7 @@ export default function LinkedTxnListPage({ kind }: { kind: LinkedKind }) {
         setRows(u.data.map((x) => ({
           id: x.id, reflected: x.journalEntryId != null, date: x.usageDate, amount: Number(x.totalAmount),
           text: `${x.cardNo} ${x.usageNo} ${x.merchant}`,
-          cells: [slash(x.usageDate), x.cardName, x.merchant, won(x.totalAmount), Number(x.vatAmount) ? won(x.vatAmount) : '',
+          cells: [slash(x.usageDate), x.cardName, x.merchant, fmtNumberOrBlank(x.totalAmount), Number(x.vatAmount) ? fmtNumberOrBlank(x.vatAmount) : '',
             aCode.get(x.expenseAccountId) ?? '', x.expenseAccountName, '승인', '',
             x.journalDocNo ? dateNo(x.usageDate, x.journalDocNo) : ''],
         })))

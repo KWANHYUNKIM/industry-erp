@@ -11,8 +11,8 @@ import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS: { label: string; type: CheckType }[] = [
   { label: '받은수표', type: 'RECEIVED' },
@@ -81,13 +81,13 @@ export default function CheckPage() {
     const usable = banks.filter((b) => b.active)
     if (usable.length === 0) return setError('입금할 계좌가 없습니다. 계좌를 먼저 등록하세요.')
     const list = usable.map((b, i) => `${i + 1}. ${b.bankName} ${b.accountNo}`).join('\n')
-    const pick = window.prompt(`${c.checkNo} (${won(c.amount)}원) 입금할 계좌 번호를 고르세요.\n\n${list}`, '1')
+    const pick = window.prompt(`${c.checkNo} (${fmtNumber(c.amount)}원) 입금할 계좌 번호를 고르세요.\n\n${list}`, '1')
     if (pick === null) return
     const bank = usable[Number(pick) - 1]
     if (!bank) return setError('계좌 선택이 올바르지 않습니다.')
     try {
       await api.post(`/checks/${c.id}/deposit`, { bankAccountId: bank.id, depositDate: todayYmd() })
-      flash(`${c.checkNo} → ${bank.bankName} 입금 (계좌 잔액 +${won(c.amount)})`)
+      flash(`${c.checkNo} → ${bank.bankName} 입금 (계좌 잔액 +${fmtNumber(c.amount)})`)
       await load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -95,7 +95,7 @@ export default function CheckPage() {
   }
 
   async function act(c: BankCheck, path: 'dishonor' | 'settle', message: string) {
-    if (!(await ecConfirm(`${c.checkNo} (${won(c.amount)}원) — ${message}할까요?`))) return
+    if (!(await ecConfirm(`${c.checkNo} (${fmtNumber(c.amount)}원) — ${message}할까요?`))) return
     try {
       await api.post(`/checks/${c.id}/${path}`, { settledDate: todayYmd() })
       flash(`${c.checkNo} ${message} 처리`)
@@ -136,7 +136,7 @@ export default function CheckPage() {
           }}>{t.label} ({count(t.type)})</button>
         ))}
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
-          미처리 {held.length}건 · <b className="text-ec-navy">{won(heldTotal)}</b>
+          미처리 {held.length}건 · <b className="text-ec-navy">{fmtNumber(heldTotal)}</b>
         </span>
       </div>
 
@@ -185,7 +185,7 @@ export default function CheckPage() {
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="font-semibold">{c.checkNo}</td>
               <td>{dateText(c.issueDate)}</td>
-              <td className="text-right font-bold">{won(c.amount)}</td>
+              <td className="text-right font-bold">{fmtNumber(c.amount)}</td>
               <td>{c.bankName ?? ''}</td>
               <td>{c.partnerName ?? ''}</td>
               <td className="text-ec-label">{c.bankAccountName ?? ''}</td>
@@ -280,7 +280,7 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
           <Field label="발행계좌(당좌) *">
             <select className="ec-input" value={form.bankAccountId} onChange={(e) => set('bankAccountId', e.target.value)} style={{ width: 210 }}>
               <option value="">선택하세요</option>
-              {usable.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {won(b.balance)})</option>)}
+              {usable.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {fmtNumber(b.balance)})</option>)}
             </select>
           </Field>
         )}

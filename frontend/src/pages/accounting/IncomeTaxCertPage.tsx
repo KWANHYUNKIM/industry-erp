@@ -6,8 +6,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingLedgerEmployee, WithholdingReturn } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { fmtNumberOf } from '../../utils/format'
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; address?: string; addressDetail?: string }
 type Emp = { id: number; code: string; name: string }
 type Slot = { ym: string; pay: string; tax: number; paidOn: string }
@@ -67,7 +67,7 @@ export default function IncomeTaxCertPage() {
       setFound({
         emp,
         slots: (mine?.months ?? []).map((m) => ({
-          ym: m.payMonth, pay: won(Number(m.taxablePay) + Number(m.nonTaxablePay)), tax: Number(m.incomeTax), paidOn: filedOn.get(m.payMonth) ?? '',
+          ym: m.payMonth, pay: fmtNumberOf(Number(m.taxablePay) + Number(m.nonTaxablePay)), tax: Number(m.incomeTax), paidOn: filedOn.get(m.payMonth) ?? '',
         })),
       })
     } catch (e) {
@@ -89,7 +89,7 @@ export default function IncomeTaxCertPage() {
       <>
         <td className="text-center">{s.ym.replace('-', '.')}</td>
         <td><input className="ec-input text-right w-full" value={s.pay} onChange={(e) => setSlot(i, { pay: e.target.value })} /></td>
-        <td className="text-right">{won(s.tax)}</td>
+        <td className="text-right">{fmtNumberOf(s.tax)}</td>
         <td><input className="ec-input w-full" value={s.paidOn} onChange={(e) => setSlot(i, { paidOn: e.target.value })} /></td>
       </>
     )
@@ -159,8 +159,8 @@ export default function IncomeTaxCertPage() {
                 {r < 6 ? cell(r + 7) : (
                   <>
                     <td className="text-center font-bold">계</td>
-                    <td className="text-right font-bold">{won(payTotal)}</td>
-                    <td className="text-right font-bold">{won(taxTotal)}</td>
+                    <td className="text-right font-bold">{fmtNumberOf(payTotal)}</td>
+                    <td className="text-right font-bold">{fmtNumberOf(taxTotal)}</td>
                     <td />
                   </>
                 )}

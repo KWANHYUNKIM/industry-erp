@@ -12,6 +12,7 @@ import { STATUS_PICKS } from '../../utils/periods'
 import { scopeEntries } from '../../utils/deptProject'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountBlank } from '../../utils/format'
 
 type DocKind = 'PAPER' | 'ELECTRONIC' | 'MODIFY_ERROR' | 'MODIFY_AMOUNT' | 'MODIFY_RETURN' | 'MODIFY_CANCEL' | 'MODIFY_LC' | 'MODIFY_DUPLICATE'
 type Progress = 'NONE' | 'LATE' | 'ELSEWHERE'
@@ -41,7 +42,6 @@ const dateNoTight = (date: string, docNo: string) => {
   const seq = docNo.split('-').pop() ?? ''
   return `${date.replace(/-/g, '/')}-${Number(seq) || seq}`
 }
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 /**
@@ -249,8 +249,8 @@ export default function VatMarkChangePage() {
               <td className="text-center">{dateNoTight(r.date, r.no)}</td>
               <td className="text-center">{r.vat === 0 ? '계산서' : '세금계산서'}</td>
               <td>{r.partner}</td>
-              <td className="text-right">{won(r.supply)}</td>
-              <td className="text-right">{won(r.vat)}</td>
+              <td className="text-right">{fmtAmountBlank(r.supply)}</td>
+              <td className="text-right">{fmtAmountBlank(r.vat)}</td>
               <td className="text-center">{r.docKindName}</td>
               <td className="text-center">{r.progressName}</td>
             </tr>

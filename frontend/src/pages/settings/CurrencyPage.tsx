@@ -7,8 +7,8 @@ import { useTableSort } from '../../utils/useTableSort'
 import { dateText } from '../../utils/dateText'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const rateText = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
 
 const TABS = ['통화등록', '고시환율'] as const
@@ -292,7 +292,7 @@ function Converter({ currencies, onError }: { currencies: Currency[]; onError: (
         <button className="ec-btn ec-btn-primary" onClick={convert}>원화 환산</button>
         {result && (
           <div className="text-[13px] pb-[4px]">
-            <b className="text-ec-navy text-[16px]">{won(result.krwAmount)}원</b>
+            <b className="text-ec-navy text-[16px]">{fmtNumber(result.krwAmount)}원</b>
             <span className="text-ec-hint ml-[8px] text-[11.5px]">
               {result.appliedRateDate} 고시 {rateText(result.appliedRate)}원 / {result.unit}{result.currencyCode} 적용
               {result.appliedRateDate !== result.baseDate && ' (기준일 고시가 없어 직전 고시 적용)'}

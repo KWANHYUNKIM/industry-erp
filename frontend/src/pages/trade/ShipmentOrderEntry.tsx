@@ -17,6 +17,7 @@ import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/Slip
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 import EcIcon from '../../components/ui/EcIcon'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 출하지시서입력(E040220) — 원본 영업관리 &gt; 출하지시서 &gt; <b>출하지시서입력</b>(2026-10-28 데이터이관 루프 18 실측).
@@ -57,7 +58,6 @@ const emptyLine = (): LineInput => ({ id: null, itemId: '', quantity: '', remark
 /** 판매검색창 알약 — 원본 전체 · 결재중 · 미확인 · 확인. */
 type SalesTab = 'ALL' | 'IN_APPROVAL' | 'UNCONFIRMED' | 'CONFIRMED'
 const SALES_TABS: [SalesTab, string][] = [['ALL', '전체'], ['IN_APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인']]
-const won = (n: number) => n.toLocaleString('ko-KR')
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -601,7 +601,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
               key: d.id, dateNo: dateNo(d.saleDate, d.docNo), partnerName: d.partnerName, employeeName: d.employeeName ?? '',
               itemSummary: salesSummary(d), date2: '', total: d.totalAmount, statusLabel: d.confirmStatusName, created: false,
               cells: [
-                dateNo(d.saleDate, d.docNo), d.partnerName, salesSummary(d), won(d.totalAmount),
+                dateNo(d.saleDate, d.docNo), d.partnerName, salesSummary(d), fmtNumber(d.totalAmount),
                 d.taxable ? '부가세율 적용' : '부가세율 미적용', d.warehouseName, d.accountingReflected ? '✓' : '',
                 <span className="text-ec-hint">인쇄</span>,
                 <span className="ec-btn ec-btn-sm" title="불러온 전표는 판매조회에서 봅니다.">조회</span>,

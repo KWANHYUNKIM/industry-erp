@@ -4,6 +4,7 @@ import { amountToKorean } from './amountToKorean'
 import { escapeHtml } from './escapeHtml'
 import { DEFAULT_DISPLAY_PREFS, printPageCss, zeroText, type DisplayPrefs } from './displayPrefs'
 import { loadDisplayPrefs } from '../features/preference/displayPrefsStore'
+import { fmtAmount } from './format.ts'
 
 export { amountToKorean }
 
@@ -67,7 +68,6 @@ export interface PrintDocumentOptions {
 }
 
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 function partyHtml(p: DocParty): string {
   const row = (label: string, value: unknown) =>
@@ -119,7 +119,7 @@ const CSS = `
 
 function documentHtml(o: PrintDocumentOptions, prefs: DisplayPrefs = DEFAULT_DISPLAY_PREFS): string {
   // 기본값설정 0값표시(원본 기본 표시안함 — 공란) — 줄 칸에만
-  const cell = (n: number) => zeroText(n, won, prefs.zeroDisplay)
+  const cell = (n: number) => zeroText(n, fmtAmount, prefs.zeroDisplay)
   const supply = o.lines.reduce((a, l) => a + Number(l.supplyAmount || 0), 0)
   const vat = o.lines.reduce((a, l) => a + Number(l.vatAmount || 0), 0)
   const total = supply + vat
@@ -180,20 +180,20 @@ function documentHtml(o: PrintDocumentOptions, prefs: DisplayPrefs = DEFAULT_DIS
         ${money ? `<tfoot>
           <tr>
             <td colspan="6" class="center">합 계</td>
-            <td class="num">${won(supply)}</td>
-            <td class="num">${won(vat)}</td>
+            <td class="num">${fmtAmount(supply)}</td>
+            <td class="num">${fmtAmount(vat)}</td>
           </tr>
         </tfoot>` : `<tfoot>
           <tr>
             <td colspan="4" class="center">합 계</td>
-            <td class="num">${won(o.lines.reduce((a, l) => a + Number(l.quantity || 0), 0))}</td>
+            <td class="num">${fmtAmount(o.lines.reduce((a, l) => a + Number(l.quantity || 0), 0))}</td>
           </tr>
         </tfoot>`}
       </table>
 
       ${money ? `<div class="sum">
-        <div class="korean">일금 <b>${escapeHtml(amountToKorean(total))}</b>원정 (₩${won(total)})</div>
-        <div>합계금액 <b style="font-size:14px">${won(total)}</b> 원</div>
+        <div class="korean">일금 <b>${escapeHtml(amountToKorean(total))}</b>원정 (₩${fmtAmount(total)})</div>
+        <div>합계금액 <b style="font-size:14px">${fmtAmount(total)}</b> 원</div>
       </div>` : ''}
 
       ${o.remark ? `<div class="remark">비고: ${escapeHtml(o.remark)}</div>` : ''}

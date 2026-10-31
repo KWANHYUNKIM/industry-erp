@@ -8,6 +8,7 @@ import type { CodeItem } from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
 import type { BankAccountRow, PromissoryNote } from '../../../types/api'
 import { bankPickLabel } from '../../../utils/bankLabel'
+import { fmtAmount } from '../../../utils/format'
 
 type MemoMode = 'SAME' | 'NOTENO' | 'DIRECT'
 type Group = 'LINE' | 'PARTNER'
@@ -17,7 +18,6 @@ export interface NoteVoucherPick { note: PromissoryNote; partnerCode: string }
 
 interface Line { pick: NoteVoucherPick; memo: string }
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 회계 I › 어음거래 › 받을어음일괄감소(E010621) [입금보고서작성] · 지급어음일괄감소(E010629) [지출결의서작성] — 2026-10-20 loginaa 실측.
@@ -170,7 +170,7 @@ export default function NoteVoucherReportModal({ receivable, picks, onClose, onS
                   <td>{accName}</td>
                   <td>{l.pick.partnerCode}</td>
                   <td>{l.pick.note.partnerName ?? ''}</td>
-                  <td className="text-right">{won(Number(l.pick.note.amount))}</td>
+                  <td className="text-right">{fmtAmount(Number(l.pick.note.amount))}</td>
                   <td>
                     <input className="ec-input w-full" aria-label={`${i + 1}줄 적요명`} maxLength={200} value={l.memo}
                            onChange={(e) => setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, memo: e.target.value } : x)))} />
@@ -182,7 +182,7 @@ export default function NoteVoucherReportModal({ receivable, picks, onClose, onS
             <tfoot>
               <tr>
                 <td colSpan={7} />
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtAmount(total)}</td>
                 <td colSpan={2} />
               </tr>
             </tfoot>

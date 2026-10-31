@@ -8,8 +8,8 @@ import { dateText } from '../../utils/dateText'
 import TaxInvoiceProgressPage from './TaxInvoiceProgressPage'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
 
 const STATUS_TABS = ['전체', '작성', '발행', '전송', '승인'] as const
@@ -143,9 +143,9 @@ function TradeTaxInvoicePage({ type }: { type: TaxInvoiceType }) {
               <td>{dateText(r.issueDate)}</td>
               <td>{r.partnerName}</td>
               <td className="text-ec-hint">{r.sourceDocNo}</td>
-              <td className="text-right">{won(r.supplyAmount)}</td>
-              <td className="text-right text-ec-hint">{won(r.vatAmount)}</td>
-              <td className="text-right font-bold">{won(r.totalAmount)}</td>
+              <td className="text-right">{fmtNumber(r.supplyAmount)}</td>
+              <td className="text-right text-ec-hint">{fmtNumber(r.vatAmount)}</td>
+              <td className="text-right font-bold">{fmtNumber(r.totalAmount)}</td>
               <td className="text-center"><span style={{ color: statusColor(r.status), fontWeight: 600 }}>{r.statusName}</span></td>
               <td className="text-center">
                 <div className="inline-flex gap-[3px]">
@@ -163,9 +163,9 @@ function TradeTaxInvoicePage({ type }: { type: TaxInvoiceType }) {
         <tfoot>
           <tr className="font-bold bg-ec-page">
             <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
-            <td className="text-right">{won(totals.supply)}</td>
-            <td className="text-right">{won(totals.vat)}</td>
-            <td className="text-right">{won(totals.total)}</td>
+            <td className="text-right">{fmtNumber(totals.supply)}</td>
+            <td className="text-right">{fmtNumber(totals.vat)}</td>
+            <td className="text-right">{fmtNumber(totals.total)}</td>
             <td colSpan={2}></td>
           </tr>
         </tfoot>

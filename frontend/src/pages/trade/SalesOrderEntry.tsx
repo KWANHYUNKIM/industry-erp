@@ -25,6 +25,7 @@ import { SlipHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 import EcIcon from '../../components/ui/EcIcon'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /**
  * 주문서입력 — 원본 영업관리 &gt; 주문서 &gt; <b>주문서입력</b>(2026-10-28 진행자 실측). 판매입력(TradeEntry)과 같은 큰 입력 화면이다.
@@ -58,7 +59,6 @@ const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', r
 /** 원본은 빈 입력행 3줄로 뜬다. */
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
-const won = (n: number) => n.toLocaleString('ko-KR')
 const MEM_KEY = 'sales-order-head'
 /** 서버(SalesOrderService.delete)가 막을 때 첫 줄 — 원본 '알림' 창의 첫 줄 그대로. */
 const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.'
@@ -809,8 +809,8 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
                       {qtyErr === idx && <ErrTip msg="유효키항목 필수입력" />}
                     </td>
                     <td><EcNumInput className="cell text-right" value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} /></td>
-                    <td className="pad text-right">{l.itemId ? won(computed[idx].supply) : ''}</td>
-                    <td className="pad text-right">{l.itemId ? won(computed[idx].vat) : ''}</td>
+                    <td className="pad text-right">{l.itemId ? fmtNumber(computed[idx].supply) : ''}</td>
+                    <td className="pad text-right">{l.itemId ? fmtNumber(computed[idx].vat) : ''}</td>
                     <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                     <td className="text-center">
                       {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint"><EcIcon name="close" size={12} glyph="✕" /></button>}
@@ -823,12 +823,12 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
               <tr>
                 <td colSpan={2} />
                 <td colSpan={3} className="pl-[6px]">합계 ({lineCount}건)</td>
-                <td className="text-right">{won(totals.qty)}</td>
+                <td className="text-right">{fmtNumber(totals.qty)}</td>
                 <td />
-                <td className="text-right">{won(totals.supply)}</td>
-                <td className="text-right">{won(totals.vat)}</td>
+                <td className="text-right">{fmtNumber(totals.supply)}</td>
+                <td className="text-right">{fmtNumber(totals.vat)}</td>
                 {/* 원본 주문서입력 표에는 [합계] 열이 없다 — 부가세 포함 총액은 합계 줄 적요 칸에. */}
-                <td className="text-right font-bold text-ec-blue" aria-label="합계">{won(totals.total)}</td>
+                <td className="text-right font-bold text-ec-blue" aria-label="합계">{fmtNumber(totals.total)}</td>
                 <td />
               </tr>
             </tfoot>
@@ -878,8 +878,8 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
                           <td>{dateText(q.quoteDate)}</td>
                           <td>{q.partnerName}</td>
                           <td>{l.itemName}</td>
-                          <td className="text-right font-bold">{won(q.convertedOrderId == null ? l.quantity : 0)}</td>
-                          <td className="text-right">{won(l.unitPrice)}</td>
+                          <td className="text-right font-bold">{fmtNumber(q.convertedOrderId == null ? l.quantity : 0)}</td>
+                          <td className="text-right">{fmtNumber(l.unitPrice)}</td>
                           <td className="text-ec-hint">{q.statusName}</td>
                         </tr>
                       )
@@ -920,7 +920,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
               {generated.map((r, i) => (
                 <tr key={i}>
                   <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
-                  <td className="text-right">{won(r.quantity)}</td><td className="text-right">{won(r.remaining)}</td>
+                  <td className="text-right">{fmtNumber(r.quantity)}</td><td className="text-right">{fmtNumber(r.remaining)}</td>
                   <td>{r.slipType ?? ''}</td><td>{r.slipDate && r.slipNo ? dateNo(r.slipDate, r.slipNo) : ''}</td>
                 </tr>
               ))}
@@ -941,7 +941,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
             <tbody>
               {loaded.rows.map((r, i) => (
                 <tr key={i}>
-                  <td>{r.code}</td><td>{r.name}</td><td>{r.spec ?? ''}</td><td className="text-right">{won(r.qty)}</td>
+                  <td>{r.code}</td><td>{r.name}</td><td>{r.spec ?? ''}</td><td className="text-right">{fmtNumber(r.qty)}</td>
                   <td>{r.slip}</td><td>{r.slipNo}</td>
                 </tr>
               ))}

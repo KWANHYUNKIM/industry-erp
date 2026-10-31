@@ -7,8 +7,8 @@ import PayLedgerReport from '../../features/payroll/components/PayLedgerReport'
 import PayCalcHelp from '../../features/payroll/components/PayCalcHelp'
 import { ymd } from '../../components/EcPeriodPicks'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { fmtNumber } from '../../utils/format'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
 
 /** 급여대장 — 급여계산/대장 목록의 [조회]. 귀속월의 사원별 급여명세. 미작성 사원은 계산, 작성분은 상세/확정. */
@@ -159,11 +159,11 @@ export default function PayrollPage() {
                 <td>{e.code}</td>
                 <td>{p ? <a onClick={() => setDetail(p)} className="text-ec-blue cursor-pointer">{e.name}</a> : e.name}</td>
                 <td>{e.department}</td>
-                <td className="text-right">{won(p ? p.baseSalary : e.baseSalary)}</td>
-                <td className="text-right">{p ? won(p.allowanceTotal) : ''}</td>
-                <td className="text-right font-semibold">{p ? won(p.grossPay) : ''}</td>
-                <td style={{ textAlign: 'right', color: '#a5561b' }}>{p ? won(p.deductionTotal) : ''}</td>
-                <td className="text-right font-bold text-ec-navy">{p ? won(p.netPay) : ''}</td>
+                <td className="text-right">{fmtNumber(p ? p.baseSalary : e.baseSalary)}</td>
+                <td className="text-right">{p ? fmtNumber(p.allowanceTotal) : ''}</td>
+                <td className="text-right font-semibold">{p ? fmtNumber(p.grossPay) : ''}</td>
+                <td style={{ textAlign: 'right', color: '#a5561b' }}>{p ? fmtNumber(p.deductionTotal) : ''}</td>
+                <td className="text-right font-bold text-ec-navy">{p ? fmtNumber(p.netPay) : ''}</td>
                 <td className="text-center">
                   {p ? <span style={{ color: p.status === 'CONFIRMED' ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{p.statusName}</span> : <span className="text-ec-off">미작성</span>}
                 </td>
@@ -186,9 +186,9 @@ export default function PayrollPage() {
         <tfoot>
           <tr className="font-bold bg-ec-page">
             <td colSpan={6} className="text-right">합계 (작성 {payslips.length}건)</td>
-            <td className="text-right">{won(totals.gross)}</td>
-            <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totals.deduction)}</td>
-            <td className="text-right text-ec-navy">{won(totals.net)}</td>
+            <td className="text-right">{fmtNumber(totals.gross)}</td>
+            <td style={{ textAlign: 'right', color: '#a5561b' }}>{fmtNumber(totals.deduction)}</td>
+            <td className="text-right text-ec-navy">{fmtNumber(totals.net)}</td>
             <td colSpan={2}></td>
           </tr>
         </tfoot>
@@ -222,9 +222,9 @@ function PayslipModal({ p, onClose }: { p: Payslip; onClose: () => void }) {
               <div style={{ fontWeight: 700, fontSize: 12.5, color: '#1a4d8f', marginBottom: 4 }}>지급</div>
               <table className="w-full text-left">
                 <tbody>
-                  <tr><td>기본급</td><td className="text-right">{won(p.baseSalary)}</td></tr>
-                  {allowances.map((l) => <tr key={l.id}><td>{l.name}</td><td className="text-right">{won(l.amount)}</td></tr>)}
-                  <tr className="font-bold bg-ec-page"><td>지급총액</td><td className="text-right">{won(p.grossPay)}</td></tr>
+                  <tr><td>기본급</td><td className="text-right">{fmtNumber(p.baseSalary)}</td></tr>
+                  {allowances.map((l) => <tr key={l.id}><td>{l.name}</td><td className="text-right">{fmtNumber(l.amount)}</td></tr>)}
+                  <tr className="font-bold bg-ec-page"><td>지급총액</td><td className="text-right">{fmtNumber(p.grossPay)}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -232,8 +232,8 @@ function PayslipModal({ p, onClose }: { p: Payslip; onClose: () => void }) {
               <div style={{ fontWeight: 700, fontSize: 12.5, color: '#a5561b', marginBottom: 4 }}>공제 (4대보험 자동)</div>
               <table className="w-full text-left">
                 <tbody>
-                  {deductions.map((l) => <tr key={l.id}><td>{l.name}{l.auto && <span className="text-[10px] text-ec-hint ml-[4px]">자동</span>}</td><td className="text-right">{won(l.amount)}</td></tr>)}
-                  <tr className="font-bold bg-ec-page"><td>공제총액</td><td className="text-right">{won(p.deductionTotal)}</td></tr>
+                  {deductions.map((l) => <tr key={l.id}><td>{l.name}{l.auto && <span className="text-[10px] text-ec-hint ml-[4px]">자동</span>}</td><td className="text-right">{fmtNumber(l.amount)}</td></tr>)}
+                  <tr className="font-bold bg-ec-page"><td>공제총액</td><td className="text-right">{fmtNumber(p.deductionTotal)}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -241,7 +241,7 @@ function PayslipModal({ p, onClose }: { p: Payslip; onClose: () => void }) {
 
           <div className="mt-[14px] py-[14px] px-[18px] border border-ec-line border-solid bg-ec-success-bg flex items-center justify-between">
             <span style={{ fontSize: 12.5, color: '#1c6b32' }}>실지급액 (지급총액 − 공제총액)</span>
-            <span style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{won(p.netPay)} <span className="text-[13px] font-normal">원</span></span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{fmtNumber(p.netPay)} <span className="text-[13px] font-normal">원</span></span>
           </div>
         </div>
         <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">

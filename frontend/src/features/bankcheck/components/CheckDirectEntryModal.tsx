@@ -13,6 +13,7 @@ import { requireSelection } from '../../../components/EcDialog'
 import NumCheck from '../../../components/NumCheck'
 import GridFindButton from '../../../components/GridFindButton'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../../types/api'
+import { fmtAmount } from '../../../utils/format'
 
 interface Line { id?: number; checkNo: string; amount: string; remark: string; departmentId: string; projectId: string }
 const blank = (): Line => ({ checkNo: '', amount: '', remark: '', departmentId: '', projectId: '' })
@@ -27,7 +28,6 @@ const historyId = (date: string, no: number) => Number(date.replaceAll('-', ''))
 /** 수표조회 [일자-No.] 링크로 연 전표 한 장 — 같은 (종류, 날짜, 번호, 증가/감소) 의 수표들. */
 export interface CheckVoucher { date: string; increase: boolean; entryNo: number; checks: BankCheck[] }
 const pad3 = (ls: Line[]) => [...ls, ...Array.from({ length: Math.max(0, 3 - ls.length) }, blank)]
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 원본 수표번호 자동값 — 연월일시분초 + 밀리초 + 줄번호 5자리(2026-10-13 실측 '26101307155833500001'). */
 function newCheckNo(row: number, now = new Date()): string {
@@ -270,7 +270,7 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
             <tfoot>
               <tr>
                 <td colSpan={3} />
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtAmount(total)}</td>
                 <td colSpan={3} />
               </tr>
             </tfoot>

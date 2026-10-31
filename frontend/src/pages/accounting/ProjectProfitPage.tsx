@@ -5,8 +5,8 @@ import type { ProjectProfitSummary } from '../../types/api'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { todayYmd } from '../../utils/periods'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const firstOfMonth = () => ymd(new Date()).slice(0, 8) + '01'
 
 /**
@@ -72,11 +72,11 @@ export default function ProjectProfitPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <div className="flex gap-[10px] mb-[10px]">
-        <Box label="프로젝트 매출" value={`${won(data?.totalRevenue ?? 0)} 원`} color="var(--ec-blue)" bg="var(--ec-blue-wash)" />
-        <Box label="프로젝트 원가·비용" value={`${won(data?.totalCost ?? 0)} 원`} color="var(--ec-danger)" bg="var(--ec-danger-bg)" />
+        <Box label="프로젝트 매출" value={`${fmtAmount(data?.totalRevenue ?? 0)} 원`} color="var(--ec-blue)" bg="var(--ec-blue-wash)" />
+        <Box label="프로젝트 원가·비용" value={`${fmtAmount(data?.totalCost ?? 0)} 원`} color="var(--ec-danger)" bg="var(--ec-danger-bg)" />
         <Box
           label="프로젝트 이익"
-          value={`${won(data?.totalProfit ?? 0)} 원`}
+          value={`${fmtAmount(data?.totalProfit ?? 0)} 원`}
           color={(data?.totalProfit ?? 0) >= 0 ? '#2f8401' : 'var(--ec-danger)'}
           bg={(data?.totalProfit ?? 0) >= 0 ? 'var(--ec-success-bg)' : 'var(--ec-danger-bg)'}
         />
@@ -85,7 +85,7 @@ export default function ProjectProfitPage() {
       {/* 프로젝트가 없는 전표는 억지로 배분하지 않는다 — 그러면 프로젝트 손익이 거짓말을 한다 */}
       {((data?.unassignedRevenue ?? 0) > 0 || (data?.unassignedCost ?? 0) > 0) && (
         <p style={{ marginBottom: 8, padding: '6px 10px', fontSize: 12, background: '#fffbe6', border: '1px solid #f0e0a0', color: '#7a6300', borderRadius: 3 }}>
-          프로젝트 미지정 전표 — 매출 {won(data!.unassignedRevenue)}원 · 원가/비용 {won(data!.unassignedCost)}원.
+          프로젝트 미지정 전표 — 매출 {fmtAmount(data!.unassignedRevenue)}원 · 원가/비용 {fmtAmount(data!.unassignedCost)}원.
           일반 영업·간접비는 프로젝트에 넣지 않는 것이 정상입니다(억지로 배분하면 프로젝트 손익이 왜곡됩니다).
         </p>
       )}
@@ -116,10 +116,10 @@ export default function ProjectProfitPage() {
               <td className="text-ec-blue">{r.projectCode}</td>
               <td className="font-semibold">{r.projectName}</td>
               <td className="text-center text-ec-label">{r.status ?? ''}</td>
-              <td className="text-right">{won(r.revenue)}</td>
-              <td className="text-right text-ec-label">{won(r.purchaseCost)}</td>
-              <td className="text-right text-ec-label">{won(r.expense)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit >= 0 ? '#2f8401' : 'var(--ec-danger)' }}>{won(r.profit)}</td>
+              <td className="text-right">{fmtAmount(r.revenue)}</td>
+              <td className="text-right text-ec-label">{fmtAmount(r.purchaseCost)}</td>
+              <td className="text-right text-ec-label">{fmtAmount(r.expense)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit >= 0 ? '#2f8401' : 'var(--ec-danger)' }}>{fmtAmount(r.profit)}</td>
               <td style={{ textAlign: 'right', color: r.marginRate >= 0 ? '#2f8401' : 'var(--ec-danger)' }}>{r.marginRate.toFixed(1)}%</td>
               <td className="text-center text-ec-hint">
                 {r.salesCount} / {r.purchaseCount} / {r.expenseCount}
@@ -131,9 +131,9 @@ export default function ProjectProfitPage() {
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={4} className="border border-ec-line border-solid py-[5px] px-[8px]">합계</td>
-              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{won(data!.totalRevenue)}</td>
-              <td colSpan={2} className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-danger">{won(data!.totalCost)}</td>
-              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: data!.totalProfit >= 0 ? '#2f8401' : 'var(--ec-danger)' }}>{won(data!.totalProfit)}</td>
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{fmtAmount(data!.totalRevenue)}</td>
+              <td colSpan={2} className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-danger">{fmtAmount(data!.totalCost)}</td>
+              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: data!.totalProfit >= 0 ? '#2f8401' : 'var(--ec-danger)' }}>{fmtAmount(data!.totalProfit)}</td>
               <td colSpan={2} className="border border-ec-line border-solid"></td>
             </tr>
           </tfoot>

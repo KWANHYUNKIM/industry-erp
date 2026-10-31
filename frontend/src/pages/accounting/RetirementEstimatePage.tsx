@@ -4,8 +4,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { RetirementEstimateRow } from '../../types/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { fmtNumberOf } from '../../utils/format'
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 type Dept = { id: number; name: string }
 
 /**
@@ -132,14 +132,14 @@ export default function RetirementEstimatePage() {
                 <td>{r.employeeName}</td>
                 {mid && <td className="text-center">{r.hireDate.replace(/-/g, ' / ')}</td>}
                 <td className="text-center">{r.startDate.replace(/-/g, mid ? '/' : ' / ')}</td>
-                <td className="text-right">{won(r.threeMonthPay)}</td>
-                <td className="text-right">{won(r.bonusThreeMonths)}</td>
+                <td className="text-right">{fmtNumberOf(r.threeMonthPay)}</td>
+                <td className="text-right">{fmtNumberOf(r.bonusThreeMonths)}</td>
                 <td className="text-right">{r.years}</td>
                 <td className="text-right">{r.months}</td>
                 <td className="text-right">{r.days}</td>
                 <td className="text-right">{r.threeMonthDays}</td>
-                <td className="text-right">{won(r.serviceDays)}</td>
-                <td className="text-right">{won(r.retirementPay)}</td>
+                <td className="text-right">{fmtNumberOf(r.serviceDays)}</td>
+                <td className="text-right">{fmtNumberOf(r.retirementPay)}</td>
               </tr>
             ))}
           </tbody>
@@ -147,7 +147,7 @@ export default function RetirementEstimatePage() {
             <tfoot>
               <tr>
                 <td colSpan={mid ? 12 : 11} className="text-center">합계 [{list.length}명]</td>
-                <td className="text-right">{won(list.reduce((t, r) => t + Number(r.retirementPay), 0))}</td>
+                <td className="text-right">{fmtNumberOf(list.reduce((t, r) => t + Number(r.retirementPay), 0))}</td>
               </tr>
             </tfoot>
           )}

@@ -4,6 +4,7 @@ import EcNumInput from '../../../components/EcNumInput'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { DailyWorkerRow } from './DailyDirectAmount'
 import { ecAlert } from '../../../components/EcDialog'
+import { fmtNumberOf } from '../../../utils/format'
 
 export interface DailyPayLineRow {
   id: number; workerId: number; workerCode: string; workerName: string; days: number; dailyWage: number | null
@@ -17,7 +18,6 @@ export interface DailyPayLineRow {
 interface Ledger { id: number; payMonth: string; seq: number; paidMonth: string }
 type Field = 'days' | 'grossPay' | 'incomeTax' | 'localTax'
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const slash = (s: string) => s.replace(/-/g, '/')
 
 /**
@@ -184,8 +184,8 @@ export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved, l
                     <td rowSpan={2}>{l.workerCode}</td>
                     <td rowSpan={2}>{l.workerName}</td>
                     <td rowSpan={2} className="text-center">{l.lastWorkDate ? slash(l.lastWorkDate) : ''}</td>
-                    <td rowSpan={2} className="text-right">{won(net(l))}</td>
-                    <td className="text-right">{won(value(l, 'grossPay'))}</td>
+                    <td rowSpan={2} className="text-right">{fmtNumberOf(net(l))}</td>
+                    <td className="text-right">{fmtNumberOf(value(l, 'grossPay'))}</td>
                     <td rowSpan={2} className="text-right">{value(l, 'days').toFixed(2)}</td>
                     {/* 원본(2026-10-24 재측): 한 칸에 일수 글자 '3' | 금액칸 — 금액칸은 읽기 전용(계산한 값), 금액직접입력으로 셈한 사원만 고친다 */}
                     <td className={changed(l, 'grossPay') ? 'bg-ec-danger-bg' : undefined}>
@@ -200,18 +200,18 @@ export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved, l
                     {cell(l, 'localTax', '지방소득세')}
                   </tr>,
                   <tr key={`${l.id}-b`}>
-                    <td className="text-right">{won(deduct(l))}</td>
+                    <td className="text-right">{fmtNumberOf(deduct(l))}</td>
                     <td colSpan={3}></td>
                   </tr>,
                 ])}
                 <tr className="font-bold">
                   <td colSpan={3}></td>
-                  <td className="text-right">{won(total(net))}</td>
-                  <td className="text-right">{won(total((l) => value(l, 'grossPay')))}<br />{won(total(deduct))}</td>
+                  <td className="text-right">{fmtNumberOf(total(net))}</td>
+                  <td className="text-right">{fmtNumberOf(total((l) => value(l, 'grossPay')))}<br />{fmtNumberOf(total(deduct))}</td>
                   <td></td>
-                  <td className="text-right">{won(total((l) => value(l, 'grossPay')))}</td>
-                  <td className="text-right">{won(total((l) => value(l, 'incomeTax')))}</td>
-                  <td className="text-right">{won(total((l) => value(l, 'localTax')))}</td>
+                  <td className="text-right">{fmtNumberOf(total((l) => value(l, 'grossPay')))}</td>
+                  <td className="text-right">{fmtNumberOf(total((l) => value(l, 'incomeTax')))}</td>
+                  <td className="text-right">{fmtNumberOf(total((l) => value(l, 'localTax')))}</td>
                 </tr>
               </tbody>
             </table>

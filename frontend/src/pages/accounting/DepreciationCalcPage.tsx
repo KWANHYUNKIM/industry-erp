@@ -7,6 +7,7 @@ import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcRepor
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { ymd } from '../../utils/periods'
+import { fmtAmountBlank } from '../../utils/format'
 
 interface Calc {
   id: number; fiscalTerm: number; periodFrom: string; periodTo: string; itemCount: number; totalAmount: number
@@ -24,7 +25,6 @@ interface AssetOpt {
   id: number; assetNo: string; name: string; assetAccountName: string; methodName: string; usefulLifeYears: number; salvageValue: number
 }
 
-const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const ym = (p: string) => p.replace('-', '/')
 const thisYm = () => ymd(new Date()).slice(0, 7)
 
@@ -301,13 +301,13 @@ export default function DepreciationCalcPage() {
                 {slip.draft.lines.map((l, i) => (
                   <tr key={i}>
                     <td>{l.division}</td><td>{l.accountCode}</td><td>{l.accountName}</td><td></td><td></td>
-                    <td className="text-right">{won(l.debit)}</td><td className="text-right">{won(l.credit)}</td><td></td><td></td>
+                    <td className="text-right">{fmtAmountBlank(l.debit)}</td><td className="text-right">{fmtAmountBlank(l.credit)}</td><td></td><td></td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="ec-total">
-                  <td colSpan={5}></td><td className="text-right">{won(slip.draft.totalDebit)}</td><td className="text-right">{won(slip.draft.totalCredit)}</td><td colSpan={2}></td>
+                  <td colSpan={5}></td><td className="text-right">{fmtAmountBlank(slip.draft.totalDebit)}</td><td className="text-right">{fmtAmountBlank(slip.draft.totalCredit)}</td><td colSpan={2}></td>
                 </tr>
               </tfoot>
             </table>
@@ -365,7 +365,7 @@ function PickWindow({ assets, onClose }: { assets: AssetOpt[]; onClose: () => vo
             <tr key={a.id}>
               <td><input type="checkbox" checked={checked.has(a.id)} onChange={() => toggle(a.id)} /></td>
               <td>{a.assetNo}</td><td>{a.name}</td><td>{a.assetAccountName}</td><td>{a.methodName}</td>
-              <td className="text-right">{a.usefulLifeYears}</td><td className="text-right">{won(a.salvageValue)}</td>
+              <td className="text-right">{a.usefulLifeYears}</td><td className="text-right">{fmtAmountBlank(a.salvageValue)}</td>
             </tr>
           ))}
         </tbody>
@@ -407,17 +407,17 @@ function DetailWindow({ detail, error, onClose }: { detail: { calc: Calc; lines:
                 <tr key={r.assetNo}>
                   <td>{r.assetAccountName}</td><td>{r.assetNo}</td><td>{r.name}</td><td>{r.acquisitionDate.replace(/-/g, '/')}</td>
                   <td className="text-right">{r.usefulLifeYears}</td><td>년</td><td className="text-right">0</td><td className="text-right">{r.months}</td>
-                  <td className="text-right">{won(r.openCost)}</td><td className="text-right">{won(r.change)}</td><td className="text-right">{won(r.closeCost)}</td>
-                  <td className="text-right">{won(r.priorAccum)}</td><td className="text-right">{won(r.priorUnpaid)}</td><td className="text-right">{won(r.amount)}</td>
-                  <td className="text-right">{won(r.closeAccum)}</td><td className="text-right">{won(r.unpaid)}</td>
+                  <td className="text-right">{fmtAmountBlank(r.openCost)}</td><td className="text-right">{fmtAmountBlank(r.change)}</td><td className="text-right">{fmtAmountBlank(r.closeCost)}</td>
+                  <td className="text-right">{fmtAmountBlank(r.priorAccum)}</td><td className="text-right">{fmtAmountBlank(r.priorUnpaid)}</td><td className="text-right">{fmtAmountBlank(r.amount)}</td>
+                  <td className="text-right">{fmtAmountBlank(r.closeAccum)}</td><td className="text-right">{fmtAmountBlank(r.unpaid)}</td>
                 </tr>
               ))}
               <tr className="ec-total">
                 <td colSpan={8} className="text-center">{g.name} 계</td>
-                <td className="text-right">{won(sum(g.rows, 'openCost'))}</td><td className="text-right">{won(sum(g.rows, 'change'))}</td>
-                <td className="text-right">{won(sum(g.rows, 'closeCost'))}</td><td className="text-right">{won(sum(g.rows, 'priorAccum'))}</td>
-                <td className="text-right">{won(sum(g.rows, 'priorUnpaid'))}</td><td className="text-right">{won(sum(g.rows, 'amount'))}</td>
-                <td className="text-right">{won(sum(g.rows, 'closeAccum'))}</td><td className="text-right">{won(sum(g.rows, 'unpaid'))}</td>
+                <td className="text-right">{fmtAmountBlank(sum(g.rows, 'openCost'))}</td><td className="text-right">{fmtAmountBlank(sum(g.rows, 'change'))}</td>
+                <td className="text-right">{fmtAmountBlank(sum(g.rows, 'closeCost'))}</td><td className="text-right">{fmtAmountBlank(sum(g.rows, 'priorAccum'))}</td>
+                <td className="text-right">{fmtAmountBlank(sum(g.rows, 'priorUnpaid'))}</td><td className="text-right">{fmtAmountBlank(sum(g.rows, 'amount'))}</td>
+                <td className="text-right">{fmtAmountBlank(sum(g.rows, 'closeAccum'))}</td><td className="text-right">{fmtAmountBlank(sum(g.rows, 'unpaid'))}</td>
               </tr>
             </Fragment>
           ))}
@@ -426,10 +426,10 @@ function DetailWindow({ detail, error, onClose }: { detail: { calc: Calc; lines:
           <tfoot>
             <tr className="ec-total">
               <td colSpan={8} className="text-center">합계</td>
-              <td className="text-right">{won(sum(lines, 'openCost'))}</td><td className="text-right">{won(sum(lines, 'change'))}</td>
-              <td className="text-right">{won(sum(lines, 'closeCost'))}</td><td className="text-right">{won(sum(lines, 'priorAccum'))}</td>
-              <td className="text-right">{won(sum(lines, 'priorUnpaid'))}</td><td className="text-right">{won(sum(lines, 'amount'))}</td>
-              <td className="text-right">{won(sum(lines, 'closeAccum'))}</td><td className="text-right">{won(sum(lines, 'unpaid'))}</td>
+              <td className="text-right">{fmtAmountBlank(sum(lines, 'openCost'))}</td><td className="text-right">{fmtAmountBlank(sum(lines, 'change'))}</td>
+              <td className="text-right">{fmtAmountBlank(sum(lines, 'closeCost'))}</td><td className="text-right">{fmtAmountBlank(sum(lines, 'priorAccum'))}</td>
+              <td className="text-right">{fmtAmountBlank(sum(lines, 'priorUnpaid'))}</td><td className="text-right">{fmtAmountBlank(sum(lines, 'amount'))}</td>
+              <td className="text-right">{fmtAmountBlank(sum(lines, 'closeAccum'))}</td><td className="text-right">{fmtAmountBlank(sum(lines, 'unpaid'))}</td>
             </tr>
           </tfoot>
         )}

@@ -15,8 +15,8 @@ import PlanQtyAdjustModal, { type AdjustLine } from '../../features/purchaseplan
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
-const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const qty = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /**
  * 발주계획 — 따로 된 전표(PLANNED 행)다. 발주서는 그 줄을 베낀 다른 행이고 계획은 진행중 그대로다(원본 E040315 2026-10-20 실측).
@@ -349,11 +349,11 @@ export default function PurchasePlanListPage() {
                         value={drafts[r.key]?.price ?? String(r.price ?? 0)}
                         onValue={(x) => setDrafts((d) => ({ ...d, [r.key]: { ...d[r.key], price: x } }))}
                         onBlur={() => void commit(r, 'price')} />
-                    : r.price == null ? '' : won(r.price)}
+                    : r.price == null ? '' : fmtAmount(r.price)}
                 </td>
-                <td className="text-right">{won(v.supply)}</td>
-                <td className="text-right">{won(v.vat)}</td>
-                <td className="text-right">{won(v.supply + v.vat)}</td>
+                <td className="text-right">{fmtAmount(v.supply)}</td>
+                <td className="text-right">{fmtAmount(v.vat)}</td>
+                <td className="text-right">{fmtAmount(v.supply + v.vat)}</td>
                 <td>{r.updatedBy ?? ''}</td>
                 <td className="text-center">
                   {/* 원본: 진행중 줄은 파란 '종결', 종결한 줄은 주황 '취소' — 누르면 확인 없이 바로. */}
