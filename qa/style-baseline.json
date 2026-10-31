@@ -14,6 +14,11 @@
   "color": 4,
   "palette": 0
  },
+ "components/codepicker/SuggestInput.tsx": {
+  "inline": 2,
+  "color": 0,
+  "palette": 0
+ },
  "components/CustomFieldsPanel.tsx": {
   "inline": 3,
   "color": 0,
@@ -69,11 +74,6 @@
   "color": 0,
   "palette": 0
  },
- "components/codepicker/SuggestInput.tsx": {
-  "inline": 2,
-  "color": 0,
-  "palette": 0
- },
  "components/TableContextMenu.tsx": {
   "inline": 4,
   "color": 5,
@@ -107,6 +107,46 @@
  "features/taxvoucher/components/TaxInvoicePaper.tsx": {
   "inline": 0,
   "color": 2,
+  "palette": 0
+ },
+ "features/trade-entry/components/TradeCalcModals.tsx": {
+  "inline": 7,
+  "color": 7,
+  "palette": 0
+ },
+ "features/trade-entry/components/TradeEntryGrid.tsx": {
+  "inline": 6,
+  "color": 2,
+  "palette": 0
+ },
+ "features/trade-entry/components/TradeEntryHead.tsx": {
+  "inline": 8,
+  "color": 1,
+  "palette": 0
+ },
+ "features/trade-entry/components/TradeEntryModals.tsx": {
+  "inline": 2,
+  "color": 1,
+  "palette": 0
+ },
+ "features/trade-entry/components/TradeEntryToolbar.tsx": {
+  "inline": 13,
+  "color": 1,
+  "palette": 0
+ },
+ "features/trade-entry/components/TradeLoadModals.tsx": {
+  "inline": 1,
+  "color": 0,
+  "palette": 0
+ },
+ "features/trade-entry/useSlipLoad.tsx": {
+  "inline": 1,
+  "color": 0,
+  "palette": 0
+ },
+ "features/trade-entry/useTradeSave.tsx": {
+  "inline": 1,
+  "color": 0,
   "palette": 0
  },
  "pages/accounting/AccountDetailPage.tsx": {
@@ -1077,11 +1117,6 @@
  "pages/trade/StatementPrintPage.tsx": {
   "inline": 8,
   "color": 1,
-  "palette": 0
- },
- "pages/trade/TradeEntry.tsx": {
-  "inline": 39,
-  "color": 13,
   "palette": 0
  },
  "pages/trade/TradeInquiryPage.tsx": {

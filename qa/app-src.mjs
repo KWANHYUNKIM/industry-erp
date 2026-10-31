@@ -30,6 +30,11 @@ export const SPLIT_PARTS = {
   'pages/groupware/WorkPage.tsx': ['features/workpost/boardConfig.ts', 'features/workpost/components/NameChips.tsx',
     'features/workpost/components/WorkCondPanel.tsx', 'features/workpost/components/WorkPostFormModal.tsx',
     'features/workpost/components/WorkPostViewModal.tsx', 'features/workpost/components/WorkPostSubModals.tsx'],
+  'pages/trade/TradeEntry.tsx': ['features/trade-entry/tradeEntryConfig.ts', 'features/trade-entry/useSlipLoad.tsx',
+    'features/trade-entry/useTradeSave.tsx', 'features/trade-entry/components/TradeEntryHead.tsx',
+    'features/trade-entry/components/TradeEntryToolbar.tsx', 'features/trade-entry/components/TradeEntryGrid.tsx',
+    'features/trade-entry/components/TradeEntryModals.tsx', 'features/trade-entry/components/TradeLoadModals.tsx',
+    'features/trade-entry/components/TradeCalcModals.tsx'],
 }
 
 const FRONT_SRC = new URL('../frontend/src/', import.meta.url)
