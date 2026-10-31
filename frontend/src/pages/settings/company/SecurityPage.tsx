@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { api, extractErrorMessage } from '../../api/client'
-import Modal from '../../components/Modal'
-import EcSettingSheet, { type SheetSection } from '../../components/EcSettingSheet'
-import { useShortcut } from '../../utils/useShortcut'
+import { api, extractErrorMessage } from '../../../api/client'
+import Modal from '../../../components/Modal'
+import EcSettingSheet, { type SheetSection } from '../../../components/EcSettingSheet'
+import { useShortcut } from '../../../utils/useShortcut'
 
 /**
  * Self-Customizing > 보안관리 > 보안설정 (원본 C001138).

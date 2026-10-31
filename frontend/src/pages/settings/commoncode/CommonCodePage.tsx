@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import EcListShell from '../../components/EcListShell'
-import { api, extractErrorMessage } from '../../api/client'
-import type { CodeGroup, CommonCode } from '../../types/api'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import EcListShell from '../../../components/EcListShell'
+import { api, extractErrorMessage } from '../../../api/client'
+import type { CodeGroup, CommonCode } from '../../../types/api'
+import { ecAlert, ecConfirm } from '../../../components/EcDialog'
 
 /**
  * Self-Customizing > 기타관리 > 공통코드 — 카드사·결제대행사·추가항목유형·결제수단처럼

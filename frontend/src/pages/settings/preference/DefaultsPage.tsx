@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { api, extractErrorMessage } from '../../api/client'
-import Modal from '../../components/Modal'
-import EcSettingSheet, { type SheetGroup, type SheetSection } from '../../components/EcSettingSheet'
-import { useShortcut } from '../../utils/useShortcut'
-import { DEFAULT_DISPLAY_PREFS, toDisplayPrefs, timeText, type DisplayPrefs } from '../../utils/displayPrefs'
-import { resetDisplayPrefs } from '../../features/preference/displayPrefsStore'
+import { api, extractErrorMessage } from '../../../api/client'
+import Modal from '../../../components/Modal'
+import EcSettingSheet, { type SheetGroup, type SheetSection } from '../../../components/EcSettingSheet'
+import { useShortcut } from '../../../utils/useShortcut'
+import { DEFAULT_DISPLAY_PREFS, toDisplayPrefs, timeText, type DisplayPrefs } from '../../../utils/displayPrefs'
+import { resetDisplayPrefs } from '../../../features/preference/displayPrefsStore'
 
 /**
  * Self-Customizing > 환경설정 > 기본값설정 (원본 C001124).

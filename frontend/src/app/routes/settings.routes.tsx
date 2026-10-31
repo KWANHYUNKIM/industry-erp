@@ -1,16 +1,16 @@
 import { lazy } from 'react'
 import { Navigate, Route } from 'react-router-dom'
-const CompanyInfoPage = lazy(() => import('../../pages/settings/CompanyInfoPage'))
-const PreferencesPage = lazy(() => import('../../pages/settings/PreferencesPage'))
-const SecurityPage = lazy(() => import('../../pages/settings/SecurityPage'))
-const DefaultsPage = lazy(() => import('../../pages/settings/DefaultsPage'))
+const CompanyInfoPage = lazy(() => import('../../pages/settings/company/CompanyInfoPage'))
+const PreferencesPage = lazy(() => import('../../pages/settings/preference/PreferencesPage'))
+const SecurityPage = lazy(() => import('../../pages/settings/company/SecurityPage'))
+const DefaultsPage = lazy(() => import('../../pages/settings/preference/DefaultsPage'))
 const MyFolderPage = lazy(() => import('../../pages/mypage/MyFolderPage'))
 const DownloadPage = lazy(() => import('../../pages/settings/DownloadPage'))
-const PrintSignLinePage = lazy(() => import('../../pages/settings/PrintSignLinePage'))
+const PrintSignLinePage = lazy(() => import('../../pages/settings/company/PrintSignLinePage'))
 const EtcSystemPage = lazy(() => import('../../pages/settings/EtcSystemPage'))
-const CommonCodePage = lazy(() => import('../../pages/settings/CommonCodePage'))
+const CommonCodePage = lazy(() => import('../../pages/settings/commoncode/CommonCodePage'))
 const DesignSystemPage = lazy(() => import('../../pages/settings/DesignSystemPage'))
-const CustomFieldPage = lazy(() => import('../../pages/settings/CustomFieldPage'))
+const CustomFieldPage = lazy(() => import('../../pages/settings/commoncode/CustomFieldPage'))
 
 /** Self-Customizing 라우트 — app/router.tsx 가 원래 자리(차례)에 그대로 붙인다. */
 export const settingsRoutes = (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, extractErrorMessage } from '../../api/client'
-import { useShortcut } from '../../utils/useShortcut'
-import { shrinkImage } from '../../utils/imageResize'
+import { api, extractErrorMessage } from '../../../api/client'
+import { useShortcut } from '../../../utils/useShortcut'
+import { shrinkImage } from '../../../utils/imageResize'
 
 /** Self-Customizing > 정보관리 — 회사 기본정보 등록/수정 (실제 연동, 단일 레코드 upsert) */
 interface CompanyForm {

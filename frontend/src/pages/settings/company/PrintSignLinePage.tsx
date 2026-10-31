@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
-import { api, extractErrorMessage } from '../../api/client'
-import type { SignLineSet, SignLineRow, SignModule } from '../../types/api'
-import { signLineHtml } from '../../utils/print'
-import { EcHistoryModal } from '../../components/EcHistory'
+import EcListShell from '../../../components/EcListShell'
+import Modal from '../../../components/Modal'
+import { api, extractErrorMessage } from '../../../api/client'
+import type { SignLineSet, SignLineRow, SignModule } from '../../../types/api'
+import { signLineHtml } from '../../../utils/print'
+import { EcHistoryModal } from '../../../components/EcHistory'
 
 /** 원본 알약 [회계] · [재고] · [관리] — 메뉴마다 켜져 있는 알약이 다르다(회계 I → 회계, 관리 → 관리) */
 const MODULES: { key: SignModule; label: string }[] = [

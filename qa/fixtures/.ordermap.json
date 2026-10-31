@@ -593,7 +593,7 @@
  ],
  [
   "외화등록",
-  "settings/CurrencyPage.tsx"
+  "settings/commoncode/CurrencyPage.tsx"
  ],
  [
   "생산불출",
@@ -1125,15 +1125,15 @@
  ],
  [
   "인쇄용결재라인등록(회계)",
-  "settings/PrintSignLinePage.tsx"
+  "settings/company/PrintSignLinePage.tsx"
  ],
  [
   "인쇄용결재라인등록(관리)",
-  "settings/PrintSignLinePage.tsx"
+  "settings/company/PrintSignLinePage.tsx"
  ],
  [
   "인쇄용결재라인등록(재고)",
-  "settings/PrintSignLinePage.tsx"
+  "settings/company/PrintSignLinePage.tsx"
  ],
  [
   "🔸 칸반보드 활용 예시 🔸",

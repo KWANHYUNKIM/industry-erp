@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
-import { api, extractErrorMessage } from '../../api/client'
-import type { CustomFieldDef, CustomFieldType } from '../../types/api'
-import { ecConfirm } from '../../components/EcDialog'
+import EcListShell from '../../../components/EcListShell'
+import Modal from '../../../components/Modal'
+import { api, extractErrorMessage } from '../../../api/client'
+import type { CustomFieldDef, CustomFieldType } from '../../../types/api'
+import { ecConfirm } from '../../../components/EcDialog'
 
 /**
  * Self-Customizing > 사용자정의필드 (판매입력 II 등 '추가 형식필드'의 정의 관리)

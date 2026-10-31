@@ -146,7 +146,7 @@ const ContractBillPrintPage = lazy(() => import('../../pages/accounting/contract
 const ContractReflectPage = lazy(() => import('../../pages/accounting/contractbill/ContractReflectPage'))
 const ContractUnreflectedPage = lazy(() => import('../../pages/accounting/contractbill/ContractUnreflectedPage'))
 const ContractInvoiceStatusPage = lazy(() => import('../../pages/accounting/contractbill/ContractInvoiceStatusPage'))
-const CurrencyPage = lazy(() => import('../../pages/settings/CurrencyPage'))
+const CurrencyPage = lazy(() => import('../../pages/settings/commoncode/CurrencyPage'))
 const ExpensePage = lazy(() => import('../../pages/accounting/expense/ExpensePage'))
 const IncomePage = lazy(() => import('../../pages/accounting/income/IncomePage'))
 const ImportLotPage = lazy(() => import('../../pages/accounting/importcost/ImportLotPage'))
