@@ -1,3 +1,33 @@
 {
- "won": []
+ "won": [],
+ "num": [
+  "features/approval/components/ApprovalFormFields.tsx",
+  "features/expense/ExpenseSlipForm.tsx",
+  "features/managementsummary/StockMovementSection.tsx",
+  "features/mypage/widgets/store.ts",
+  "features/quality/components/QualityInspectionForm.tsx",
+  "features/salesplan/components/SalesPlanForm.tsx",
+  "features/slipload/components/SlipLoadModal.tsx",
+  "pages/accounting/ledger/ForeignLedgerPage.tsx",
+  "pages/accounting/summary/DailyProfitPage.tsx",
+  "pages/accounting/summary/MonthlyProfitPage.tsx",
+  "pages/datacenter/MedicalDeviceReportPage.tsx",
+  "pages/groupware/fieldwork/FieldWorkStatusPage.tsx",
+  "pages/groupware/multislip/MultiSlipPage.tsx",
+  "pages/hr/dailywork/DailyWorkerListPage.tsx",
+  "pages/inventory/adjustment/StagedProgressPage.tsx",
+  "pages/inventory/adjustment/StockMoveStatusPage.tsx",
+  "pages/inventory/adjustment/StocktakeStatusPage.tsx",
+  "pages/inventory/item/ItemPricePage.tsx",
+  "pages/inventory/stock/DailyStockPage.tsx",
+  "pages/inventory/stock/ReportsPage.tsx",
+  "pages/inventory/stock/StockRecalcPage.tsx",
+  "pages/inventory/transfer/TransferStatusPage.tsx",
+  "pages/production/bom/BomPage.tsx",
+  "pages/production/production/ProductionResultPage.tsx",
+  "pages/production/workorder/WorkOrderEntryPage.tsx",
+  "pages/settings/company/PrintSignLinePage.tsx",
+  "pages/trade/export/ExportStatusPage.tsx",
+  "pages/trade/report/UnsoldStatusPage.tsx"
+ ]
 }
