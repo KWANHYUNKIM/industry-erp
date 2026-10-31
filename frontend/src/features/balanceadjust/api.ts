@@ -43,7 +43,6 @@ export const fetchAdjustStatus = (from: string, to: string) =>
   api.get<StatusRow[]>('/journals/balance-adjustments/status', { params: { from, to } }).then((r) => r.data)
 export const deleteAdjustments = (ids: number[]) => api.post('/journals/balance-adjustments/delete', ids)
 
-export const won = (n: number | null | undefined) => (n == null ? '' : Math.round(Number(n)).toLocaleString('ko-KR'))
 /** 원본 [잔액조정번호] · [회계전표] 모양 — GL-20260930-0016 → '2026/09/30 -16'(잔액조정조회 · 잔액실사조회 실측). */
 export function adjustNo(docNo: string) {
   const m = /^[A-Z]+-(\d{4})(\d{2})(\d{2})-0*(\d+)$/.exec(docNo)

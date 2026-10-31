@@ -6,8 +6,9 @@ import EcListShell from '../../../components/EcListShell'
 import { EcCond } from '../../../components/EcStatusPanel'
 import EcPeriodPicks, { periodOf, ymd } from '../../../components/EcPeriodPicks'
 import { ecAlert, ecConfirm } from '../../../components/EcDialog'
-import { adjustNo, deleteAdjustments, fetchAdjustments, slashDate, won, type AdjustmentRow } from '../../../features/balanceadjust/api'
+import { adjustNo, deleteAdjustments, fetchAdjustments, slashDate, type AdjustmentRow } from '../../../features/balanceadjust/api'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
+import { fmtAmountOrBlank } from '../../../utils/format'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '전월+금월', '이번기수', '직전기수', '종료일'] as const
 
@@ -135,8 +136,8 @@ export default function BalanceAdjustListPage({ audit = false }: { audit?: boole
               </td>
               {audit ? <><td>계정별</td><td>{slashDate(r.entryDate)}</td></> : <td className="text-ec-navy">{adjustNo(r.docNo)}</td>}
               <td>{r.accountName ?? ''}</td>
-              <td className="text-right">{won(r.bookAmount)}</td>
-              <td className="text-right">{won(r.actualAmount)}</td>
+              <td className="text-right">{fmtAmountOrBlank(r.bookAmount)}</td>
+              <td className="text-right">{fmtAmountOrBlank(r.actualAmount)}</td>
               <td className="text-center">
                 {audit
                   ? <button type="button" className="ec-link" onClick={() => navigate(`/accounting/journals?entryId=${r.entryId}`)}>{adjustNo(r.docNo)}</button>

@@ -12,9 +12,10 @@ import { ecAlert } from '../../../components/EcDialog'
 import { useDeptProjectItems } from '../../../features/cashquick/useDeptProject'
 import { useCondPickers } from '../../../utils/useCondPickers'
 import {
-  ACCOUNT_KINDS, fetchAccounts, fetchAudit, saveAdjustment, saveAggregation, slashDate, won,
+  ACCOUNT_KINDS, fetchAccounts, fetchAudit, saveAdjustment, saveAggregation, slashDate,
   type AccountBalanceRow, type AuditResponse,
 } from '../../../features/balanceadjust/api'
+import { fmtAmountOrBlank } from '../../../utils/format'
 import EcDateInput from '../../../components/ui/EcDateInput'
 
 const PICKS = ['금일', '전일', '말일', '전월', '직전기수'] as const
@@ -235,8 +236,8 @@ export default function BalanceAdjustPage() {
                   <td>{r.code}</td>
                   <td>{r.name}</td>
                   <td><button type="button" className="ec-link" onClick={() => openAgg(r)}>{r.aggregation}</button></td>
-                  <td className="text-right">{won(r.debitAmount)}</td>
-                  <td className="text-right">{won(r.creditAmount)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(r.debitAmount)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(r.creditAmount)}</td>
                   <td className="text-center">
                     {r.adjustmentIds.length === 0 ? (
                       <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openAudit(r)}>조정</button>
@@ -257,8 +258,8 @@ export default function BalanceAdjustPage() {
                   <td colSpan={2} />
                   <td className="text-center font-bold">합계</td>
                   <td />
-                  <td className="text-right font-bold text-ec-danger">{won(sumDebit)}</td>
-                  <td className="text-right font-bold text-ec-danger">{won(sumCredit)}</td>
+                  <td className="text-right font-bold text-ec-danger">{fmtAmountOrBlank(sumDebit)}</td>
+                  <td className="text-right font-bold text-ec-danger">{fmtAmountOrBlank(sumCredit)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -336,12 +337,12 @@ export default function BalanceAdjustPage() {
                       {l.existing || (audit.byPartner && !audit.byProject) ? nameOf(projects, l.projectId)
                         : <CodePickerField label="프로젝트" hideLabel width={130} value={l.projectId} onChange={(v) => setLine(i, { projectId: v })} items={projects} />}
                     </td>
-                    <td className="text-right">{l.existing ? won(l.book) : ''}</td>
+                    <td className="text-right">{l.existing ? fmtAmountOrBlank(l.book) : ''}</td>
                     <td className={`text-right ${changed(l) ? 'bg-ec-danger-bg' : ''}`}>
                       <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1} 실잔액`} value={l.actual == null ? '' : String(l.actual)}
                                   onValue={(v) => setLine(i, { actual: v === '' || v === '-' ? null : Number(v) })} />
                     </td>
-                    <td className="text-right">{won(l.book - (l.actual ?? l.book))}</td>
+                    <td className="text-right">{fmtAmountOrBlank(l.book - (l.actual ?? l.book))}</td>
                     <td />
                     <td><input className="ec-input w-full" aria-label={`${i + 1} 적요명`} value={l.memo} onChange={(e) => setLine(i, { memo: e.target.value })} /></td>
                   </tr>
@@ -350,9 +351,9 @@ export default function BalanceAdjustPage() {
               <tfoot>
                 <tr className="ec-list-total font-bold">
                   <td colSpan={audit.byPartner ? 5 : 3} />
-                  <td className="text-right">{won(auditBook)}</td>
-                  <td className="text-right">{won(auditActual)}</td>
-                  <td className="text-right">{won(auditBook - auditActual)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(auditBook)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(auditActual)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(auditBook - auditActual)}</td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>

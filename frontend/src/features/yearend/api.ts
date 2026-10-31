@@ -61,4 +61,3 @@ export const yearEndApi = {
 }
 
 /** 원본 숫자 칸 — 쉼표, 0 은 0 */
-export const won = (n: number | null | undefined) => Number(n ?? 0).toLocaleString('ko-KR')

@@ -5,8 +5,8 @@ import { api, extractErrorMessage } from '../../../api/client'
 import type { IncomeSubmission } from '../../../types/api'
 import { ymd } from '../../../components/EcPeriodPicks'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { fmtNumberBlankOf } from '../../../utils/format'
 
-const won = (n: number) => (Number(n) ? Number(n).toLocaleString('ko-KR') : '')
 /** 정산 · 퇴직 서식은 자료가 있으면 0 도 찍는다(원본 2026 퇴직소득 ⑭ 법인세 · ⑮ 농어촌특별세 '0', 2025 ⑬ 소득세 '0'). */
 const zero = (n: number) => Number(n).toLocaleString('ko-KR')
 type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; address?: string; addressDetail?: string }
@@ -64,7 +64,7 @@ export default function IncomeSubmissionPage() {
 
   const [sy, sm, sd] = submitDate.split('-')
   const settled = result !== null && SETTLEMENT.has(result.kind.split('+')[0]) && result.count > 0
-  const money = settled ? zero : won
+  const money = settled ? zero : fmtNumberBlankOf
   // 원본: 정산 · 퇴직 서식은 '2026년 10월 14일', 사업 · 이자 · 배당 · 기타는 '2026 년 10 월 14 일'
   const submitted = result !== null && SETTLEMENT.has(result.kind.split('+')[0]) ? `${sy}년 ${sm}월 ${sd}일` : `${sy} 년 ${sm} 월 ${sd} 일`
   const address = [company?.address, company?.addressDetail].filter(Boolean).join(' ')

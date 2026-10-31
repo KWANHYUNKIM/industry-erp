@@ -6,8 +6,9 @@ import { EcCond } from '../../../components/EcStatusPanel'
 import CodePickerField from '../../../components/codepicker/CodePickerField'
 import EcPeriodPicks, { periodOf } from '../../../components/EcPeriodPicks'
 import { useDeptProjectItems } from '../../../features/cashquick/useDeptProject'
-import { fetchAdjustStatus, slashDate, won, type StatusRow } from '../../../features/balanceadjust/api'
+import { fetchAdjustStatus, slashDate, type StatusRow } from '../../../features/balanceadjust/api'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
+import { fmtAmountOrBlank } from '../../../utils/format'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '최근30일'] as const
 
@@ -53,7 +54,7 @@ export default function BalanceAdjustStatusPage() {
   }, [rows, dept, proj, account])
   const sum = (rs: StatusRow[], k: 'afterDebit' | 'afterCredit' | 'diffDebit' | 'diffCredit') => rs.reduce((s, r) => s + Number(r[k] ?? 0), 0)
   const all = groups.flatMap(([, g]) => g)
-  const cell = (n: number) => (n === 0 ? '' : won(n))
+  const cell = (n: number) => (n === 0 ? '' : fmtAmountOrBlank(n))
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '잔액조정현황', [all.length])
 
@@ -100,10 +101,10 @@ export default function BalanceAdjustStatusPage() {
                   <td>{r.accountCode}</td>
                   <td>{r.accountName}</td>
                   <td>{r.partnerName ?? ''}</td>
-                  <td className="text-right">{won(r.afterDebit)}</td>
-                  <td className="text-right">{won(r.afterCredit)}</td>
-                  <td className="text-right">{won(r.diffDebit)}</td>
-                  <td className="text-right">{won(r.diffCredit)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(r.afterDebit)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(r.afterCredit)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(r.diffDebit)}</td>
+                  <td className="text-right">{fmtAmountOrBlank(r.diffCredit)}</td>
                   <td>{r.memo ?? ''}</td>
                 </tr>
               )),

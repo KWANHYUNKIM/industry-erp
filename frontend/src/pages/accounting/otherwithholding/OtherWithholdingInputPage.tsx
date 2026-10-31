@@ -9,6 +9,7 @@ import { useTableColumnCheck } from '../../../utils/assertTableColumns'
 import type { IncomeType, WithholdingCodeItem, WithholdingPayee, WithholdingSlip } from '../../../types/api'
 import EcDateInput from '../../../components/ui/EcDateInput'
 import { todayYmd } from '../../../utils/periods'
+import { fmtTruncNz } from '../../../utils/format'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 
@@ -56,7 +57,6 @@ const blankLine = (kind: Kind): Line => ({
   payeeId: '', incomeCode: '', grossAmount: '', expenseRate: '', taxRate: kind === 'BUSINESS' ? '3' : kind === 'OTHER' ? '0' : '', description: '',
   interest: { ...EMPTY_INTEREST },
 })
-const won = (n: number) => (n ? Math.trunc(n).toLocaleString('ko-KR') : '')
 /** 오늘(이 기기 시각) — toISOString 은 UTC 라 한국 오전 9시 전에는 하루 전이 됐다(원본 기본 2026/10/14, 우리 10/13). */
 const floor10 = (n: number) => Math.floor(Math.floor(n) / 10) * 10
 
@@ -389,8 +389,8 @@ export default function OtherWithholdingInputPage() {
                         {(kind === 'OTHER' ? EXPENSE_RATES : NR_EXPENSE_RATES).map((r) => <option key={r} value={r}>{r}%</option>)}
                       </select>
                     </td>
-                    <td className="text-right">{won(s.expense)}</td>
-                    <td className="text-right">{won(s.taxable)}</td>
+                    <td className="text-right">{fmtTruncNz(s.expense)}</td>
+                    <td className="text-right">{fmtTruncNz(s.taxable)}</td>
                   </>}
                   <td>
                     {kind === 'INTEREST' || kind === 'NON_RESIDENT'
@@ -399,11 +399,11 @@ export default function OtherWithholdingInputPage() {
                           {TAX_RATES[kind].map((r) => <option key={r} value={r}>{r}%</option>)}
                         </select>}
                   </td>
-                  <td className="text-right">{won(s.tax)}</td>
-                  <td className="text-right">{won(s.local)}</td>
+                  <td className="text-right">{fmtTruncNz(s.tax)}</td>
+                  <td className="text-right">{fmtTruncNz(s.local)}</td>
                   {kind === 'INTEREST' && <td />}
-                  <td className="text-right">{won(s.total)}</td>
-                  <td className="text-right">{won(s.gross ? s.net : 0)}</td>
+                  <td className="text-right">{fmtTruncNz(s.total)}</td>
+                  <td className="text-right">{fmtTruncNz(s.gross ? s.net : 0)}</td>
                   <td>
                     <input className="ec-input w-full min-w-[100px]" maxLength={200} value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
                   </td>
@@ -426,14 +426,14 @@ export default function OtherWithholdingInputPage() {
             })}
             <tr className="ec-total">
               <td colSpan={kind === 'BUSINESS' ? 5 : kind === 'INTEREST' ? 8 : 4} />
-              <td className="text-right">{won(total.gross)}</td>
-              {(kind === 'OTHER' || kind === 'NON_RESIDENT') && <><td /><td className="text-right">{won(total.expense)}</td><td className="text-right">{won(total.taxable)}</td></>}
+              <td className="text-right">{fmtTruncNz(total.gross)}</td>
+              {(kind === 'OTHER' || kind === 'NON_RESIDENT') && <><td /><td className="text-right">{fmtTruncNz(total.expense)}</td><td className="text-right">{fmtTruncNz(total.taxable)}</td></>}
               <td />
-              <td className="text-right">{won(total.tax)}</td>
-              <td className="text-right">{won(total.local)}</td>
+              <td className="text-right">{fmtTruncNz(total.tax)}</td>
+              <td className="text-right">{fmtTruncNz(total.local)}</td>
               {kind === 'INTEREST' && <td />}
-              <td className="text-right">{won(total.total)}</td>
-              <td className="text-right">{won(total.net)}</td>
+              <td className="text-right">{fmtTruncNz(total.total)}</td>
+              <td className="text-right">{fmtTruncNz(total.net)}</td>
               <td />
               {kind === 'INTEREST' && <td colSpan={8} />}
             </tr>

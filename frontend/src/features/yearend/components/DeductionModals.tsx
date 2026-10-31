@@ -2,10 +2,11 @@ import { useState } from 'react'
 import Modal from '../../../components/Modal'
 import { ecAlert, requireSelection } from '../../../components/EcDialog'
 import { extractErrorMessage } from '../../../api/client'
-import { won, yearEndApi, type Deduction, type DeductionKind, type PrevEmployer, type Settlement } from '../api'
+import { yearEndApi, type Deduction, type DeductionKind, type PrevEmployer, type Settlement } from '../api'
 import { NumInput } from './parts'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
 import { pad2 } from '../../../utils/periods'
+import { fmtNumberOrZero } from '../../../utils/format'
 
 const today = new Date()
 
@@ -49,7 +50,7 @@ export function PrevEmployerModal({ s, onClose, onSaved }: { s: Settlement; onCl
     const saved = await persist(next)
     if (!saved) return
     setEdit(null)
-    await ecAlert(`현재 입력된 자료 기준으로 결정세액 ${won(saved.decidedIncomeTax)}원으로 계산되었습니다.\n추가자료를 입력해도 더 발생되는 공제혜택은 없습니다.\n※ 공제자료를 다시 수정할 경우 결정세액이 달라질 수 있습니다.`)
+    await ecAlert(`현재 입력된 자료 기준으로 결정세액 ${fmtNumberOrZero(saved.decidedIncomeTax)}원으로 계산되었습니다.\n추가자료를 입력해도 더 발생되는 공제혜택은 없습니다.\n※ 공제자료를 다시 수정할 경우 결정세액이 달라질 수 있습니다.`)
   }
 
   async function removePicked() {
@@ -76,9 +77,9 @@ export function PrevEmployerModal({ s, onClose, onSaved }: { s: Settlement; onCl
                          onChange={() => setPicked((x) => { const n = new Set(x); if (n.has(i)) n.delete(i); else n.add(i); return n })} /></td>
               <td><a href="#" onClick={(e) => { e.preventDefault(); setEdit({ i, p: r }) }}>{r.bizNo}</a></td>
               <td className="text-left">{r.companyName}</td>
-              <td className="text-right">{won(r.salary + r.bonus + r.otherPay)}</td>
-              <td className="text-right">{won(r.nonTaxable)}</td>
-              <td className="text-right">{won(r.reducedIncome)}</td>
+              <td className="text-right">{fmtNumberOrZero(r.salary + r.bonus + r.otherPay)}</td>
+              <td className="text-right">{fmtNumberOrZero(r.nonTaxable)}</td>
+              <td className="text-right">{fmtNumberOrZero(r.reducedIncome)}</td>
             </tr>
           ))}
         </tbody>
@@ -102,7 +103,7 @@ export function PrevEmployerModal({ s, onClose, onSaved }: { s: Settlement; onCl
               <th>(73) 결정세액 지방소득세</th><td><NumInput label="결정세액 지방소득세" value={p.decidedLocalTax} onChange={(v) => set({ decidedLocalTax: v })} /></td></tr>
             <tr><th>(15) 인정상여</th><td><NumInput label="인정상여" value={p.otherPay} onChange={(v) => set({ otherPay: v })} /></td>
               <th>(73) 결정세액 농특세</th><td><NumInput label="결정세액 농특세" value={p.decidedRuralTax} onChange={(v) => set({ decidedRuralTax: v })} /></td></tr>
-            <tr><th>(16) 합계</th><td className="text-right">{won(total)}</td><th>비과세소득 계</th><td><NumInput label="비과세소득" value={p.nonTaxable} onChange={(v) => set({ nonTaxable: v })} /></td></tr>
+            <tr><th>(16) 합계</th><td className="text-right">{fmtNumberOrZero(total)}</td><th>비과세소득 계</th><td><NumInput label="비과세소득" value={p.nonTaxable} onChange={(v) => set({ nonTaxable: v })} /></td></tr>
           </tbody>
         </table>
       )}

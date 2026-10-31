@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import Modal from '../../../components/Modal'
 import { ecAlert, ecConfirm } from '../../../components/EcDialog'
 import { extractErrorMessage } from '../../../api/client'
-import { won, yearEndApi, type Candidate, type Settlement, type SettlementKind } from '../api'
+import { yearEndApi, type Candidate, type Settlement, type SettlementKind } from '../api'
 import { DeductionModal, PrevEmployerModal } from './DeductionModals'
 import { NumInput } from './parts'
+import { fmtNumberOrZero } from '../../../utils/format'
 
 const KIND_NAME: Record<SettlementKind, string> = { YEAR_END: '연말정산', MID_TERM: '중도정산' }
 
@@ -79,8 +80,8 @@ function Row({ name, onEdit, used, amount }: { name: string; onEdit?: () => void
   return (
     <tr>
       <th className="text-left">{name}{onEdit && <> <button type="button" className="ec-btn ec-btn-sm" onClick={onEdit}>수정</button></>}</th>
-      <td className="text-right">{typeof used === 'number' ? won(used) : used}</td>
-      <td className="text-right">{typeof amount === 'number' ? won(amount) : amount}</td>
+      <td className="text-right">{typeof used === 'number' ? fmtNumberOrZero(used) : used}</td>
+      <td className="text-right">{typeof amount === 'number' ? fmtNumberOrZero(amount) : amount}</td>
     </tr>
   )
 }
@@ -156,7 +157,7 @@ export function SettlementFormModal({ id, empName, onClose, onChanged }: {
                       {([['총 급여', s.totalSalary], ['근로소득금액', s.earnedIncomeAmount], ['과세표준', s.taxBase], ['산출세액', s.computedTax],
                         ['결정세액', s.decidedIncomeTax], ['기납부(소득세)', s.prevIncomeTax + s.currentIncomeTax], ['납부(환급)', s.balanceIncomeTax],
                         ['농특세', s.decidedRuralTax]] as const).map(([l, v]) => (
-                        <span key={l} className="ec-pill">{l} {won(v)}</span>
+                        <span key={l} className="ec-pill">{l} {fmtNumberOrZero(v)}</span>
                       ))}
                     </span>
                   )}
@@ -166,7 +167,7 @@ export function SettlementFormModal({ id, empName, onClose, onChanged }: {
                 <th className="text-left">◢ 종(전)근무지 및 납세조합 <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSub('prev')}>수정</button></th>
                 <td>
                   {s.prevEmployers.map((p) => (
-                    <div key={p.lineNo}>종(전)근무지{p.lineNo} | 사업자등록번호 {p.bizNo} · 근무처명 {p.companyName} · 과세소득 {won(p.taxablePay)} · 비과세소득 {won(p.nonTaxable)} · 감면소득 {won(p.reducedIncome)}</div>
+                    <div key={p.lineNo}>종(전)근무지{p.lineNo} | 사업자등록번호 {p.bizNo} · 근무처명 {p.companyName} · 과세소득 {fmtNumberOrZero(p.taxablePay)} · 비과세소득 {fmtNumberOrZero(p.nonTaxable)} · 감면소득 {fmtNumberOrZero(p.reducedIncome)}</div>
                   ))}
                 </td>
               </tr>
@@ -269,7 +270,7 @@ export function ReceiptModal({ s, empName, onClose }: { s: Settlement; empName: 
   const r = s.receipt
   const line = (no: string, name: string, a: number | undefined, b?: number) => (
     <tr key={no}><th className="text-left w-[70px]">{no}</th><th className="text-left">{name}</th>
-      <td className="text-right">{r ? won(a) : ''}</td><td className="text-right">{b === undefined ? '' : r ? won(b) : ''}</td></tr>
+      <td className="text-right">{r ? fmtNumberOrZero(a) : ''}</td><td className="text-right">{b === undefined ? '' : r ? fmtNumberOrZero(b) : ''}</td></tr>
   )
   const prev = s.prevEmployers
   return (
@@ -300,7 +301,7 @@ export function ReceiptModal({ s, empName, onClose }: { s: Settlement; empName: 
           {line('(77)', '차감징수세액', r?.balanceIncomeTax, r?.balanceLocalTax)}
         </tbody>
       </table>
-      <p className="mb-[8px]">◈국민연금 : {r ? won(r.pensionDeduction) : ''} ◈건강보험 : ◈고용보험 :</p>
+      <p className="mb-[8px]">◈국민연금 : {r ? fmtNumberOrZero(r.pensionDeduction) : ''} ◈건강보험 : ◈고용보험 :</p>
       <div className="flex gap-[4px]"><button className="ec-btn" onClick={onClose}>닫기</button></div>
     </Modal>
   )
@@ -320,7 +321,7 @@ export function InstallmentModal({ s, onClose }: { s: Settlement; onClose: () =>
     <Modal open title="분납처리" onClose={onClose} width={520}>
       <table className="w-full mb-[8px]">
         <thead><tr><th>구분</th><th>소득세</th><th>지방소득세</th></tr></thead>
-        <tbody><tr><th>납부합계</th><td className="text-right">{won(tax)}</td><td className="text-right">{won(local)}</td></tr></tbody>
+        <tbody><tr><th>납부합계</th><td className="text-right">{fmtNumberOrZero(tax)}</td><td className="text-right">{fmtNumberOrZero(local)}</td></tr></tbody>
       </table>
       <table className="w-full mb-[8px]">
         <thead><tr><th>구분</th><th>소득세</th><th>지방소득세</th></tr></thead>
@@ -330,7 +331,7 @@ export function InstallmentModal({ s, onClose }: { s: Settlement; onClose: () =>
               <td className="text-right"><NumInput label={`${names[i]} 소득세`} value={r[0]} onChange={(v) => set(i, 0, v)} /></td>
               <td className="text-right"><NumInput label={`${names[i]} 지방소득세`} value={r[1]} onChange={(v) => set(i, 1, v)} /></td></tr>
           ))}
-          <tr><th>합계</th><td className="text-right">{won(rows.reduce((a, r) => a + r[0], 0))}</td><td className="text-right">{won(rows.reduce((a, r) => a + r[1], 0))}</td></tr>
+          <tr><th>합계</th><td className="text-right">{fmtNumberOrZero(rows.reduce((a, r) => a + r[0], 0))}</td><td className="text-right">{fmtNumberOrZero(rows.reduce((a, r) => a + r[1], 0))}</td></tr>
         </tbody>
       </table>
       <div className="flex gap-[4px]">

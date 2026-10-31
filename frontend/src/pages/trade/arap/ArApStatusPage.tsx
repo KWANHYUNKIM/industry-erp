@@ -55,7 +55,7 @@ import EcDateInput from '../../../components/ui/EcDateInput'
 type Mode = 'BOTH' | 'RECEIVABLE' | 'PAYABLE'
 const MODE_LABEL: Record<Mode, string> = { BOTH: '채권/채무', RECEIVABLE: '채권', PAYABLE: '채무' }
 
-const won = (n: number) => n.toLocaleString()
+const localeAmount = (n: number) => n.toLocaleString()
 
 /**
  * 이 표가 겸하는 <b>원본 세 화면</b>. 무엇을 겸하는지 이름으로 들고 있어야
@@ -395,11 +395,11 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
                 <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'inherit' }}>{r.name}</Link>
                 {!r.active && <span className="text-ec-danger text-[11px] ml-[4px]">(사용중단)</span>}
               </td>
-              {mode !== 'BOTH' && <td className="text-right">{won(totalOf(r) - unbilledOf(r))}</td>}
-              {mode !== 'BOTH' && <td className="text-right">{won(unbilledOf(r))}</td>}
+              {mode !== 'BOTH' && <td className="text-right">{localeAmount(totalOf(r) - unbilledOf(r))}</td>}
+              {mode !== 'BOTH' && <td className="text-right">{localeAmount(unbilledOf(r))}</td>}
               {mode === 'BOTH' && [r.receivable - r.unbilledReceivable, r.unbilledReceivable, r.receivable,
                 r.payable - r.unbilledPayable, r.unbilledPayable, r.payable, r.receivable - r.payable].map((v, i) => (
-                <td key={i} className="text-right">{v ? won(v) : ''}</td>
+                <td key={i} className="text-right">{v ? localeAmount(v) : ''}</td>
               ))}
             </tr>
           ))}
@@ -408,11 +408,11 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           <tfoot>
             <tr>
               <td colSpan={mode === 'BOTH' ? 1 : 2} className="text-center">합계</td>
-              {mode !== 'BOTH' && <td className="text-right">{won((mode === 'PAYABLE' ? total.payable - total.unbilledP : total.receivable - total.unbilledR))}</td>}
-              {mode !== 'BOTH' && <td className="text-right">{won(mode === 'PAYABLE' ? total.unbilledP : total.unbilledR)}</td>}
+              {mode !== 'BOTH' && <td className="text-right">{localeAmount((mode === 'PAYABLE' ? total.payable - total.unbilledP : total.receivable - total.unbilledR))}</td>}
+              {mode !== 'BOTH' && <td className="text-right">{localeAmount(mode === 'PAYABLE' ? total.unbilledP : total.unbilledR)}</td>}
               {mode === 'BOTH' && [total.receivable - total.unbilledR, total.unbilledR, total.receivable,
                 total.payable - total.unbilledP, total.unbilledP, total.payable, total.receivable - total.payable].map((v, i) => (
-                <td key={i} className="text-right">{v ? won(v) : ''}</td>
+                <td key={i} className="text-right">{v ? localeAmount(v) : ''}</td>
               ))}
             </tr>
           </tfoot>
@@ -437,8 +437,8 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
                 <tr key={g.label}>
                   <td className="font-semibold">{g.label}</td>
                   <td className="text-right">{g.count}</td>
-                  {showR && <td className="text-right">{won(g.sums.receivable)}</td>}
-                  {showP && <td className="text-right">{won(g.sums.payable)}</td>}
+                  {showR && <td className="text-right">{localeAmount(g.sums.receivable)}</td>}
+                  {showP && <td className="text-right">{localeAmount(g.sums.payable)}</td>}
                 </tr>
               ))}
             </tbody>

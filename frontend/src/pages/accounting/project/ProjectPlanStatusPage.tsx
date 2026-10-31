@@ -7,6 +7,7 @@ import { EcReportHead, EcReportFoot } from '../../../components/EcReportFrame'
 import { ymd } from '../../../components/EcPeriodPicks'
 import { useCondPickers } from '../../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
+import { fmtAmountHalfAway } from '../../../utils/format'
 
 /** 서버 한 칸 — 프로젝트 · 항목 · 달 하나의 예상(계획)과 실적(전표 집계). */
 interface Cell {
@@ -41,9 +42,8 @@ function periodKey(month: string, p: Period) {
 }
 
 /* 천단위 반올림(2026-10-21 원본 실측): 1,500 → 2 · 2,500 → 3 · -500 → -1 — 0 에서 먼 쪽으로 반올림(자바스크립트 Math.round 는 -0.5 를 -0 으로 만든다). */
-const won = (n: number) => (n < 0 ? -Math.round(-n) : Math.round(n)).toLocaleString('ko-KR')
 /* 실적이 없으면 원본은 실적 · 비율 칸을 비운다(0 을 찍지 않는다). 차이는 늘 찍는다(= 실적 − 예상). */
-const blankWon = (n: number) => (n ? won(n) : '')
+const blankWon = (n: number) => (n ? fmtAmountHalfAway(n) : '')
 const rate = (actual: number, plan: number) =>
   (actual && plan ? (Math.round((actual / plan) * 10000) / 100).toLocaleString('ko-KR') : '')
 const ymText = (ym: string) => ym.replace('-', '/')
@@ -161,7 +161,7 @@ export default function ProjectPlanStatusPage() {
       <td className="text-right">{blankWon(s.plan / unit)}</td>
       <td className="text-right">{blankWon(s.actual / unit)}</td>
       {/* 계획 기간 안인데 계획도 실적도 없는 달은 원본이 차이까지 비운다('2026.12 | | | |', 2026-10-14 실측). */}
-      <td className="text-right">{s.plan || s.actual ? won((s.actual - s.plan) / unit) : ''}</td>
+      <td className="text-right">{s.plan || s.actual ? fmtAmountHalfAway((s.actual - s.plan) / unit) : ''}</td>
       {withRate && <td className="text-right">{rate(s.actual, s.plan)}</td>}
     </>
   )

@@ -43,3 +43,24 @@ export const fmtTruncBlankOf = (n: number | null | undefined) => (Number(n) ? Ma
 
 /** 소수 넷째 자리까지 · 숫자가 아니면(NaN · Infinity) 빈칸 (생산 수량) */
 export const fmtDecimal4 = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : '')
+
+/** 그대로 · 0 · 빈 값(null · undefined · NaN)은 빈칸 — `n ? n.toLocaleString('ko-KR') : ''` (급여대장). Number 로 바꾸지 않는다 */
+export const fmtNumberNz = (n: number | null | undefined) => (n ? n.toLocaleString('ko-KR') : '')
+
+/** Number 로 바꿔서 · 바꾼 값이 0 · NaN 이면 빈칸 — 문자열 '0' 도 빈칸 (지급명세서 제출) */
+export const fmtNumberBlankOf = (n: number | null | undefined) => (Number(n) ? Number(n).toLocaleString('ko-KR') : '')
+
+/** Number 로 바꿔서 · null · undefined 는 '0' (연말정산 공제자료) */
+export const fmtNumberOrZero = (n: number | null | undefined) => Number(n ?? 0).toLocaleString('ko-KR')
+
+/** 입력칸 글자 → 콤마 찍은 글자 · 빈 글자는 빈칸 · 콤마가 이미 있으면 'NaN' (일용직 입력칸 — 값은 콤마 없는 글자로 들고 있다) */
+export const fmtNumberText = (s: string) => (s === '' ? '' : Number(s).toLocaleString('ko-KR'))
+
+/** 원 단위 반올림 · Number 로 바꿔서 · null · undefined 만 빈칸(0 은 '0') (기초잔액 조정) */
+export const fmtAmountOrBlank = (n: number | null | undefined) => (n == null ? '' : Math.round(Number(n)).toLocaleString('ko-KR'))
+
+/** 원 단위 반올림 · .5 는 0 에서 먼 쪽으로(-2.5 → -3, Math.round 는 -2) · 0 은 '0' (프로젝트 계획대비) */
+export const fmtAmountHalfAway = (n: number) => (n < 0 ? -Math.round(-n) : Math.round(n)).toLocaleString('ko-KR')
+
+/** 원 미만 버림 · 0 · 빈 값은 빈칸 — Number 로 바꾸지 않는다 (기타원천세 입력) */
+export const fmtTruncNz = (n: number) => (n ? Math.trunc(n).toLocaleString('ko-KR') : '')

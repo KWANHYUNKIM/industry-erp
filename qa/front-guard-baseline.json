@@ -1,13 +1,5 @@
 {
  "won": [
-  "features/balanceadjust/api.ts",
-  "features/payroll/components/PayLedgerReport.tsx",
-  "features/yearend/api.ts",
-  "pages/accounting/withholding/IncomeSubmissionPage.tsx",
-  "pages/accounting/otherwithholding/OtherWithholdingInputPage.tsx",
-  "pages/accounting/project/ProjectPlanStatusPage.tsx",
-  "pages/hr/dailywork/DailyWorkerListPage.tsx",
-  "pages/production/RequirementCalcPage.tsx",
-  "pages/trade/arap/ArApStatusPage.tsx"
+  "pages/production/RequirementCalcPage.tsx"
  ]
 }

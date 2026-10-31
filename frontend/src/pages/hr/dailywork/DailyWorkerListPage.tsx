@@ -13,6 +13,7 @@ import { ecConfirm } from '../../../components/EcDialog'
 import { shrinkImage } from '../../../utils/imageResize'
 import EcIcon from '../../../components/ui/EcIcon'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { fmtNumberText } from '../../../utils/format'
 
 interface DailyWorker {
   id: number; code: string; name: string; foreigner: boolean; nationality: string | null
@@ -56,7 +57,6 @@ const blankForm = (): Form => ({
 })
 const str = (v: unknown) => (v == null ? '' : String(v))
 const num = (s: string) => (s === '' ? null : Number(s.replace(/,/g, '')))
-const won = (s: string) => (s === '' ? '' : Number(s).toLocaleString('ko-KR'))
 type Tab = '기본' | '사원정보' | '급여지급사항' | '추가정보' | '기타설정'
 
 /**
@@ -205,13 +205,13 @@ export default function DailyWorkerListPage() {
     </li>
   )
   const money = (key: 'pensionBase' | 'healthBase' | 'dailyWage' | 'fixedIncomeTax' | 'fixedLocalTax', placeholder = '') => (
-    <input className="ec-input w-full text-right" inputMode="numeric" placeholder={placeholder} value={won(form[key])}
+    <input className="ec-input w-full text-right" inputMode="numeric" placeholder={placeholder} value={fmtNumberText(form[key])}
            onChange={(e) => set({ [key]: e.target.value.replace(/[^0-9]/g, '') } as Partial<Form>)} />
   )
 
   const itemMoney = (i: PayItem) => (
     <input className="ec-input w-full text-right" inputMode="numeric" aria-label={`${i.name} ${i.kind === 'ALLOWANCE' ? '내역' : '금액'}`}
-           value={won(form.payAmounts[i.id] ?? '')}
+           value={fmtNumberText(form.payAmounts[i.id] ?? '')}
            onChange={(e) => set({ payAmounts: { ...form.payAmounts, [i.id]: e.target.value.replace(/[^0-9]/g, '') } })} />
   )
 

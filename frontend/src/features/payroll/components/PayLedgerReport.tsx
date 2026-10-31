@@ -1,6 +1,6 @@
 import type { EmployeeMaster, PayItem, Payslip } from '../../../types/api'
+import { fmtNumberNz } from '../../../utils/format'
 
-const won = (n: number) => (n ? n.toLocaleString('ko-KR') : '')
 /** 원본 급여대장 머리 이름 — 우리 법정 공제 이름과 다른 것만 */
 const LABEL: Record<string, string> = { 지방소득세: '주민세', 장기요양보험: '장기요양' }
 const STATUTORY = ['소득세', '지방소득세', '국민연금', '건강보험', '고용보험', '장기요양보험']
@@ -93,20 +93,20 @@ export default function PayLedgerReport({ month, title, payDate, companyName, pa
               <tr key={`${p.id}-${r}`}>
                 {r === 0 && <><td rowSpan={bands} className={TXT}>{p.employeeName}</td><td rowSpan={bands} className={TXT}>{p.department ?? ''}</td></>}
                 {r === bands && <><td className={TXT}>{p.employeeCode}</td><td className={TXT}>{e?.jobTitle ?? ''}</td></>}
-                {cellsOf(allowCols, r).map((n, i) => <td key={`a${i}`} className={NUM}>{n ? won(amount(p, n, 'ALLOWANCE')) : ''}</td>)}
-                {r === 0 && <td rowSpan={rows} className={NUM}>{won(p.grossPay)}</td>}
-                {cellsOf(deductCols, r).map((n, i) => <td key={`d${i}`} className={NUM}>{n ? won(amount(p, n, 'DEDUCTION')) : ''}</td>)}
-                {r === 0 && <><td rowSpan={rows} className={NUM}>{won(p.deductionTotal)}</td><td rowSpan={rows} className={NUM}>{won(p.netPay)}</td></>}
+                {cellsOf(allowCols, r).map((n, i) => <td key={`a${i}`} className={NUM}>{n ? fmtNumberNz(amount(p, n, 'ALLOWANCE')) : ''}</td>)}
+                {r === 0 && <td rowSpan={rows} className={NUM}>{fmtNumberNz(p.grossPay)}</td>}
+                {cellsOf(deductCols, r).map((n, i) => <td key={`d${i}`} className={NUM}>{n ? fmtNumberNz(amount(p, n, 'DEDUCTION')) : ''}</td>)}
+                {r === 0 && <><td rowSpan={rows} className={NUM}>{fmtNumberNz(p.deductionTotal)}</td><td rowSpan={rows} className={NUM}>{fmtNumberNz(p.netPay)}</td></>}
               </tr>
             ))
           })}
           {payslips.length > 0 && Array.from({ length: rows }, (_, r) => (
             <tr key={`sum-${r}`}>
               {r === 0 && <td rowSpan={rows} colSpan={2} className={`${SUM} text-center`}>총합계</td>}
-              {cellsOf(allowCols, r).map((n, i) => <td key={`a${i}`} className={`${SUM} ${NUM}`}>{n ? won(sumOf(n, 'ALLOWANCE')) : ''}</td>)}
-              {r === 0 && <td rowSpan={rows} className={`${SUM} ${NUM}`}>{won(total.gross)}</td>}
-              {cellsOf(deductCols, r).map((n, i) => <td key={`d${i}`} className={`${SUM} ${NUM}`}>{n ? won(sumOf(n, 'DEDUCTION')) : ''}</td>)}
-              {r === 0 && <><td rowSpan={rows} className={`${SUM} ${NUM}`}>{won(total.ded)}</td><td rowSpan={rows} className={`${SUM} ${NUM}`}>{won(total.net)}</td></>}
+              {cellsOf(allowCols, r).map((n, i) => <td key={`a${i}`} className={`${SUM} ${NUM}`}>{n ? fmtNumberNz(sumOf(n, 'ALLOWANCE')) : ''}</td>)}
+              {r === 0 && <td rowSpan={rows} className={`${SUM} ${NUM}`}>{fmtNumberNz(total.gross)}</td>}
+              {cellsOf(deductCols, r).map((n, i) => <td key={`d${i}`} className={`${SUM} ${NUM}`}>{n ? fmtNumberNz(sumOf(n, 'DEDUCTION')) : ''}</td>)}
+              {r === 0 && <><td rowSpan={rows} className={`${SUM} ${NUM}`}>{fmtNumberNz(total.ded)}</td><td rowSpan={rows} className={`${SUM} ${NUM}`}>{fmtNumberNz(total.net)}</td></>}
             </tr>
           ))}
         </tbody>

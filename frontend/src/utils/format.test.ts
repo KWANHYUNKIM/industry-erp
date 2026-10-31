@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   fmtAmount, fmtAmountBlank, fmtAmountNz, fmtAmountOf, fmtAmountOrDash, fmtDecimal4, fmtNumber, fmtNumberBlank, fmtNumberOf, fmtNumberOrBlank,
   fmtTrunc, fmtTruncBlankOf,
+  fmtNumberNz, fmtNumberBlankOf, fmtNumberOrZero, fmtNumberText, fmtAmountOrBlank, fmtAmountHalfAway, fmtTruncNz,
 } from './format.ts'
 
 // 서버 값이 타입과 달리 문자열 · null 로 오는 경우까지 — 지역 won 이 그때 찍던 그대로여야 한다.
@@ -100,4 +101,71 @@ test('fmtDecimal4 — 소수 넷째 자리, NaN 은 빈칸', () => {
   assert.equal(fmtDecimal4(1234.56789), '1,234.5679')
   assert.equal(fmtDecimal4(NaN), '')
   assert.equal(fmtDecimal4(Infinity), '')
+})
+
+test('fmtNumberNz — 그대로, 0 · 빈 값은 빈칸', () => {
+  assert.equal(fmtNumberNz(0), '')
+  assert.equal(fmtNumberNz(null), '')
+  assert.equal(fmtNumberNz(NaN), '')
+  assert.equal(fmtNumberNz(-1234.5), '-1,234.5')
+  assert.equal(fmtNumberNz(1234.5678), '1,234.568')
+  assert.equal(fmtNumberNz(odd('')), '')
+  assert.equal(fmtNumberNz(odd('1234')), '1234')   // Number 로 안 바꾼 몸통
+})
+
+test('fmtNumberBlankOf — Number 로 바꿔서 0 · NaN 은 빈칸', () => {
+  assert.equal(fmtNumberBlankOf(0), '')
+  assert.equal(fmtNumberBlankOf(null), '')
+  assert.equal(fmtNumberBlankOf(odd('')), '')
+  assert.equal(fmtNumberBlankOf(odd('0')), '')
+  assert.equal(fmtNumberBlankOf(odd('abc')), '')
+  assert.equal(fmtNumberBlankOf(-1234.5), '-1,234.5')
+  assert.equal(fmtNumberBlankOf(odd('1234.5')), '1,234.5')
+})
+
+test('fmtNumberOrZero — null 은 0', () => {
+  assert.equal(fmtNumberOrZero(0), '0')
+  assert.equal(fmtNumberOrZero(null), '0')
+  assert.equal(fmtNumberOrZero(undefined), '0')
+  assert.equal(fmtNumberOrZero(-1234.5), '-1,234.5')
+  assert.equal(fmtNumberOrZero(odd('')), '0')
+  assert.equal(fmtNumberOrZero(odd('1234.5')), '1,234.5')
+})
+
+test('fmtNumberText — 입력 글자, 빈 글자는 빈칸', () => {
+  assert.equal(fmtNumberText(''), '')
+  assert.equal(fmtNumberText('0'), '0')
+  assert.equal(fmtNumberText('-1234.5'), '-1,234.5')
+  assert.equal(fmtNumberText('1234567'), '1,234,567')
+  assert.equal(fmtNumberText('1,000'), 'NaN')
+})
+
+test('fmtAmountOrBlank — 반올림, null 만 빈칸', () => {
+  assert.equal(fmtAmountOrBlank(0), '0')
+  assert.equal(fmtAmountOrBlank(null), '')
+  assert.equal(fmtAmountOrBlank(undefined), '')
+  assert.equal(fmtAmountOrBlank(-1234.5), '-1,234')
+  assert.equal(fmtAmountOrBlank(1234.5), '1,235')
+  assert.equal(fmtAmountOrBlank(odd('')), '0')
+  assert.equal(fmtAmountOrBlank(odd('1234.6')), '1,235')
+})
+
+test('fmtAmountHalfAway — .5 는 0 에서 먼 쪽', () => {
+  assert.equal(fmtAmountHalfAway(0), '0')
+  assert.equal(fmtAmountHalfAway(-2.5), '-3')
+  assert.equal(fmtAmountHalfAway(2.5), '3')
+  assert.equal(fmtAmountHalfAway(-1234.4), '-1,234')
+  assert.equal(fmtAmountHalfAway(-0.4), '-0')       // 지역 won 그대로(-0 을 찍는다)
+  assert.equal(fmtAmountHalfAway(odd(null)), '0')
+  assert.equal(fmtAmountHalfAway(odd('')), '0')
+})
+
+test('fmtTruncNz — 버림, 0 · 빈 값은 빈칸', () => {
+  assert.equal(fmtTruncNz(0), '')
+  assert.equal(fmtTruncNz(odd(null)), '')
+  assert.equal(fmtTruncNz(NaN), '')
+  assert.equal(fmtTruncNz(-1234.9), '-1,234')
+  assert.equal(fmtTruncNz(1234.9), '1,234')
+  assert.equal(fmtTruncNz(0.4), '0')
+  assert.equal(fmtTruncNz(odd('')), '')
 })
