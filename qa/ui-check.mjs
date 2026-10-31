@@ -12,8 +12,10 @@
  *     메뉴에만 있으면 눌렀을 때 빈 화면이 뜨고, 라우트에만 있으면 메뉴로 닿을 수 없다
  *     (실제로 채권/채무현황의 채무 쪽이 라우트 없이 화면만 있었다).
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { menuSource, routerSource } from './app-src.mjs'
+import { existsSync, readdirSync, readFileSync as fsReadFileSync, statSync } from 'node:fs'
+import { menuSource, routerSource, withSplitParts } from './app-src.mjs'
+/* 쪼갠 화면(qa/app-src.mjs SPLIT_PARTS)은 읽을 때 조각을 이어 붙인다 — 옮긴 글이 검사에서 빠지지 않게. */
+const readFileSync = (path, ...rest) => withSplitParts(path, fsReadFileSync(path, ...rest))
 import { join, sep } from 'node:path'
 
 let pass = 0
