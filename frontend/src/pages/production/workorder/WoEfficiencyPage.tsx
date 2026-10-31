@@ -1,0 +1,554 @@
+import { useEffect, useMemo, useState } from 'react'
+import EcListShell from '../../../components/EcListShell'
+import EcStatusPanel, { EcCond } from '../../../components/EcStatusPanel'
+import { STATUS_PICKS, periodOf } from '../../../components/EcPeriodPicks'
+import { api, extractErrorMessage } from '../../../api/client'
+import {
+  actualConsume, materialDiff, standardConsume, workTime,
+  type BomLine, type PriceOf,
+} from '../../../utils/woEfficiency'
+import { stockCostMapFromLast } from '../../../utils/stockValue'
+import type { Item } from '../../../types/api'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { useCondPickers } from '../../../utils/useCondPickers'
+import { usePartnerManagers } from '../../../utils/partnerManagers'
+import { dateText } from '../../../utils/dateText'
+import { EcDateRange } from '../../../components/ui/EcDateInput'
+
+/**
+ * 생산관리 > 작업지시서효율현황 — 계획(지시수량) 대비 실적 효율
+ * (/api/work-orders + /api/productions)
+ *
+ * <p>원본 조건 판 실측(사본):
+ *   기준일(영업주기)(금월(~오늘)) · <b>납기일자(사용안함)</b> · 작업지시No. · 오더관리번호 ·
+ *   창고 · 거래처 · 품목 · 담당자 · 거래처관리담당자 · 규격 · 적요 ·
+ *   [진행상태] 전체 | 결재중 | 미확인 | 확인 · 최초작성자 · 최종수정자
+ *
+ * <p>우리는 조건 판이 없고 검색어 한 칸이 전부였다 — 작업지시 444건이 통째로 쏟아졌다.
+ *
+ * <p>납기일자는 원본에서 <b>기본이 '사용안함'</b> 인 두 번째 기간이다. 켜면 그 구간의
+ * 납기만 본다. 오더관리번호는 작업지시에 그 값이 없어 칸을 만들지 않는다.
+ * (거래처·담당자·규격·적요·작성자도 '값이 없다'고 적혀 있었으나 사실이 아니었다 —
+ * 응답이 진작 싣고 있었고 이 화면이 안 받고 있었을 뿐이다.) 진행상태는 우리 상태(예정·진행중·완료)로 갈음한다.
+ */
+type WoStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
+
+interface WorkOrderRow {
+  id: number
+  orderNo: string
+  /** BOM(표준소모)을 찾는 열쇠. 응답에 있었는데 이 화면이 안 받고 있었다. */
+  productId: number
+  productCode: string
+  productName: string
+  productUnit: string
+  plannedQty: number
+  producedQty: number
+  remainingQty: number
+  status: WoStatus
+  statusName: string
+  orderDate: string
+  dueDate: string | null
+  /** 원본 조건 판의 [창고]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  warehouseId: number | null
+  warehouseName: string | null
+  /** 원본 조건 판의 [담당자]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  employeeId: number | null
+  /** 원본 조건 판의 [거래처] — 작업지시의 납품처. 위와 같이 안 받고 있었다. */
+  partnerId: number | null
+  partnerName: string | null
+  /** 원본 조건 판의 [적요]. 위와 같음. */
+  remark: string | null
+  /** 원본 조건 판의 [최초작성자]. 위와 같음 — 응답이 진작 싣는데 안 받고 있었다. */
+  createdBy: string | null
+}
+
+interface ProductionRow {
+  id: number
+  prodNo: string
+  workOrderId: number
+  workOrderNo: string
+  productId: number
+  producedQty: number
+  productionDate: string
+  /** 그 실적에 실제로 투입한 자재. 원본 [소모]의 '실제'가 이것이다. */
+  materials?: { componentId: number; componentName: string; quantity: number }[]
+}
+
+interface BomRow {
+  productId: number
+  lines: { componentId: number; componentName: string; quantity: number }[]
+}
+
+interface ProcessRow {
+  id: number
+  name: string
+  /** 개당 표준시간(분) */
+  stdTimeMin: number | null
+}
+
+/** BOR(작업소요시간) 한 줄. 품목이 거치는 작업과 1개당 시간(H). */
+interface BorRow {
+  productId: number
+  processId: number
+  hoursPerUnit: number | null
+  active: boolean
+}
+
+interface WorkResultRow {
+  workOrderId: number | null
+  processId: number | null
+  goodQty: number
+  defectQty: number
+  workTimeMin: number
+}
+
+export default function WoEfficiencyPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items', 'warehouses', 'employees', 'partners'])
+  const [orders, setOrders] = useState<WorkOrderRow[]>([])
+  const [productions, setProductions] = useState<ProductionRow[]>([])
+  const [boms, setBoms] = useState<BomRow[]>([])
+  const [items, setItems] = useState<Item[]>([])
+  const [processes, setProcesses] = useState<ProcessRow[]>([])
+  const [purchases, setPurchases] = useState<{ itemId: number; unitPrice: number }[]>([])
+  const [results, setResults] = useState<WorkResultRow[]>([])
+  const [bor, setBor] = useState<BorRow[]>([])
+  /** 하위공정(자재)을 펼친 작업지시 id */
+  const [open, setOpen] = useState<Set<number>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const init = periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  const [useDue, setUseDue] = useState(false)
+  const [dueFrom, setDueFrom] = useState(init.from)
+  const [dueTo, setDueTo] = useState(init.to)
+  const [orderNo, setOrderNo] = useState('')
+  /** 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 이름 ↔ id 를 사원 목록으로 잇는다. */
+  const [manager, setManager] = useState('')
+  /*
+   * 원본 [거래처관리담당자]. 앞서 "작업지시에는 거래처가 <b>납품처로만</b> 붙는다" 고 적어
+   * 못 만드는 것으로 두었는데 <b>이유가 되지 않는다</b> — 납품처든 아니든 거래처는 거래처이고,
+   * 관리담당자는 <b>거래처 마스터</b>에 붙는 값이라 이름으로 이으면 그만이다
+   * (판매·구매·미주문·미판매현황이 모두 그 길을 쓴다). 응답이 partnerName 을 진작 싣는다.
+   */
+  const [partnerMgr, setPartnerMgr] = useState('')
+  const pmgr = usePartnerManagers()
+  const [remarkCond, setRemarkCond] = useState('')
+  /** 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다(사본 실측). */
+  const [author, setAuthor] = useState('')
+  /** 원본 [거래처] — 작업지시의 납품처. */
+  const [partner, setPartner] = useState('')
+  const [item, setItem] = useState('')
+  const [warehouse, setWarehouse] = useState('')
+  const [status, setStatus] = useState('전체')
+  /**
+   * 원본 [결재방표시] — 켜면 <b>출력물에 결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 우리는 그 결재란을 이미 그리고 있었는데 <b>끌 수가 없었다</b> — 늘 찍혔다.
+   * 원본 기본값은 <b>꺼짐</b>이다(사본 실측). 결재를 안 받을 자료까지 도장칸을 달고
+   * 나가면 종이가 한 칸씩 밀린다.
+   */
+  const [signBox, setSignBox] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    setError('')
+    try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
+      /*
+       * <b>생산실적은 지시일로 좁힌다.</b> 이 표의 기간은 <b>지시일</b>이고
+       * (아래 <code>r.orderDate &lt; from</code>), 실적은 <code>workOrderId</code> 로 묶어
+       * 합치므로(producedByWo), 기간 안의 지시에 <b>다음 달에 찍힌 실적</b>이 있으면
+       * 그것까지 세어야 한다 — <b>생산일</b>로 자르면 효율이 조용히 낮게 나온다.
+       *
+       * <p>그래서 여태 전 기간을 통째로 받았다(2026-09-21 실측 202KB). 서버에
+       * <code>woFrom·woTo</code>(지시일) 축을 두어, <b>세는 규칙은 그대로 두고</b>
+       * 받는 것만 이 기간의 지시로 줄였다.
+       */
+      const woPeriod: Record<string, string> = {}
+      if (from) woPeriod.woFrom = from
+      if (to) woPeriod.woTo = to
+      const [woRes, prodRes, bomRes, itemRes, procRes, resultRes, purchaseRes, borRes] = await Promise.all([
+        api.get<WorkOrderRow[]>('/work-orders', { params: period }),
+        api.get<ProductionRow[]>('/productions', { params: woPeriod }),
+        api.get<BomRow[]>('/boms'),
+        api.get<Item[]>('/items'),
+        api.get<ProcessRow[]>('/processes'),
+        api.get<WorkResultRow[]>('/work-results'),
+        /*
+         * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 평가단가 지도
+         * 하나를 만드는 것뿐인데 구매 전표를 통째로 받고 있었다(실측 984KB).
+         * /purchases/item-prices 는 품목당 한 줄만 낸다 — 2026-09-10 에 만든 자리인데
+         * 이 화면이 안 옮겨져 있었다.
+         */
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
+        api.get<BorRow[]>('/bor'),
+      ])
+      setOrders([...woRes.data].sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id)))
+      setProductions(prodRes.data)
+      setBoms(bomRes.data)
+      setItems(itemRes.data)
+      setProcesses(procRes.data)
+      setResults(resultRes.data)
+      setPurchases(purchaseRes.data)
+      setBor(borRes.data)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
+
+  /**
+   * 자재 단가는 재고자산평가와 <b>같은 규칙</b>을 쓴다 — 마지막 입고단가, 없으면 품목의
+   * 구매단가, 그것도 없으면 모른다(null). 화면마다 다른 기준을 쓰면 같은 자재가 화면마다
+   * 다른 금액으로 보인다.
+   *
+   * <p>모르는 것을 0원으로 채우지 않는다. 0으로 세면 자재를 두 배 써도 차이가 0으로 보인다.
+   */
+  const priceOf: PriceOf = useMemo(() => {
+    const m = stockCostMapFromLast(items, purchases)
+    return (id: number) => m.get(id) ?? null
+  }, [items, purchases])
+
+  const bomByProduct = useMemo(
+    () => new Map<number, BomLine[]>(boms.map((b) => [b.productId, b.lines])), [boms])
+
+  const stdMinByProcess = useMemo(
+    () => new Map(processes.map((p) => [p.id, p.stdTimeMin])), [processes])
+
+  /**
+   * 품목의 <b>표준 작업시간</b>(분/개). BOR 라우팅의 1개당 시간 합이다.
+   *
+   * <p>예전에는 표준시간을 <b>실제로 작업한 공정</b>의 표준시간으로만 셌다. 그러면
+   * 빼먹은 공정은 표준에도 안 잡혀서 "공정을 하나 건너뛰었다" 를 영영 못 본다 —
+   * 오히려 시간을 아낀 것처럼 보인다. BOR 이 생겼으니 품목 기준으로 센다.
+   */
+  const borMinPerUnit = useMemo(() => {
+    const m = new Map<number, number>()
+    for (const b of bor) {
+      if (!b.active) continue
+      m.set(b.productId, (m.get(b.productId) ?? 0) + (b.hoursPerUnit ?? 0) * 60)
+    }
+    return m
+  }, [bor])
+
+  /** 작업지시별 소모(표준·실제)와 시간(표준·실제). 원본의 [소모]·[시간] 묶음이다. */
+  const efficiency = useMemo(() => {
+    const usedByWo = new Map<number, { componentId: number; componentName: string; quantity: number }[]>()
+    const producedByWo = new Map<number, number>()
+    for (const p of productions) {
+      producedByWo.set(p.workOrderId, (producedByWo.get(p.workOrderId) ?? 0) + p.producedQty)
+      const cur = usedByWo.get(p.workOrderId) ?? []
+      cur.push(...(p.materials ?? []))
+      usedByWo.set(p.workOrderId, cur)
+    }
+    const timeByWo = new Map<number, { qty: number; minutes: number; stdMinPerUnit: number | null }[]>()
+    for (const r of results) {
+      if (r.workOrderId == null) continue
+      const cur = timeByWo.get(r.workOrderId) ?? []
+      cur.push({
+        qty: r.goodQty + r.defectQty,
+        minutes: r.workTimeMin,
+        // BOR 이 없는 품목만 공정 표준시간으로 갈음한다(아래에서 품목 기준으로 덮어쓴다).
+        stdMinPerUnit: r.processId != null ? (stdMinByProcess.get(r.processId) ?? null) : null,
+      })
+      timeByWo.set(r.workOrderId, cur)
+    }
+    const m = new Map<number, {
+      std: ReturnType<typeof standardConsume>
+      act: ReturnType<typeof actualConsume>
+      time: ReturnType<typeof workTime>
+      rows: ReturnType<typeof materialDiff>
+    }>()
+    for (const wo of orders) {
+      const bom = bomByProduct.get(wo.productId) ?? []
+      const used = usedByWo.get(wo.id) ?? []
+      const produced = producedByWo.get(wo.id) ?? 0
+      /*
+       * 표준시간은 <b>품목의 BOR × 생산수량</b>이 원칙이다. 실제 작업한 공정만 세면
+       * 빼먹은 공정이 안 보인다. BOR 이 없는 품목만 예전처럼 공정 표준시간으로 갈음한다.
+       */
+      const perUnit = borMinPerUnit.get(wo.productId)
+      const rows = timeByWo.get(wo.id) ?? []
+      const time = perUnit != null
+        ? {
+          standard: Math.round(perUnit * produced * 100) / 100,
+          actual: rows.reduce((n, r) => n + r.minutes, 0),
+          unknown: 0,
+        }
+        : workTime(rows)
+
+      m.set(wo.id, {
+        std: standardConsume(bom, produced, priceOf),
+        act: actualConsume(used, priceOf),
+        time,
+        rows: materialDiff(bom, used, produced, priceOf),
+      })
+    }
+    return m
+  }, [orders, productions, results, bomByProduct, stdMinByProcess, borMinPerUnit, priceOf])
+
+  /** 사원 id → 이름. 조건은 이름으로 고르는데 전표에는 id 만 있다. */
+  const nameOfEmployee = useMemo(
+    () => new Map(pickers.employees.filter((e) => e.id != null).map((e) => [e.id as number, e.name])),
+    [pickers.employees])
+
+  const shown = orders.filter((r) => {
+    if (r.orderDate < from || r.orderDate > to) return false
+    if (useDue) {
+      if (!r.dueDate) return false
+      if (r.dueDate < dueFrom || r.dueDate > dueTo) return false
+    }
+    if (orderNo && !r.orderNo.includes(orderNo)) return false
+    if (item && String(r.productId) !== item) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
+    if (manager && (nameOfEmployee.get(r.employeeId ?? -1) ?? '') !== manager) return false
+    if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
+    if (partner && String(r.partnerId) !== partner) return false
+    if (partnerMgr && pmgr.managerOfName(r.partnerName ?? '') !== partnerMgr) return false
+    if (author && (r.createdBy ?? '') !== author) return false
+    if (status !== '전체' && r.statusName !== status) return false
+    return true
+  })
+  const won = (n: number) => n.toLocaleString('ko-KR')
+  const avgEff = useMemo(() => {
+    const withPlan = shown.filter((r) => r.plannedQty > 0)
+    if (withPlan.length === 0) return 0
+    return Math.round(withPlan.reduce((s, r) => s + (r.producedQty / r.plannedQty) * 100, 0) / withPlan.length)
+  }, [shown])
+
+  /** 표준 − 실제. 음수면 그만큼 자재를 더 썼다는 뜻이다. */
+  const consumeTotal = shown.reduce((n, r) => {
+    const e = efficiency.get(r.id)
+    return e ? n + (e.std.amount - e.act.amount) : n
+  }, 0)
+
+  return (
+    <EcListShell
+      title="작업지시서효율현황"
+      searchable={false}
+      signLine={signBox}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: () => {
+          setFrom(init.from); setTo(init.to)
+          setUseDue(false); setDueFrom(init.from); setDueTo(init.to)
+          setOrderNo(''); setItem(''); setWarehouse(''); setStatus('전체')
+        } },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        from={from} to={to}
+        onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
+        picks={STATUS_PICKS}
+        dateLabel="기준일(영업주기)"
+      >
+        <EcCond label="납기일자">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={useDue} onChange={(e) => setUseDue(e.target.checked)} />
+            사용
+          </label>
+          <EcDateRange from={{ className: "ec-input", value: dueFrom, disabled: !useDue, onChange: (e) => setDueFrom(e.target.value) }} to={{ className: "ec-input", value: dueTo, disabled: !useDue, onChange: (e) => setDueTo(e.target.value) }} />
+        </EcCond>
+        <EcCond label="작업지시No." pick>
+          <input className="ec-input" placeholder="작업지시번호 일부" value={orderNo}
+                 onChange={(e) => setOrderNo(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
+                           value={warehouse} onChange={(v) => setWarehouse(v)}
+                           items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={partner} onChange={(v) => setPartner(v)}
+                           items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={item} onChange={(v) => setItem(v)}
+                           items={pickers.items} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={200} emptyLabel="전체"
+                           value={manager} onChange={(v) => setManager(v)}
+                           items={pickers.employees} />
+        </EcCond>
+        {/* 원본 차례: [담당자] 다음이 <b>[거래처관리담당자]</b>, 그 다음이 규격·적요다. */}
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체"
+                           value={partnerMgr} onChange={(v) => setPartnerMgr(v)}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요 일부" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="진행상태">
+          <div className="ec-pills">
+            {/* 문구는 응답의 statusName 그대로다 — '예정'이라 적었더니 늘 빈 화면이었다(실측으로 잡음). 아직 만든 것 없는 지시(PLANNED)도 원본처럼 '진행중'이라 '계획' 알약은 없다(2026-10-22). */}
+            {['전체', '진행중', '완료'].map((s2) => (
+              <button key={s2} type="button" className={`ec-pill no-ec${status === s2 ? ' active' : ''}`}
+                      onClick={() => setStatus(s2)}>{s2}</button>
+            ))}
+          </div>
+        </EcCond>
+        {/*
+          원본 [최초작성자] 후보. <b>지금 받아 온 줄에 실제로 있는 이름</b>만 낸다 —
+          사용자 마스터를 부르면 이 화면에 한 건도 없는 사람까지 목록에 선다.
+        */}
+        <EcCond label="최초작성자">
+          <select className="ec-input" value={author} style={{ width: 140 }}
+                  onChange={(e) => setAuthor(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(orders.map((o) => o.createdBy).filter((v): v is string => !!v))].sort()
+              .map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
+        </EcCond>
+      </EcStatusPanel>
+
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        작업지시 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        평균 달성효율 <b className="text-ec-navy text-[14px]">{avgEff}%</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        소모 차이 합계 <b style={{ color: consumeTotal < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>{won(consumeTotal)}</b>
+      </div>
+      <table className="w-full text-left">
+        <thead>
+          <tr>
+            {/*
+              <b>작업지시서효율현황(E040436) 2026-09-09 원본 격자 실측</b>(자료 6줄).
+              원본 머리는 <b>두 줄</b>이다 —
+              위: [작업지시서(4) · 생산(2) · 소모(3) · 시간(3) · 하위공정],
+              아래: [전표번호·품목·납기일자·계획수량] / [생산수량·차이] /
+              [표준·실제·차이] / [표준·실제·차이].
+              <b>열 구성은 우리 것과 같다.</b> 우리는 한 줄 머리라 아래 이름이 겹치는
+              여섯을 [소모 표준]·[소모 실제]·[소모 차이]·[시간 …] 으로 풀어 적는다 —
+              묶음 이름을 앞에 붙인 것이라 뜻이 같고, 한 줄 표에서는 이쪽이 또렷하다.
+              이번에 고친 것은 <b>정렬 둘</b>이다: 원본은 [전표번호]와 [납기일자]를
+              <b>가운데</b>에 둔다.
+              ([진행상태]는 원본 격자에 없는 우리 열이다 — 원본은 조건으로만 둔다.)
+            */}
+            <th className="w-[34px]"></th>
+            <th className="text-center">전표번호</th>
+            <th>품목</th>
+            <th className="text-center">납기일자</th>
+            <th className="text-right">계획수량</th>
+            <th className="text-right">생산수량</th>
+            <th className="text-right">차이</th>
+            <th className="text-right">소모 표준</th>
+            <th className="text-right">소모 실제</th>
+            <th className="text-right">소모 차이</th>
+            <th className="text-right">시간 표준</th>
+            <th className="text-right">시간 실제</th>
+            {/*
+              2026-09-09 원본 실측(E040436). 원본 격자는 <b>머리가 두 줄</b>이라
+              [작업지시서|생산|소모|시간|하위공정] 아래에 전표번호·품목·납기일자 /
+              계획수량·생산수량·<b>차이</b> / 표준·실제·<b>차이</b> / 표준·실제·<b>차이</b> 가
+              달린다. 우리는 소모 쪽 차이만 두고 <b>시간 쪽 차이를 빼먹고 있었다</b> —
+              표준과 실제를 나란히 두고 뺄셈은 사람에게 시키고 있었던 셈이다.
+            */}
+            <th className="text-right">시간 차이</th>
+            {/* 원본은 이 칸의 [조회] 를 <b>왼쪽</b>에 붙인다(실측). */}
+            <th>하위공정</th>
+            <th className="text-center">진행상태</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
+          ) : shown.length === 0 ? (
+            <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.flatMap((r, i) => {
+            const e = efficiency.get(r.id)
+            const qtyDiff = r.producedQty - r.plannedQty
+            const consumeDiff = e ? e.std.amount - e.act.amount : 0
+            const timeDiff = e ? e.time.standard - e.time.actual : 0
+            const unknown = e ? e.std.unknown + e.act.unknown : 0
+            const expanded = open.has(r.id)
+            const detail = (e?.rows ?? []).filter((x) => x.stdQty !== 0 || x.actualQty !== 0)
+            const rows = [(
+              <tr key={r.id}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{r.orderNo}</td>
+                <td>[{r.productCode}] {r.productName}</td>
+                <td className="text-center">{dateText(r.dueDate) || ''}</td>
+                <td className="text-right">{r.plannedQty.toLocaleString('ko-KR')}</td>
+                <td className="text-right">{r.producedQty.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: qtyDiff < 0 ? 'var(--ec-danger)' : qtyDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
+                  {qtyDiff.toLocaleString('ko-KR')}
+                </td>
+                <td className="text-right">{won(e?.std.amount ?? 0)}</td>
+                <td className="text-right">{won(e?.act.amount ?? 0)}</td>
+                {/* 표준 − 실제. 음수면 자재를 더 썼다는 뜻이다. */}
+                <td style={{ textAlign: 'right', fontWeight: 700, color: consumeDiff < 0 ? 'var(--ec-danger)' : consumeDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
+                  {won(consumeDiff)}
+                  {unknown > 0 && (
+                    <span title={'단가를 모르는 자재 ' + unknown + '건은 빼고 셌습니다.'} className="text-ec-warn"> *</span>
+                  )}
+                </td>
+                <td className="text-right text-ec-label">{e && e.time.standard ? won(e.time.standard) + '분' : ''}</td>
+                <td className="text-right">{e && e.time.actual ? won(e.time.actual) + '분' : ''}</td>
+                {/* 표준 − 실제. 음수면 예정보다 오래 걸렸다는 뜻이다(소모 차이와 같은 방향). */}
+                <td style={{ textAlign: 'right', fontWeight: 700, color: timeDiff < 0 ? 'var(--ec-danger)' : timeDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
+                  {e && (e.time.standard || e.time.actual) ? won(timeDiff) + '분' : ''}
+                </td>
+                <td>
+                  {detail.length > 0 ? (
+                    <button onClick={() => setOpen((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
+                      return next
+                    })} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                      {expanded ? '접기' : '펼치기 (' + detail.length + ')'}
+                    </button>
+                  ) : <span className="text-ec-off">-</span>}
+                </td>
+                <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'COMPLETED' ? 'var(--ec-success)' : r.status === 'IN_PROGRESS' ? 'var(--ec-warn)' : 'var(--ec-text-hint)' }}>{r.statusName}</td>
+              </tr>
+            )]
+            if (expanded) {
+              for (const d of detail) {
+                rows.push(
+                  <tr key={r.id + '-' + d.componentId} className="bg-ec-page">
+                    <td></td>
+                    <td colSpan={2} className="pl-[18px] text-ec-label">└ {d.componentName}</td>
+                    <td></td>
+                    <td className="text-right text-ec-hint">{d.stdQty.toLocaleString('ko-KR')}</td>
+                    <td className="text-right text-ec-hint">{d.actualQty.toLocaleString('ko-KR')}</td>
+                    <td className="text-right text-ec-hint">{(d.actualQty - d.stdQty).toLocaleString('ko-KR')}</td>
+                    <td className="text-right">{d.stdAmount != null ? won(d.stdAmount) : ''}</td>
+                    <td className="text-right">{d.actualAmount != null ? won(d.actualAmount) : ''}</td>
+                    <td style={{ textAlign: 'right', color: d.diffAmount != null && d.diffAmount < 0 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
+                      {d.diffAmount != null ? won(d.diffAmount) : '단가 없음'}
+                    </td>
+                    {/* 시간 표준·실제·차이 · 하위공정 · 진행상태 — 자재 줄에는 없다 */}
+                    <td colSpan={5}></td>
+                  </tr>,
+                )
+              }
+            }
+            return rows
+          })}
+        </tbody>
+      </table>
+    </EcListShell>
+  )
+}

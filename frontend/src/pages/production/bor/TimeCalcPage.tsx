@@ -1,0 +1,345 @@
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import EcListShell from '../../../components/EcListShell'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { EcCond } from '../../../components/EcStatusPanel'
+import { mergeLoadedLines } from '../../../utils/mergeLines'
+import { ymd } from '../../../components/EcPeriodPicks'
+import { api, extractErrorMessage } from '../../../api/client'
+import type { Item } from '../../../types/api'
+import SalesOrderPickModal, { type SalesOrderLite } from '../../../features/salesorder/components/SalesOrderPickModal'
+import EcDateInput from '../../../components/ui/EcDateInput'
+
+/**
+ * 생산관리 > 소요시간계산.
+ *
+ * <p>원본 실측(사본): 상단 조건이 일자 · 생산공장 · 생산품목 · [찾기(F3)] · 주문 · 바코드이고,
+ * 그리드는 <b>생산품목코드 · 생산품목명 · 규격 · 추가수량 · 수량</b>, 아래에 [계산(F8)].
+ * 즉 <b>만들 품목과 수량을 넣고 시간을 묻는</b> 화면이다.
+ *
+ * <p>우리 화면은 <b>공정</b>마다 수량을 넣어 표준시간을 곱하는 계산기였다. "이 제품 100개를
+ * 만들면 몇 시간" 이 아니라 "절단 공정에 100개를 태우면 몇 분" 을 묻는 셈이라, 정작
+ * 제품을 만들 때 몇 시간이 드는지는 사람이 공정을 하나씩 골라 더해야 했다.
+ *
+ * <p>이제 BOR(작업소요시간)이 있으니 품목 하나로 답이 나온다 — 그 품목이 거치는 작업의
+ * 1개당 시간을 모두 더해 수량을 곱한다. BOR 이 없는 품목은 <b>0 이 아니라 '라우팅 없음'</b>
+ * 이다. 0 시간이라고 하면 "안 걸린다" 로 읽힌다.
+ *
+ * <p>생산공장은 우리에게 없다(재고는 창고 단위다). 바코드로 불러오는 것도 없어 칸을
+ * 만들지 않았다 — 없는 조건을 그려 두면 눌러도 아무 일이 없다.
+ *
+ * <p>그런데 <b>[일자]가 정확히 그 상태였다.</b> 칸을 그려 놓고 아무 데서도 쓰지 않았다 —
+ * 날짜를 바꿔도 계산이 달라지지 않는다. 원칙을 적어 두고 같은 화면에서 어겼다.
+ *
+ * <p>이제 그 날짜로 <b>작업지시를 불러온다</b>(원본 [주문] 자리에 해당한다). 그 날 잡힌
+ * 지시의 품목·수량을 그리드에 담아, "이 날 공장이 몇 시간 돌아야 하나" 를 바로 낸다.
+ * 불러온 줄은 <b>기존 줄을 덮지 않고</b> 뒤에 붙인다 — 손으로 적어 둔 것을 지우면 안 된다.
+ */
+interface BorRow {
+  productId: number
+  processId: number
+  processName: string
+  seq: number
+  workName: string
+  hoursPerUnit: number | null
+  active: boolean
+}
+
+/** 작업지시 한 줄 — [일자]로 불러올 때만 쓴다. */
+interface WoRow {
+  id: number
+  orderNo: string
+  orderDate: string
+  productId: number
+  plannedQty: number
+  /** 원본 조건 [생산공장]. 작업지시가 어느 공장 것인지. */
+  warehouseName: string
+}
+
+/** 계산할 한 줄. 원본 그리드의 [생산품목 · 규격 · 추가수량 · 수량] 이다. */
+interface CalcLine {
+  key: number
+  itemId: string
+  /** 원본 [추가수량] — 불량 대비 등으로 더 만드는 수량. 소요시간은 수량+추가수량으로 잡는다. */
+  extraQty: string
+  qty: string
+}
+
+const hhmm = (hours: number): string => {
+  const total = Math.round(hours * 60)
+  const sign = total < 0 ? '-' : ''
+  const abs = Math.abs(total)
+  return `${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`
+}
+
+let nextKey = 1
+
+export default function TimeCalcPage() {
+  const [items, setItems] = useState<Item[]>([])
+  const [bor, setBor] = useState<BorRow[]>([])
+  const [orders, setOrders] = useState<WoRow[]>([])
+  const [notice, setNotice] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  /** 원본 조건 [생산공장]. 공장을 고르면 그 공장 작업지시만 불러온다. */
+  const [plant, setPlant] = useState('')
+  const [baseDate, setBaseDate] = useState(ymd(new Date()))
+  const [lines, setLines] = useState<CalcLine[]>([{ key: nextKey++, itemId: '', extraQty: '', qty: '' }])
+  /** [계산(F8)] 을 눌러야 결과가 나온다 — 원본도 그렇다. */
+  const [calculated, setCalculated] = useState(false)
+  const [openKey, setOpenKey] = useState<number | null>(null)
+  const [orderOpen, setOrderOpen] = useState(false)
+
+  /**
+   * 원본 툴바의 <b>[주문]</b> — 주문서검색창에서 고른 주문의 <b>생산할 수 있는 품목(제품·반제품)</b> 줄을
+   * 주문수량으로 담는다(작업지시서입력 [주문] 과 같은 규칙, 2026-10-02 loginaa 실측). 상품만 든 주문이면 아무것도 안 담긴다.
+   */
+  function applyOrders(picked: SalesOrderLite[]) {
+    const cat = new Map(items.map((i) => [i.id, i.category]))
+    const added = picked.flatMap((o) => o.lines)
+      .filter((l) => cat.get(l.itemId) === 'FINISHED' || cat.get(l.itemId) === 'SEMI_FINISHED')
+      .map((l) => ({ key: nextKey++, itemId: String(l.itemId), extraQty: '', qty: String(l.quantity) }))
+    setOrderOpen(false)
+    if (added.length === 0) { setNotice('고른 주문에 생산할 품목(제품·반제품)이 없습니다.'); return }
+    setLines((prev) => mergeLoadedLines(prev, added))
+    setCalculated(true)
+    setNotice(`주문 ${picked.length}건에서 ${added.length}줄을 담았습니다.`)
+  }
+
+  /**
+   * 원본 [작업지시서] — [일자]에 잡힌 작업지시를 그리드에 담는다.
+   *
+   * <p>기존 줄을 <b>덮지 않고 뒤에 붙인다</b> — 손으로 적어 둔 것을 지우면 안 된다.
+   * 빈 줄(품목을 아직 안 고른 줄)만 걷어낸다.
+   */
+  function loadFromOrders() {
+    const todays = orders
+      .filter((o) => o.orderDate === baseDate)
+      // 원본 조건 [생산공장] — 공장을 고르면 그 공장 지시만 담는다.
+      .filter((o) => !plant || o.warehouseName === plant)
+    setNotice('')
+    if (todays.length === 0) {
+      setNotice(`${baseDate} 에 잡힌 작업지시가 없습니다.`)
+      return
+    }
+    const added = todays.map((o) => ({
+      key: nextKey++, itemId: String(o.productId), extraQty: '', qty: String(o.plannedQty),
+    }))
+    // 규칙은 utils/mergeLines 에 있다 — 덮어쓰기는 조용히 일어나서 뒤늦게 안다.
+    setLines((prev) => mergeLoadedLines(prev, added))
+    setCalculated(true)
+    setNotice(`${baseDate} 작업지시 ${todays.length}건을 담았습니다.`)
+  }
+
+  async function load() {
+    setLoading(true)
+    setError('')
+    try {
+      const [i, b, w] = await Promise.all([
+        api.get<Item[]>('/items'),
+        api.get<BorRow[]>('/bor'),
+        /*
+         * <b>보는 날 하루만 받는다.</b> 이 화면은 [기준일자] <b>하루</b>에 잡힌 작업지시를
+         * 담는데(아래 <code>o.orderDate === baseDate</code>), 여태 작업지시를 통째로 받아
+         * 브라우저에서 그 하루만 골랐다.
+         */
+        api.get<WoRow[]>('/work-orders', { params: { from: baseDate, to: baseDate } }),
+      ])
+      setItems(i.data)
+      setBor(b.data)
+      setOrders(w.data)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+  /* 기준일자를 바꾸면 그 날로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [baseDate])
+
+  /** 품목 → 작업들(활성만). 순서대로. */
+  const opsOf = useMemo(() => {
+    const m = new Map<number, BorRow[]>()
+    for (const o of bor) {
+      if (!o.active) continue
+      const cur = m.get(o.productId) ?? []
+      cur.push(o)
+      m.set(o.productId, cur)
+    }
+    for (const list of m.values()) list.sort((a, b) => a.seq - b.seq)
+    return m
+  }, [bor])
+
+  const itemOf = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
+
+  const results = useMemo(() => lines.map((l) => {
+    const id = Number(l.itemId)
+    const item = itemOf.get(id)
+    const qty = (Number(l.qty) || 0) + (Number(l.extraQty) || 0)
+    const ops = opsOf.get(id) ?? []
+    const perUnit = ops.reduce((n, o) => n + (o.hoursPerUnit ?? 0), 0)
+    return {
+      line: l,
+      item,
+      qty,
+      ops,
+      /** 라우팅이 없으면 null — 0 시간이 아니다. */
+      hours: ops.length === 0 ? null : perUnit * qty,
+      perUnit: ops.length === 0 ? null : perUnit,
+    }
+  }), [lines, itemOf, opsOf])
+
+  const totalHours = results.reduce((n, r) => n + (r.hours ?? 0), 0)
+  const unknown = results.filter((r) => r.item && r.hours == null).length
+
+  const setLine = (key: number, patch: Partial<CalcLine>) =>
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
+
+  return (
+    <EcListShell
+      title="소요시간계산"
+      searchable={false}
+      actions={[
+        /*
+         * 원본 이름은 <b>[작업지시서]</b> 다(옆의 [주문]과 짝 — 어디서 불러올지를 고르는 버튼이다).
+         * 우리는 [작업지시 불러오기] 라고 적어 두고 '그 버튼이 없다' 고 예외에 적었는데,
+         * <b>없던 것이 아니라 이름이 달랐다.</b>
+         */
+        { label: '주문', onClick: () => setOrderOpen(true) },
+        { label: '작업지시서', onClick: loadFromOrders },
+        { label: '계산(F8)', primary: true, onClick: () => setCalculated(true) },
+        { label: '줄 추가', onClick: () => setLines((p) => [...p, { key: nextKey++, itemId: '', extraQty: '', qty: '' }]) },
+        { label: '다시 작성', onClick: () => { setLines([{ key: nextKey++, itemId: '', extraQty: '', qty: '' }]); setCalculated(false) } },
+        { label: '새로고침', onClick: load },
+      ]}
+    >
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="일자" span="full">
+          <EcDateInput className="ec-input" value={baseDate} onChange={(e) => setBaseDate(e.target.value)} />
+          <span className="text-[11.5px] text-ec-hint ml-[6px]">
+            [작업지시 불러오기]를 누르면 이 날짜에 잡힌 지시를 아래 그리드에 담습니다.
+          </span>
+        </EcCond>
+        <EcCond label="생산공장" pick>
+          <CodePickerField label="생산공장" hideLabel width={200} emptyLabel="전체"
+                           value={plant} onChange={(v) => setPlant(v)}
+                           items={[...new Set(orders.map((o) => o.warehouseName).filter(Boolean))]
+                             .map((w) => ({ value: w, name: w }))} />
+        </EcCond>
+      </ul>
+
+      {notice && (
+        <p style={{ marginBottom: 8, background: '#eef3ff', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          {notice}
+        </p>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="ec-grid w-full text-left">
+          <thead>
+            <tr>
+              <th className="w-[34px]"></th>
+              {/*
+                원본 소요시간계산의 두 열은 <b>[생산품목코드] · [생산품목명]</b> 이다(사본 실측).
+                우리는 고르는 칸을 [생산품목] 이라 부르고 그 옆에 <b>코드를 또</b> 찍고 있었다 —
+                고르는 칸이 이미 [코드] 이름 을 함께 보여 주므로 옆 칸은 이름을 적는 게 맞다.
+              */}
+              <th className="w-[230px]">생산품목코드</th>
+              <th className="w-[160px]">생산품목명</th>
+              <th>규격</th>
+              <th className="w-[110px] text-right">추가수량</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[120px] text-right">1개당(H)</th>
+              <th className="w-[130px] text-right">소요시간</th>
+              <th className="w-[90px] text-center">공정</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            ) : results.map((r, i) => (
+              /* map 이 돌려주는 바깥 요소에 key 를 단다. <> 에는 key 를 못 달아
+                 React 가 "unique key" 경고를 낸다 — 조각이라도 Fragment 로 적는다. */
+              <Fragment key={r.line.key}>
+                <tr>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>
+                    <CodePickerField
+                      label="생산품목" hideLabel width={210} placeholder="품목 선택"
+                      value={r.line.itemId} onChange={(v) => { setLine(r.line.key, { itemId: v }); setCalculated(false) }}
+                      items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.categoryName }))}
+                    />
+                  </td>
+                  <td>{r.item?.name ?? ''}</td>
+                  <td className="text-ec-label">{r.item?.spec ?? ''}</td>
+                  <td className="text-right">
+                    <input className="ec-input text-right" type="number" style={{ width: 90 }}
+                           value={r.line.extraQty}
+                           onChange={(e) => { setLine(r.line.key, { extraQty: e.target.value }); setCalculated(false) }} />
+                  </td>
+                  <td className="text-right">
+                    <input className="ec-input text-right" type="number" style={{ width: 90 }}
+                           value={r.line.qty}
+                           onChange={(e) => { setLine(r.line.key, { qty: e.target.value }); setCalculated(false) }} />
+                  </td>
+                  <td className="text-right text-ec-label">
+                    {calculated && r.perUnit != null ? r.perUnit.toFixed(4) : ''}
+                  </td>
+                  <td className="text-right font-bold">
+                    {!calculated ? '' : r.hours == null
+                      ? (r.item ? <span className="text-ec-warn">라우팅 없음</span> : '')
+                      : `${hhmm(r.hours)} (${r.hours.toFixed(2)}H)`}
+                  </td>
+                  <td className="text-center">
+                    {calculated && r.ops.length > 0 ? (
+                      <button onClick={() => setOpenKey(openKey === r.line.key ? null : r.line.key)}
+                              style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                        {openKey === r.line.key ? '접기' : `${r.ops.length}개`}
+                      </button>
+                    ) : <span className="text-ec-off">-</span>}
+                  </td>
+                </tr>
+                {calculated && openKey === r.line.key && r.ops.map((o) => (
+                  <tr key={`${r.line.key}-${o.seq}`} style={{ background: 'var(--ec-bg-page)' }}>
+                    <td></td>
+                    <td colSpan={3} className="pl-[18px] text-ec-label">
+                      └ {o.seq}. {o.workName} <span className="text-ec-hint">({o.processName})</span>
+                    </td>
+                    <td colSpan={2}></td>
+                    <td className="text-right text-ec-label">{o.hoursPerUnit == null ? '' : o.hoursPerUnit.toFixed(4)}</td>
+                    <td className="text-right text-ec-label">{o.hoursPerUnit == null ? '' : hhmm(o.hoursPerUnit * r.qty)}</td>
+                    <td></td>
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+          {calculated && (
+            <tfoot>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={7} className="text-right">
+                  합계 ({results.filter((r) => r.item).length}품목)
+                  {unknown > 0 && (
+                    <span className="text-ec-warn font-normal"> · 라우팅 없는 {unknown}품목은 뺐습니다</span>
+                  )}
+                </td>
+                <td className="text-right text-ec-navy">
+                  {hhmm(totalHours)} ({totalHours.toFixed(2)}H)
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      <p className="mt-[8px] text-[11.5px] text-ec-hint">
+        * 소요시간은 BOR(작업소요시간)에 적힌 <b>1개당 작업시간 × (수량 + 추가수량)</b> 입니다.
+        라우팅을 세우지 않은 품목은 계산하지 않습니다 — 0 시간으로 두면 "안 걸린다" 로 읽힙니다.
+      </p>
+      <SalesOrderPickModal open={orderOpen} onClose={() => setOrderOpen(false)} onApply={applyOrders} />
+    </EcListShell>
+  )
+}

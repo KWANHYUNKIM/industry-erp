@@ -719,137 +719,137 @@
   "color": 0,
   "palette": 0
  },
- "pages/production/BomPage.tsx": {
+ "pages/production/bom/BomPage.tsx": {
   "inline": 2,
   "color": 0,
   "palette": 0
  },
- "pages/production/BomStatusPage.tsx": {
+ "pages/production/bom/BomStatusPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/production/BorPage.tsx": {
+ "pages/production/bor/BorPage.tsx": {
   "inline": 12,
   "color": 3,
   "palette": 0
  },
- "pages/production/IssuePage.tsx": {
+ "pages/production/materialissue/IssuePage.tsx": {
   "inline": 9,
   "color": 0,
   "palette": 0
  },
- "pages/production/IssueStatusPage.tsx": {
+ "pages/production/materialissue/IssueStatusPage.tsx": {
   "inline": 19,
   "color": 8,
   "palette": 0
  },
- "pages/production/MrpPage.tsx": {
+ "pages/production/productionplan/MrpPage.tsx": {
   "inline": 22,
   "color": 0,
   "palette": 0
  },
- "pages/production/PlanningPage.tsx": {
+ "pages/production/productionplan/PlanningPage.tsx": {
   "inline": 12,
   "color": 2,
   "palette": 0
  },
- "pages/production/ProcessOperationModal.tsx": {
+ "pages/production/process/ProcessOperationModal.tsx": {
   "inline": 9,
   "color": 3,
   "palette": 0
  },
- "pages/production/ProcessPage.tsx": {
+ "pages/production/process/ProcessPage.tsx": {
   "inline": 9,
   "color": 1,
   "palette": 0
  },
- "pages/production/ProductionIssueStatusPage.tsx": {
+ "pages/production/materialissue/ProductionIssueStatusPage.tsx": {
   "inline": 18,
   "color": 8,
   "palette": 0
  },
- "pages/production/ProductionResultPage.tsx": {
+ "pages/production/production/ProductionResultPage.tsx": {
   "inline": 18,
   "color": 0,
   "palette": 0
  },
- "pages/production/PurchaseTaxStockPage.tsx": {
+ "pages/production/production/PurchaseTaxStockPage.tsx": {
   "inline": 5,
   "color": 2,
   "palette": 0
  },
- "pages/production/ReceiptInquiryPage.tsx": {
+ "pages/production/production/ReceiptInquiryPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/production/ReceiptStatusPage.tsx": {
+ "pages/production/production/ReceiptStatusPage.tsx": {
   "inline": 12,
   "color": 0,
   "palette": 0
  },
- "pages/production/RequirementCalcPage.tsx": {
+ "pages/production/bom/RequirementCalcPage.tsx": {
   "inline": 7,
   "color": 0,
   "palette": 0
  },
- "pages/production/ResourcePage.tsx": {
+ "pages/production/process/ResourcePage.tsx": {
   "inline": 10,
   "color": 1,
   "palette": 0
  },
- "pages/production/SubcontractReflectionPage.tsx": {
+ "pages/production/production/SubcontractReflectionPage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/production/TimeCalcPage.tsx": {
+ "pages/production/bor/TimeCalcPage.tsx": {
   "inline": 6,
   "color": 1,
   "palette": 0
  },
- "pages/production/WoEfficiencyPage.tsx": {
+ "pages/production/workorder/WoEfficiencyPage.tsx": {
   "inline": 10,
   "color": 0,
   "palette": 0
  },
- "pages/production/WoProgressPage.tsx": {
+ "pages/production/workorder/WoProgressPage.tsx": {
   "inline": 12,
   "color": 3,
   "palette": 0
  },
- "pages/production/WorkOrderEntryPage.tsx": {
+ "pages/production/workorder/WorkOrderEntryPage.tsx": {
   "inline": 7,
   "color": 1,
   "palette": 0
  },
- "pages/production/WorkOrderPage.tsx": {
+ "pages/production/workorder/WorkOrderPage.tsx": {
   "inline": 6,
   "color": 2,
   "palette": 0
  },
- "pages/production/WorkProcessPage.tsx": {
+ "pages/production/process/WorkProcessPage.tsx": {
   "inline": 9,
   "color": 0,
   "palette": 0
  },
- "pages/production/WorkResultInquiryPage.tsx": {
+ "pages/production/workresult/WorkResultInquiryPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/production/WorkResultListPage.tsx": {
+ "pages/production/workresult/WorkResultListPage.tsx": {
   "inline": 25,
   "color": 0,
   "palette": 0
  },
- "pages/production/WorkResultPage.tsx": {
+ "pages/production/workresult/WorkResultPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/production/WoStatusPage.tsx": {
+ "pages/production/workorder/WoStatusPage.tsx": {
   "inline": 18,
   "color": 0,
   "palette": 0

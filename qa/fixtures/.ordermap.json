@@ -17,7 +17,7 @@
  ],
  [
   "공정등록",
-  "production/ProcessPage.tsx"
+  "production/process/ProcessPage.tsx"
  ],
  [
   "구매단가일괄변경",
@@ -49,19 +49,19 @@
  ],
  [
   "생산불출조회",
-  "production/IssuePage.tsx"
+  "production/materialissue/IssuePage.tsx"
  ],
  [
   "생산입고조회",
-  "production/ReceiptInquiryPage.tsx"
+  "production/production/ReceiptInquiryPage.tsx"
  ],
  [
   "생산입고현황",
-  "production/ReceiptStatusPage.tsx"
+  "production/production/ReceiptStatusPage.tsx"
  ],
  [
   "생산입고_소모현황 I",
-  "production/ProductionIssueStatusPage.tsx"
+  "production/materialissue/ProductionIssueStatusPage.tsx"
  ],
  [
   "설문조사조회",
@@ -69,7 +69,7 @@
  ],
  [
   "소요시간계산",
-  "production/TimeCalcPage.tsx"
+  "production/bor/TimeCalcPage.tsx"
  ],
  [
   "오더관리유형리스트",
@@ -89,27 +89,27 @@
  ],
  [
   "자원등록",
-  "production/ResourcePage.tsx"
+  "production/process/ResourcePage.tsx"
  ],
  [
   "작업내역입력",
-  "production/WorkResultPage.tsx"
+  "production/workresult/WorkResultPage.tsx"
  ],
  [
   "작업내역조회",
-  "production/WorkResultInquiryPage.tsx"
+  "production/workresult/WorkResultInquiryPage.tsx"
  ],
  [
   "작업내역현황",
-  "production/WorkResultListPage.tsx"
+  "production/workresult/WorkResultListPage.tsx"
  ],
  [
   "작업지시서조회",
-  "production/WorkOrderPage.tsx"
+  "production/workorder/WorkOrderPage.tsx"
  ],
  [
   "작업지시서현황",
-  "production/WoStatusPage.tsx"
+  "production/workorder/WoStatusPage.tsx"
  ],
  [
   "창고등록리스트",
@@ -141,7 +141,7 @@
  ],
  [
   "BOR(작업소요시간)",
-  "production/BorPage.tsx"
+  "production/bor/BorPage.tsx"
  ],
  [
   "SW개발일정관리",
@@ -177,7 +177,7 @@
  ],
  [
   "생산불출현황",
-  "production/IssueStatusPage.tsx"
+  "production/materialissue/IssueStatusPage.tsx"
  ],
  [
   "설문조사입력",
@@ -205,15 +205,15 @@
  ],
  [
   "작업지시서별진행현황",
-  "production/WoProgressPage.tsx"
+  "production/workorder/WoProgressPage.tsx"
  ],
  [
   "작업지시서작업처리",
-  "production/WorkProcessPage.tsx"
+  "production/process/WorkProcessPage.tsx"
  ],
  [
   "작업지시서효율현황",
-  "production/WoEfficiencyPage.tsx"
+  "production/workorder/WoEfficiencyPage.tsx"
  ],
  [
   "차이분석",
@@ -289,7 +289,7 @@
  ],
  [
   "작업지시서입력",
-  "production/WorkOrderEntryPage.tsx"
+  "production/workorder/WorkOrderEntryPage.tsx"
  ],
  [
   "출하지시서입력",
@@ -305,15 +305,15 @@
  ],
  [
   "생산입고II-소모품목 선택",
-  "production/ProductionResultPage.tsx"
+  "production/production/ProductionResultPage.tsx"
  ],
  [
   "생산입고 III-소모품목 선택",
-  "production/ProductionResultPage.tsx"
+  "production/production/ProductionResultPage.tsx"
  ],
  [
   "생산입고I-BOM기준소모",
-  "production/ProductionResultPage.tsx"
+  "production/production/ProductionResultPage.tsx"
  ],
  [
   "거래처관리대장 I",
@@ -345,11 +345,11 @@
  ],
  [
   "생산계획_MRP리스트",
-  "production/MrpPage.tsx"
+  "production/productionplan/MrpPage.tsx"
  ],
  [
   "생산불출입력",
-  "production/IssueEntryPage.tsx"
+  "production/materialissue/IssueEntryPage.tsx"
  ],
  [
   "판매입력II",
@@ -397,11 +397,11 @@
  ],
  [
   "생산입고/소모현황 I",
-  "production/ProductionIssueStatusPage.tsx"
+  "production/materialissue/ProductionIssueStatusPage.tsx"
  ],
  [
   "생산계획/MRP생성",
-  "production/MrpPage.tsx"
+  "production/productionplan/MrpPage.tsx"
  ],
  [
   "쇼핑몰품목코드연결",
@@ -597,7 +597,7 @@
  ],
  [
   "생산불출",
-  "production/IssuePage.tsx"
+  "production/materialissue/IssuePage.tsx"
  ],
  [
   "프로젝트계획조회",
@@ -773,11 +773,11 @@
  ],
  [
   "매입(세금)계산서현황(재고)",
-  "production/PurchaseTaxStockPage.tsx"
+  "production/production/PurchaseTaxStockPage.tsx"
  ],
  [
   "BOM(소요량)현황",
-  "production/BomStatusPage.tsx"
+  "production/bom/BomStatusPage.tsx"
  ],
  [
   "보유어음현황",
@@ -909,15 +909,15 @@
  ],
  [
   "매출(세금)계산서현황(재고)",
-  "production/PurchaseTaxStockPage.tsx"
+  "production/production/PurchaseTaxStockPage.tsx"
  ],
  [
   "매출(세금)계산서조회(재고)",
-  "production/PurchaseTaxStockPage.tsx"
+  "production/production/PurchaseTaxStockPage.tsx"
  ],
  [
   "매입(세금)계산서조회(재고)",
-  "production/PurchaseTaxStockPage.tsx"
+  "production/production/PurchaseTaxStockPage.tsx"
  ],
  [
   "A/S수리조회",
@@ -929,7 +929,7 @@
  ],
  [
   "BOM(소요량)조회",
-  "production/BomPage.tsx"
+  "production/bom/BomPage.tsx"
  ],
  [
   "비용내역조회",

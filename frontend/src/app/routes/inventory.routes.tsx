@@ -19,7 +19,7 @@ const MultiSpecStockPage = lazy(() => import('../../pages/inventory/stock/MultiS
 const TransferStatusPage = lazy(() => import('../../pages/inventory/transfer/TransferStatusPage'))
 const DailyStockPage = lazy(() => import('../../pages/inventory/stock/DailyStockPage'))
 const StocktakeStatusPage = lazy(() => import('../../pages/inventory/adjustment/StocktakeStatusPage'))
-export const ProductionIssueStatusPage = lazy(() => import('../../pages/production/ProductionIssueStatusPage'))
+export const ProductionIssueStatusPage = lazy(() => import('../../pages/production/materialissue/ProductionIssueStatusPage'))
 const StockMoveStatusPage = lazy(() => import('../../pages/inventory/adjustment/StockMoveStatusPage'))
 const ManageItemsPage = lazy(() => import('../../pages/inventory/item/ManageItemsPage'))
 const PriceOrderPage = lazy(() => import('../../pages/inventory/item/PriceOrderPage'))
