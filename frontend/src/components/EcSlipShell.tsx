@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import EcIcon, { type EcIconName } from './ui/EcIcon'
+import { onRequestsIdle, requestsInFlight } from '../api/client'
+import { createSaveLock } from '../utils/saveLock'
 
 /**
  * 전표입력 화면 셸 — 이카운트 `page page-fluid page-modal` 구조를 그대로 옮긴 것.
@@ -157,9 +159,23 @@ export default function EcSlipShell({
   help?: ReactNode
   children: ReactNode
 }) {
-  const actions = busy
-    ? rawActions.map((a) => (a.submit || a.label.includes('F7') ? { ...a, disabled: true, disabledReason: undefined } : a))
-    : rawActions
+  /*
+   * 저장 중복 잠금(utils/saveLock) — [저장] 을 받으면 그 뒤 요청이 다 끝날 때까지 다음 저장을 버린다.
+   * 화면마다 useSubmitting 을 단 곳은 일부라, 셸 한 곳에서 전부 막는다(docs/백엔드-API-설계.md 4장 6단계 ①).
+   * 막는 길: 저장 단추 · ▴메뉴의 '저장…' 항목 · F7 은 onClick 감싸기, form 제출(F8 · 저장 단추 · 칸에서 Enter)은 아래 submit 듣기.
+   */
+  const [saveLocked, setSaveLocked] = useState(false)
+  const lockRef = useRef<ReturnType<typeof createSaveLock> | null>(null)
+  if (!lockRef.current) lockRef.current = createSaveLock({ inFlight: requestsInFlight, onIdle: onRequestsIdle }, setSaveLocked)
+  const lock = lockRef.current
+  const isSave = (label: string) => label.startsWith('저장')
+  const guard = (fn?: () => void) => (fn ? () => { if (lock.tryLock()) fn() } : fn)
+  const guarded = rawActions.map((a) => (a.submit || isSave(a.label)
+    ? { ...a, onClick: guard(a.onClick), menu: a.menu?.map((m) => (isSave(m.label) ? { ...m, onClick: guard(m.onClick) } : m)) }
+    : a))
+  const actions = busy || saveLocked
+    ? guarded.map((a) => (a.submit || a.label.includes('F7') ? { ...a, disabled: true, disabledReason: undefined } : a))
+    : guarded
   const [helpOpen, setHelpOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
   const [optionOpen, setOptionOpen] = useState(false)
@@ -179,6 +195,20 @@ export default function EcSlipShell({
     if (form) form.requestSubmit()
     else footerRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
   }
+
+  // form 제출 — 잠겨 있으면 화면의 onSubmit(React 는 뿌리에서 받는다)까지 가지 않게 여기서 끊는다.
+  useEffect(() => {
+    const form = footerRef.current?.closest('form')
+    if (!form) return
+    const onSubmit = (e: Event) => {
+      if (lock.tryLock()) return
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    form.addEventListener('submit', onSubmit)
+    return () => form.removeEventListener('submit', onSubmit)
+  }, [lock])
+  useEffect(() => () => lock.dispose(), [lock])
 
   // 저장(F8)·저장/전표(F7) — 원본과 같은 단축키. 입력칸 안에서도 먹어야 하므로 window 에 건다.
   // F7 은 라벨에 적혀만 있고 안 걸려 있었다(F8 만 잡고 있었다).

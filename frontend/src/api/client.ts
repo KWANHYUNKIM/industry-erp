@@ -13,8 +13,30 @@ export const api = axios.create({
   baseURL: '/api',
 })
 
+/*
+ * 도는 요청 수 — 공용 저장 단추(EcSlipShell)가 [저장] 뒤 요청이 다 끝날 때까지 두 번째 저장을 막는 데 쓴다
+ * (utils/saveLock). 늘리기는 아래 요청 인터셉터, 줄이기는 응답 인터셉터(성공 · 실패 둘 다)가 한다.
+ */
+let inFlight = 0
+const idleWaiters = new Set<() => void>()
+export const requestsInFlight = () => inFlight
+/** 도는 요청이 0 이 되면 한 번 부른다(지금 0 이면 바로). 돌려준 함수로 취소. */
+export function onRequestsIdle(fn: () => void): () => void {
+  if (inFlight === 0) { fn(); return () => {} }
+  idleWaiters.add(fn)
+  return () => { idleWaiters.delete(fn) }
+}
+function requestSettled() {
+  inFlight = Math.max(0, inFlight - 1)
+  if (inFlight > 0) return
+  const ws = [...idleWaiters]
+  idleWaiters.clear()
+  ws.forEach((f) => f())
+}
+
 // 모든 요청에 JWT 토큰 부착
 api.interceptors.request.use((config) => {
+  inFlight++
   const token = tokenStore.get()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -49,8 +71,9 @@ export function permissionDeniedOf(error: unknown): PermissionDenied | null {
 
 // 401 응답 시 토큰 제거 후 로그인 페이지로
 api.interceptors.response.use(
-  (res) => res,
+  (res) => { requestSettled(); return res },
   (error) => {
+    requestSettled()
     /* 행위(입력 · 수정 · 삭제) 권한 거부 — 원본 알림 '권한이 없습니다. / 마스터에게 문의 바랍니다. / - 판매 업무권한 (삭제)'.
        화면이 같은 글로 또 띄워도 EcDialog 가 하나만 띄운다. 조회 거부는 자물쇠 화면이 맡는다. */
     const denied = permissionDeniedOf(error)
