@@ -26,7 +26,7 @@ export const menuSource = () => [read('layout/menu.ts'), read('layout/EcountLayo
  * 그 검사가 실패하거나, 더 나쁘게는 볼 것이 줄어 <b>조용히 통과</b>한다. 그래서 화면을 읽을 때 조각을 뒤에 이어 붙인다.
  */
 export const SPLIT_PARTS = {
-  'pages/inventory/ItemsPage.tsx': ['features/item/itemForm.ts', 'features/item/components/ItemFormWindow.tsx'],
+  'pages/inventory/item/ItemsPage.tsx': ['features/item/itemForm.ts', 'features/item/components/ItemFormWindow.tsx'],
   'pages/groupware/workpost/WorkPage.tsx': ['features/workpost/boardConfig.ts', 'features/workpost/components/NameChips.tsx',
     'features/workpost/components/WorkCondPanel.tsx', 'features/workpost/components/WorkPostFormModal.tsx',
     'features/workpost/components/WorkPostViewModal.tsx', 'features/workpost/components/WorkPostSubModals.tsx'],

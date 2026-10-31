@@ -614,102 +614,102 @@
   "color": 5,
   "palette": 0
  },
- "pages/inventory/AdjustListPage.tsx": {
+ "pages/inventory/adjustment/AdjustListPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/inventory/BomStockPage.tsx": {
+ "pages/inventory/stock/BomStockPage.tsx": {
   "inline": 6,
   "color": 5,
   "palette": 0
  },
- "pages/inventory/CurrentStockPage.tsx": {
+ "pages/inventory/stock/CurrentStockPage.tsx": {
   "inline": 5,
   "color": 1,
   "palette": 0
  },
- "pages/inventory/DailyStockPage.tsx": {
+ "pages/inventory/stock/DailyStockPage.tsx": {
   "inline": 6,
   "color": 4,
   "palette": 0
  },
- "pages/inventory/ReportsPage.tsx": {
+ "pages/inventory/stock/ReportsPage.tsx": {
   "inline": 14,
   "color": 6,
   "palette": 0
  },
- "pages/inventory/StagedAdjustmentPage.tsx": {
+ "pages/inventory/adjustment/StagedAdjustmentPage.tsx": {
   "inline": 11,
   "color": 2,
   "palette": 0
  },
- "pages/inventory/StagedProgressPage.tsx": {
+ "pages/inventory/adjustment/StagedProgressPage.tsx": {
   "inline": 3,
   "color": 5,
   "palette": 0
  },
- "pages/inventory/StockIoPage.tsx": {
+ "pages/inventory/stock/StockIoPage.tsx": {
   "inline": 14,
   "color": 6,
   "palette": 0
  },
- "pages/inventory/StockLedgerPage.tsx": {
+ "pages/inventory/stock/StockLedgerPage.tsx": {
   "inline": 8,
   "color": 7,
   "palette": 0
  },
- "pages/inventory/StockMoveListPage.tsx": {
+ "pages/inventory/adjustment/StockMoveListPage.tsx": {
   "inline": 2,
   "color": 0,
   "palette": 0
  },
- "pages/inventory/StockMovementPage.tsx": {
+ "pages/inventory/stock/StockMovementPage.tsx": {
   "inline": 4,
   "color": 2,
   "palette": 0
  },
- "pages/inventory/StockMoveStatusPage.tsx": {
+ "pages/inventory/adjustment/StockMoveStatusPage.tsx": {
   "inline": 9,
   "color": 1,
   "palette": 0
  },
- "pages/inventory/StockRecalcPage.tsx": {
+ "pages/inventory/stock/StockRecalcPage.tsx": {
   "inline": 8,
   "color": 1,
   "palette": 0
  },
- "pages/inventory/StocktakeListPage.tsx": {
+ "pages/inventory/adjustment/StocktakeListPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/inventory/StocktakeStatusPage.tsx": {
+ "pages/inventory/adjustment/StocktakeStatusPage.tsx": {
   "inline": 10,
   "color": 4,
   "palette": 0
  },
- "pages/inventory/TransferPage.tsx": {
+ "pages/inventory/transfer/TransferPage.tsx": {
   "inline": 11,
   "color": 1,
   "palette": 0
  },
- "pages/inventory/TransferStatusPage.tsx": {
+ "pages/inventory/transfer/TransferStatusPage.tsx": {
   "inline": 4,
   "color": 1,
   "palette": 0
  },
- "pages/inventory/WarehousesPage.tsx": {
+ "pages/inventory/warehouse/WarehousesPage.tsx": {
   "inline": 12,
   "color": 7,
   "palette": 0
  },
- "pages/inventory/WarehouseStockPage.tsx": {
+ "pages/inventory/stock/WarehouseStockPage.tsx": {
   "inline": 8,
   "color": 4,
   "palette": 0
  },
- "pages/inventory/WmsPage.tsx": {
+ "pages/inventory/wms/WmsPage.tsx": {
   "inline": 22,
   "color": 6,
   "palette": 0

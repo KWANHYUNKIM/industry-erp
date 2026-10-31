@@ -1,0 +1,215 @@
+import { useRef, useEffect, useState, type FormEvent } from 'react'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { api, extractErrorMessage } from '../../../api/client'
+import type { Item, Page, StockTransaction, Warehouse } from '../../../types/api'
+import { useShortcut } from '../../../utils/useShortcut'
+import { dateText } from '../../../utils/dateText'
+import EcDateInput from '../../../components/ui/EcDateInput'
+import { todayYmd } from '../../../utils/periods'
+
+const inputCls = 'ec-input w-full'
+
+const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 72 }
+
+export default function StockIoPage() {
+  const [items, setItems] = useState<Item[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [history, setHistory] = useState<StockTransaction[]>([])
+  const [error, setError] = useState('')
+  const [ok, setOk] = useState('')
+
+  const [form, setForm] = useState({
+    itemId: '',
+    warehouseId: '',
+    type: 'INBOUND',
+    increase: 'true',
+    quantity: '',
+    unitPrice: '',
+    transactionDate: todayYmd(),
+    note: '',
+  })
+
+  async function loadRefs() {
+    const [i, w] = await Promise.all([
+      api.get<Item[]>('/items'),
+      api.get<Warehouse[]>('/warehouses'),
+    ])
+    setItems(i.data)
+    setWarehouses(w.data)
+    // 기본값은 아직 선택이 없을 때만 채운다(사용자/스크립트 선택을 덮어쓰지 않도록)
+    setForm((f) => ({
+      ...f,
+      itemId: f.itemId || (i.data[0] ? String(i.data[0].id) : ''),
+      warehouseId: f.warehouseId || (w.data[0] ? String(w.data[0].id) : ''),
+    }))
+  }
+
+  async function loadHistory() {
+    const res = await api.get<Page<StockTransaction>>('/stock/transactions?size=20')
+    setHistory(res.data.content)
+  }
+
+  useEffect(() => {
+    loadRefs()
+    loadHistory()
+  }, [])
+
+  function set(field: keyof typeof form, value: string) {
+    setForm((f) => ({ ...f, [field]: value }))
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    setError('')
+    setOk('')
+    try {
+      await api.post('/stock/transactions', {
+        itemId: Number(form.itemId),
+        warehouseId: Number(form.warehouseId),
+        type: form.type,
+        increase: form.type === 'ADJUST' ? form.increase === 'true' : undefined,
+        quantity: Number(form.quantity),
+        unitPrice: form.unitPrice ? Number(form.unitPrice) : undefined,
+        transactionDate: form.transactionDate,
+        note: form.note || undefined,
+      })
+      setOk('처리되었습니다.')
+      set('quantity', '')
+      set('note', '')
+      loadHistory()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  const typeColor = (t: StockTransaction) =>
+    t.type === 'INBOUND' ? { bg: '#eef4ff', fg: 'var(--ec-blue)' }
+      : t.type === 'OUTBOUND' ? { bg: '#fdf3ea', fg: '#a5561b' }
+        : { bg: '#f3eefb', fg: '#6b3fb0' }
+
+  const formRef = useRef<HTMLFormElement>(null)
+  // 저장(F8) — 버튼 라벨이 약속한 단축키. submit 버튼을 실제로 눌러
+  // form 의 검증·onSubmit 을 그대로 태운다(EcSlipShell 과 같은 방식).
+  useShortcut('F8', () => formRef.current
+    ?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click())
+
+  return (
+    <form ref={formRef} onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+      {/* ☆ 제목 + 상단 툴바 */}
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">입출고 등록</span>
+        <span className="ml-[10px] text-[11.5px] text-ec-hint">입고·출고·조정 처리 시 재고 잔량 자동 반영</span>
+        <div className="ml-auto flex gap-[4px]">
+          <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+          <button type="button" className="ec-btn">도움말</button>
+        </div>
+      </div>
+
+      <div className="flex gap-[12px] items-start flex-wrap">
+        {/* 입력 폼 */}
+        <div className="w-[420px] border border-ec-line border-solid bg-white p-[14px] shrink-0">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">입출고 등록</div>
+          <table className="w-full text-left mb-[10px]">
+            <tbody>
+              <tr>
+                <th style={th}>유형 *</th>
+                <td>
+                  <select className="ec-input" value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 150 }}>
+                    <option value="INBOUND">입고</option>
+                    <option value="OUTBOUND">출고</option>
+                    <option value="ADJUST">조정</option>
+                  </select>
+                  {form.type === 'ADJUST' && (
+                    <select className="ec-input" value={form.increase} onChange={(e) => set('increase', e.target.value)} style={{ width: 120, marginLeft: 6 }}>
+                      <option value="true">증가 (+)</option>
+                      <option value="false">감소 (−)</option>
+                    </select>
+                  )}
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>품목 *</th>
+                <td>
+                  <CodePickerField label="품목" hideLabel fill placeholder="품목을 선택하세요" emptyLabel="선택 해제"
+                                   value={form.itemId} onChange={(v) => set('itemId', v)}
+                                   items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>창고 *</th>
+                <td>
+                  {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
+                  <CodePickerField label="창고 *" hideLabel width={220} emptyLabel="선택"
+                                   value={form.warehouseId} onChange={(v) => set('warehouseId', v)}
+                                   items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>수량 *</th>
+                <td>
+                  <input type="number" step="any" className="ec-input" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} style={{ width: 140, textAlign: 'right' }} />
+                  <span className="my-0 mx-[6px] text-ec-hint text-[12px]">단가</span>
+                  <input type="number" step="any" className="ec-input" value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} style={{ width: 120, textAlign: 'right' }} />
+                </td>
+              </tr>
+              <tr>
+                <th style={th}>일자</th>
+                <td><EcDateInput className="ec-input" value={form.transactionDate} onChange={(e) => set('transactionDate', e.target.value)} /></td>
+              </tr>
+              <tr>
+                <th style={th}>비고</th>
+                <td><input className={inputCls} value={form.note} onChange={(e) => set('note', e.target.value)} /></td>
+              </tr>
+            </tbody>
+          </table>
+
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+          {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
+
+          <button type="submit" className="ec-btn ec-btn-primary" style={{ width: '100%', height: 30 }}>등록</button>
+        </div>
+
+        {/* 최근 이력 */}
+        <div className="flex-1 min-w-[380px]">
+          <div className="text-[13px] font-extrabold text-ec-text mb-[6px]">최근 입출고 이력</div>
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th>일자</th>
+                <th className="text-center">유형</th>
+                <th>품목</th>
+                <th>창고</th>
+                <th className="text-right">변동</th>
+                {/* 저장된 잔량은 <b>입력 순서</b>로 매겨진다. 과거 일자 거래를 뒤늦게 넣으면
+                    일자순으로 읽을 때의 잔량과 어긋난다 — 실제로 거래 7,385건 중 7,224건이
+                    어긋난 채였다. 「잔량재집계」가 정규화한다. 칸 이름으로 그 성질을 밝힌다. */}
+                <th className="text-right" title="입력 순서로 매겨진 잔량입니다. 과거 일자 거래를 넣은 뒤에는 「잔량재집계」를 돌려야 일자순 잔량과 맞습니다.">잔량(입력순)</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.length === 0 ? (
+                <tr><td colSpan={7} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
+              ) : history.map((t) => (
+                <tr key={t.id}>
+                  <td>{dateText(t.transactionDate)}</td>
+                  <td className="text-center">
+                    <span style={{ background: typeColor(t).bg, color: typeColor(t).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{t.typeName}</span>
+                  </td>
+                  <td>{t.itemName}</td>
+                  <td>{t.warehouseName}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: t.quantityChange < 0 ? '#a5561b' : 'var(--ec-blue)' }}>
+                    {t.quantityChange > 0 ? '+' : ''}{t.quantityChange.toLocaleString()}
+                  </td>
+                  <td className="text-right">{t.balanceAfter.toLocaleString()}</td>
+                  <td className="text-ec-hint">{t.note ?? ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </form>
+  )
+}

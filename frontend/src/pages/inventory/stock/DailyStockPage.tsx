@@ -1,0 +1,378 @@
+import { useEffect, useMemo, useState } from 'react'
+import { api, extractErrorMessage } from '../../../api/client'
+import type { Item, StockRow, Warehouse } from '../../../types/api'
+import EcListShell from '../../../components/EcListShell'
+import { costOf as pickCost, type CostBasis } from '../../../utils/costBasis'
+import EcStatusPanel, { EcCond } from '../../../components/EcStatusPanel'
+import { STOCK_PICKS, ymd } from '../../../components/EcPeriodPicks'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { useCondPickers } from '../../../utils/useCondPickers'
+import { periodOf } from '../../../components/EcPeriodPicks'
+import { useItemFlags } from '../../../utils/useInactiveItems'
+import { useItemMgmt } from '../../../utils/itemMgmtItems'
+import { subtotalBy } from '../../../utils/subtotalBy'
+import { fmtAmount } from '../../../utils/format'
+
+/**
+ * 재고 > 일별재고현황 (이카운트 E040807)
+ *
+ * 재고현황·재고잔량분석표와 겹쳐 보이지만 이 화면만 하는 일이 있다 — <b>원가 기준을 고른다.</b>
+ * 같은 재고라도 무엇으로 평가하느냐에 따라 금액이 달라지고, 결산에서 문제가 되는 건 늘 그 차이다.
+ *
+ * 원본 원가 기준: 선입선출(판매) · 월별원가 · 입고단가(품목) · 입고단가(품목)-VAT제외 · 최종구매가.
+ * 우리가 실제로 계산할 수 있는 셋만 둔다.
+ *
+ *   월별원가 — GET /api/costs?period=YYYY-MM 의 표준원가(standardTotal). 기준일자의 월을 쓴다
+ *   최종구매가 — 그 품목을 마지막으로 산 구매 라인의 단가
+ *   입고단가(품목) — 품목의 <b>구매단가</b>. 예전에는 품목 단가가 하나뿐이라 판매단가를 읽었고,
+ *              이름을 그대로 쓰면 거짓이 되므로 '품목단가'라고 적어 뒀었다.
+ *              이제 구매단가가 따로 있으니 원본 이름을 그대로 쓴다
+ *
+ * <b>선입선출은 빼놨다</b> — 우리는 입고 레이어를 남기지 않아서 계산할 수가 없다.
+ * 있는 척하고 다른 값을 보여 주는 것보다 없는 편이 낫다.
+ *
+ * <p>2026-09-08 에 원본(E040807)의 조건 판을 재니 <b>열둘</b>이다 — 사본에는 다섯뿐이었다.
+ * 접힌 줄은 없고 [기본]·[전체] 두 탭이 같은 판을 쓴다. 차례:
+ * 기준일자 · 창고 · (창고계층그룹) · 품목 · <b>품목구분 · 품목그룹1</b> ·
+ * (품목그룹2/3 · 품목계층그룹) · 원가 · <b>기타</b> · 정렬/소계기준.
+ *
+ * <p>이 화면에는 <b>[기타] 자체가 통째로 없었다.</b> 주석에는
+ * "'결재방표시'·'수량관리제외품목포함'은 대응 개념이 없다" 고 적혀 있었는데 —
+ * 수량관리 여부(Item.stockTracked)도 사용중단 여부도 진작 있고, 원가 화면 셋이
+ * 이미 그 둘로 거르고 있었다. 이 화면만 <b>사용중단 품목을 뺄 방법이 없어서</b>
+ * 재고금액 합계가 늘 그것들을 안고 있었다.
+ *
+ * <p>실측한 기본값: <b>사용중단품목포함 켜짐</b> · 수량관리제외품목포함 꺼짐 ·
+ * 결재방표시 꺼짐. 원본 [원가]의 기본은 <b>선입선출(판매)</b> 인데 그건 우리가 못 재는
+ * 기준이라(입고 레이어가 없다) 만들 수 있는 것 중 첫째인 입고단가(품목)를 기본으로 둔다.
+ * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
+ * 날짜를 바꿔도 늘 현재고가 나왔다. 조건이 있으면 사람은 그 값이 반영된 줄 안다.
+ * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
+ */
+type Basis = CostBasis
+
+interface CostRow {
+  itemId: number
+  period: string
+  standardTotal: number
+  actualTotal: number
+}
+
+const num = (n: number) => n.toLocaleString()
+
+export default function DailyStockPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
+  const [stock, setStock] = useState<StockRow[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
+  const [costs, setCosts] = useState<CostRow[]>([])
+  const [items, setItems] = useState<Item[]>([])
+  /* [품목구분]·[품목그룹1]·[기타] — 셋 다 품목 마스터의 값이라 재고 줄의 itemId 로 잇는다. */
+  const { inactive, untracked } = useItemFlags()
+  const mgmt = useItemMgmt()
+  /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
+  const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [costNote, setCostNote] = useState('')
+
+  const today = ymd(new Date())
+  /*
+   * 원본 [원가](2026-10-13 실측): 선입선출(판매)* · 월별원가 · 입고단가(품목) · 입고단가(품목) - VAT 제외 · 최종구매가, 기본은 선입선출.
+   * 우리는 셋에 기본이 입고단가였다. 선입선출은 그 날 남은 층의 금액 ÷ 수량(/stock/fifo-onhand)이다.
+   * [입고단가(품목) - VAT 제외] 는 품목에 '입고단가 VAT 포함' 표시가 없어 아직 없다.
+   */
+  const [basis, setBasis] = useState<Basis>('선입선출(판매)')
+  const [fifo, setFifo] = useState<Map<number, number>>(new Map())
+  /* 원본 일별재고현황의 기준일자 기본값은 [금일] 이다(사본 실측). 검사가 읽을 수 있게 periodOf 로 적는다 — 값은 오늘 그대로다. */
+  const [cond, setCond] = useState({
+    date: periodOf('금일')!.to, warehouseId: '', item: '', category: '', itemGroup: '',
+  })
+  /** 원본 [기타] — 사용중단품목포함은 <b>켜짐</b>이, 수량관리제외품목포함은 꺼짐이 기본이다. */
+  const [withInactive, setWithInactive] = useState(true)
+  const [withUntracked, setWithUntracked] = useState(false)
+  /** 원본 [기타]의 결재방표시. 켜면 출력물에 결재란을 찍는다. 기본은 꺼짐. */
+  const [signBox, setSignBox] = useState(false)
+  /*
+   * 원본 [정렬/소계기준]. 2026-10-20 원본 격자가 <b>품목 한 줄</b>(창고는 조건으로만 좁힌다)이라
+   * 창고 · 품목 축은 뺐다 — 품목마다 한 줄이면 품목 소계는 격자 그 자체다.
+   */
+  const SUBTOTALS = ['품목구분', '품목그룹1'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('품목구분')
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
+
+  async function load() {
+    setLoading(true)
+    setError('')
+    setCostNote('')
+    try {
+      const period = cond.date.slice(0, 7)
+      const [s, w, p, i, f] = await Promise.all([
+        api.get<StockRow[]>('/stock', { params: { asOf: cond.date } }),
+        api.get<Warehouse[]>('/warehouses'),
+        /*
+         * <b>마지막 입고단가만 받는다.</b> 아래 lastPurchasePrice 가 하던 일을
+         * 서버가 한다 — 그 손계산은 <b>목록 차례에 기대는 옛 규칙</b>(같은 날이면
+         * id 가 작은 쪽이 이긴다)이었다. /purchases/item-prices 는 나중에 적은 전표를
+         * 마지막 입고로 본다(2026-09-10 에 정한 규칙).
+         */
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
+        // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
+        api.get<Item[]>('/items'),
+        api.get<{ itemId: number; quantity: number; value: number }[]>('/stock/fifo-onhand', { params: { asOf: cond.date } }),
+      ])
+      setFifo(new Map(f.data.filter((r) => Number(r.quantity) > 0).map((r) => [r.itemId, Number(r.value) / Number(r.quantity)])))
+      setStock(s.data)
+      setWarehouses(w.data)
+      setLastPrices(p.data)
+      setItems(i.data)
+      setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
+
+      // 원가는 기간이 없으면 빈 배열이 온다 — 그 사실을 화면에 적는다(0 원으로 뭉개지 않게).
+      const c = await api.get<CostRow[]>('/costs', { params: { period } })
+      setCosts(c.data)
+      if (c.data.length === 0) setCostNote(`${period} 월별원가가 등록돼 있지 않습니다.`)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [cond.date])
+
+  /** 그 품목을 마지막으로 산 단가. 구매 이력이 없으면 없다. 서버가 정한 값이다. */
+  const lastPurchasePrice = useMemo(
+    () => new Map(lastPrices.map((r) => [r.itemId, r.unitPrice])), [lastPrices])
+
+  const costOf = useMemo(() => new Map(costs.map((c) => [c.itemId, c.standardTotal])), [costs])
+
+  /** 고른 기준의 단가. 값이 없으면 null — 0 으로 채우면 재고금액이 조용히 틀어진다. */
+  const priceOf = (itemId: number): number | null => {
+    // 규칙은 utils/costBasis 에 있다 — 이익현황과 같은 규칙을 쓴다.
+    return pickCost(basis, {
+      monthlyCost: costOf.get(itemId) ?? null,
+      lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
+      itemPurchasePrice: unitPrices.get(itemId) ?? null,
+      fifoUnitCost: fifo.get(itemId) ?? null,
+    })
+  }
+
+  const catOf = useMemo(() => new Map(items.map((i) => [i.id, i.categoryName])), [items])
+
+  const shownByItem = stock
+    .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
+    .filter((r) => withInactive || !inactive.has(r.itemId))
+    .filter((r) => withUntracked || !untracked.has(r.itemId))
+    .filter((r) => !cond.category || (catOf.get(r.itemId) ?? '') === cond.category)
+    .filter((r) => !cond.itemGroup || mgmt.groupOf(r.itemId) === cond.itemGroup)
+    /*
+     * 2026-10-20 원본(loginaa) 실측: 격자는 <b>품목 한 줄</b>(품목코드 · 품목명[규격] · 재고수량 ·
+     * 재고단가 · 재고금액 + 합계) — 창고는 조건으로만 좁힌다. 창고별 줄을 품목으로 모은다.
+     */
+    .reduce((m, r) => {
+      const prev = m.get(r.itemId)
+      m.set(r.itemId, prev ? { ...prev, quantity: prev.quantity + r.quantity } : { ...r })
+      return m
+    }, new Map<number, StockRow>())
+  const shown = [...shownByItem.values()]
+    .filter((r) => r.quantity !== 0)
+    .map((r) => {
+      const price = priceOf(r.itemId)
+      return { ...r, price, amount: price === null ? null : price * r.quantity }
+    })
+
+  const totalQty = shown.reduce((n, r) => n + r.quantity, 0)
+  const totalAmount = shown.reduce((n, r) => n + (r.amount ?? 0), 0)
+
+  /* [다시 작성]은 기본값으로 되돌린다 — 체크 셋도 실측한 기본값 그대로다. */
+  const reset = () => {
+    setBasis('선입선출(판매)')
+    setCond({ date: periodOf('금일')!.to, warehouseId: '', item: '', category: '', itemGroup: '' })
+    setWithInactive(true); setWithUntracked(false); setSignBox(false)
+    setSubtotal('품목구분')
+  }
+
+  return (
+    <EcListShell
+      title="일별재고현황"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+      signLine={signBox}
+    >
+      <EcStatusPanel
+        single
+        from={cond.date} to={cond.date}
+        onPeriod={(r) => setC({ date: r.from })}
+        picks={STOCK_PICKS}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
+      >
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
+                           value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
+                           items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분" pick>
+          <select className="ec-input" value={cond.category} style={{ width: 140 }}
+                  onChange={(e) => setC({ category: e.target.value })}>
+            <option value="">전체</option>
+            {[...new Set(items.map((i) => i.categoryName).filter(Boolean) as string[])].sort()
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <select className="ec-input" value={cond.itemGroup} style={{ width: 160 }}
+                  onChange={(e) => setC({ itemGroup: e.target.value })}>
+            <option value="">전체</option>
+            {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="원가">
+          <div className="ec-pills">
+            {(['선입선출(판매)', '월별원가', '입고단가(품목)', '최종구매가'] as const).map((b) => (
+              <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
+                      onClick={() => setBasis(b)}>
+                {b}
+              </button>
+            ))}
+          </div>
+        </EcCond>
+        <EcCond label="기타">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
+            사용중단품목포함
+          </label>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
+            수량관리제외품목포함
+          </label>
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
+        </EcCond>
+      </EcStatusPanel>
+
+      {cond.date !== today && (
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          재고수량은 <b>기준일자 시점</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
+          수량은 달라지지 않습니다(월별원가는 기준일자의 월을 따릅니다).
+        </p>
+      )}
+
+      {basis === '월별원가' && costNote && (
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          {costNote} 원가관리 &gt; 표준원가에서 만들거나 다른 기준을 고르세요.
+        </p>
+      )}
+
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <colgroup>
+            <col className="w-[16%]" /><col />
+            <col className="w-[12%]" /><col className="w-[12%]" /><col className="w-[14%]" />
+          </colgroup>
+          {/*
+            2026-09-09 원본 실측(E040807) — 격자 열은
+            <b>품목코드 · 품목명[규격] · 재고수량 · 재고단가 · 재고금액</b> 다.
+            우리는 [품목명]과 [규격정보]를 두 칸으로 나눠 두었는데 원본은 <b>한 칸</b>이고,
+            [단가]의 원본 이름은 <b>[재고단가]</b> 다 — 이 화면에는 판매단가·구매단가도
+            있을 수 있어 그냥 [단가]로 두면 어느 단가인지 알 수 없다.
+            2026-10-20 다시 재니 원본은 품목 한 줄이라 번호 · [창고] 열과 위 요약줄을 뺐다.
+          */}
+          <thead>
+            <tr>
+              <th>품목코드</th>
+              <th>품목명[규격]</th>
+              <th className="text-right">재고수량</th>
+              <th className="text-right">재고단가</th>
+              <th className="text-right">재고금액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={5} className="text-center text-ec-ink">불러오는 중…</td></tr>
+            ) : shown.length === 0 ? (
+              <tr><td colSpan={5} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+            ) : shown.map((r) => (
+              <tr key={r.itemId}>
+                <td>{r.itemCode}</td>
+                <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                <td className="text-right font-semibold">
+                  {num(r.quantity)}
+                </td>
+                <td style={{ textAlign: 'right', color: r.price === null ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
+                  {r.price === null ? '단가없음' : fmtAmount(r.price)}
+                </td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount === null ? 'var(--ec-text-off)' : 'var(--ec-blue)' }}>
+                  {r.amount === null ? '—' : fmtAmount(r.amount)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {shown.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={2} className="text-center font-bold bg-ec-page">합계</td>
+                <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page text-ec-blue">{fmtAmount(totalAmount)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      {shown.length > 0 && (() => {
+        const groups = subtotalBy(shown,
+          (r) => (subtotal === '품목구분' ? (catOf.get(r.itemId) ?? null)
+            : subtotal === '품목그룹1' ? mgmt.groupOf(r.itemId)
+            : null),
+          { qty: (r) => r.quantity, amount: (r) => r.amount ?? 0 })
+        return (
+          <>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[140px] text-right">수량</th>
+                <th className="w-[160px] text-right">재고금액</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right font-bold">{num(g.sums.qty)}</td>
+                    <td className="text-right font-bold text-ec-blue">
+                      {fmtAmount(g.sums.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
+    </EcListShell>
+  )
+}

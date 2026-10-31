@@ -1,0 +1,337 @@
+import { useEffect, useMemo, useState } from 'react'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../../components/EcReportFrame'
+import { api, extractErrorMessage } from '../../../api/client'
+import type { Item, StockRow } from '../../../types/api'
+import EcListShell from '../../../components/EcListShell'
+import { useTableSort } from '../../../utils/useTableSort'
+import EcStatusPanel, { EcCond } from '../../../components/EcStatusPanel'
+import { STOCK_PICKS, ymd } from '../../../components/EcPeriodPicks'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { useCondPickers } from '../../../utils/useCondPickers'
+import { periodOf } from '../../../components/EcPeriodPicks'
+import { useItemFlags } from '../../../utils/useInactiveItems'
+
+/**
+ * 재고 > 재고현황 (이카운트 E040701)
+ *
+ * 원본 조건: 기준일자 · 창고 · 품목 · 기타(수량관리제외품목포함 / 사용중단품목포함 /
+ * 안전재고설정미만표시) · 재고수량(범위).
+ *
+ * <b>기준일자가 한 날짜다</b> — 재고는 구간이 아니라 시점을 보는 것이라서다.
+ * 그래서 기간 빠른선택도 [금일][전일] 둘뿐이다(구간 버튼은 뜻이 없다).
+ *
+ * 우리 화면은 조건이 '안전재고 미달만 보기' 체크박스 하나뿐이었다.
+ *
+ * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
+ * 날짜를 바꿔도 늘 현재고가 나왔고, 그 사실을 화면에 적어 두긴 했지만 조건이 있으면
+ * 사람은 그 값이 반영된 줄 안다. 서버가 현재고에서 그 뒤의 입출고를 빼서 낸다
+ * (GET /stock?asOf=). 안전재고 미달 표시도 <b>그 시점 수량으로</b> 다시 잰다.
+ */
+export default function CurrentStockPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['items'])
+  const [rows, setRows] = useState<StockRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const today = ymd(new Date())
+  const [cond, setCond] = useState({
+    date: periodOf('금일')!.to,   // 원본 기준일자 기본값은 [금일] 이다(사본 실측)
+    warehouse: '',
+    item: '',
+    /*
+     * 원본 조건 <b>[품목구분]·[품목그룹1]</b>([품목] 바로 뒤에 선다 — 2026-09-09 실측).
+     * 재고를 "원재료만" · "이 그룹만" 으로 좁혀 보는 일이 잦은데 품목을 하나씩만
+     * 고를 수 있었다. 품목 마스터가 드는 값이라 이름으로 이으면 된다.
+     */
+    category: '',
+    itemGroup: '',
+    /*
+     * 원본 [기타]는 <b>셋</b>이다(2026-09-02 E040701 실측):
+     * [수량관리제외품목포함] · [사용중단품목포함] · [안전재고설정미만표시].
+     * 우리에겐 마지막 하나뿐이라, <b>안 세는 품목과 내린 품목이 늘 섞여</b> 있었다 —
+     * 용역·수수료처럼 수량을 안 세는 품목이 재고표에 0 으로 줄을 차지하고,
+     * 내린 품목도 그대로 남아 지금 파는 것이 무엇인지 눈으로 골라야 했다.
+     * <p><b>2026-09-09 에 다시 재니 셋이 다 꺼진 것이 아니었다</b> —
+     * [사용중단품목포함]은 <b>켜짐</b>이 기본이다. 끄고 열면 <b>안 쓰기로 한 품목의
+     * 재고가 화면에서 사라진다</b>. 창고에 그 물건이 그대로 있는데 재고현황에서
+     * 빠지니 실사와 숫자가 어긋난다 — 원본이 굳이 켜 두는 까닭이다.
+     * (재고잔량분석표에서도 같은 것이 뒤집혀 있었다.)
+     */
+    withUntracked: false,
+    withInactive: true,
+    belowSafetyOnly: false,
+    qtyFrom: '',
+    qtyTo: '',
+  })
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
+  /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 들고 있다 — 재고 줄에는 없어 따로 받는다. */
+  const { inactive, untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
+  /**
+   * 원본 조건 <b>[대표품목으로 합산]</b>(차례는 [재고수량] 뒤다). 색·규격만 다른 형제
+   * 품목을 <b>대표품목 한 줄</b>로 모아 본다 — 규격별로 갈린 표에서는 "이 물건이 통틀어
+   * 몇 개 있나" 를 눈으로 더해야 했다. 재고수불부·재고변동표에 이미 있는 자리인데
+   * 정작 재고<b>현황</b>에만 없었다. 원본과 같이 기본은 꺼 둔다.
+   *
+   * <p>우리 표는 창고별로 펴므로 <b>같은 창고 안에서만</b> 형제를 합친다 —
+   * 창고를 넘어 합치면 [창고] 칸에 무엇을 적을지가 없어진다.
+   */
+  const [rollUp, setRollUp] = useState(false)
+  /** 대표품목을 알려면 품목 마스터가 필요하다 — 재고 줄에는 품목 id 만 온다. */
+  const [items, setItems] = useState<Item[]>([])
+  /**
+   * 원본 조건 <b>[정렬/소계기준]</b>(조건 판의 마지막 줄). 이 표는 품목 × 창고 줄이라
+   * 창고가 여럿이면 같은 품목이 흩어진다. 무엇으로 묶어 볼지 고르게 한다.
+   */
+  const SUBTOTALS = ['품목코드', '품목명'] as const
+  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('품목코드')
+
+  function load() {
+    setLoading(true)
+    api
+      .get<StockRow[]>('/stock', { params: { asOf: cond.date } })
+      .then((res) => setRows(res.data))
+      .catch((err) => setError(extractErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+  useEffect(() => {
+    api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => setItems([]))
+  }, [])
+
+  const warehouses = useMemo(
+    () => [...new Set(rows.map((r) => r.warehouseName))].sort(), [rows])
+
+  /*
+   * <b>합치고 나서 거른다.</b> 먼저 거르면 형제 하나가 조건에 안 걸려 빠지고,
+   * 그러면 대표 줄의 재고수량이 조용히 모자란다(재고변동표에서 같은 규칙을 쓴다).
+   */
+  const rolled = useMemo(() => {
+    if (!rollUp) return rows
+    const head = new Map(items.map((it) => [it.id, it.parentItemId ?? it.id]))
+    const master = new Map(items.map((it) => [it.id, it]))
+    const m = new Map<string, StockRow>()
+    for (const r of rows) {
+      const id = head.get(r.itemId) ?? r.itemId
+      const h = master.get(id)
+      const key = `${id}-${r.warehouseId}`
+      const cur = m.get(key) ?? {
+        ...r, itemId: id,
+        itemCode: h?.code ?? r.itemCode, itemName: h?.name ?? r.itemName,
+        spec: h?.spec ?? r.spec,
+        quantity: 0, safetyStock: 0, belowSafety: false,
+      }
+      cur.quantity += r.quantity
+      cur.safetyStock = (cur.safetyStock ?? 0) + (r.safetyStock ?? 0)
+      m.set(key, cur)
+    }
+    /* 합친 뒤에 다시 잰다 — 형제별 미달을 그대로 물려받으면 합쳐 놓고도 빨갛다. */
+    return [...m.values()].map((r) => ({
+      ...r, belowSafety: (r.safetyStock ?? 0) > 0 && r.quantity < (r.safetyStock ?? 0),
+    }))
+  }, [rows, rollUp, items])
+
+  const shownRows = rolled
+    /* 안 켜면 뺀다 — 원본이 [포함] 이라 이름 지은 것은 기본이 '안 넣음' 이라는 뜻이다. */
+    .filter((r) => cond.withUntracked || !untracked.has(r.itemId))
+    .filter((r) => cond.withInactive || !inactive.has(r.itemId))
+    .filter((r) => !cond.category || categoryOf(r.itemId) === cond.category)
+    .filter((r) => !cond.itemGroup || groupOf(r.itemId) === cond.itemGroup)
+    .filter((r) => !cond.warehouse || r.warehouseName === cond.warehouse)
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
+
+  /*
+   * <b>품목 하나 = 한 줄</b>(2026-10-20 원본 E040701 실측). 원본은 창고를 합쳐 [총재고수량] 한 칸으로 보이고,
+   * 창고별로 펴는 것은 창고별재고현황(E040711) 몫이다. 우리는 품목 × 창고 줄에 [창고]·[안전재고]·[상태]
+   * 열까지 붙여 다른 화면 꼴이었다. [창고] 조건은 합치기 전에 걸어 그 창고만의 재고를 합친다.
+   */
+  const priceOf = useMemo(() => new Map(items.map((it) => [it.id, it.purchasePrice ?? 0])), [items])
+  const perItem = useMemo(() => {
+    const m = new Map<number, { itemId: number; itemCode: string; itemName: string; spec: string | null;
+      quantity: number; safetyStock: number }>()
+    for (const r of shownRows) {
+      const cur = m.get(r.itemId) ?? { itemId: r.itemId, itemCode: r.itemCode, itemName: r.itemName,
+        spec: r.spec, quantity: 0, safetyStock: 0 }
+      cur.quantity += r.quantity
+      cur.safetyStock = Math.max(cur.safetyStock, r.safetyStock ?? 0)
+      m.set(r.itemId, cur)
+    }
+    return [...m.values()]
+      .map((r) => ({ ...r, belowSafety: r.safetyStock > 0 && r.quantity < r.safetyStock }))
+      .filter((r) => !cond.belowSafetyOnly || r.belowSafety)
+      .filter((r) => !cond.qtyFrom || r.quantity >= Number(cond.qtyFrom))
+      .filter((r) => !cond.qtyTo || r.quantity <= Number(cond.qtyTo))
+  }, [shownRows, cond.belowSafetyOnly, cond.qtyFrom, cond.qtyTo])
+
+  const sort = useTableSort(perItem, {
+    품목코드: (r) => r.itemCode,
+    품목명: (r) => r.itemName,
+  }, { key: subtotal === '품목명' ? '품목명' : '품목코드', dir: 'asc' })
+  const shown = sort.sorted
+
+  const totalQty = shown.reduce((s, r) => s + r.quantity, 0)
+  const totalAmt = shown.reduce((s, r) => s + r.quantity * (priceOf.get(r.itemId) ?? 0), 0)
+  const reset = () => setCond({ date: today, warehouse: '', item: '', category: '', itemGroup: '',
+    withUntracked: false, withInactive: true, belowSafetyOnly: false, qtyFrom: '', qtyTo: '' })
+
+  return (
+    <EcListShell
+      title="재고현황"
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+    >
+      <EcStatusPanel
+        single
+        from={cond.date} to={cond.date}
+        onPeriod={(r) => setC({ date: r.from })}
+        picks={STOCK_PICKS}
+        subtotal={subtotal}
+        subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
+      >
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
+                           value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
+                           items={warehouses.map((w) => ({ value: w, name: w }))} />
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                           value={cond.item} onChange={(v) => setC({ item: v })}
+                           items={pickers.items} />
+        </EcCond>
+        <EcCond label="품목구분">
+          <select className="ec-input" value={cond.category} style={{ width: 130 }}
+                  onChange={(e) => setC({ category: e.target.value })}>
+            <option value="">전체</option>
+            {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="품목그룹1">
+          <select className="ec-input" value={cond.itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setC({ itemGroup: e.target.value })}>
+            <option value="">전체</option>
+            {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        {/* 원본 [기타] 차례 그대로: 수량관리제외품목포함 · 사용중단품목포함 · 안전재고설정미만표시 */}
+        <EcCond label="기타">
+          <div className="flex gap-[12px] flex-wrap">
+            <label className="text-[12px]">
+              <input type="checkbox" checked={cond.withUntracked}
+                     onChange={(e) => setC({ withUntracked: e.target.checked })} /> 수량관리제외품목포함
+            </label>
+            <label className="text-[12px]">
+              <input type="checkbox" checked={cond.withInactive}
+                     onChange={(e) => setC({ withInactive: e.target.checked })} /> 사용중단품목포함
+            </label>
+            <label className="text-[12px]">
+              <input type="checkbox" checked={cond.belowSafetyOnly}
+                     onChange={(e) => setC({ belowSafetyOnly: e.target.checked })} /> 안전재고설정미만표시
+            </label>
+          </div>
+        </EcCond>
+        <EcCond label="재고수량">
+          <input className="ec-input" type="number" value={cond.qtyFrom}
+                 onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 120 }} />
+          <span className="text-ec-label">~</span>
+          <input className="ec-input" type="number" value={cond.qtyTo}
+                 onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        {/* 원본 차례: [재고수량] 다음이 [대표품목으로 합산] 이다(대조표 실측). */}
+        <EcCond label="대표품목으로 합산">
+          <label className="text-[12px]">
+            <input type="checkbox" checked={rollUp}
+                   onChange={(e) => setRollUp(e.target.checked)} /> 형제 품목을 대표 한 줄로
+          </label>
+        </EcCond>
+      </EcStatusPanel>
+
+      {cond.date !== today && (
+        <p style={{ marginBottom: 8, background: '#eef3ff', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+          <b>{cond.date}</b> 시점의 재고입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
+        </p>
+      )}
+
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      <div className="overflow-x-auto">
+        <div className="ec-report-frame">
+        <EcReportHead title="재고현황" period={reportPeriod(cond.date)} />
+        <table className="text-left ec-report ec-report-fixed">
+          {/*
+            <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040701) getComputedStyle 실측.
+            머리 700·6/3/3·가운데, 본문 3px·17.14, <b>줄무늬 없음</b>, 합계줄 700·회색·<b>[합계] 가운데</b>.
+            수량은 <b>검정·보통 굵기, 숫자만</b>이다(원본 합계 32,952 · 음수도 검정 -2) — 굵은 수량과
+            뒤에 붙인 단위 글자는 우리가 덧칠한 것이었다.
+            안전재고 미달의 빨강·줄 색은 남긴다 — 원본 이 화면에 없는 우리 열([안전재고]·[상태])에
+            딸린 표시라 견줄 원본이 없다.
+          */}
+          {/*
+            열 폭 — 원본 <b>width:750px · table-layout:fixed · 200 / 450 / 100</b>(품목코드 · 품목명[규격] ·
+            재고수량, 2026-09-21 실측). 번호·창고·안전재고·상태는 원본에 없는 우리 열이라 잴 원본이
+            없다 — 글자가 들어갈 만큼만 좁게 둔다.
+          */}
+          <colgroup>
+            <col className="w-[200px]" /><col className="w-[450px]" />
+            <col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[120px]" />
+          </colgroup>
+          <thead>
+            <tr>
+              {/*
+                2026-10-20 원본 E040701 실측 머리: 품목코드 · 품명 및 규격 · 총재고수량 · 입고단가 · 금액 · 이미지.
+                입고단가는 품목등록의 입고단가, 금액 = 총재고수량 × 입고단가. [이미지] 열은 우리 품목에 그림이 없어 뺀다.
+              */}
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목코드')}>품목코드</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품명 및 규격</th>
+              <th className="text-right">총재고수량</th>
+              <th className="text-right">입고단가</th>
+              <th className="text-right">금액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={5} className="text-center text-ec-ink">불러오는 중…</td></tr>
+            ) : shown.length === 0 ? (
+              <tr><td colSpan={5} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+            ) : (
+              shown.map((r) => {
+                const price = priceOf.get(r.itemId) ?? 0
+                return (
+                  <tr key={r.itemId}>
+                    <td>{r.itemCode}</td>
+                    {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
+                    <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                    {/* 안전재고설정미만표시를 켜면 미달 수량을 빨갛게 — 원본도 수량 칸에 표시한다. */}
+                    <td className={`text-right${cond.belowSafetyOnly && r.belowSafety ? ' text-ec-danger' : ''}`}>
+                      {r.quantity.toLocaleString()}
+                    </td>
+                    <td className="text-right">{price.toLocaleString()}</td>
+                    <td className="text-right">{(r.quantity * price).toLocaleString()}</td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+          {shown.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={2} className="text-center">합계</td>
+                <td className="text-right">{totalQty.toLocaleString()}</td>
+                <td></td>
+                <td className="text-right">{totalAmt.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+        <EcReportFoot />
+        </div>
+      </div>
+    </EcListShell>
+  )
+}
