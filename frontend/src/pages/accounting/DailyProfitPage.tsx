@@ -468,7 +468,7 @@ export default function DailyProfitPage() {
          * 원본 하단(검색 뒤): [인쇄│▲] [Excel] [이익이 안 나올 경우]. [검색(F8)] · [다시 작성] 은 조건 판 아래 줄에 있다.
          * [이익이 안 나올 경우] 는 원본 안내문이 아니라 우리 계산 규칙을 적은 창이다.
          */
-        { label: '인쇄' },
+        { label: '인쇄', menu: [{ label: '프린트문제해결', onClick: () => void ecAlert('이 기능은 이 ERP 에서 제공하지 않습니다.\n(프린트문제해결)') }] },
         { label: 'Excel' },
         { label: '이익이 안 나올 경우', onClick: () => setWhyOpen(true) },
       ]}
@@ -608,8 +608,15 @@ export default function DailyProfitPage() {
                 </span>
               </EcCond>
             ),
+            '정렬/소계기준': (
+              <EcCond label="정렬/소계기준">
+                {/* 원본: [설정] 단추 하나(정렬 · 소계 기준 창). 우리 현황표에는 정렬/소계 기능이 없어 안내만 한다. */}
+                <button type="button" className="ec-btn ec-btn-sm"
+                        onClick={() => void ecAlert('이 기능은 이 ERP 에서 제공하지 않습니다.\n(정렬/소계기준 설정)')}>설정</button>
+              </EcCond>
+            ),
           }
-          const BASIC_ORDER = ['구분', '기준일자', '창고', '프로젝트', '거래처', '품목', '판매액', '원가', '기타', '거래구분']
+          const BASIC_ORDER = ['구분', '기준일자', '창고', '프로젝트', '거래처', '품목', '판매액', '원가', '기타', '거래구분', '정렬/소계기준']
           return (condTab === '기본' ? BASIC_ORDER : Object.keys(CONDS)).map((k) => <Fragment key={k}>{CONDS[k]}</Fragment>)
         })()}
         {/*

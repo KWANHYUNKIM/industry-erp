@@ -1,0 +1,26 @@
+{
+  "about": "판매조회 · 구매조회 [신규(F2)] 로 뜨는 판매입력 · 구매입력 창의 제목줄 — 원본(2026-10-31 loginad)처럼 새창 · 고정 · 새로고침 · 최대화 · 닫기 다섯. 일별이익현황 조건 판 마지막 줄 [정렬/소계기준 │ 설정] · 하단 [인쇄│▲](프린트문제해결). 저장하는 것 없음.",
+  "shots": [
+    {
+      "name": "판매조회 [신규(F2)] 창 제목줄 5단추, 닫기로 닫힌다",
+      "path": "/sales/sales-list",
+      "steps": [
+        "wait:1200",
+        "click:신규(F2)",
+        "wait:1000",
+        "expect:['새창','고정','새로고침','최대화','닫기'].every((t)=>document.querySelector('[role=dialog] .ec-modal-bar button[aria-label=\"'+t+'\"]'))",
+        "js:document.querySelector('[role=dialog] .ec-modal-bar button.close').click(); true",
+        "wait:400",
+        "expect:!document.querySelector('[role=dialog] .ec-modal-bar')"
+      ]
+    },
+    {
+      "name": "일별이익현황 정렬/소계기준 설정 · 인쇄 ▲",
+      "path": "/accounting/daily-profit",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-cond .title')].some((x)=>x.textContent.trim()==='정렬/소계기준')"
+      ]
+    }
+  ]
+}
