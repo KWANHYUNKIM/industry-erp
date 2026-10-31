@@ -55,7 +55,22 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
     private static final List<ReadGuard> READ_GUARDED = List.of(
             new ReadGuard("/api/payslips", List.of("PAYROLL")),
             new ReadGuard("/api/pay-settings", List.of("PAYROLL")),
-            new ReadGuard("/api/bank-cards", List.of("BANK", "ACCOUNTING", "FINANCE", "PAYROLL")));
+            new ReadGuard("/api/bank-cards", List.of("BANK", "ACCOUNTING", "FINANCE", "PAYROLL")),
+            // docs/보안-점검.md H2 — 화면 머리('-' 공용 화면 등)를 꾸며 곁다리로 읽던 민감 조회. 그 업무 화면만 읽는다(프론트 grep 으로 확인).
+            // 4대보험 신고(주민번호 원문) — 관리 › 4대보험(/hr/insurance, PAYROLL) 화면만
+            new ReadGuard("/api/hr/insurance", List.of("PAYROLL")),
+            // 근로계약(급여 조건) — /hr/contract · /hr/contract-status(HR) 화면만
+            new ReadGuard("/api/employment-contracts", List.of("HR")),
+            // 보안정책 — Self-Customizing › 보안설정(SETTINGS) 화면만
+            new ReadGuard("/api/security-policy", List.of("SETTINGS")),
+            // 사용자관리(마스터 전용 USER_MANAGE) 화면만 읽는 것 — 회사 레지스트리 · 권한그룹 · 권한 카탈로그 · 사용자별/그룹별 업무권한.
+            // /api/work-permissions/masters 는 자물쇠 화면 '우리회사마스터' 가 누구에게나 보여 주므로 열어 둔다.
+            // /api/users 는 결재선 · 메신저 · 일정 등 20여 화면이 사용자 고르기로 곁다리로 읽어 아직 못 막는다(문서 H2 남은 일).
+            new ReadGuard("/api/companies", List.of("USER_MANAGE")),
+            new ReadGuard("/api/roles", List.of("USER_MANAGE")),
+            new ReadGuard("/api/permissions", List.of("USER_MANAGE")),
+            new ReadGuard("/api/work-permissions/users", List.of("USER_MANAGE")),
+            new ReadGuard("/api/work-permissions/groups", List.of("USER_MANAGE")));
 
     private static ReadGuard readGuardFor(String uri) {
         return READ_GUARDED.stream()

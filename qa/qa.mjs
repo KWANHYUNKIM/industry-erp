@@ -4418,6 +4418,13 @@ async function scenarioTokenRevoke() {
     method: 'PUT', headers: { Authorization: `Bearer ${t2}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: [u.id] }),
   })
   eq('마스터 아닌 계정은 자기를 마스터로 못 만든다', masters.status, 403)
+  // H2 — 공용 화면 머리('-')로 꾸며도 민감 조회는 막힌다. 자물쇠 화면의 '우리회사마스터' 는 누구나 본다.
+  const sideRead = async (path) => (await fetch(`${BASE}${path}`, {
+    headers: { Authorization: `Bearer ${t2}`, 'X-Erp-Menu': '/', 'X-Erp-Work': '-' } })).status
+  for (const path of ['/companies', '/roles', '/security-policy', '/employment-contracts', '/hr/insurance/reports', `/work-permissions/users/${u.id}`]) {
+    eq(`공용 화면 머리로도 ${path} 는 못 읽는다`, await sideRead(path), 403)
+  }
+  eq('마스터 목록(자물쇠 화면)은 누구나 읽는다', await sideRead('/work-permissions/masters'), 200)
   await must('PATCH', `/users/${u.id}`, { enabled: false })
   eq('사용중지하면 기존 토큰은 401', await me(t2), 401)
   await must('PATCH', `/users/${u.id}`, { enabled: true })
