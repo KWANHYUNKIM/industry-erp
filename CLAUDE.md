@@ -58,13 +58,25 @@ com/erp/
 │  │  └─ dto/SalesDtos.java
 │  └─ salesorder/  purchase/  partner/  shipment/ …
 ├─ inventory/   item/ stock/ warehouse/ lot/ project/ …
-└─ auth/  production/  accounting/  quality/  hr/  groupware/  settings/
+├─ accounting/                               # 기능이 48개라 묶음(group) 한 단계를 더 둔다 — 모듈은 아니다
+│  ├─ StandardAccounts.java  PaymentMethod.java  ReceiptMethod.java  WithholdingCodes.java
+│  ├─ ledger/   account/ journal/ ledger/ expense/ income/ fastvoucher/ noncash/ bond/ …   # 계정 · 전표 · 장부
+│  ├─ fund/     bankcard/ bankcheck/ promissorynote/ fundplan/ budget/ cash/ …           # 은행 · 카드 · 어음 · 자금계획
+│  ├─ asset/    fixedasset/                                                              # 고정자산 · 감가
+│  ├─ tax/      vatreturn/ withholding/ corporatetax/ yearend/ retirementpay/ …          # 부가세 · 원천 · 법인세 · 연말정산
+│  ├─ cost/     cost/ processexpense/ project/ importcost/ expenseitem/ …                # 원가 · 이익 · 비용관리
+│  └─ billingcontract/  contractbill/  contractitem/  medicaldevice/  summary/           # 어느 묶음에도 안 맞는 것은 바로 아래
+└─ auth/  production/  quality/  hr/  groupware/  settings/
 ```
+
+- **accounting 만 `com/erp/accounting/<묶음>/<기능>/`** 입니다(예: `com/erp/accounting/fund/bankcard/BankCardService.java`,
+  `com/erp/accounting/ledger/journal/JournalService.java`). 새 회계 기능은 위 다섯 묶음 중 하나에 넣고, 안 맞으면 accounting 바로 아래에 둡니다.
+  묶음은 모듈이 아닙니다 — 모듈 의존 규칙(4장)은 `accounting` 하나로 봅니다. 다른 모듈에는 묶음을 만들지 마세요.
 
 - **기능 이름은 주 엔티티 이름을 소문자로 붙여 씁니다** (`SalesOrder` → `salesorder`).
   같은 기능의 줄·이력 엔티티와 enum 도 그 폴더에 둡니다(`SalesLine`, `PurchaseOrderHistory`).
 - 모듈 루트에는 **여러 기능이 공유하는 것만** 둡니다
-  (`trade/TradeMasters`, `accounting/StandardAccounts`, `accounting/PaymentMethod`).
+  (`trade/TradeMasters`, `accounting/StandardAccounts`, `accounting/PaymentMethod`). accounting 의 묶음(`ledger/` …) 루트에는 아무것도 두지 않습니다.
   기능이 하위 패키지라 package-private 은 안 보입니다 — 공유하는 것은 `public` 이어야 합니다.
 - 새 클래스가 어느 기능 소속인지 애매하면 **같은 테이블 묶음을 다루는 쪽**에 넣습니다.
 
@@ -132,7 +144,7 @@ controller  →  service  →  repository  →  domain
   이름은 화면이 각자 목록에서 붙입니다.
 - `inventory`는 **아무 모듈에도 의존하지 않는 기반층입니다.** 여기서 다른 모듈을 참조하는 순간 순환이 생깁니다.
   (2026-10-01 까지 `ProjectController` 가 `accounting.ProjectProfitService` 를 불렀다 — `/api/projects/profit` 은
-  주소는 그대로 두고 `accounting/project/ProjectProfitController` 로 옮겼다.)
+  주소는 그대로 두고 `accounting/project/ProjectProfitController` 로 옮겼다 — 지금은 `accounting/cost/project/`.)
 - `auth`는 `settings` 하나에만 의존합니다(로그인 시 회사코드 → 회사). 그래서 **`settings`는 `auth`를 참조할 수 없습니다.**
   회사를 만들 때 관리자 계정을 심는 일은 인프라 패키지 `tenant`(`TenantSeeder`)가 맡습니다.
 - `common`은 모두가 의존하고 아무것도 의존하지 않습니다. 여러 모듈을 아우르는 인프라 엔드포인트(`/api/meta`)는
@@ -537,6 +549,11 @@ frontend/src/
 ---
 
 ## 11. 패키지 이동 기록
+
+**2026-10-31 · accounting 기능 → 묶음/기능.** `com/erp/accounting/<feature>/` 48 기능 중 43개를 `ledger` · `fund` · `asset` · `tax` · `cost`
+묶음 아래로 옮겼습니다(343 파일, 시험 3 포함 · `18464751`). 패키지 · import · FQN 만 바꿨고, 옮긴 파일을 옛 내용과 견줘 그 밖에는 한 줄도 안 바뀐 것을
+확인했습니다. `rm -rf target && ./mvnw -o compile` · test-compile · 앱 기동(Bean 스캔 · JPA `validate`) · arch-check · schema-check 118 ·
+qa.mjs 통과 2,578 → 2,582(실패 3 은 이동 전부터 있던 것). 묶음별 배정은 그 커밋 메시지에 있습니다. 같은 날 `groupware→accounting` 간선도 끊었습니다(`45a69909`).
 
 **2026-10-01 · 계층 폴더 → 기능 폴더.** `com/erp/<module>/<layer>/` 의 691개 파일을 `com/erp/<module>/<feature>/` 로
 옮겼습니다. 패키지 선언·import·본문 FQN 을 다시 쓰고, 같은 계층 폴더라 import 없이 쓰던 참조에 import 를 넣었습니다.
