@@ -1,5 +1,5 @@
 {
-  "about": "판매입력 → 판매조회 확인 → 확인된 판매 [선택삭제](원본 E040205 · E040206 2026-10-14 실측) — 품목을 고르면 수량이 빈칸(단가만 찬다), 머리에 [프로젝트] 없음, 격자 수량 → 시리얼/로트No. → 단가 … 부가세 → 합계, 2 × 300 = 600 · 60 · 660 → 판매조회 '미반영' · [확인] → 확인된 판매도 '선택한 전표를 삭제 하겠습니까?' 하나로 지워진다(확인취소 없이). 판매할 재고 2 는 처음에 구매(API)로 넣고 끝에 지운다. node qa/shot.mjs qa/flows/sale-confirmed-delete.json",
+  "about": "판매입력 → 판매조회 확인 → 확인된 판매 [선택삭제](원본 E040205 · E040206 2026-10-14 실측) — 품목을 고르면 수량이 빈칸(단가만 찬다), 머리에 [프로젝트] 있음(2026-10-31 d02ca56e — 원본 loginad 판매입력은 늘 보임), 격자 수량 → 시리얼/로트No. → 단가 … 부가세 → 합계, 2 × 300 = 600 · 60 · 660 → 판매조회 '미반영' · [확인] → 확인된 판매도 '선택한 전표를 삭제 하겠습니까?' 하나로 지워진다(확인취소 없이). 판매할 재고 2 는 처음에 구매(API)로 넣고 끝에 지운다. node qa/shot.mjs qa/flows/sale-confirmed-delete.json",
   "shots": [
     {
       "name": "준비 — QAJ1P · QAJ1-Z12 (없으면 만든다) · 재고 2 구매(API). 화면이 마스터를 다시 읽게 따로 연다",
@@ -9,10 +9,10 @@
       ]
     },
     {
-      "name": "판매입력 — 수량 빈칸 · 프로젝트 없음 · 2 × 300 = 660 저장",
+      "name": "판매입력 — 수량 빈칸 · 프로젝트 칸 있음 · 2 × 300 = 660 저장",
       "path": "/sales/sell",
       "steps": [
-        "expect:![...document.querySelectorAll('.ec-form .title')].some((t) => t.textContent.trim() === '프로젝트')",
+        "expect:[...document.querySelectorAll('.ec-form .title')].some((t) => t.textContent.trim() === '프로젝트')",
         "expect:[...document.querySelector('table.ec-grid-input thead tr').cells].map((c) => c.textContent.trim()).slice(5, 11).join('|') === '수량|시리얼/로트No.|단가|공급가액|부가세|합계'",
         "click:거래처 코드도움",
         "pickrow:QAJ1P",
