@@ -41,6 +41,16 @@ const scenario = JSON.parse(readFileSync(scenarioPath, 'utf8'))
 const baseDir = dirname(resolve(scenarioPath))
 
 const b = await openBrowser()
+
+// 코드도움 창이 여러 쪽이면 코드가 1쪽에 없을 수 있다 — 1쪽에 없으면 창의 검색칸에 코드를 넣어 좁힌 뒤 찾는다.
+const rowHas = (code) => `[...document.querySelectorAll('tr')].some(tr => [...tr.cells].some(td => td.innerText.trim() === ${JSON.stringify(code)}))`
+async function waitRow(code) {
+  try { await b.waitFor(rowHas(code), 1500); return } catch {}
+  await b.evaluate(`(() => { const el = [...document.querySelectorAll('input[placeholder^="입력 후"]')].pop(); if (!el) return false;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(code)});
+    el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)
+  await b.waitFor(rowHas(code))
+}
 let failed = false
 try {
   for (const shot of scenario.shots) {
@@ -65,7 +75,7 @@ try {
         const [label, code] = rest
         // 조건 칸은 [🔍] 이 '<라벨> 선택', 전표 코드칸(pair)은 '<라벨> 코드도움'
         await b.evaluate(`(document.querySelector('button[title="${label} 선택"]') ?? document.querySelector('button[title="${label} 코드도움"]')).click(); true`)
-        await b.waitFor(`[...document.querySelectorAll('tr')].some(tr => tr.innerText.includes(${JSON.stringify(code)}))`)
+        await waitRow(code)
         await b.evaluate(`[...document.querySelectorAll('tr')].find(tr => [...tr.cells].some(td => td.innerText.trim() === ${JSON.stringify(code)})).click(); true`)
         await sleep(600)
       } else if (kind === 'click' || kind === 'clicklast') {
@@ -80,7 +90,7 @@ try {
         // @키 면 sessionStorage 에 담아 둔 코드(앞 화면에서 만든 전표번호 등)
         const raw = rest.join(':')
         const code = raw.startsWith('@') ? await b.evaluate(`sessionStorage.getItem(${JSON.stringify(raw.slice(1))})`) : raw
-        await b.waitFor(`[...document.querySelectorAll('tr')].some(tr => [...tr.cells].some(td => td.innerText.trim() === ${JSON.stringify(code)}))`)
+        await waitRow(code)
         await b.evaluate(`[...document.querySelectorAll('tr')].find(tr => [...tr.cells].some(td => td.innerText.trim() === ${JSON.stringify(code)})).click(); true`)
         await sleep(500)
       } else if (kind === 'set') {
