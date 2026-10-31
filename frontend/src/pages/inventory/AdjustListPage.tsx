@@ -11,7 +11,7 @@ import { shortDateNo } from '../../utils/dateNo'
 import { useNavigate } from 'react-router-dom'
 import type { StockAdjustment } from '../../types/api'
 import Modal from '../../components/Modal'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { adjustSlipHtml } from '../../utils/adjustSlipDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
@@ -108,18 +108,16 @@ export default function AdjustListPage() {
   }
 
   function printRows(sel: StockAdjustment[]) {
-    const win = openPrintWindow()
-    if (!win) return
     const byNo = new Map<string, StockAdjustment[]>()
     sel.forEach((r) => byNo.set(r.adjustNo, [...(byNo.get(r.adjustNo) ?? []), r]))
     const whCode = (id: number) => pickers.warehouses.find((w) => w.value === String(id))?.code
-    fillAndPrint(win, adjustSlipHtml([...byNo.values()].map((rs) => ({
+    printHtml(adjustSlipHtml([...byNo.values()].map((rs) => ({
       docLabel: shortDateNo(rs[0].adjustDate, rs[0].adjustNo).replace(/^(\d{2})\//, '20$1/').replace('-', ' -'),
       date: rs[0].adjustDate,
       employeeName: rs[0].employeeId != null ? empName.get(rs[0].employeeId) ?? '' : '',
       warehouseLabel: rs[0].warehouseName + (whCode(rs[0].warehouseId) ? `(${whCode(rs[0].warehouseId)})` : ''),
       lines: rs.map((r) => ({ itemCode: r.itemCode, itemLabel: r.itemName + (r.spec ? ` [${r.spec}]` : ''), quantity: -Number(r.quantityChange), remark: r.reason ?? '' })),
-    }))), false)
+    }))), { autoPrint: false })
   }
 
   async function loadHist(sortName = histSort) {

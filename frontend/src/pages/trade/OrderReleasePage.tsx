@@ -12,7 +12,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { openPrintWindow, printHtml } from '../../utils/print'
 import { releaseSlipHtml, type ReleaseSlip } from '../../utils/releaseSlipDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
@@ -238,7 +238,7 @@ export default function OrderReleasePage() {
     if (!win) return
     try {
       const ds = await Promise.all(ids.map((id) => api.get<ReleaseSlip>(`/order-releases/${id}`)))
-      fillAndPrint(win, releaseSlipHtml(ds.map((d) => d.data)), false)
+      printHtml(releaseSlipHtml(ds.map((d) => d.data)), { win, autoPrint: false })
     } catch (err) { win.close(); setError(extractErrorMessage(err)) }
   }
 

@@ -8,7 +8,7 @@ import EcMonthCalendar from '../../components/EcMonthCalendar'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import { useShortcut } from '../../utils/useShortcut'
-import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { defaultRepeat, repeatSummary, type RepeatRule } from '../../utils/scheduleRepeat'
@@ -481,10 +481,8 @@ export default function SchedulePage({ popup }: { popup?: { viewId?: number } } 
     `${r.eventDate.replace(/-/g, '/')} ${r.startTime ?? ''}${r.endTime ? ` ~ ${r.endTime}` : ''}`.trim()
 
   function printOne(r: ScheduleEvent) {
-    const win = openPrintWindow()
-    if (!win) return
     const line = (k: string, v: string | null) => `<tr><th>${k}</th><td>${escapeHtml(v ?? '')}</td></tr>`
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>일정조회</title>
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>일정조회</title>
 <style>body{font-family:sans-serif;font-size:12px;padding:24px}table{border-collapse:collapse;width:100%}
 th,td{border:1px solid;padding:4px 6px;text-align:left}th{width:90px}</style></head><body><h1>일정조회</h1><table>
 ${line('제목', r.title)}${line('일정구분', r.category)}${line('장소', r.location)}${line('라벨', r.labelText)}

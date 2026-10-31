@@ -5,7 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingLedgerEmployee, WithholdingReturn } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { fmtNumberOf } from '../../utils/format'
 
 type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; address?: string; addressDetail?: string }
@@ -41,9 +41,8 @@ export default function IncomeTaxCertPage() {
   const [agent, setAgent] = useState({ addr: '', no: '', tel: '', name: '' })
   const paperRef = useRef<HTMLTableElement>(null)
   function print() {
-    const win = openPrintWindow()
-    if (!win || !paperRef.current) return
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>소득세확인서</title><style>${PRINT_CSS}</style></head>`
+    if (!paperRef.current) return
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>소득세확인서</title><style>${PRINT_CSS}</style></head>`
       + `<body><table>${paperRef.current.innerHTML}</table></body></html>`)
   }
   const [error, setError] = useState('')

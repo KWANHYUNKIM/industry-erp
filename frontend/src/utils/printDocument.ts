@@ -1,5 +1,5 @@
 import { api } from '../api/client'
-import { fillAndPrint, openPrintWindow, signLineHtml, signModuleOf, type PrintSignLine } from './print'
+import { openPrintWindow, printHtml, signLineHtml, signModuleOf, type PrintSignLine } from './print'
 import { amountToKorean } from './amountToKorean'
 import { escapeHtml } from './escapeHtml'
 import { DEFAULT_DISPLAY_PREFS, printPageCss, zeroText, type DisplayPrefs } from './displayPrefs'
@@ -262,9 +262,9 @@ export async function printDocuments(docs: PrintDocumentOptions[], opened?: Wind
     const filled = docs.map((d) => ({ ...d, signLine: d.signLine === undefined ? sign : d.signLine }))
 
     const title = filled.length === 1 ? filled[0].title : `${filled[0].title} 외 ${filled.length - 1}건`
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8">
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8">
       <title>${escapeHtml(title)}</title><style>${CSS}${printPageCss(prefs)}</style></head>
-      <body>${filled.map((d) => documentHtml(d, prefs)).join('')}</body></html>`)
+      <body>${filled.map((d) => documentHtml(d, prefs)).join('')}</body></html>`, { win })
     return true
   } catch (e) {
     // 준비 중 문구만 띄운 빈 창을 남겨두지 않는다

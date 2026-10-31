@@ -4,7 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingReturn, WithholdingStatement } from '../../types/api'
 import { StatementModal, StatementSheet } from './WithholdingPage'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { openPrintWindow, printHtml } from '../../utils/print'
 
 /** 인쇄창 문서 — 화면의 서식 표를 그대로 옮기고 테두리만 단다. */
 const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
@@ -77,8 +77,8 @@ export default function WithholdingPdfPage() {
   // 서식을 그린 다음 그 HTML 을 인쇄창에 옮긴다
   useEffect(() => {
     if (!printing || !sheetsRef.current) return
-    fillAndPrint(printing.win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>원천세신고서</title>`
-      + `<style>${PRINT_CSS}</style></head><body>${sheetsRef.current.innerHTML}</body></html>`)
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>원천세신고서</title>`
+      + `<style>${PRINT_CSS}</style></head><body>${sheetsRef.current.innerHTML}</body></html>`, { win: printing.win })
     setPrinting(null)
   }, [printing])
 

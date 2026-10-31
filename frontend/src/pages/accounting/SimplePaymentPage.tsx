@@ -5,7 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SimplePaymentKind, SimplePaymentSheet, SimplePaymentStatement } from '../../types/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { pad2 } from '../../utils/periods'
 import { fmtNumberOrBlank } from '../../utils/format'
@@ -303,9 +303,8 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
     api.put<SimplePaymentSheet>(`/simple-payment-statements/${id}/sheet`, sheet.labor).then((r) => setSheet(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
   function print() {
-    const win = openPrintWindow()
-    if (!win || !paperRef.current) return
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>간이지급명세서</title><style>${SHEET_PRINT_CSS}</style></head>`
+    if (!paperRef.current) return
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>간이지급명세서</title><style>${SHEET_PRINT_CSS}</style></head>`
       + `<body>${paperHtml(paperRef.current)}</body></html>`)
   }
 

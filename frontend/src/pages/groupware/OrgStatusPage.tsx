@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster } from '../../types/api'
-import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import EcIcon from '../../components/ui/EcIcon'
 
 interface Node extends Department {
@@ -70,10 +70,8 @@ export default function OrgStatusPage() {
   function printChart() {
     const el = chartRef.current
     if (!el) return
-    const win = openPrintWindow()
-    if (!win) return
     const css = [...document.querySelectorAll('style, link[rel=stylesheet]')].map((n) => n.outerHTML).join('')
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>조직도현황</title>${css}</head>
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>조직도현황</title>${css}</head>
 <body><h1 class="text-[14px] font-bold">조직도현황</h1>${el.outerHTML}</body></html>`)
   }
 

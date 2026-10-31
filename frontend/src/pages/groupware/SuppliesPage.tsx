@@ -8,7 +8,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import { useShortcut } from '../../utils/useShortcut'
-import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { defaultRepeat, repeatSummary, type RepeatRule } from '../../utils/scheduleRepeat'
@@ -312,10 +312,8 @@ export default function SuppliesPage() {
     `${u.useDate.replace(/-/g, '/')} ${u.allDay ? '종일' : `${u.startTime ?? ''} ~ ${u.endTime ?? ''}`}`
 
   function printOne(u: Usage) {
-    const win = openPrintWindow()
-    if (!win) return
     const line = (k: string, v: string | null) => `<tr><th>${k}</th><td>${escapeHtml(v ?? '')}</td></tr>`
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>공용품관리</title>
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>공용품관리</title>
 <style>body{font-family:sans-serif;font-size:12px;padding:24px}table{border-collapse:collapse;width:100%}
 th,td{border:1px solid;padding:4px 6px;text-align:left}th{width:90px}</style></head><body><h1>공용품관리</h1><table>
 ${line('공용품', u.supplyItemName)}${line('사용자', u.userName)}${line('날짜/시간', timeText(u))}${line('제목', u.title)}

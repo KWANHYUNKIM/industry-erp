@@ -83,7 +83,7 @@ export function openPrintWindow(): Window | null {
  * @param autoPrint false 면 <b>보여 주기만</b> 한다 — 원본의 [미리보기]가 그것이다.
  *   찍기 전에 무엇이 나오는지 보고 싶은데, 대화상자가 먼저 뜨면 <b>취소부터</b> 눌러야 한다.
  */
-export function fillAndPrint(win: Window, html: string, autoPrint = true) {
+function fillAndPrint(win: Window, html: string, autoPrint = true) {
   win.document.open()
   win.document.write(html)
   win.document.close()
@@ -91,6 +91,23 @@ export function fillAndPrint(win: Window, html: string, autoPrint = true) {
   // document.write 로 만든 문서는 load 이벤트가 이미 지나가 onload 가 안 오는 경우가 있다.
   // 렌더가 끝난 뒤 인쇄를 부르려고 한 박자 늦춘다(바로 부르면 빈 페이지가 찍히는 브라우저가 있다).
   if (autoPrint) win.setTimeout(() => win.print(), 200)
+}
+
+/**
+ * 다 만든 HTML 한 장을 인쇄창에 찍는다 — 신고서 · 증명서 · 글 한 건처럼 서식이 화면마다 달라
+ * {@link printTable}(목록 표) · printDocuments(전표 서식)로 그릴 수 없는 출력물이 쓴다.
+ * 창 열기 · 쓰기 · 인쇄 대화상자는 여기 안쪽에서만 한다.
+ *
+ * @param win 이미 열어 둔 인쇄창. 내용을 받아 오느라 기다린 뒤에 찍는다면 클릭 순간에
+ *            {@link openPrintWindow} 로 열어 넘긴다(팝업 차단). 없으면 지금 연다.
+ * @param autoPrint false 면 보여 주기만 한다(미리보기)
+ * @returns 창을 못 열었으면(팝업 차단 · 외부전송 권한없음) false
+ */
+export function printHtml(html: string, opts: { win?: Window | null; autoPrint?: boolean } = {}): boolean {
+  const target = opts.win ?? openPrintWindow()
+  if (!target) return false
+  fillAndPrint(target, html, opts.autoPrint ?? true)
+  return true
 }
 
 /**

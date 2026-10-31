@@ -3,7 +3,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { loadVatSheet, type AccountOpt, type VatReturnRow } from './VatReturnPage'
 import EcDateInput from '../../components/ui/EcDateInput'
 import { fmtAmount } from '../../utils/format'
@@ -76,9 +76,8 @@ export default function TaxCertificatePage() {
   }
 
   function print() {
-    const win = openPrintWindow()
-    if (!win || !sheetRef.current) return
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>세무증명서류</title><style>${PRINT_CSS}</style></head>`
+    if (!sheetRef.current) return
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>세무증명서류</title><style>${PRINT_CSS}</style></head>`
       + `<body>${sheetRef.current.innerHTML}</body></html>`)
   }
 

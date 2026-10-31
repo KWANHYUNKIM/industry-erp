@@ -6,7 +6,7 @@ import { openAppBarPanel } from '../../components/AppBarPanel'
 import Modal from '../../components/Modal'
 import type { SurveyDoc, SurveyResult, SurveyStatus } from '../../types/api'
 import { EcCond } from '../../components/EcStatusPanel'
-import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { matrixToXlsx } from '../../utils/excel'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
@@ -481,8 +481,6 @@ function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () =>
   const pct = (n: number, all: number) => `${(all ? (n * 100) / all : 0).toFixed(2)}%`
   /** 판 그대로 인쇄창에 옮긴다 — 요약 · 질문마다 격자. */
   const print = (autoPrint: boolean) => {
-    const win = openPrintWindow()
-    if (!win) return
     const e = escapeHtml
     const body = result.questions.map((q) => {
       const opts = Object.entries(q.counts)
@@ -492,10 +490,10 @@ function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () =>
         : opts.map(([o, n], i) => `<tr><td>${e(o)}</td><td>${n}</td><td>${pct(n, q.answeredCount)}</td>${i === 0 ? `<td rowspan="${opts.length}">${q.answeredCount}명</td>` : ''}</tr>`)
       return `<p>${e(q.content)}</p><table><thead><tr><th>항목</th><th>응답자수</th><th>응답비율</th><th>전체응답자수</th></tr></thead><tbody>${rows.join('')}</tbody></table>`
     }).join('')
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>설문조사 결과보기</title>`
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>설문조사 결과보기</title>`
       + `<style>body{font-family:sans-serif;font-size:12px;padding:16px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid;padding:4px 6px;text-align:left}</style></head>`
       + `<body><h3>설문조사 결과보기</h3><p><b>요약</b><br>설문대상자수 : ${result.targetCount}<br>설문응답자수 : ${result.responseCount}<br>`
-      + `설문미응답자수 : ${Math.max(0, result.targetCount - result.responseCount)}</p>${body}</body></html>`, autoPrint)
+      + `설문미응답자수 : ${Math.max(0, result.targetCount - result.responseCount)}</p>${body}</body></html>`, { autoPrint })
   }
   /** [Excel] — 질문마다의 격자를 한 장에: 질문 · 항목 · 응답자수 · 응답비율 · 전체응답자수. */
   const excel = () => void matrixToXlsx({

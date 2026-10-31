@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingPaymentStatement, WithholdingReceiptPayee } from '../../types/api'
 import type { Company } from './SimplePaymentPage'
@@ -65,9 +65,8 @@ export default function OtherWithholdingStatementPage() {
   }
 
   function print() {
-    const win = openPrintWindow()
-    if (!win || !sheetRef.current) return
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>지급명세서</title><style>${PRINT_CSS}</style></head>`
+    if (!sheetRef.current) return
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>지급명세서</title><style>${PRINT_CSS}</style></head>`
       + `<body>${sheetRef.current.innerHTML}</body></html>`)
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { exportTableToXlsx } from '../../utils/excel'
-import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
 import LabelChip from '../../features/board/components/LabelChip'
 import LabelMasterModal from '../../features/board/components/LabelMasterModal'
@@ -838,9 +838,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK', popup }: {
 
   /** 원본 View 의 [인쇄] — 펼쳐 놓은 글 한 건을 찍는다. */
   function printPost(r: WorkPost) {
-    const win = openPrintWindow()
-    if (!win) return
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(r.title)}</title>
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(r.title)}</title>
 <style>body{font-family:sans-serif;font-size:12px;padding:24px}h1{font-size:14px;margin:0 0 8px}
 .meta{margin-bottom:12px}.body{white-space:pre-wrap;border-top:1px solid;padding-top:12px}</style></head>
 <body><h1>${escapeHtml(`${r.postNo} | ${r.title} | ${r.writerName ?? r.writer} | ${stampText(r.createdAt, r.postDate)}`)}</h1>

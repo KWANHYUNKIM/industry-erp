@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { openPrintWindow, printHtml } from '../../utils/print'
 import { loadVatSheet, ReturnSheet, type AccountOpt, type CompanyInfo, type Sheet, type VatReturnRow } from './VatReturnPage'
 import { pad2 } from '../../utils/periods'
 
@@ -85,8 +85,8 @@ export default function VatReturnPdfPage() {
   // 서식을 그린 다음 그 HTML 을 인쇄창에 옮긴다
   useEffect(() => {
     if (!printing || !sheetsRef.current) return
-    fillAndPrint(printing.win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>부가가치세신고서</title>`
-      + `<style>${PRINT_CSS}</style></head><body>${sheetsRef.current.innerHTML}</body></html>`)
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>부가가치세신고서</title>`
+      + `<style>${PRINT_CSS}</style></head><body>${sheetsRef.current.innerHTML}</body></html>`, { win: printing.win })
     setPrinting(null)
   }, [printing])
 

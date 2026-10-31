@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Modal from '../../../components/Modal'
-import { fillAndPrint, openPrintWindow } from '../../../utils/print'
+import { printHtml } from '../../../utils/print'
 import TaxInvoicePaper, { DEFAULT_PAPER_DISPLAY, type PaperDisplay, type PaperKind, type PaperParty, type PaperVoucher } from './TaxInvoicePaper'
 import DropUpButton from './DropUpButton'
 import EcHistoryButton from '../../../components/EcHistory'
@@ -34,10 +34,9 @@ export default function TaxInvoicePaperModal({ v, supplier, buyer, onClose }: {
   useEffect(() => { setFormMenu(false) }, [optOpen])
   const printPaper = () => {
     const el = paperRef.current
-    const w = el && openPrintWindow()
-    if (!el || !w) return
+    if (!el) return
     const styles = [...document.querySelectorAll('style, link[rel="stylesheet"]')].map((n) => n.outerHTML).join('')
-    fillAndPrint(w, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>청구서</title>${styles}</head><body>${el.innerHTML}</body></html>`)
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>청구서</title>${styles}</head><body>${el.innerHTML}</body></html>`)
   }
   return (
     <>

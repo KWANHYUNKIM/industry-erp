@@ -4,7 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { openPrintWindow, printHtml } from '../../utils/print'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import type { JournalEntry } from '../../types/api'
 import EcDateInput from '../../components/ui/EcDateInput'
@@ -408,16 +408,15 @@ export default function VatReturnPage() {
   useEffect(() => {
     if (!pdf) return
     const el = document.getElementById('vat-return-pdf')
-    if (el) fillAndPrint(pdf.win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${DOC_TITLE.RETURN}</title><style>${PRINT_CSS}</style></head>`
-      + `<body>${el.innerHTML}</body></html>`)
+    if (el) printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${DOC_TITLE.RETURN}</title><style>${PRINT_CSS}</style></head>`
+      + `<body>${el.innerHTML}</body></html>`, { win: pdf.win })
     setPdf(null)
   }, [pdf])
 
   function print() {
     const el = document.getElementById('vat-return-sheet')
-    const w = openPrintWindow()
-    if (!w || !el || !view) return
-    fillAndPrint(w, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${DOC_TITLE[view.code]}</title><style>${PRINT_CSS}</style></head>`
+    if (!el || !view) return
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${DOC_TITLE[view.code]}</title><style>${PRINT_CSS}</style></head>`
       + `<body>${el.innerHTML}</body></html>`)
   }
 

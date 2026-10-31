@@ -11,7 +11,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { inactiveDeptNames, showsJournal, type DeptRow } from '../../utils/inactiveDept'
-import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcRichEditor from '../../components/EcRichEditor'
@@ -312,9 +312,7 @@ export default function WorkLogPage() {
   }
 
   function printOne(r: WorkJournal) {
-    const win = openPrintWindow()
-    if (!win) return
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>업무일지</title></head><body>
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>업무일지</title></head><body>
 <h1>${escapeHtml(r.title)}</h1><p>${escapeHtml(r.authorName)} ${escapeHtml(stampText(r.createdAt))}</p>
 <p>업무보고일 : ${r.reportDate.replace(/-/g, '')}<br>부서 : ${escapeHtml(r.department ?? '')}<br>거래처 : ${escapeHtml(r.partnerName ?? '')}<br>프로젝트 : ${escapeHtml(r.projectName ?? '')}</p>
 ${isHtml(r.content) ? `<div>${sanitizeHtml(r.content)}</div>` : `<pre>${escapeHtml(r.content ?? '')}</pre>`}</body></html>`)

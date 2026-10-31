@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { printHtml } from '../../utils/print'
 import { ecAlert } from '../../components/EcDialog'
 import { InvoiceSummarySheet, loadVatSheet, type AccountOpt, type CompanyInfo, type Sheet } from './VatReturnPage'
 import EcDateInput from '../../components/ui/EcDateInput'
@@ -136,9 +136,8 @@ export default function VatMediaFilePage() {
 
   function printAttach() {
     const el = document.getElementById('vat-media-sheet')
-    const win = openPrintWindow()
-    if (!win || !el) return
-    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${attach?.kind ?? ''}</title><style>${PRINT_CSS}</style></head>`
+    if (!el) return
+    printHtml(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${attach?.kind ?? ''}</title><style>${PRINT_CSS}</style></head>`
       + `<body>${el.innerHTML}</body></html>`)
   }
 
