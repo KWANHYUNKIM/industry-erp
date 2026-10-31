@@ -4,6 +4,7 @@ import { ecAlert } from '../../../components/EcDialog'
 import Modal from '../../../components/Modal'
 import { useAuth } from '../AuthContext'
 import { permForRoute } from '../menuPermissions'
+import './noperm.css'
 
 interface Master { id: number; username: string; name: string }
 

@@ -1583,20 +1583,6 @@ html.ec-dark canvas { filter: invert(1) hue-rotate(180deg); }
   .ec-ai > .side { width: 120px; }
 }
 
-/* ── 막힌 화면(업무 권한 없음) — 원본 2026-10-30 loginaa 실측(plans/데이터이관/원본-업무권한.md §1) ── */
-.ec-noperm { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-  min-height: 420px; padding: 48px 20px; color: var(--ec-text); }
-/* 크기 · 간격은 원본 영상 2000(1280px 녹화, 100%) 프레임을 픽셀로 잰 값: 자물쇠 95×116 rgb(180,186,196) · 아래 23 ·
-   첫 줄 15px · 줄 간격 25 · 마스터 줄 22px 굵게(위 30) · [권한요청] 단추 38 높이 · 좌우 22 · 16px 굵게 · 글 가운데 · 각진 모서리.
-   2026-10-30 [권한요청] 이 깨져 보였다 — 이 묶음이 휴대폰 @media 안에 들어가 PC 에서 하나도 안 먹고(.ec-btn 이 flex 라 글이 왼쪽에 붙음) */
-.ec-noperm-lock { width: 95px; height: 116px; margin-bottom: 23px; fill: var(--ec-lock); stroke: var(--ec-lock); }
-.ec-noperm-lock .hole { fill: var(--ec-bg-panel); stroke: none; }
-.ec-noperm-title { font-size: 15px; font-weight: 400; line-height: 25px; margin: 0; }
-.ec-noperm-title .work { color: var(--ec-blue); font-weight: 700; }
-.ec-noperm-sub { font-size: 14px; line-height: 25px; color: var(--ec-text); margin: 0 0 19px; }
-.ec-noperm-masters { font-size: 22px; font-weight: 700; margin: 0 0 30px; }
-.ec-noperm-masters .names { color: var(--ec-blue); }
-.ec-noperm .ec-noperm-ask { height: 38px; padding: 0 22px; justify-content: center; font-size: 16px; font-weight: 700; border-radius: 0; }
 /* 관리자설정 — 마스터 이름 칩, 오른쪽 (−) 로 뺀다(원본 영상 2531) */
 .ec-master-chip { display: inline-flex; align-items: center; gap: 4px; height: var(--ec-ctl-h); padding: 0 9px;
   border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius); color: var(--ec-blue); }
