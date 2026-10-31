@@ -228,6 +228,9 @@ main table,
   font-weight: 400 !important;
   font-size: 12px !important;
   white-space: nowrap;
+  /* 머리는 가운데, 줄 간격 17.1429px — 아래 주석 */
+  text-align: center !important;
+  line-height: 1.428571 !important;
 }
 #root table:not(.no-ec) tbody td {
   border: var(--ec-hair) solid var(--ec-line) !important;
@@ -245,11 +248,8 @@ main table,
  *
  * 화면 코드가 머리에 준 인라인 정렬(textAlign: 'right' 등)도 여기서 덮는다 — 원본이 그렇다.
  * thead 의 th 만 건드린다(입력 폼이 tbody 안에 쓰는 이름표 th 는 그대로다).
+ * (값은 위 #root table:not(.no-ec) thead th 에 합쳤다.)
  */
-#root table:not(.no-ec) thead th {
-  text-align: center !important;
-  line-height: 1.428571 !important;
-}
 /*
  * 조회 목록(판매조회·구매조회)의 머리는 <b>굵다</b> — 2026-09-21 판매조회 실측: th·안쪽 span 모두 700.
  * 위의 400 은 전표 입력 격자에서 잰 값이라(50b2975) 조회 목록에는 맞지 않았다.
@@ -328,10 +328,7 @@ main table,
   border: var(--ec-hair) solid var(--ec-line) !important;
   font-size: 12px !important;
 }
-/* 조회 목록 계열의 합계줄(판매현황 [총합계]) — 보통 굵기, 회색 247, 이름 가운데. 칸마다 칠한다(원본이 그렇다). */
-:root {
-  --ec-list-total-bg: rgb(247, 247, 247);
-}
+/* 조회 목록 계열의 합계줄(판매현황 [총합계]) — 보통 굵기, 회색 247(--ec-list-total-bg, tokens.css), 이름 가운데. 칸마다 칠한다(원본이 그렇다). */
 #root table:not(.no-ec) tr.ec-list-total td {
   background: var(--ec-list-total-bg);
   font-weight: 400;
@@ -351,11 +348,8 @@ main table,
  * 처음 이 자리에 "줄이 번갈아 회색이다" 라고 적었는데 틀렸다.
  *
  * 숫자 열 머리도 <b>가운데</b>다(청구금액·미청구금액·합계를 재 봤다) — 칸은 오른쪽인데 머리는
- * 가운데라, 화면 코드가 머리에 인라인 오른쪽 정렬을 줘도 여기서 덮는다.
+ * 가운데라, 화면 코드가 머리에 인라인 오른쪽 정렬을 줘도 여기서 덮는다. 줄무늬 색은 --ec-report-stripe(tokens.css).
  */
-:root {
-  --ec-report-stripe: rgb(243, 243, 243);
-}
 /*
  * 줄 간격은 원본이 <b>17.1429px</b>(12px × 20/14) 다 — 우리 기본(Tailwind 1.5 = 18px)이면
  * 줄마다 1px 씩 커져 같은 자료가 원본보다 길게 늘어진다. 원본 칸 높이 머리 27 · 본문 24.
@@ -501,44 +495,7 @@ main table,
    .wrapper-toolbar / .table-grid-input / .footer
    ============================================================ */
 
-.ec-slip {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-}
-
-/* 상단 고정 제목줄 (.header.header-fixed > .wrapper-title) */
-.ec-slip-title {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--ec-border);
-  margin-bottom: 0;
-}
-.ec-slip-title .name {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--ec-text);
-}
-
-/* 임시저장 안내줄 (.wrapper-toolbar 의 tempSave 영역) */
-.ec-slip-tempbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
-  font-size: 12px;
-  background: #fffbe6;
-  border: 1px solid #f0dfa0;
-  border-top: 0;
-  color: #7a5c00;
-}
-.ec-slip-tempbar a {
-  color: var(--ec-blue);
-  cursor: pointer;
-  text-decoration: underline;
-}
+/* .ec-slip(틀) · .ec-slip-title · .ec-slip-tempbar 는 아래 '전표 공용' 구역에 모았다. */
 
 /* 양식/연결전표 탭 (.nav.nav-tabs) */
 .ec-tabs {
@@ -1666,7 +1623,7 @@ th.ec-empty {
   text-align: center;
 }
 .ec-org-members { list-style: none; margin: 0; padding: 0; }
-.ec-org-members > li { display: grid; grid-template-columns: 1fr 1fr; padding: 4.5px 0; font-size: var(--ec-fs); text-align: center; }
+.ec-org-members > li { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4.5px 0; font-size: var(--ec-fs); text-align: center; }
 .ec-org-members > li.hit { background: var(--ec-blue-wash); font-weight: 700; }
 .ec-org-children { position: relative; display: flex; gap: 9px; margin-top: 18px; padding-top: 18px; border-top: var(--ec-hair) solid var(--ec-line); }
 .ec-org-children::before { content: ""; position: absolute; top: -18px; left: 50%; height: 18px; border-left: var(--ec-hair) solid var(--ec-line); }
@@ -1674,7 +1631,6 @@ th.ec-empty {
 .ec-org-children > .ec-org-branch::before { content: ""; position: absolute; top: -18px; left: 50%; height: 18px; border-left: var(--ec-hair) solid var(--ec-line); }
 /* 조직도현황 성명 → 사원 카드(E090220 실측: 404x171 · 여백 9 · 둥글기 10 · 머리카락 테두리 · 그림자 pop,
    사진 칸 133x152 --ec-bg-page 둥글기 10, 이름표 회색 폭 71 · 값 왼쪽 여백 4.5, 이름 아래 2.7) */
-.ec-org-members > li { position: relative; }
 .ec-org-profile { position: absolute; top: 100%; left: 0; z-index: 30; display: flex; gap: 15px; width: 404px; padding: 9px;
   background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius);
   box-shadow: var(--ec-shadow-pop); text-align: left; cursor: default; }
@@ -1759,6 +1715,53 @@ th.ec-empty {
 .ec-wcal-ev { text-align: left; cursor: pointer; font: inherit; }
 .ec-pill > .ec-wlink { color: inherit; }
 
+/* ============================================================
+   전표 공용(.ec-slip-*) — 입력 틀(EcSlipShell) · 인쇄 미리보기(EcSlipPrintModal) · 인쇄용 한 벌
+   ============================================================ */
+.ec-slip {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* 상단 고정 제목줄 (.header.header-fixed > .wrapper-title) */
+.ec-slip-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--ec-border);
+  margin-bottom: 0;
+  /* 인쇄 미리보기(EcSlipPrintModal)와 같은 클래스 — 예전에 따로 있던 둘째 정의를 합쳤다(뒤에 오던 값이 이긴 그대로) */
+  height: 30px;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+.ec-slip-title .name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ec-text);
+}
+
+/* 임시저장 안내줄 (.wrapper-toolbar 의 tempSave 영역) */
+.ec-slip-tempbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: #fffbe6;
+  border: 1px solid #f0dfa0;
+  border-top: 0;
+  color: #7a5c00;
+}
+.ec-slip-tempbar a {
+  color: var(--ec-blue);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 /*
  * 전표 인쇄 미리보기(components/EcSlipPrintModal) — 원본 구매조회 [인쇄] '구매전표' 창 2026-10-31 loginad getComputedStyle 실측.
  * 종이 651 · 제목 18px 700 밑줄 h30 · 머리 상자 검정 1px · 이름칸 바탕 rgb(247,247,247) · 12px h20(76/220 · 10 · 75/269) ·
@@ -1772,7 +1775,6 @@ th.ec-empty {
 }
 .ec-slip-page { width: 651px; margin: 0 auto; padding: 0 0 9px; color: var(--ec-ink); background: var(--ec-bg-panel); }
 .ec-slip-sheet { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; font-size: 12px; line-height: normal; }
-.ec-slip-title { height: 30px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }
 .ec-slip-head { display: flex; gap: 10px; margin: 5px 0 6px; }
 .ec-slip-head table { border-collapse: collapse; table-layout: fixed; }
 .ec-slip-head table:first-child { width: 297px; }
