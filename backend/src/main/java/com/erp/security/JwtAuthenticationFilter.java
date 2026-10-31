@@ -58,11 +58,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 String username = tokenProvider.getUsername(token);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                // 사용중지한 사용자 · 회수된 토큰(로그아웃 · 비밀번호 변경 · 사용중지로 token_version 이 올라감)은 인증하지 않는다 → 401
+                if (userDetails.isEnabled() && currentVersion(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
 
             filterChain.doFilter(request, response);
@@ -79,6 +82,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 TenantContext.clear();   // 스레드 풀에 테넌트가 눌어붙지 않도록
             }
         }
+    }
+
+    /** 토큰의 tv 가 사용자의 지금 token_version 과 같은가. tv 가 없는 옛 토큰은 받지 않는다. */
+    private boolean currentVersion(String token, UserDetails userDetails) {
+        Integer tv = tokenProvider.getTokenVersion(token);
+        return tv != null && userDetails instanceof UserPrincipal p && p.getTokenVersion() == tv;
     }
 
     private void unavailable(HttpServletResponse response) throws IOException {

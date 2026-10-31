@@ -121,12 +121,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-    tokenStore.clear()
-    localStorage.removeItem(COMPANY_KEY)
-    setUser(null)
-    setCompany(null)
-    setPerms({ admin: false, codes: [] })
-    window.location.href = '/login'
+    /* 서버가 이 사용자의 토큰을 회수한다(token_version +1 — 같은 계정의 다른 창도 끊긴다, docs/보안-점검.md H6). 실패해도 여기서는 지운다. */
+    const done = () => {
+      tokenStore.clear()
+      localStorage.removeItem(COMPANY_KEY)
+      setUser(null)
+      setCompany(null)
+      setPerms({ admin: false, codes: [] })
+      window.location.href = '/login'
+    }
+    if (tokenStore.get()) api.post('/auth/logout').catch(() => undefined).finally(done)
+    else done()
   }
 
   function hasRole(role: string) {

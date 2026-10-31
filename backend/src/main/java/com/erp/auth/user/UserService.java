@@ -77,6 +77,7 @@ public class UserService {
     public UserResponse setEnabled(Long id, boolean enabled) {
         User user = getUser(id);
         if (enabled && !user.isEnabled()) requireSeat();
+        if (!enabled && user.isEnabled()) user.revokeTokens();   // 사용중지 — 나간 토큰도 바로 끊는다(H6)
         user.setEnabled(enabled);
         return UserResponse.from(user);
     }
@@ -98,6 +99,7 @@ public class UserService {
         }
         if (request.enabled() != null) {
             if (request.enabled() && !user.isEnabled()) requireSeat();
+            if (!request.enabled() && user.isEnabled()) user.revokeTokens();
             user.setEnabled(request.enabled());
         }
         if (request.roleNames() != null) {
@@ -107,6 +109,7 @@ public class UserService {
             requirePasswordPolicy(request.password());
             requireNotRecentlyUsed(user, request.password());
             user.setPassword(passwordEncoder.encode(request.password()));
+            user.revokeTokens();   // 비밀번호를 바꾸면 옛 비밀번호로 받은 토큰은 끊는다(H6)
             rememberPassword(user);
         }
         return UserResponse.from(user);
@@ -125,9 +128,12 @@ public class UserService {
         return UserResponse.from(user);
     }
 
-    /** 사람 그림 › [개인정보수정] › 비밀번호 변경 — 지금 비밀번호가 맞아야 바꾼다. 보안정책(길이 · 최근 N개)은 사용자등록과 같다. */
+    /**
+     * 사람 그림 › [개인정보수정] › 비밀번호 변경 — 지금 비밀번호가 맞아야 바꾼다. 보안정책(길이 · 최근 N개)은 사용자등록과 같다.
+     * 다른 기기의 토큰은 끊고(token_version +1), 바뀐 버전을 돌려준다 — 지금 창은 그 버전으로 새 토큰을 받아 이어 쓴다.
+     */
     @Transactional
-    public void changeOwnPassword(String username, String current, String next) {
+    public int changeOwnPassword(String username, String current, String next) {
         User user = getByUsername(username);
         if (current == null || !passwordEncoder.matches(current, user.getPassword())) {
             throw ApiException.badRequest("현재 비밀번호가 맞지 않습니다.");
@@ -136,7 +142,9 @@ public class UserService {
         requirePasswordPolicy(next);
         requireNotRecentlyUsed(user, next);
         user.setPassword(passwordEncoder.encode(next));
+        user.revokeTokens();
         rememberPassword(user);
+        return user.getTokenVersion();
     }
 
     /**

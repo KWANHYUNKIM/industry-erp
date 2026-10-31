@@ -30,6 +30,8 @@ public class UserPrincipal implements UserDetails {
     private final String password;
     private final String name;
     private final boolean enabled;
+    /** 사용자의 토큰 버전(token_version) — 필터가 토큰의 tv 와 견준다. */
+    private final int tokenVersion;
     private final boolean admin;
     /** 진입할 수 있는 업무 코드(권한없음이 아닌 업무). 마스터면 전부. */
     private final Set<String> permissionCodes;
@@ -43,6 +45,7 @@ public class UserPrincipal implements UserDetails {
         this.password = user.getPassword();
         this.name = user.getName();
         this.enabled = user.isEnabled();
+        this.tokenVersion = user.getTokenVersion();
         this.permissions = permissions;
         this.admin = permissions.isMaster();
         this.permissionCodes = permissions.allowedCodes();

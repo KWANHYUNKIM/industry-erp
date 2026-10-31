@@ -26,6 +26,8 @@ public class JwtTokenProvider {
     /** HS256 의 최소 키 길이. */
     static final int MIN_SECRET_BYTES = 32;
 
+    static final String TOKEN_VERSION_CLAIM = "tv";
+
     /** 예전 application.yml 에 기본값으로 적혀 있던 값 — 공개 저장소에 있으므로 어느 프로필에서도 받지 않는다. */
     private static final Set<String> PUBLISHED_SECRETS = Set.of(
             "change-this-in-production-please-use-a-long-random-secret-key-32bytes+");
@@ -63,13 +65,14 @@ public class JwtTokenProvider {
                 + ". 32바이트 이상 무작위 값을 환경변수로 주세요(예: openssl rand -base64 48).");
     }
 
-    /** 사용자명(subject) + 테넌트(회사 스키마) 기준으로 토큰 생성 */
-    public String createToken(String username, String tenant) {
+    /** 사용자명(subject) + 테넌트(회사 스키마) + 토큰 버전(tv, 사용자의 token_version) 기준으로 토큰 생성 */
+    public String createToken(String username, String tenant, int tokenVersion) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
                 .subject(username)
                 .claim("tenant", tenant)
+                .claim(TOKEN_VERSION_CLAIM, tokenVersion)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -85,6 +88,12 @@ public class JwtTokenProvider {
     public String getTenant(String token) {
         Object t = parse(token).get("tenant");
         return t == null ? null : t.toString();
+    }
+
+    /** 토큰 버전(tv). 없으면 null — 그런 토큰은 받지 않는다(필터). */
+    public Integer getTokenVersion(String token) {
+        Object v = parse(token).get(TOKEN_VERSION_CLAIM);
+        return v instanceof Number n ? n.intValue() : null;
     }
 
     /** 토큰 유효성 검증 */

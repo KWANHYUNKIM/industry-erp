@@ -27,6 +27,13 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
+    /** 로그아웃 — 서버에서 이 사용자의 토큰을 회수한다. 토큰이 이미 안 통하면(401) 프론트는 그냥 지운다. */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal principal) {
+        if (principal != null) authService.logout(principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+
     /** 현재 로그인한 사용자 정보 */
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal UserPrincipal principal) {

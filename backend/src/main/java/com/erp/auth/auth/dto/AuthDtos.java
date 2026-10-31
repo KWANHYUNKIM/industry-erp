@@ -37,4 +37,7 @@ public final class AuthDtos {
             @NotBlank(message = "현재 비밀번호를 입력하세요.") String currentPassword,
             @NotBlank(message = "새 비밀번호를 입력하세요.") String newPassword
     ) {}
+
+    /** 비밀번호 변경 뒤 지금 창이 이어 쓸 새 토큰(다른 기기의 토큰은 끊긴다). */
+    public record TokenResponse(String token) {}
 }

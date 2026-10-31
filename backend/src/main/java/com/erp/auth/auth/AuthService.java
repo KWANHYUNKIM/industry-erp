@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.erp.auth.auth.dto.AuthDtos;
 import com.erp.auth.user.dto.UserDtos;
 
@@ -41,10 +42,19 @@ public class AuthService {
 
             User user = userRepository.findByUsername(request.username())
                     .orElseThrow();  // 인증 통과했으므로 존재 보장
-            String token = tokenProvider.createToken(user.getUsername(), company.schemaName());
+            String token = tokenProvider.createToken(user.getUsername(), company.schemaName(), user.getTokenVersion());
             return new LoginResponse(token, company.code(), company.name(), UserResponse.from(user));
         } finally {
             TenantContext.clear();
         }
+    }
+
+    /**
+     * 로그아웃 — 이 사용자에게 나간 토큰을 전부 무효로 한다(token_version +1, docs/보안-점검.md H6).
+     * 같은 계정으로 다른 기기 · 창에서 로그인한 것도 같이 끊긴다. 테넌트는 필터가 토큰대로 걸어 둔 상태다.
+     */
+    @Transactional
+    public void logout(String username) {
+        userRepository.findByUsername(username).ifPresent(User::revokeTokens);
     }
 }

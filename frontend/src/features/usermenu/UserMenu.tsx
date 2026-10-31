@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
-import { api, extractErrorMessage } from '../../api/client'
+import { api, extractErrorMessage, tokenStore } from '../../api/client'
 import Modal from '../../components/Modal'
 import { ecAlert } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
@@ -77,7 +77,11 @@ function ProfileWindow({ onClose }: { onClose: () => void }) {
     }
     setSaving(true)
     try {
-      if (pw && (pw.current || pw.next)) await api.put('/me/password', { currentPassword: pw.current, newPassword: pw.next })
+      if (pw && (pw.current || pw.next)) {
+        /* 비밀번호를 바꾸면 서버가 옛 토큰을 끊는다 — 지금 창은 돌려준 새 토큰으로 이어 쓴다(docs/보안-점검.md H6) */
+        const r = await api.put<{ token?: string }>('/me/password', { currentPassword: pw.current, newPassword: pw.next })
+        if (r.data?.token) tokenStore.set(r.data.token)
+      }
       await api.put<MyProfile>('/me/profile', { name: p.name, email: p.email })
       onClose()
     } catch (e) {

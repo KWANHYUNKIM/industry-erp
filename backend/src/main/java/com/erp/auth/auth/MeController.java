@@ -15,6 +15,9 @@ import com.erp.auth.workpermission.WorkPermissionService;
 import com.erp.auth.workpermission.dto.WorkPermissionDtos.MasterResponse;
 import com.erp.common.MenuPermissionCatalog;
 import com.erp.auth.auth.dto.AuthDtos.MyPasswordRequest;
+import com.erp.auth.auth.dto.AuthDtos.TokenResponse;
+import com.erp.security.JwtTokenProvider;
+import com.erp.tenant.TenantContext;
 import com.erp.auth.auth.dto.AuthDtos.MyProfileRequest;
 import com.erp.auth.auth.dto.AuthDtos.MyProfileResponse;
 import com.erp.auth.user.UserService;
@@ -31,12 +34,14 @@ public class MeController {
     private final UserInputMemoryService memoryService;
     private final WorkPermissionService workPermissionService;
     private final UserService userService;
+    private final JwtTokenProvider tokenProvider;
 
     public MeController(UserInputMemoryService memoryService, WorkPermissionService workPermissionService,
-                        UserService userService) {
+                        UserService userService, JwtTokenProvider tokenProvider) {
         this.memoryService = memoryService;
         this.workPermissionService = workPermissionService;
         this.userService = userService;
+        this.tokenProvider = tokenProvider;
     }
 
     /** 사람 그림 › [개인정보수정] 창 — 본인 것만 읽고 고친다(사용자등록 권한이 없어도 된다). */
@@ -52,9 +57,11 @@ public class MeController {
         return new MyProfileResponse(r.username(), r.name(), r.email());
     }
 
+    /** 비밀번호를 바꾸면 다른 기기의 토큰은 끊긴다(H6). 지금 창이 이어 쓰도록 새 토큰을 돌려준다. */
     @PutMapping("/password")
-    public void changePassword(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody MyPasswordRequest req) {
-        userService.changeOwnPassword(principal.getUsername(), req.currentPassword(), req.newPassword());
+    public TokenResponse changePassword(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody MyPasswordRequest req) {
+        int tv = userService.changeOwnPassword(principal.getUsername(), req.currentPassword(), req.newPassword());
+        return new TokenResponse(tokenProvider.createToken(principal.getUsername(), TenantContext.get(), tv));
     }
 
     /** 마지막에 쓴 값 기억(예: 판매입력 머리). 계정마다 서버에 남아 다른 PC 에서도 이어진다. */

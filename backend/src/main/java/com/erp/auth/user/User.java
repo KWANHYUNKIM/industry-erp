@@ -79,6 +79,19 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private BasePermission basePermission = BasePermission.GROUP;
 
+    /**
+     * 토큰 버전 — 로그아웃 · 비밀번호 변경 · 사용중지 때 +1. 토큰의 {@code tv} 클레임과 다르면 그 토큰은 더 안 통한다
+     * (JwtAuthenticationFilter, docs/보안-점검.md H6).
+     */
+    @Column(name = "token_version", nullable = false)
+    @Builder.Default
+    private int tokenVersion = 0;
+
+    /** 이 사용자에게 나간 토큰을 전부 무효로 한다(모든 기기 로그아웃). */
+    public void revokeTokens() {
+        this.tokenVersion++;
+    }
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",

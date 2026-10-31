@@ -4395,6 +4395,43 @@ async function scenarioStatusScreenContracts(f) {
 }
 
 /**
+ * <b>토큰 회수(docs/보안-점검.md H6)</b> — 비밀번호 변경 · 사용중지 · 로그아웃 뒤에는 그 전에 받은 토큰이 401.
+ * 예전엔 사용중지한 계정의 토큰도 8시간 그대로 통했다. 마스터 지정도 마스터만(H4).
+ */
+async function scenarioTokenRevoke() {
+  section('■ 토큰 회수 · 마스터 지정')
+  const tag = `${P}TV${Date.now() % 100000}`
+  const uname = tag.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const me = async (t) => (await fetch(`${BASE}/auth/me`, { headers: { Authorization: `Bearer ${t}` } })).status
+  const loginAs = async (pw) => (await call('POST', '/auth/login', { companyCode: '0001', username: uname, password: pw })).data?.token
+  await must('POST', '/roles', { name: `${tag}_NONE`, displayName: '권한없음', permissionCodes: [] })
+  const u = await must('POST', '/users', { username: uname, password: 'qatest1234', name: '토큰회수', roleNames: [`${tag}_NONE`] })
+
+  const t1 = await loginAs('qatest1234')
+  eq('새 토큰은 통한다', await me(t1), 200)
+  await must('PUT', `/users/${u.id}`, { name: '토큰회수', password: 'qatest5678' })
+  eq('비밀번호를 바꾸면 옛 토큰은 401', await me(t1), 401)
+
+  const t2 = await loginAs('qatest5678')
+  eq('새 비밀번호로 받은 토큰은 통한다', await me(t2), 200)
+  const masters = await fetch(`${BASE}/work-permissions/masters`, {
+    method: 'PUT', headers: { Authorization: `Bearer ${t2}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ userIds: [u.id] }),
+  })
+  eq('마스터 아닌 계정은 자기를 마스터로 못 만든다', masters.status, 403)
+  await must('PATCH', `/users/${u.id}`, { enabled: false })
+  eq('사용중지하면 기존 토큰은 401', await me(t2), 401)
+  await must('PATCH', `/users/${u.id}`, { enabled: true })
+  eq('다시 켜도 사용중지 전 토큰은 살아나지 않는다', await me(t2), 401)
+
+  const t3 = await loginAs('qatest5678')
+  const out = await fetch(`${BASE}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${t3}` } })
+  eq('로그아웃은 204', out.status, 204)
+  eq('로그아웃한 토큰은 401', await me(t3), 401)
+
+  await call('DELETE', `/users/${u.id}`)
+}
+
+/**
  * <b>급여는 권한 없이 읽히면 안 된다.</b>
  *
  * 이 시스템의 v1 정책은 "조회는 인증만 되면 통과" 다. 리소스끼리 참조 조회가 많아
@@ -11062,6 +11099,7 @@ async function main() {
   }
   if (cmd === 'work-permission') {   // 업무권한(조회 막기 · 곁다리 조회 · 쓰기 403)만 빠르게
     await scenarioPayrollReadGuard()
+    await scenarioTokenRevoke()
     await scenarioNoPermission()
     console.log(`
 통과 ${pass} / 실패 ${fail}`)
@@ -11211,6 +11249,7 @@ async function main() {
   scenarioPermissionCoverage()
   await scenarioStatusScreenContracts(fixtures)
   await scenarioPayrollReadGuard()
+  await scenarioTokenRevoke()
   await scenarioTenantIsolation()
   await scenarioDocNo(fixtures)
   await scenarioDoubleProcess(fixtures)
