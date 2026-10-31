@@ -127,6 +127,27 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
            + "from Purchase p join p.lines l order by p.purchaseDate, p.id")
     List<ItemPriceRow> findItemPriceRows();
 
+    /**
+     * 원가 [총평균법] 재료 — 기간 안 구매 줄의 [품목id, 단가, 수량]. 전표를 엔티티로 올리지 않는다(2026-10-31).
+     * 예전 CostService 는 전 기간 구매 전표를 통째로 올리고 일자 문자열로 한 달만 남겼다.
+     */
+    @Query("select l.item.id, l.unitPrice, l.quantity from PurchaseLine l join l.purchase p " +
+            "where p.purchaseDate between :from and :to")
+    List<Object[]> findCostLineRowsBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 위와 같되 기간이 yyyy-MM 이 아닐 때 — 일자 문자열이 그 앞머리로 시작하는 것(예전 startsWith 그대로). */
+    @Query("select l.item.id, l.unitPrice, l.quantity from PurchaseLine l join l.purchase p " +
+            "where substring(cast(p.purchaseDate as String), 1, length(:prefix)) = :prefix")
+    List<Object[]> findCostLineRowsByDatePrefix(@Param("prefix") String prefix);
+
+    /**
+     * 원가 [최종매입가] 재료 — 모든 구매 줄의 [품목id, 단가, 일자]. 차례는 예전 {@link #findAllWithRefs()} 를 걷던 것과 같게
+     * 전표 최근순(일자 desc · id desc), 한 전표 안은 줄 차례(id). 받는 쪽이 접으며 같은 날이면 뒤엣것이 이긴다.
+     */
+    @Query("select l.item.id, l.unitPrice, p.purchaseDate from PurchaseLine l join l.purchase p " +
+            "order by p.purchaseDate desc, p.id desc, l.id asc")
+    List<Object[]> findCostPriceRowsLatestFirst();
+
     interface ItemPriceRow {
         Long getItemId();
         BigDecimal getUnitPrice();

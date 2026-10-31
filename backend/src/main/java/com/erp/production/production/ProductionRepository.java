@@ -23,6 +23,23 @@ public interface ProductionRepository extends JpaRepository<Production, Long> {
     List<Production> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
     /**
+     * 원가 [실제노무비] 재료 — 기간 안 생산의 [제품id, 노무시간(분), 생산수량]. 엔티티를 올리지 않는다(2026-10-31).
+     * 예전 CostService 는 품목마다 전 기간 생산을 {@link #findAllWithRefs()} 로 다시 올렸다.
+     */
+    @Query("select p.product.id, p.laborMinutes, p.producedQty from Production p " +
+            "where p.productionDate between :from and :to")
+    List<Object[]> findCostLaborRowsBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 위와 같되 기간이 yyyy-MM 이 아닐 때 — 일자 문자열이 그 앞머리로 시작하는 것(예전 startsWith 그대로). */
+    @Query("select p.product.id, p.laborMinutes, p.producedQty from Production p " +
+            "where substring(cast(p.productionDate as String), 1, length(:prefix)) = :prefix")
+    List<Object[]> findCostLaborRowsByDatePrefix(@Param("prefix") String prefix);
+
+    /** 원가계산 — 그 달 생산실적. 차례는 id(예전 findAll() 의 물리 차례에 가장 가깝다). 소모 줄 · 제품은 지연로딩. */
+    @Query("select p from Production p where p.productionDate between :from and :to order by p.id")
+    List<Production> findByProductionDateBetweenOrderById(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
      * <b>지시일</b>로 걸러 온다 — 생산일이 아니다.
      *
      * <p>작업지시별로 묶어 진행을 세는 화면(작업지시진행현황·작업효율분석)이 쓴다. 그 화면의

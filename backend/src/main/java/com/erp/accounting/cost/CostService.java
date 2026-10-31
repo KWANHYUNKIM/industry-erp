@@ -15,8 +15,6 @@ import com.erp.production.production.Production;
 import com.erp.production.production.ProductionMaterial;
 import com.erp.production.production.ProductionRepository;
 import com.erp.production.bor.BorService;
-import com.erp.trade.purchase.Purchase;
-import com.erp.trade.purchase.PurchaseLine;
 import com.erp.trade.purchase.PurchaseRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -130,6 +128,7 @@ public class CostService {
             if (b.active()) bomOf.put(b.productId(), b.lines());
         }
 
+        Map<Long, BigDecimal[]> laborOf = laborByItem(p);
         List<CostResponse> created = new ArrayList<>();
         for (Item item : itemRepository.findAll()) {
             if (!item.isActive()) continue;
@@ -183,7 +182,7 @@ public class CostService {
                      * <p>노무시간을 하나도 안 적은 품목은 <b>표준 그대로</b> 둔다.
                      * 0 으로 두면 "노무비가 안 들었다" 로 읽혀 원가가 통째로 낮아진다.
                      */
-                    .actualLabor(actualLabor(item.getId(), p, lab))
+                    .actualLabor(actualLabor(item.getId(), laborOf, lab))
                     .actualOverhead(BigDecimal.ZERO)
                     .build();
             created.add(CostResponse.from(itemCostRepository.save(c)));
@@ -260,17 +259,11 @@ public class CostService {
      * <p>노무시간을 하나도 안 적었거나 그 달 생산이 없으면 <b>표준값을 그대로</b> 돌려준다 —
      * 0 을 돌려주면 원가가 통째로 낮아지고, 그게 이익으로 둔갑한다.
      */
-    private BigDecimal actualLabor(Long itemId, String period, BigDecimal standard) {
-        BigDecimal minutes = BigDecimal.ZERO;
-        BigDecimal qty = BigDecimal.ZERO;
-        for (Production pr : productionRepository.findAllWithRefs()) {
-            if (pr.getProductionDate() == null
-                    || !pr.getProductionDate().toString().startsWith(period)) continue;
-            if (!pr.getProduct().getId().equals(itemId)) continue;
-            if (pr.getLaborMinutes() == null) continue;
-            minutes = minutes.add(BigDecimal.valueOf(pr.getLaborMinutes()));
-            qty = qty.add(pr.getProducedQty());
-        }
+    private BigDecimal actualLabor(Long itemId, Map<Long, BigDecimal[]> laborOf, BigDecimal standard) {
+        BigDecimal[] mq = laborOf.get(itemId);
+        if (mq == null) return standard;
+        BigDecimal minutes = mq[0];
+        BigDecimal qty = mq[1];
         if (minutes.signum() <= 0 || qty.signum() <= 0) return standard;
 
         BigDecimal rate = borService.hourlyRate(itemId);
@@ -309,7 +302,38 @@ public class CostService {
         return any ? scale(sum) : null;
     }
 
-    /** 품목별 자재 단가: 마지막 매입단가가 있으면 그것, 없으면 품목의 구매단가. */
+    /**
+     * 그 달 제품별 [노무시간(분) 합, 생산수량 합] — 노무시간을 적은 생산만. {@link #actualLabor} 의 재료.
+     *
+     * <p>예전에는 품목 하나마다 전 기간 생산실적을 엔티티로 다시 올리고 일자 문자열로 그 달만 남겼다(2026-10-31 DB 로 내림).
+     * 더하는 값과 거르는 조건은 그대로다 — BigDecimal 덧셈이라 차례가 바뀌어도 합은 같다.
+     */
+    private Map<Long, BigDecimal[]> laborByItem(String period) {
+        LocalDate[] r = monthRange(period);
+        List<Object[]> rows = r != null ? productionRepository.findCostLaborRowsBetween(r[0], r[1])
+                : productionRepository.findCostLaborRowsByDatePrefix(period);
+        Map<Long, BigDecimal[]> out = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row[1] == null) continue;   // 노무시간을 안 적은 생산은 빼고 센다
+            BigDecimal[] mq = out.computeIfAbsent(((Number) row[0]).longValue(),
+                    k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+            mq[0] = mq[0].add(BigDecimal.valueOf(((Number) row[1]).intValue()));
+            mq[1] = mq[1].add((BigDecimal) row[2]);
+        }
+        return out;
+    }
+
+    /** yyyy-MM 이면 그 달 [1일, 말일], 아니면 null(부르는 쪽이 일자 앞머리 비교로 간다 — 예전 startsWith 그대로). */
+    private static LocalDate[] monthRange(String period) {
+        if (period == null || !period.matches("\\d{4}-\\d{2}")) return null;
+        try {
+            java.time.YearMonth ym = java.time.YearMonth.parse(period);
+            return new LocalDate[]{ym.atDay(1), ym.atEndOfMonth()};
+        } catch (java.time.format.DateTimeParseException e) {
+            return null;
+        }
+    }
+
     /**
      * <b>총평균법</b> 자재 단가 — 그 달에 사 온 것의 (금액 합 ÷ 수량 합).
      *
@@ -322,14 +346,16 @@ public class CostService {
     private Map<Long, BigDecimal> weightedAvgUnitCosts(String period) {
         Map<Long, BigDecimal> amount = new HashMap<>();
         Map<Long, BigDecimal> qty = new HashMap<>();
-        for (Purchase pu : purchaseRepository.findAllWithRefs()) {
-            if (pu.getPurchaseDate() == null
-                    || !pu.getPurchaseDate().toString().startsWith(period)) continue;
-            for (PurchaseLine l : pu.getLines()) {
-                Long id = l.getItem().getId();
-                amount.merge(id, l.getUnitPrice().multiply(l.getQuantity()), BigDecimal::add);
-                qty.merge(id, l.getQuantity(), BigDecimal::add);
-            }
+        // 그 달 구매 줄만 [품목id, 단가, 수량] 으로 DB 에서 받는다(2026-10-31 — 예전엔 전 기간 전표를 올려 자바에서 걸렀다).
+        LocalDate[] r = monthRange(period);
+        List<Object[]> rows = r != null ? purchaseRepository.findCostLineRowsBetween(r[0], r[1])
+                : purchaseRepository.findCostLineRowsByDatePrefix(period);
+        for (Object[] row : rows) {
+            Long id = ((Number) row[0]).longValue();
+            BigDecimal unitPrice = (BigDecimal) row[1];
+            BigDecimal q = (BigDecimal) row[2];
+            amount.merge(id, unitPrice.multiply(q), BigDecimal::add);
+            qty.merge(id, q, BigDecimal::add);
         }
         Map<Long, BigDecimal> fallback = materialUnitCosts();
         Map<Long, BigDecimal> out = new HashMap<>(fallback);
@@ -342,17 +368,21 @@ public class CostService {
         return out;
     }
 
+    /**
+     * 품목별 자재 단가: 마지막 매입단가가 있으면 그것, 없으면 품목의 구매단가.
+     *
+     * <p>마지막 매입가는 전 기간을 봐야 한다. 그래도 전표 · 줄을 엔티티로 올리지 않고 줄마다 [품목id, 단가, 일자] 세 칸만 받는다
+     * (2026-10-31). 차례(전표 최근순, 같은 날이면 뒤에 걸은 것이 이김)는 예전 그대로다.
+     */
     private Map<Long, BigDecimal> materialUnitCosts() {
         Map<Long, LocalDate> lastDate = new HashMap<>();
         Map<Long, BigDecimal> lastPrice = new HashMap<>();
-        for (Purchase pu : purchaseRepository.findAllWithRefs()) {
-            for (PurchaseLine l : pu.getLines()) {
-                Long id = l.getItem().getId();
-                LocalDate d = pu.getPurchaseDate();
-                if (lastDate.get(id) == null || !d.isBefore(lastDate.get(id))) {
-                    lastDate.put(id, d);
-                    lastPrice.put(id, l.getUnitPrice());
-                }
+        for (Object[] row : purchaseRepository.findCostPriceRowsLatestFirst()) {
+            Long id = ((Number) row[0]).longValue();
+            LocalDate d = (LocalDate) row[2];
+            if (lastDate.get(id) == null || !d.isBefore(lastDate.get(id))) {
+                lastDate.put(id, d);
+                lastPrice.put(id, (BigDecimal) row[1]);
             }
         }
         Map<Long, BigDecimal> out = new HashMap<>();
@@ -401,8 +431,7 @@ public class CostService {
         Map<Long, BigDecimal> producedQty = new HashMap<>();
         Map<Long, BigDecimal> materialAmount = new HashMap<>();
         Map<Long, BigDecimal> unitCost = materialUnitCosts();
-        for (Production pr : productionRepository.findAll()) {
-            if (!p.equals(pr.getProductionDate().toString().substring(0, 7))) continue;
+        for (Production pr : productionsOf(p)) {
             Long pid = pr.getProduct().getId();
             producedQty.merge(pid, pr.getProducedQty(), BigDecimal::add);
             for (ProductionMaterial m : pr.getMaterials()) {
@@ -485,8 +514,7 @@ public class CostService {
     @Transactional(readOnly = true)
     public Map<Long, Map<Long, BigDecimal>> consumedByProduct(String period) {
         Map<Long, Map<Long, BigDecimal>> out = new HashMap<>();
-        for (Production pr : productionRepository.findAll()) {
-            if (!period.equals(pr.getProductionDate().toString().substring(0, 7))) continue;
+        for (Production pr : productionsOf(period)) {
             for (ProductionMaterial m : pr.getMaterials()) {
                 if (m.getQuantity() == null) continue;
                 out.computeIfAbsent(pr.getProduct().getId(), k -> new HashMap<>())
@@ -500,11 +528,19 @@ public class CostService {
     @Transactional(readOnly = true)
     public Map<Long, BigDecimal> producedQty(String period) {
         Map<Long, BigDecimal> out = new HashMap<>();
-        for (Production pr : productionRepository.findAll()) {
-            if (!period.equals(pr.getProductionDate().toString().substring(0, 7))) continue;
+        for (Production pr : productionsOf(period)) {
             out.merge(pr.getProduct().getId(), pr.getProducedQty(), BigDecimal::add);
         }
         return out;
+    }
+
+    /**
+     * 그 달(yyyy-MM) 생산실적. 예전에는 전 기간을 {@code findAll()} 로 올려 일자 앞 7자로 걸렀다(2026-10-31 DB 로 내림).
+     * 앞 7자가 같을 수 있는 것은 yyyy-MM 뿐이라, 그 꼴이 아니면 예전에도 늘 빈 결과였다.
+     */
+    private List<Production> productionsOf(String period) {
+        LocalDate[] r = monthRange(period);
+        return r == null ? List.of() : productionRepository.findByProductionDateBetweenOrderById(r[0], r[1]);
     }
 
     private Item getItem(Long id) {

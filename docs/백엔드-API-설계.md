@@ -42,6 +42,20 @@
 
 `StockTransactionRepository` 는 bf71e7e7 로 `Stream<Object[]> streamFifoMoves` + fetch size 로 바뀌어 지금 위험 목록에서 빠졌다.
 
+**2026-10-31 CostService 고침(위 표 첫 줄).** 총평균 단가는 그 달 구매 줄 `[품목id, 단가, 수량]` 만(`PurchaseRepository.findCostLineRowsBetween`),
+최종매입가는 전 기간이 필요해 줄마다 `[품목id, 단가, 일자]` 세 칸만(`findCostPriceRowsLatestFirst`, 차례는 예전 걸음 그대로) 받는다.
+같은 꼴이 서비스 안에 넷 더 있었다 — 실제노무비가 **품목마다** 전 기간 생산을 다시 올리던 것(`findCostLaborRowsBetween` 로 한 번),
+`calcActual` · `consumedByProduct` · `producedQty` 가 `productionRepository.findAll()` 뒤 앞 7자로 거르던 것(`findByProductionDateBetweenOrderById`).
+회사 0001 에서 원가 API 34개 응답(원가생성 총평균 · 최종매입 × 3달, 실제원가, 원가계산기간 표준 · 생성 · 원가계산내역 · 재계산 · 수량/금액비교 · 이력)을
+고치기 전후 `cmp` 로 전부 같음. 따로 띄운 JVM 에서 같은 시나리오 한 바퀴 할당 약 815MB → 152MB, 원가생성 한 번 약 1초 → 0.1초.
+
+**다음 후보 (사용자 결정 필요 — 화면 동작이 바뀔 수 있음):**
+
+| 위치 | 지금 | 바꾸면 | 정할 것 |
+|---|---|---|---|
+| `trade/sales/SalesService.java:148` `findAll` | 기간(`from`/`to`)이 없으면 `findAllWithRefs()` 로 **전 기간 판매 전표 전부** → `limit` 은 자바 `stream.limit` | 기간 없으면 기본 기간 · 상한 · 400 중 하나 | 기간 없이 부르는 화면(대시보드 · 불러오기 창 · 코드도움)을 grep 해 기간을 넘기게 한 뒤에. 5장 1번(목록 기본 기간) 결정과 같이 |
+| `trade/purchase/PurchaseService.java:123` `findAll` | 같은 꼴(구매) | 같음 | 같음 |
+
 ### 1.4 API 모양
 
 | 항목 | 지금 | 예시 |
