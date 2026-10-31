@@ -11,6 +11,7 @@ import TableWidget from '../features/mypage/widgets/TableWidget'
 import type { WidgetDef, WidgetSettings } from '../features/mypage/widgets/types'
 import WidgetFrame from '../features/mypage/widgets/WidgetFrame'
 import WidgetSettingsModal from '../features/mypage/widgets/WidgetSettingsModal'
+import '../features/mypage/mypage.css'
 import { bottomRow, fitWidth, MIN_H, MIN_W, normalize, place, type GridItem } from '../utils/gridLayout'
 
 /** 배치 — 위젯마다 {id, x, y, w, h}(칸 수). 위젯 [설정] 값은 나란히 mypage-widget-settings-v1 */

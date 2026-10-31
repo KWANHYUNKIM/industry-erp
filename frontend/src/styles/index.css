@@ -1497,17 +1497,6 @@ th.ec-empty {
 .ec-icon { display: inline-block; flex: none; vertical-align: -0.15em; }
 /* 예전 글자 기호(▾ · ✕)를 크기 0 글자로 남긴다 — 단추 글자로 찾는 흐름이 그대로 맞는다(보이지 않고 폭도 없다) */
 .ec-icon-glyph { font-size: 0; line-height: 0; }
-/* MyPage 위젯 [펜] · 본문 클릭 — 화면의 입력 · 조회 창만 보이고 화면 자체는 숨긴다(features/mypage/PopupHost) */
-.ec-popup-host { position: fixed; inset: 0; z-index: 70; visibility: hidden; pointer-events: none; overflow: hidden; }
-.ec-popup-host .ec-modal-back { visibility: visible; pointer-events: auto; }
-/* 위젯 머리 ⋮ — 원본처럼 위젯을 끌어 옮기는 손잡이(누르기만 하면 [설정] [삭제]) */
-.ec-widget-head > .tools > .ec-widget-grip { cursor: move; }
-/* 위젯 본문의 누르는 글자(일정 · 제목 · 작성자 · R · 오더관리번호) */
-.ec-wlink { border: 0; padding: 0; background: none; color: var(--ec-navy); font: inherit; text-align: left; cursor: pointer; }
-.ec-wlink:hover { text-decoration: underline; }
-/* 일정관리 위젯 일정 글자(누르면 '일정조회' 창) — 단추라서 글자를 왼쪽에 붙인다 */
-.ec-wcal-ev { text-align: left; cursor: pointer; font: inherit; }
-.ec-pill > .ec-wlink { color: inherit; }
 
 /* ============================================================
    전표 공용(.ec-slip-*) — 입력 틀(EcSlipShell) · 인쇄 미리보기(EcSlipPrintModal) · 인쇄용 한 벌

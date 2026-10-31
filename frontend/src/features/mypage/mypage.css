@@ -1,0 +1,192 @@
+/*
+ * MyPage(홈) — 위젯 격자 · My위젯선택 · 일정관리 · 플로우차트 위젯 · 위젯 창(PopupHost) · 위젯 글자 링크.
+ * pages/MyPageDashboard 가 불러온다(shell.css · index.css 에서 옮김, CSS 정리 6). 위젯 판(.ec-widget)은 공용이라 shell.css 에 있다.
+ * 순서는 옮기기 전과 같다: shell.css 의 본 규칙 → 휴대폰(@media) → index.css 에 있던 규칙.
+ * index.css 가 층 순서를 먼저 정하므로 여기 @layer components 는 같은 층에 붙는다(유틸리티가 이긴다).
+ */
+@layer components {
+  .ec-wpage {
+    display: flex;
+    align-items: flex-start;
+  }
+  .ec-wgrid {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: calc(var(--rows) * var(--ec-grid-unit));
+  }
+  .ec-wgrid.dragging { user-select: none; }
+  .ec-wgrid-item,
+  .ec-wgrid-ph {
+    position: absolute;
+    left: calc(var(--gx) * var(--ec-grid-unit));
+    top: calc(var(--gy) * var(--ec-grid-unit));
+    width: calc(var(--gw) * var(--ec-grid-unit) - var(--ec-grid-gap));
+    height: calc(var(--gh) * var(--ec-grid-unit) - var(--ec-grid-gap));
+  }
+  .ec-wgrid-item { transition: left .15s, top .15s, width .15s, height .15s; }
+  .ec-wgrid-item.active { z-index: 5; opacity: .85; transition: none; }
+  .ec-wgrid-item > .ec-widget { height: 100%; min-height: 0; }
+  .ec-wgrid-ph {
+    border: 1px dashed var(--ec-blue);
+    border-radius: var(--ec-radius-panel);
+    background: var(--ec-blue-wash);
+  }
+  .ec-wgrid-empty {
+    padding: 40px;
+    border: 1px dashed var(--ec-line);
+    border-radius: var(--ec-radius-panel);
+    color: var(--ec-text-hint);
+    text-align: center;
+  }
+  /* 크기 손잡이 e · se · s · sw · w — 원본 ui-resizable-autohide: 마우스를 올려야 보인다 */
+  .ec-wgrid-grip { position: absolute; z-index: 2; display: none; }
+  .ec-wgrid-item:hover > .ec-wgrid-grip,
+  .ec-wgrid-item.active > .ec-wgrid-grip { display: block; }
+  .ec-wgrid-grip.e, .ec-wgrid-grip.w { top: 0; bottom: 0; width: var(--ec-modal-grip); cursor: e-resize; }
+  .ec-wgrid-grip.w { left: var(--ec-modal-grip-out); cursor: w-resize; }
+  .ec-wgrid-grip.e { right: var(--ec-modal-grip-out); }
+  .ec-wgrid-grip.s { left: 0; right: 0; bottom: var(--ec-modal-grip-out); height: var(--ec-modal-grip); cursor: s-resize; }
+  .ec-wgrid-grip.sw { left: var(--ec-modal-grip-out); bottom: var(--ec-modal-grip-out); width: var(--ec-modal-grip-corner); height: var(--ec-modal-grip-corner); cursor: sw-resize; z-index: 3; }
+  .ec-wgrid-grip.se {
+    right: 4px;
+    bottom: 4px;
+    width: var(--ec-grid-grip-se);
+    height: var(--ec-grid-grip-se);
+    z-index: 3;
+    cursor: se-resize;
+    background: linear-gradient(135deg, transparent 0 50%, var(--ec-icon) 50% 58%, transparent 58% 70%, var(--ec-icon) 70% 78%, transparent 78% 90%, var(--ec-icon) 90%);
+  }
+  /* My위젯선택 — 원본처럼 <b>왼쪽</b> 판(본문 왼쪽 가장자리 손잡이로 연다). 항목을 끌어 격자에 놓는다 */
+  .ec-wpick-handle {
+    flex: none;
+    align-self: stretch;
+    width: 14px;
+    margin-right: 4px;
+    padding: 0;
+    border: var(--ec-hair) solid var(--ec-line);
+    border-radius: var(--ec-radius);
+    background: var(--ec-bg-panel);
+    color: var(--ec-icon);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .ec-wpick-handle:hover { color: var(--ec-navy); background: var(--ec-blue-wash); }
+  .ec-wpick {
+    flex: none;
+    order: -1;
+    width: var(--ec-wpick-w);
+    margin-right: var(--ec-grid-gap);
+    padding: 9px 13.5px 13.5px;
+    background: var(--ec-bg-panel);
+    border: var(--ec-hair) solid var(--ec-line);
+    border-radius: var(--ec-radius-panel);
+  }
+  .ec-wpick-head { display: flex; align-items: center; margin-bottom: 6px; }
+  .ec-wpick-head > .name { font-size: 15px; font-weight: 700; line-height: 28px; color: var(--ec-ink); }
+  .ec-wpick-head > .ec-btn { margin-left: auto; }
+  .ec-wpick-hint { margin-bottom: 9px; color: var(--ec-text-hint); font-size: var(--ec-fs); }
+  .ec-wpick-group { margin-bottom: 9px; }
+  .ec-wpick-group > .name {
+    display: flex;
+    width: 100%;
+    margin-bottom: 3px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ec-navy);
+    font-size: var(--ec-fs);
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+  }
+  .ec-wpick-group > .name > span { margin-left: auto; color: var(--ec-icon); }
+  .ec-wpick-group > .none { padding: 3px 9px; color: var(--ec-text-off); font-size: var(--ec-fs); }
+  .ec-wpick-item {
+    display: block;
+    width: 100%;
+    padding: 4.5px 9px;
+    border: 0;
+    border-radius: var(--ec-radius);
+    background: none;
+    color: var(--ec-text);
+    font-size: var(--ec-fs);
+    text-align: left;
+    cursor: grab;
+  }
+  .ec-wpick-item:hover { background: var(--ec-blue-wash); }
+  .ec-wpick-item.on { color: var(--ec-blue); font-weight: 700; cursor: pointer; }
+  /* 일정관리 위젯 — 월 달력(일~토), 칸마다 일정 알약 */
+  .ec-wcal { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .ec-wcal-nav { display: flex; align-items: center; gap: 6px; margin-bottom: 4.5px; font-size: var(--ec-fs); }
+  .ec-wcal-nav > button { width: 22px; height: 22px; border: 0; border-radius: var(--ec-radius); background: none; color: var(--ec-icon); cursor: pointer; }
+  .ec-wcal-nav > button:hover { color: var(--ec-navy); background: var(--ec-blue-wash); }
+  .ec-wcal-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: auto repeat(6, minmax(0, 1fr));
+    border-top: var(--ec-hair) solid var(--ec-line);
+    border-left: var(--ec-hair) solid var(--ec-line);
+  }
+  .ec-wcal-dow, .ec-wcal-day { border-right: var(--ec-hair) solid var(--ec-line); border-bottom: var(--ec-hair) solid var(--ec-line); }
+  .ec-wcal-dow { padding: 3px 0; background: var(--ec-bg-page); font-size: var(--ec-fs); text-align: center; }
+  .ec-wcal-dow.sun, .ec-wcal-day.sun > .n { color: var(--ec-danger); }
+  .ec-wcal-dow.sat { color: var(--ec-blue); }
+  .ec-wcal-day { display: flex; flex-direction: column; gap: 1px; min-width: 0; min-height: 0; overflow: hidden; padding: 2px 3px; font-size: 11px; }
+  .ec-wcal-day.out { color: var(--ec-text-off); }
+  .ec-wcal-day.today { background: var(--ec-blue-wash); }
+  .ec-wcal-day > .n { font-size: var(--ec-fs); }
+  /* 원본 위젯 일정 줄(2026-10-30 실측 'A.text-bold') — 바탕 없이 굵은 링크색 글자, 앞에 라벨 칩 */
+  .ec-wcal-ev {
+    overflow: hidden;
+    color: var(--ec-navy);
+    font-weight: 700;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-decoration: none;
+  }
+  .ec-wcal-day > .more { color: var(--ec-text-hint); }
+  /* 플로우차트 위젯 — 업무 흐름 칸, 누르면 그 메뉴 */
+  .ec-wflow { display: flex; flex-direction: column; gap: 6px; font-size: var(--ec-fs); }
+  .ec-wflow-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .ec-wflow-step { display: inline-flex; align-items: center; gap: 4px; }
+  .ec-wflow-step > .arrow { color: var(--ec-icon); }
+  .ec-wflow-step > a {
+    padding: 4px 9px;
+    border: var(--ec-hair) solid var(--ec-line);
+    border-radius: var(--ec-radius);
+    background: var(--ec-bg-page);
+    color: var(--ec-navy);
+    text-decoration: none;
+  }
+  .ec-wflow-step > a:hover { background: var(--ec-blue-wash); }
+
+  @media (max-width: 768px) {
+    /* MyPage 위젯 — 한 줄에 하나, 폭 전부. 크기 조절 · 끌기 없음(높이는 칸 수 그대로) */
+    .ec-wpage { flex-direction: column; align-items: stretch; }
+    .ec-wgrid {
+      display: flex;
+      flex-direction: column;
+      gap: var(--ec-grid-gap);
+      height: auto;
+    }
+    .ec-wgrid-item { position: static; width: auto; transition: none; }
+    .ec-wgrid-grip,
+    .ec-wgrid-ph { display: none !important; }
+    .ec-wpick { width: auto; margin: 0 0 var(--ec-grid-gap); }
+    .ec-wpick-handle { align-self: flex-start; width: auto; height: 22px; padding: 0 9px; margin: 0 0 var(--ec-grid-gap); }
+  }
+
+  /* MyPage 위젯 [펜] · 본문 클릭 — 화면의 입력 · 조회 창만 보이고 화면 자체는 숨긴다(features/mypage/PopupHost) */
+  .ec-popup-host { position: fixed; inset: 0; z-index: 70; visibility: hidden; pointer-events: none; overflow: hidden; }
+  .ec-popup-host .ec-modal-back { visibility: visible; pointer-events: auto; }
+  /* 위젯 머리 ⋮ — 원본처럼 위젯을 끌어 옮기는 손잡이(누르기만 하면 [설정] [삭제]) */
+  .ec-widget-head > .tools > .ec-widget-grip { cursor: move; }
+  /* 위젯 본문의 누르는 글자(일정 · 제목 · 작성자 · R · 오더관리번호) */
+  .ec-wlink { border: 0; padding: 0; background: none; color: var(--ec-navy); font: inherit; text-align: left; cursor: pointer; }
+  .ec-wlink:hover { text-decoration: underline; }
+  /* 일정관리 위젯 일정 글자(누르면 '일정조회' 창) — 단추라서 글자를 왼쪽에 붙인다 */
+  .ec-wcal-ev { text-align: left; cursor: pointer; font: inherit; }
+  .ec-pill > .ec-wlink { color: inherit; }
+}
