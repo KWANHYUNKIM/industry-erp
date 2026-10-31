@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import Modal from '../../components/Modal'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { fmtAmount } from '../../utils/format'

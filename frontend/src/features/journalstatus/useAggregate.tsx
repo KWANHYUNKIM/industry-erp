@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { EcCond } from '../../components/EcStatusPanel'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { ecAlert } from '../../components/EcDialog'
 import { COMPARES, isDateKey, shiftPeriod, type AggCond, type AggGroupDef, type Compare, type Target } from '../../utils/journalAggregate'
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../utils/periods'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'

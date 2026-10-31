@@ -4,7 +4,7 @@ import { formatDays } from '../../utils/dayCount'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 
 /**
  * 관리 > 휴가잔여일수현황 — 사원별 부여·사용 일수 및 잔여 연차 (/api/hr/vacations/summary).

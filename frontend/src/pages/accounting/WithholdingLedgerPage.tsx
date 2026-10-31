@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import QuickSearchSettingModal from '../../components/QuickSearchSettingModal'
 import { EcCond, EcCondTabs } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'

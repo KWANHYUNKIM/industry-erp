@@ -4,7 +4,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { dateNo } from '../../utils/dateNo'
 import { COMPARE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 

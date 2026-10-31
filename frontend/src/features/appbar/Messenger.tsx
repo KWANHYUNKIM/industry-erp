@@ -5,7 +5,7 @@ import type { ChatMessage, ChatRoom, EmployeeMaster, User } from '../../types/ap
 import { useAuth } from '../auth/AuthContext'
 import { ecConfirm } from '../../components/EcDialog'
 import { Icon } from './icons'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 
 /** 폴링 주기(ms). 소켓 대신 증분 폴링(afterId) — 서버에 실시간 통로가 아직 없다. */
 const POLL_MS = 4000

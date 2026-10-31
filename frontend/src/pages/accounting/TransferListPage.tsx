@@ -7,7 +7,7 @@ import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPer
 import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useAuth } from '../../features/auth/AuthContext'
 import AggregateTable from '../../features/journalstatus/AggregateTable'
 import { AggregateConditions, useAggState, type AggSnapshot } from '../../features/journalstatus/useAggregate'

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { mergeLoadedLines } from '../../utils/mergeLines'
 import { ymd } from '../../components/EcPeriodPicks'

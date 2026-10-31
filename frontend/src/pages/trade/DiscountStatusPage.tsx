@@ -7,7 +7,7 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PurchaseDoc, SalesDoc } from '../../types/api'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
 /**

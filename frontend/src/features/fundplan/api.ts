@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import { useBondMasters } from '../bond/api'
-import type { CodeItem } from '../../components/CodePickerField'
+import type { CodeItem } from '../../components/codepicker/CodePickerField'
 import type { FundPlanMasters } from './components/FundPlanModal'
 import { bankLabel, type BankAccountOpt, type FundPlan } from './types'
 

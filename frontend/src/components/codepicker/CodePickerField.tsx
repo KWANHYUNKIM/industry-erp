@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
-import CodeSearchModal, { type CodeColumn } from './codepicker/CodeSearchModal'
-import EcIcon from './ui/EcIcon'
+import CodeSearchModal, { type CodeColumn } from './CodeSearchModal'
+import EcIcon from '../ui/EcIcon'
 
 /**
  * 코드도움 — 이카운트의 `code.openpopup` 패턴.

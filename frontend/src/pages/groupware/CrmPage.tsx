@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef} from 'react'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { CrmActivity, CrmStage, Partner } from '../../types/api'

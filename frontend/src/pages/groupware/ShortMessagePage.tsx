@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Partner, ShortMessage, User } from '../../types/api'
 import { shiftMonths, ymd } from '../../components/EcPeriodPicks'

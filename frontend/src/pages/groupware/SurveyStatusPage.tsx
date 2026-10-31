@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import EcPeriodPicks, { STATUS_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { EcReportHead, EcReportFoot, reportPeriod, reportDate } from '../../components/EcReportFrame'
 import type { SurveyDoc } from '../../types/api'

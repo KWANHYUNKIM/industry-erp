@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { EcHistoryModal } from '../../components/EcHistory'
 

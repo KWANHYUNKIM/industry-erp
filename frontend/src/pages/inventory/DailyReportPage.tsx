@@ -5,7 +5,7 @@ import type { SalesDoc, PurchaseDoc, Quotation, StockTransfer, Production, Purch
 import EcListShell from '../../components/EcListShell'
 import { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { dateNo, shortDateNo } from '../../utils/dateNo'

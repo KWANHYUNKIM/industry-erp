@@ -3,7 +3,7 @@ import Modal from '../../../components/Modal'
 import EcDateField from '../../../components/EcDateField'
 import EcNumInput from '../../../components/EcNumInput'
 import { EcCond } from '../../../components/EcStatusPanel'
-import CodePickerField, { type CodeItem } from '../../../components/CodePickerField'
+import CodePickerField, { type CodeItem } from '../../../components/codepicker/CodePickerField'
 
 /** 결의서 줄의 [추가정보] › 부가세정보. */
 export interface LineVat {

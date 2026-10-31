@@ -7,7 +7,7 @@ import type { EmployeeMaster, Item, MyItem, Partner, Project, Quotation, Warehou
 import { openPrintWindow } from '../../utils/print'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'

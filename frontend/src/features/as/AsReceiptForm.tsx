@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import GridFindButton from '../../components/codepicker/GridFindButton'
 import { EcWebUploadButton } from '../../components/EcGridToolbar'
 import type { useRequired } from '../../utils/useRequired'

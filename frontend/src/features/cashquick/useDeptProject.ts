@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
-import type { CodeItem } from '../../components/CodePickerField'
+import type { CodeItem } from '../../components/codepicker/CodePickerField'
 
 /**
  * 현금거래 한 장 입력(영수증으로 · 매출처로부터 …) 머리의 [부서] · [프로젝트] 코드도움 목록.

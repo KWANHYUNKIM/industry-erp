@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import type { CodeColumn } from '../../components/codepicker/CodeSearchModal'
 import Modal from '../../components/Modal'
 import EditStateMenu, { type StateOp } from '../../components/EditStateMenu'

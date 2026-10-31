@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
-import type { CodeItem } from '../../components/CodePickerField'
+import type { CodeItem } from '../../components/codepicker/CodePickerField'
 import { partnerCodeItems, type PartnerLike } from '../../utils/codeItems'
 import type { BondEntry, BondSide } from './types'
 

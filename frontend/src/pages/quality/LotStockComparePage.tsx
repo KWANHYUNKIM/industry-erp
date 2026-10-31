@@ -4,7 +4,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Lot, StockRow } from '../../types/api'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import EcDateInput from '../../components/ui/EcDateInput'
 

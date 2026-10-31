@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, type FormEvent } from 'react'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Page, StockTransaction, Warehouse } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'

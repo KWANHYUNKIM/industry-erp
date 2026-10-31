@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Modal from './Modal'
-import CodePickerField from './CodePickerField'
+import CodePickerField from './codepicker/CodePickerField'
 import { ymd } from '../utils/periods'
 import { EcDateRange } from './ui/EcDateInput'
 

@@ -4,7 +4,7 @@ import { changeJournalStatus, deleteJournals } from '../../features/taxstock/jou
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { AS_PICKS, SALES_TAX_LIST_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerManagers } from '../../utils/partnerManagers'

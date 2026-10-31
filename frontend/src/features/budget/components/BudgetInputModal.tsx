@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Modal from '../../../components/Modal'
-import CodePickerField, { type CodeItem } from '../../../components/CodePickerField'
+import CodePickerField, { type CodeItem } from '../../../components/codepicker/CodePickerField'
 import { extractErrorMessage } from '../../../api/client'
 import NumCheck from '../../../components/NumCheck'
 import { fetchBudgetAccount, saveBudgetAccount } from '../api'

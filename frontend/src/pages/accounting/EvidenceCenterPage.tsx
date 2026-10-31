@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EvidenceAttachment, EvidenceMethod } from '../../types/api'
 import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'

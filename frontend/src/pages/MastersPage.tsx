@@ -4,7 +4,7 @@ import EcListShell from '../components/EcListShell'
 import { ecAlert, ecConfirm } from '../components/EcDialog'
 import type { User } from '../types/api'
 import { useAuth } from '../features/auth/AuthContext'
-import CodePickerField from '../components/CodePickerField'
+import CodePickerField from '../components/codepicker/CodePickerField'
 
 interface Master { id: number; username: string; name: string }
 

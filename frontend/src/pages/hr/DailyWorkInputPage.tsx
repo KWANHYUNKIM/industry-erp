@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import GridSortModal from '../../components/GridSortModal'
 import ConditionLoadModal from '../../components/ConditionLoadModal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'

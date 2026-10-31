@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef} from 'react'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'

@@ -9,7 +9,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { fmtAmountBlank } from '../../utils/format'
 

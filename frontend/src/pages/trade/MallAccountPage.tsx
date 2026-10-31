@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { MallAccount, MallAccountType, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'

@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { EcCond } from '../../components/EcStatusPanel'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useDeptProjectItems } from '../cashquick/useDeptProject'
 import { VAT_TYPES, type BillLineView } from './types'

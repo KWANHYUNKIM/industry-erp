@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import VacationCodeUseReport from '../../features/vacation/components/VacationCodeUseReport'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'

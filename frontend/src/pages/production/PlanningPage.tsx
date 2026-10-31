@@ -4,7 +4,7 @@ import type { Item } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 type PlanStatus = 'REVIEW' | 'CONFIRMED' | 'ORDERED'

@@ -8,7 +8,7 @@ import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPer
 import type { AccountLedger, LedgerRow } from '../../types/api'
 import { useAuth } from '../../features/auth/AuthContext'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { fmtAmountBlank } from '../../utils/format'
 

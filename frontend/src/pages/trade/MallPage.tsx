@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell, { type BottomAction } from '../../components/EcListShell'
 import { useNavigate } from 'react-router-dom'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../types/api'

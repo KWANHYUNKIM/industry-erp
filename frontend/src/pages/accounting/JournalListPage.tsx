@@ -20,7 +20,7 @@ interface JournalListResponse {
 }
 import { periodOf } from '../../components/EcPeriodPicks'
 import { JOURNAL_INQUIRY_PICKS } from '../../utils/periods'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import EcNumInput from '../../components/EcNumInput'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { CASH_QUICK_KINDS, VOUCHER_SCREEN_BY_TYPE_NAME } from '../../features/cashquick/kinds'

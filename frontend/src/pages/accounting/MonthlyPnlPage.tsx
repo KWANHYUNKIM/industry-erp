@@ -8,7 +8,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import { incomeBucketOf, incomeCalc, type IncomeBucket } from '../../utils/incomeBuckets'
 import type { IncomeStatement } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { pad2 } from '../../utils/periods'
 import { fmtAmountBlank } from '../../utils/format'
 

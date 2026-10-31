@@ -1,6 +1,6 @@
 import { Fragment, useState, type ReactNode, type RefObject } from 'react'
 import { api } from '../../api/client'
-import type { CodeItem } from '../../components/CodePickerField'
+import type { CodeItem } from '../../components/codepicker/CodePickerField'
 import type { AccountDivision, BalanceSheet, IncomeStatement, StatementRow, TrialBalance } from '../../types/api'
 
 /**

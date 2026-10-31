@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Modal from '../../../components/Modal'
-import CodePickerField from '../../../components/CodePickerField'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
 import { EcCond } from '../../../components/EcStatusPanel'
 import { ecConfirm } from '../../../components/EcDialog'
 import { api, extractErrorMessage } from '../../../api/client'

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import Modal from '../../../components/Modal'
-import CodePickerField from '../../../components/CodePickerField'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
 import EcHistoryButton from '../../../components/EcHistory'
 import { ecConfirm } from '../../../components/EcDialog'
 import { api, extractErrorMessage } from '../../../api/client'

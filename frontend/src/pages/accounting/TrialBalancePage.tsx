@@ -7,7 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, TrialBalance } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 
 /** 원본 묶음 줄 · [합계] 줄(2026-10-03 실측): 바탕 rgb(243,243,243). 묶음은 보통 굵기, [합계]만 굵게. */
 const GROUP_ROW: React.CSSProperties = { background: 'rgb(243, 243, 243)' }

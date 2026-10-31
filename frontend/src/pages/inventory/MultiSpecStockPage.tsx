@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import EcDateField from '../../components/EcDateField'
 import { EcCond, EcCondTabs } from '../../components/EcStatusPanel'
 import { periodOf } from '../../components/EcPeriodPicks'

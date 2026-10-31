@@ -9,7 +9,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import type { IncomeStatement, StatementRow } from '../../types/api'
 import { incomeBucketOf, type IncomeBucket } from '../../utils/incomeBuckets'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import {
   fetchSplit, groupsOf, HorizontalStatementTable, ShowModeRadios, StatementTable, toIncomeStatement, useShowModes,
   type SLine, type Split,

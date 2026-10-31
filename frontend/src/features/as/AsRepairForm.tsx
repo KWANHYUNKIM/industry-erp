@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import GridFindButton from '../../components/codepicker/GridFindButton'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { useRequired } from '../../utils/useRequired'

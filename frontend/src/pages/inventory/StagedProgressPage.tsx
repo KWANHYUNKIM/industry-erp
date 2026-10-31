@@ -7,7 +7,7 @@ import SimpleAdjustDialog from '../../features/stockadjust/components/SimpleAdju
 import StagedAdjustDialog from '../../features/stockadjust/components/StagedAdjustDialog'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import EcPeriodPicks, { STAGED_PROGRESS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'

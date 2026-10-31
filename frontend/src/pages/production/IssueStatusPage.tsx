@@ -9,7 +9,7 @@ import { STATUS_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../
 import type { Item, Warehouse } from '../../types/api'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import { aggregate, groupCodes, GROUP_CODE_LABEL, AGG_SORTS, sortAggregated, type AggSort, type AggregatableRow, type GroupKey } from '../../utils/statusAggregate'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { dateText } from '../../utils/dateText'

@@ -122,7 +122,7 @@ const withLocalDeps = (file, depth = 2, seen = new Set()) => {
 }
 
 const SHELL_FILES = new Map(['Modal']
-  .map((c) => [c, join('frontend', 'src', 'components', `${c}.tsx`)])
+  .map((c) => [c, join('frontend', 'src', 'components', c === 'CodePickerField' ? 'codepicker' : '', `${c}.tsx`)])
   .filter(([, f]) => existsSync(f))
   .map(([c, f]) => [c, withLocalDeps(f)]))
 const shellSrcFor = (src) => [...SHELL_FILES]
@@ -3698,7 +3698,7 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
    * 파일만 보고 세면 패널이 그리는 [기준일자]까지 이 화면 것이 된다.
    */
   const SHARED_FILES = ['EcStatusPanel', 'EcListShell', 'EcPeriodPicks', 'CodePickerField']
-    .map((c) => [c, join('frontend', 'src', 'components', `${c}.tsx`)])
+    .map((c) => [c, join('frontend', 'src', 'components', c === 'CodePickerField' ? 'codepicker' : '', `${c}.tsx`)])
     .filter(([, f]) => existsSync(f))
     .map(([c, f]) => [c, readFileSync(f, 'utf8')])
   const sharedFor = (src) => SHARED_FILES

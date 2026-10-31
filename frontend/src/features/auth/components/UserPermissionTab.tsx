@@ -5,7 +5,7 @@ import { ecAlert } from '../../../components/EcDialog'
 import type { Role, User } from '../../../types/api'
 import { BASE_LABEL, modeLabel, type BasePermission, type UserWorks } from '../workPermissions'
 import WorkPermissionWindow from './WorkPermissionWindow'
-import CodePickerField from '../../../components/CodePickerField'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
 
 /**
  * 사용자등록 › 아이디 › [권한] 탭 — 기본권한(업무모든권한 · 업무권한없음 · 권한그룹 ▾) + 업무권한 [설정](개별권한설정 창).

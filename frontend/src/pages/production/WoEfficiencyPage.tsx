@@ -9,7 +9,7 @@ import {
 } from '../../utils/woEfficiency'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import type { Item } from '../../types/api'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'

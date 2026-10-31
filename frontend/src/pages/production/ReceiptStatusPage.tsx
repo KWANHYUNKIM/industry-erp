@@ -10,7 +10,7 @@ import { STATUS_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse } from '../../types/api'
 import { stockCostMapFromLast, sumStockValue } from '../../utils/stockValue'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { dateText } from '../../utils/dateText'

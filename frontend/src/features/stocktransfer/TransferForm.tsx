@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
 import EcDateField from '../../components/EcDateField'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import EcSlipShell from '../../components/EcSlipShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow, StockTransfer as TransferRow, Warehouse } from '../../types/api'
 import { ecAlert } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../sliphistory/SlipHistoryModal'
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
-import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
+import { useMyItemsPick, MyItemsNote } from '../../components/codepicker/MyItemsButton'
 import { todayYmd } from '../../utils/periods'
 
 /** 창고이동 한 줄. 같은 이동번호의 줄들이 전표 한 장이다(서버 V426) — lineNo 는 전표 안 줄 차례. */

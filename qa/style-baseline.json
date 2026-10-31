@@ -9,7 +9,7 @@
   "color": 0,
   "palette": 3
  },
- "components/CodePickerField.tsx": {
+ "components/codepicker/CodePickerField.tsx": {
   "inline": 5,
   "color": 4,
   "palette": 0

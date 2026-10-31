@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { pad2 } from '../../utils/periods'
 

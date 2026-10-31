@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import { useTableColumnCheck } from '../utils/assertTableColumns'
-import CodePickerField from '../components/CodePickerField'
+import CodePickerField from '../components/codepicker/CodePickerField'
 import type { Role, User } from '../types/api'
 import EcListShell from '../components/EcListShell'
 import { useTableSort } from '../utils/useTableSort'

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department, EmployeeMaster } from '../../types/api'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'

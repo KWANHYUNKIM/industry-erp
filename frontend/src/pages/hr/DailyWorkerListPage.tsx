@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { BANK_CODES } from '../../utils/bankCodes'
 import Modal from '../../components/Modal'
 import BulkChangeModal, { type BulkDraft, type BulkField } from '../../components/BulkChangeModal'

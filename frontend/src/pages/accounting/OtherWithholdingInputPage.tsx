@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import EcSlipShell from '../../components/EcSlipShell'
 import { ecConfirm } from '../../components/EcDialog'
 import { EcCond } from '../../components/EcStatusPanel'

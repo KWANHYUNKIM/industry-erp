@@ -7,7 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { TrialBalance } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import {
   fetchSplit, groupsOf, HorizontalStatementTable, ShowModeRadios, StatementTable, toTrialBalance, useShowModes,
   type SLine, type Split, type SplitBy,

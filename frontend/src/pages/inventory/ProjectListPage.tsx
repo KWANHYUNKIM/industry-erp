@@ -10,7 +10,7 @@ import type { Project } from '../../types/api'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
-import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
+import CodePickerField, { type CodeItem } from '../../components/codepicker/CodePickerField'
 import UnusedCodeModal from '../../features/unusedcode/UnusedCodeModal'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서 · 창고 · 거래처 리스트와 같은 글). */

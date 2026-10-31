@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import CodePickerField from '../../../components/CodePickerField'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
 import Modal from '../../../components/Modal'
 import { api, extractErrorMessage } from '../../../api/client'
 

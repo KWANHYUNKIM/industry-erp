@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import CodeSearchModal from './CodeSearchModal'
-import type { CodeItem } from '../CodePickerField'
+import type { CodeItem } from './CodePickerField'
 
 /** 원본처럼 칸 위에 뜨는 말풍선 — '유효키항목 필수입력' · '계정코드를 입력 바랍니다.' */
 export function ErrTip({ msg }: { msg: string }) {

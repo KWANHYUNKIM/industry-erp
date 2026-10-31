@@ -5,7 +5,7 @@ import type { EmployeeMaster, NotificationResponse, Partner, ShortMessage, User,
 import { useAuth } from '../auth/AuthContext'
 import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { Icon } from './icons'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import EcIcon from '../../components/ui/EcIcon'
 import { todayYmd } from '../../utils/periods'
 

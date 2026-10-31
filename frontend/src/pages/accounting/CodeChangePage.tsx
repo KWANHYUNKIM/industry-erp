@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Modal from '../../components/Modal'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
+import CodePickerField, { type CodeItem } from '../../components/codepicker/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { ecAlert } from '../../components/EcDialog'

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import Modal from '../../components/Modal'
 import EcNumInput from '../../components/EcNumInput'
 import EcEmptyRow from '../../components/ui/EcEmptyRow'

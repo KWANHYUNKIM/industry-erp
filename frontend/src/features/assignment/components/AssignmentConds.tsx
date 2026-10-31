@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import CodePickerField from '../../../components/CodePickerField'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
 import { EcCond } from '../../../components/EcStatusPanel'
 import { periodOf } from '../../../components/EcPeriodPicks'
 import { api } from '../../../api/client'

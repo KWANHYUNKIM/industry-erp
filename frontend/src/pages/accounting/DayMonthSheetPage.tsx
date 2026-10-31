@@ -7,7 +7,7 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import type { AccountLedger, JournalEntry } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { scopeEntries } from '../../utils/deptProject'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useAuth } from '../../features/auth/AuthContext'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { fmtAmountBlank } from '../../utils/format'

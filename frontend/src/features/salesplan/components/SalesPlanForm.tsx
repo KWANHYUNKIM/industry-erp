@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import GridFindButton from '../../../components/codepicker/GridFindButton'
 import { api, extractErrorMessage } from '../../../api/client'
-import CodePickerField from '../../../components/CodePickerField'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
 import { ecConfirm } from '../../../components/EcDialog'
 import { useCondPickers } from '../../../utils/useCondPickers'

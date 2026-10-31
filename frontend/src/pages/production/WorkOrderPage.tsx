@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, useRef } from 'react'
-import CodePickerField from '../../components/CodePickerField'
+import CodePickerField from '../../components/codepicker/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkOrder } from '../../types/api'
