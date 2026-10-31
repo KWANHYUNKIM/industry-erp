@@ -13,6 +13,7 @@
  *     (실제로 채권/채무현황의 채무 쪽이 라우트 없이 화면만 있었다).
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { menuSource, routerSource } from './app-src.mjs'
 import { join, sep } from 'node:path'
 
 let pass = 0
@@ -1022,8 +1023,9 @@ console.log('\n■ 훅을 컴포넌트 최상위에서 부르나')
 // ── 2) 메뉴 ↔ 라우트 ───────────────────────────────────────────────────────
 console.log('\n■ 메뉴 ↔ 라우트')
 
-const app = readFileSync('frontend/src/app/router.tsx', 'utf8')
-const menu = readFileSync('frontend/src/app/layout/EcountLayout.tsx', 'utf8')
+// 라우트 표는 app/routes/*.routes.tsx 에 나뉘어 있다 — router.tsx 만 읽으면 라우트가 거의 다 빠진다(qa/app-src.mjs).
+const app = routerSource()
+const menu = menuSource()
 
 const routes = new Set([...app.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]))
 const menuTargets = new Map()
@@ -1098,9 +1100,9 @@ console.log('\n■ 메뉴 이름 ↔ 화면이 여는 자리')
   const routeComp = new Map()
   for (const m of app.matchAll(/<Route\s+path="([^"]+)"\s+element=\{<(\w+)/g)) routeComp.set(m[1], m[2])
   const compFile = new Map()
-  // 라우터가 src/app/ 에 있어서 화면은 '../pages/...' 로 불린다 — src 기준 경로를 뽑는다.
-  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\.\/([^']+)'\)\)/g)) compFile.set(m[1], m[2])
-  for (const m of app.matchAll(/import (\w+) from '\.\.\/([^']+)'/g)) compFile.set(m[1], m[2])
+  // 라우터가 src/app/ 에, 라우트 조각이 src/app/routes/ 에 있어서 화면은 '../pages/…' · '../../pages/…' 로 불린다 — src 기준 경로를 뽑는다.
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('(?:\.\.\/)+([^']+)'\)\)/g)) compFile.set(m[1], m[2])
+  for (const m of app.matchAll(/import (\w+) from '(?:\.\.\/)+([^']+)'/g)) compFile.set(m[1], m[2])
 
   const bad = []
   for (const [to, labels] of byTo) {
@@ -1139,8 +1141,8 @@ console.log('\n■ 형제 메뉴는 같은 종류인가')
   const routeComp2 = new Map()
   for (const m of app.matchAll(/<Route\s+path="([^"]+)"\s+element=\{<(\w+)/g)) routeComp2.set(m[1], m[2])
   const compFile2 = new Map()
-  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\.\/([^']+)'\)\)/g)) compFile2.set(m[1], m[2])
-  for (const m of app.matchAll(/import (\w+) from '\.\.\/([^']+)'/g)) compFile2.set(m[1], m[2])
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('(?:\.\.\/)+([^']+)'\)\)/g)) compFile2.set(m[1], m[2])
+  for (const m of app.matchAll(/import (\w+) from '(?:\.\.\/)+([^']+)'/g)) compFile2.set(m[1], m[2])
 
   /** 뒤에 붙은 (…) 와 로마숫자·번호를 떼고 남는 줄기. 줄기가 같으면 형제다. */
   const stem = (s) => s.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*(I{1,3}|IV|V|\d+)\s*$/, '').trim()
@@ -1704,7 +1706,7 @@ console.log('\n■ 같은 메뉴 그룹은 같은 권한')
  * 실제로 새로 만든 재고현황 8개가 접두어 규칙에 걸려 INV_MASTER 로 새고 있었다.
  */
 {
-  const menuSrc = readFileSync('frontend/src/app/layout/EcountLayout.tsx', 'utf8')
+  const menuSrc = menuSource()
   const permSrc = readFileSync('frontend/src/features/auth/menuPermissions.ts', 'utf8')
 
   // menuPermissions 의 규칙을 그대로 읽어 같은 방식(최장 접두어)으로 푼다.

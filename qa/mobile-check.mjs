@@ -14,11 +14,12 @@
  * 왼쪽 메뉴 · 북마크 줄 · 2단 판이 보이면 휴대폰 틀이 안 먹은 것이다 → 실패.
  */
 import { readFileSync } from 'node:fs'
+import { routerSource } from './app-src.mjs'
 import { openBrowser } from './browser.mjs'
 
 const WIDTH = Number(process.env.WIDTH ?? 375)
 const prefix = process.argv[2] ? '/' + process.argv[2].replace(/^\//, '') : ''
-const router = readFileSync(new URL('../frontend/src/app/router.tsx', import.meta.url), 'utf8')
+const router = routerSource()   // router.tsx + app/routes/*.routes.tsx
 const routes = [...new Set([...router.matchAll(/path="([^"]+)"/g)].map((m) => m[1]))]
   .filter((r) => !r.includes(':') && !r.includes('*') && r !== '/login' && r.startsWith(prefix))
 if (!prefix) routes.unshift('/')

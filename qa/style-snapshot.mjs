@@ -29,7 +29,8 @@ const file = (r) => (r.replace(/^\//, '').replace(/\//g, '__') || 'home') + '.js
 if (cmd === 'save') {
   const { openBrowser } = await import('./browser.mjs')
   const prefix = b ? '/' + b.replace(/^\//, '') : ''
-  const router = readFileSync(new URL('../frontend/src/app/router.tsx', import.meta.url), 'utf8')
+  const { routerSource } = await import('./app-src.mjs')
+  const router = routerSource()   // router.tsx + app/routes/*.routes.tsx
   const routes = [...new Set([...router.matchAll(/path="([^"]+)"/g)].map((m) => m[1]))]
     .filter((r) => !r.includes(':') && !r.includes('*') && r !== '/login' && r.startsWith(prefix))
     // ROUTES=/a,/b — 몇 화면만(mobile-check 와 같은 방식). 공용 부품 하나를 쓰는 화면만 골라 뜰 때.

@@ -20,11 +20,12 @@
  * 자료가 없는 화면은 2번을 볼 수 없다 — 결과에 '본 표' 수를 같이 찍는다.
  */
 import { readFileSync } from 'node:fs'
+import { routerSource } from './app-src.mjs'
 import { API, openBrowser } from './browser.mjs'
 
 const raw = process.argv[2] ?? ''
 const prefix = raw ? '/' + raw.replace(/^[A-Za-z]:.*?\/Git\//, '').replace(/^\/+/, '') : ''
-const router = readFileSync(new URL('../frontend/src/app/router.tsx', import.meta.url), 'utf8')
+const router = routerSource()   // router.tsx + app/routes/*.routes.tsx
 const routes = [...new Set([...router.matchAll(/path="([^"]+)"/g)].map((m) => m[1]))]
   .filter((p) => p.startsWith('/') && !p.includes(':') && !p.includes('*') && p !== '/login' && p.startsWith(prefix || '/'))
 
