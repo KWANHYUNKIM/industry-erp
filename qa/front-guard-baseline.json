@@ -3,9 +3,9 @@
   "features/balanceadjust/api.ts",
   "features/payroll/components/PayLedgerReport.tsx",
   "features/yearend/api.ts",
-  "pages/accounting/IncomeSubmissionPage.tsx",
-  "pages/accounting/OtherWithholdingInputPage.tsx",
-  "pages/accounting/ProjectPlanStatusPage.tsx",
+  "pages/accounting/withholding/IncomeSubmissionPage.tsx",
+  "pages/accounting/otherwithholding/OtherWithholdingInputPage.tsx",
+  "pages/accounting/project/ProjectPlanStatusPage.tsx",
   "pages/hr/DailyWorkerListPage.tsx",
   "pages/production/RequirementCalcPage.tsx",
   "pages/trade/arap/ArApStatusPage.tsx"

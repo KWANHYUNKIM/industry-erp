@@ -1,0 +1,750 @@
+import { Fragment, useRef, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { api, extractErrorMessage } from '../../../api/client'
+import type { SalesDoc, Warehouse } from '../../../types/api'
+import EcListShell from '../../../components/EcListShell'
+import Modal from '../../../components/Modal'
+import { costOf, sumExtraCost, type CostBasis } from '../../../utils/costBasis'
+import { EcCond, EcCondTabs } from '../../../components/EcStatusPanel'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf, ymd } from '../../../components/EcPeriodPicks'
+import { EcDateRange } from '../../../components/ui/EcDateInput'
+import { ecAlert } from '../../../components/EcDialog'
+import { COMPARE_PERIODS, comparePeriodOf, type ComparePeriod } from '../../../utils/periods'
+import { useTableColumnCheck } from '../../../utils/assertTableColumns'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { useCondPickers } from '../../../utils/useCondPickers'
+import { useItemFlags } from '../../../utils/useInactiveItems'
+import { usePartnerGroups } from '../../../utils/partnerGroups'
+import { usePartnerManagers } from '../../../utils/partnerManagers'
+import { useItemMgmt } from '../../../utils/itemMgmtItems'
+import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggState, type AggTarget } from '../../../features/payroll/components/CustomAggregate'
+import { EcReportHead, EcReportFoot, reportPeriod } from '../../../components/EcReportFrame'
+import { fmtAmount } from '../../../utils/format'
+
+/**
+ * 이익관리 > 일별이익현황 (이카운트 C000140)
+ *
+ * <b>이 화면의 이익 계산이 틀려 있었다.</b> `/api/profit/daily` 는 <b>그날의 매입액</b>을 원가로
+ * 놓는다. 그러면 자재를 왕창 사들인 날은 이익이 크게 마이너스로 찍힌다 — 그날 잘 팔았어도.
+ * 이익은 <b>판 물건의 원가</b>로 재야 한다. 원본이 하는 것도 그것이고, [원가] 조건이 있는 이유다.
+ *
+ * 그래서 판매 라인에서 직접 계산한다: 이익 = 판매액 − (판매수량 × 원가단가).
+ * 매출과 매입을 나란히 보는 것 자체는 뜻이 있지만 그건 일보·판매구매집계표가 하는 일이고,
+ * 그 값에 '이익'이라는 이름을 붙이면 안 된다.
+ *
+ * 원본 조건: 구분(라인별·품목별·거래처별·품목별거래처별·거래처별품목별·사용자지정집계) ·
+ * 기준일자 · 창고 · 프로젝트 · 거래처 · 품목 · 판매액(공급가액 / 공급가액+VAT) ·
+ * 원가(선입선출(판매) / 월별원가 / 입고단가(품목) / 입고단가(품목)-VAT제외) ·
+ * 기타(결재방표시 / 수량관리제외품목포함) · 거래구분(전체 / 반품만 / 반품제외).
+ *
+ * 우리에게 없는 것과 이유:
+ *   선입선출 — 입고 레이어를 남기지 않아 계산할 수 없다(일별재고현황과 같다)
+ *   결재방표시·수량관리제외품목 — 대응 개념이 없다
+ * 대신 원본에 없는 <b>일자별</b>을 구분에 넣었다 — 화면 이름이 '일별'이라 하루 단위 줄이 있어야 한다.
+ *
+ * <p><b>원본 결과 열 실측(사본)</b>: 품목코드 · 품목명[규격] · 판매(수량·단가·금액) ·
+ * 원가 · 이익 · 이익율 · <b>이익금액(부대비용포함)</b> · <b>판매부대비용</b>.
+ * 뒤 두 열이 우리에게 없었다. 부대비용은 전표 합계에 더하지 않는다 — 거래처에 청구한
+ * 돈이 아니라 우리가 쓴 돈이다. 그래서 판매액에는 안 들어가는데 <b>이익에서도 안 빠지고</b>
+ * 있었다. 운반비를 쓸수록 이익이 좋아 보인다는 뜻이다.
+ */
+/**
+ * [구분]. 원본 일별이익현황 사본 실측:
+ *   라인별 | 품목별 | 거래처별 | 품목별거래처별 | 거래처별품목별 | 사용자지정집계
+ * 우리에겐 거래처별품목별이 없었다 — 품목별거래처별과 <b>묶는 순서가 반대</b>다.
+ * 같은 거래처의 품목을 나란히 보려면 이쪽이라야 한다.
+ *
+ * <p>'일자별' 은 원본에 없는 우리 것이다. 일별이익현황이니 하루 단위로 접어 보는 쪽이
+ * 쓸모가 있어 맨 뒤에 남겼다. '사용자지정집계' 는 2026-10-13 에 만들었다(아래 PROFIT_DIMS).
+ */
+type Mode = '라인별' | '품목별' | '거래처별' | '품목별거래처별' | '거래처별품목별' | '사용자지정집계' | '일자별'
+const MODES = ['라인별', '품목별', '거래처별', '품목별거래처별', '거래처별품목별', '사용자지정집계', '일자별'] as const
+/**
+ * 검색 뒤 표 위 큰 제목 — 원본 품목별은 '품목별이익현황'(2026-10-31 loginad 실측). 나머지 셋은 월별이익현황(2026-10-13 실측)과 같은 이름으로 둔다.
+ * 라인별 · 일자별 · 사용자지정집계는 아직 못 재어 화면 이름을 쓴다.
+ */
+const REPORT_TITLE: Record<Mode, string> = {
+  라인별: '일별이익현황', 품목별: '품목별이익현황', 거래처별: '거래처별이익현황',
+  품목별거래처별: '품목/거래처별이익현황', 거래처별품목별: '거래처/품목별이익현황', 사용자지정집계: '일별이익현황', 일자별: '일별이익현황',
+}
+
+/**
+ * [구분] <b>사용자지정집계</b> — 원본 E040806 집계조건검색 창(2026-10-13 실측):
+ * 기준일자(일별 · 월별 · 연별) · 판매(담당자 · 창고 · 거래유형 · 관리항목 · 프로젝트) · 거래처(거래처 · 거래처그룹1 · 거래처그룹2) ·
+ * 품목(품목명[규격] · 품목그룹1 · 품목그룹2 · 품목그룹3). 우리 판매 줄에 없는 관리항목 · 거래처그룹2 · 품목그룹2 · 3 은 뺐다.
+ * 집계대상검색 창: 판매(수량 · 판매액 · 원가 · 이익) · 일별이익(판매부대비용 · 부대비용포함이익 · 이익율).
+ * 결과(거래처 · 수량 · 이익 · 이익율): '(주)삼성 5.00 8,357,868 98%' … '합계 44.00 9,245,263 93%' — 이익율은 묶음의 이익 ÷ 판매액, 정수 %.
+ */
+const PROFIT_DIMS: AggDim[] = [
+  { key: 'day', label: '일별', group: '기준일자', codeLabel: null },
+  { key: 'month', label: '월별', group: '기준일자', codeLabel: null },
+  { key: 'year', label: '연별', group: '기준일자', codeLabel: null },
+  { key: 'employee', label: '담당자', group: '판매' },
+  { key: 'warehouse', label: '창고', group: '판매' },
+  { key: 'taxType', label: '거래유형', group: '판매', codeLabel: null },
+  { key: 'project', label: '프로젝트', group: '판매' },
+  { key: 'partner', label: '거래처', group: '거래처' },
+  { key: 'partnerGroup', label: '거래처그룹1', group: '거래처', codeLabel: null },
+  { key: 'item', label: '품목명[규격]', group: '품목', codeLabel: '품목코드' },
+  { key: 'itemGroup', label: '품목그룹1', group: '품목', codeLabel: null },
+]
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const PROFIT_TARGETS: AggTarget[] = [
+  { key: 'qty', label: '수량', format: qty2 },
+  { key: 'revenue', label: '판매액' },
+  { key: 'cost', label: '원가' },
+  { key: 'profit', label: '이익' },
+  { key: 'extra', label: '판매부대비용' },
+  { key: 'profitNet', label: '부대비용포함이익' },
+  /* 이익율은 더하지 않는다 — 묶음마다 이익 ÷ 판매액(정수 %). */
+  { key: 'rate', label: '이익율', format: (n) => `${n}%`,
+    calc: (v) => (v('판매액') ? Math.round((v('이익') / v('판매액')) * 100) : 0) },
+]
+/**
+ * 원가 기준.
+ *
+ * <p>원본 실측: [원가] 선입선출(판매) | 월별원가 | <b>입고단가(품목)</b> | 입고단가(품목) - VAT 제외
+ *
+ * <p>우리 '품목단가' 가 원본의 '입고단가(품목)' 에 해당하는데, 품목 단가가 하나뿐이던 시절
+ * <b>판매단가</b>를 읽고 있었다. 원가에 판매가를 넣으면 이익이 0 근처로 나오는데
+ * 숫자가 그럴듯해서 눈으로는 안 걸린다. 이제 품목의 구매단가를 읽는다.
+ * 구매단가를 안 정한 품목(0)은 기준이 없는 것이므로 원가·이익을 '—' 로 둔다.
+ *
+ * <p>[선입선출(판매)] 는 서버(/stock/fifo-sale-costs)가 재고 이력을 일어난 차례로 걸어 판매 출고가 꺼낸 입고 층의 단가로 셈한다.
+ */
+type Basis = CostBasis
+
+interface CostRow { itemId: number; period: string; standardTotal: number }
+
+const num = (n: number) => n.toLocaleString()
+/* 원본 [이익율] 은 정수 % 다(2026-10-04 실측: 77%, 합계 41%). */
+const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 100))
+
+export default function DailyProfitPage() {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['projects', 'partners', 'items'])
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다 —
+   * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
+   */
+  /*
+   * 원본 [기타]의 <b>[수량관리제외품목포함]</b> — 재고수량을 안 세는 품목(용역·수수료 …)까지
+   * 같이 볼지다. 기본은 <b>꺼짐</b>이다(사본 실측). 월별이익현황만 켜져 있고 나머지는 꺼져 있다.
+   */
+  const [withUntracked, setWithUntracked] = useState(false)
+  const { untracked } = useItemFlags()
+  const [signBox, setSignBox] = useState(false)
+  const [sales, setSales] = useState<SalesDoc[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [costs, setCosts] = useState<CostRow[]>([])
+  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
+  /* 원가 [선입선출(판매)] — 판매 전표 · 품목별 선입선출 단가(서버가 재고 이력으로 셈한다). 키는 '전표번호#품목id'. */
+  const [fifo, setFifo] = useState<Map<string, number>>(new Map())
+  /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
+  const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [whyOpen, setWhyOpen] = useState(false)
+  /* 원본은 조건 판이 열린 채 시작하고 [검색(F8)] 을 눌러야 보고서가 선다. 자료는 열 때부터 받아 둔다. */
+  const [shown, setShown] = useState(false)
+  const [condTab, setCondTab] = useState<'기본' | '전체'>('기본')
+  /** 기준일자 앞 [금월(~오늘)▾] — 원본 기본값. */
+  const [pickLabel, setPickLabel] = useState('금월(~오늘)')
+
+  /*
+   * 화면을 열었을 때 켜져 있는 [구분]. 원본은 <b>[품목별]</b> 이다
+   * (2026-09-01 원본 C000036 직접 실측 — 라디오가 품목별에 찍혀 있다).
+   *
+   * <p>우리는 [라인별] 로 열고 있었다. 대조표 둘이 서로 다른 값을 적고 있었던 탓이다 —
+   * ecount-mode-default.json 은 '라인별', ecount-radio-options.json 은 '*품목별'.
+   * 원본을 열어 가려 보니 라디오 쪽이 맞았다. mode-default 도 같이 고쳤다.
+   *
+   * <p>라인별로 열면 전표 줄이 그대로 쏟아져, 무엇이 남는 장사인지 보려면 사람이 눈으로
+   * 품목을 모아야 한다. 이익현황은 품목으로 접어 보는 것이 첫 화면이다.
+   */
+  const [mode, setMode] = useState<Mode>('품목별')
+  const [agg, setAgg] = useState<AggState>(EMPTY_AGG)
+  /* 원본 기본 원가는 [선입선출(판매)] 다(2026-10-04 실측 — 라디오가 거기 찍혀 있다). */
+  const [basis, setBasis] = useState<Basis>('선입선출(판매)')
+  const [withVat, setWithVat] = useState(false)
+  /**
+   * 원본 [거래구분] — 전체 · 반품만 · 반품제외.
+   * 반품 전표는 수량·금액이 음수라 그대로 두면 이익에서 <b>빠진다</b>(그게 맞다).
+   * 반품만 보면 되돌아온 것이 얼마인지, 반품제외로 보면 순수 판매만 얼마인지 갈라진다.
+   */
+  const [tradeKind, setTradeKind] = useState<'전체' | '반품만' | '반품제외'>('전체')
+  // 원본 기본값이 금월(~오늘)이다.
+  const init = periodOf('금월(~오늘)', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
+  /*
+   * 2026-09-08 에 원본(E040806)의 조건 판을 재니 <b>[전체] 탭이 스물다섯</b>이다
+   * ([기본] 탭은 스물둘에 차례도 조금 다르다). 사본에는 열하나뿐이었다. 접힌 줄은 없다.
+   *
+   * <p>여기서 만든 여섯: 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 ·
+   * 거래처관리담당자 · 거래유형. 값은 판매 전표 응답에 진작 다 있다
+   * (월별이익현황과 같은 여섯이다 — 두 화면이 같은 자료를 본다).
+   */
+  const [cond, setCond] = useState({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '',
+    partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
+  /* 거래처그룹1·거래처관리담당자·품목그룹1 은 마스터에 붙는 값이라 이름·id 로 잇는다. */
+  const pgroup = usePartnerGroups()
+  const pmgr = usePartnerManagers()
+  const mgmtItems = useItemMgmt()
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
+
+  function load() {
+    setLoading(true)
+    setError('')
+    /*
+     * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서
+     * <code>saleDate &gt;= cond.from</code> 으로 걸렀다. 이 표에는 <b>이월도 누계도 없다</b>
+     * (거래처원장·월별채권채무와 다르다) — 그 기간 전표만 있으면 숫자가 같다.
+     *
+     * <p><b>구매는 좁히면 안 된다</b> — 아래 unitPrices/원가는 그 품목을 <b>언제 샀든</b>
+     * 마지막 매입가를 봐야 한다. 기간으로 자르면 이번 달에 안 사 온 품목의 원가가
+     * 통째로 빠진다(경영자보고서에서 같은 까닭으로 남겨 둔 자리다).
+     */
+    const period: Record<string, string> = {}
+    if (cond.from) period.from = cond.from
+    if (cond.to) period.to = cond.to
+    Promise.all([
+      api.get<SalesDoc[]>('/sales', { params: period }),
+      api.get<Warehouse[]>('/warehouses'),
+      api.get<CostRow[]>('/costs'),
+      /*
+       * <b>마지막 입고단가만 받는다.</b> 아래 lastPurchasePrice 가 하던 일을 서버가 한다 —
+       * 그 손계산은 <b>목록 차례에 기대는 옛 규칙</b>이었다(같은 날이면 id 가 작은 쪽이
+       * 이긴다). /purchases/item-prices 는 나중에 적은 전표를 마지막 입고로 본다.
+       */
+      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
+      // 원가 기준 '입고단가(품목)' 은 <b>구매단가</b>다. 판매단가(unitPrice)가 아니다.
+      api.get<{ id: number; purchasePrice: number }[]>('/items'),
+      /* 원가 [선입선출(판매)] — 그 날까지의 재고 이력으로 판매 줄마다 꺼낸 층의 원가. */
+      api.get<{ docNo: string; itemId: number; quantity: number; cost: number }[]>('/stock/fifo-sale-costs', { params: { to: cond.to || ymd(new Date()) } }),
+    ])
+      .then(([s, w, c, p, i, f]) => {
+        setSales(s.data); setWarehouses(w.data); setCosts(c.data); setLastPrices(p.data)
+        setFifo(new Map(f.data.filter((r) => Number(r.quantity) > 0)
+          .map((r) => [`${r.docNo}#${r.itemId}`, Number(r.cost) / Number(r.quantity)])))
+        setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
+      })
+      .catch((err) => setError(extractErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }
+
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [cond.from, cond.to])
+
+  /** 월별원가는 판매한 <b>그 달</b>의 표준원가를 쓴다 — 기간이 여러 달에 걸쳐도 맞게. */
+  const costByItemPeriod = useMemo(
+    () => new Map(costs.map((c) => [`${c.itemId}:${c.period}`, c.standardTotal])), [costs])
+
+  /** 그 품목을 마지막으로 산 단가. 서버가 정한 값이다(같은 날이면 나중에 적은 전표). */
+  const lastPurchasePrice = useMemo(
+    () => new Map(lastPrices.map((r) => [r.itemId, r.unitPrice])), [lastPrices])
+
+  /** 원가단가. 규칙은 utils/costBasis 에 있다 — 거기서 못 박아 두고 여기서는 잇기만 한다. */
+  const costPrice = (itemId: number, saleDate: string, docNo: string): number | null => costOf(basis, {
+    monthlyCost: costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null,
+    lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
+    itemPurchasePrice: unitPrices.get(itemId) ?? null,
+    fifoUnitCost: fifo.get(`${docNo}#${itemId}`) ?? null,
+  })
+
+  /** 조건을 통과한 판매 라인 하나하나. 모든 구분이 여기서 갈라져 나간다. */
+  /** 판매 전표 → 조건을 통과한 줄. 비교기간도 같은 규칙으로 줄을 낸다(기간만 다르다). */
+  const linesOf = (docs: SalesDoc[], from: string, to: string) => docs
+    .filter((d) => !from || d.saleDate >= from)
+    .filter((d) => !to || d.saleDate <= to)
+    .filter((d) => !cond.warehouseId || String(d.warehouseId) === cond.warehouseId)
+    .filter((d) => !cond.project || String(d.projectId) === cond.project)
+    .filter((d) => !cond.partner || String(d.partnerId) === cond.partner)
+    .filter((d) => !cond.partnerGroup || pgroup.groupOfName(d.partnerName) === cond.partnerGroup)
+    .filter((d) => !cond.employee || (d.employeeName ?? '') === cond.employee)
+    .filter((d) => !cond.partnerMgr || pmgr.managerOfName(d.partnerName) === cond.partnerMgr)
+    /* 원본 [거래유형] — 과세 · 면세. [거래구분](반품)과 다른 축이다. */
+    .filter((d) => !cond.taxType || (d.taxable ? '과세' : '면세') === cond.taxType)
+    .filter((d) => tradeKind === '전체'
+      || (tradeKind === '반품만' ? d.returnSlip : !d.returnSlip))
+    .flatMap((d) => d.lines
+      .filter((l) => !cond.item || String(l.itemId) === cond.item)
+      .filter((l) => withUntracked || !untracked.has(l.itemId))
+      .filter((l) => !cond.category || (l.itemCategoryName ?? '') === cond.category)
+      .filter((l) => !cond.itemGroup || mgmtItems.groupOf(l.itemId) === cond.itemGroup)
+      .map((l) => {
+        const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
+        const price = costPrice(l.itemId, d.saleDate, d.docNo)
+        const cost = price === null ? null : price * l.quantity
+        return {
+          key: `${d.id}-${l.itemId}-${l.lotNo ?? ''}`,
+          date: d.saleDate, docNo: d.docNo,
+          partnerId: d.partnerId, partnerName: d.partnerName,
+          warehouseId: d.warehouseId, warehouseName: d.warehouseName, taxType: d.taxable ? '과세' : '면세',
+          projectName: d.projectName ?? '', employeeName: d.employeeName ?? '',
+          itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
+          /** 열이 [품목명[규격]] 이다 — 규격을 대괄호로 붙인다(이름만 찍고 있었다, 8회차 화면 점검). */
+          itemLabel: l.itemName + (l.spec ? `[${l.spec}]` : ''),
+          quantity: l.quantity, revenue, cost,
+          profit: cost === null ? null : revenue - cost,
+          /** 판매부대비용. 원본 [판매부대비용] 열. 안 적었으면 0 이다. */
+          extraCost: Number(l.extraCost ?? 0),
+        }
+      }))
+
+  const lines = useMemo(() => linesOf(sales, cond.from, cond.to),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sales, cond, tradeKind, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+
+  /*
+   * 원본 사용자지정집계의 [비교기간] — 사용안함 · 전년 · 전월 · 전주 · 전일동일기간(2026-10-13 실측).
+   * 고르면 그 구간 판매를 따로 받아 같은 줄 규칙으로 셈한다. 원가 [선입선출(판매)] 는 기준일자 끝날까지 셈한 표를 같이 쓴다
+   * (비교 구간은 그보다 앞이라 이미 들어 있다).
+   */
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  const cmpRange = mode === '사용자지정집계' ? comparePeriodOf(cond.from, cond.to, compare) : null
+  const [cmpSales, setCmpSales] = useState<SalesDoc[]>([])
+  useEffect(() => {
+    if (!cmpRange) { setCmpSales([]); return }
+    api.get<SalesDoc[]>('/sales', { params: { from: cmpRange.from, to: cmpRange.to } })
+      .then((r) => setCmpSales(r.data)).catch((err) => setError(extractErrorMessage(err)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cmpRange?.from, cmpRange?.to])
+  const cmpLines = useMemo(() => (cmpRange ? linesOf(cmpSales, cmpRange.from, cmpRange.to) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cmpSales, cmpRange?.from, cmpRange?.to, cond, tradeKind, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+  /* 원본은 기준일자 축과 비교기간을 같이 못 쓴다(품질검사현황에서 잰 문구와 같다). */
+  const dateAxis = agg.conds.some((k) => k === 'day' || k === 'month' || k === 'year')
+
+  /** 사용자지정집계가 묶는 한 건 — 판매 줄 하나. 원가를 모르는 줄은 원가 · 이익을 0 으로 더한다(판매액은 그대로). */
+  const recordsOf = (ls: typeof lines) => {
+    const pcode = new Map(pickers.partners.map((p) => [p.value, p.code]))
+    return ls.map((l) => {
+      const d = l.date.replace(/-/g, '/')
+      const cost = l.cost ?? 0, profit = l.profit ?? 0
+      const pg = pgroup.groupOfName(l.partnerName) ?? ''
+      const ig = mgmtItems.groupOf(l.itemId) ?? ''
+      return {
+        dims: {
+          day: { code: d, name: d }, month: { code: d.slice(0, 7), name: d.slice(0, 7) }, year: { code: d.slice(0, 4), name: d.slice(0, 4) },
+          employee: { code: l.employeeName, name: l.employeeName },
+          warehouse: { code: String(l.warehouseId ?? ''), name: l.warehouseName ?? '' },
+          taxType: { code: l.taxType, name: l.taxType },
+          project: { code: l.projectName, name: l.projectName },
+          partner: { code: pcode.get(String(l.partnerId)) ?? String(l.partnerId), name: l.partnerName },
+          partnerGroup: { code: pg, name: pg },
+          item: { code: l.itemCode, name: l.itemLabel },
+          itemGroup: { code: ig, name: ig },
+        },
+        values: { 수량: l.quantity, 판매액: l.revenue, 원가: cost, 이익: profit, 판매부대비용: l.extraCost, 부대비용포함이익: profit - l.extraCost },
+      }
+    })
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const aggRecords = useMemo(() => recordsOf(lines), [lines, pickers.partners])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cmpRecords = useMemo(() => recordsOf(cmpLines), [cmpLines, pickers.partners])
+
+  /** 구분에 따라 묶는다. 라인별은 안 묶고, 나머지는 키를 만들어 합친다. */
+  const rows = useMemo(() => {
+    if (mode === '라인별') {
+      return lines.map((l) => ({
+        key: l.key, c1: l.date.replace(/-/g, '/'), c2: l.docNo, c3: l.partnerName, c4: l.itemLabel,
+        qty: l.quantity, revenue: l.revenue, cost: l.cost, profit: l.profit, count: 1,
+        extra: l.extraCost,
+      }))
+    }
+    const keyOf = (l: typeof lines[number]) =>
+      mode === '일자별' ? l.date
+        : mode === '품목별' ? String(l.itemId)
+          : mode === '거래처별' ? String(l.partnerId)
+            : mode === '거래처별품목별' ? `${l.partnerId}:${l.itemId}`
+              : `${l.itemId}:${l.partnerId}`
+    const labelOf = (l: typeof lines[number]) =>
+      mode === '일자별' ? [l.date.replace(/-/g, '/'), '', '', '']
+        : mode === '품목별' ? [l.itemCode, l.itemLabel, '', '']
+          : mode === '거래처별' ? [l.partnerName, '', '', '']
+            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemLabel, '']
+              : [l.itemCode, l.itemLabel, l.partnerName, '']
+
+    const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number; extra: number }>()
+    lines.forEach((l) => {
+      const k = keyOf(l)
+      const g = m.get(k) ?? { key: k, label: labelOf(l), qty: 0, revenue: 0, cost: 0, profit: 0, count: 0, extra: 0 }
+      g.qty += l.quantity
+      g.revenue += l.revenue
+      // 부대비용은 원가를 알든 모르든 다 더한다 — 실제로 쓴 돈이라 빼면 거짓이 된다.
+      g.extra += l.extraCost
+      // 한 줄이라도 원가를 모르면 그 묶음의 원가·이익은 알 수 없다 — 아는 것만 더해 놓고 맞다고 하면 안 된다.
+      if (l.cost === null || g.cost === null) { g.cost = null; g.profit = null }
+      else { g.cost += l.cost; g.profit = (g.profit ?? 0) + (l.profit ?? 0) }
+      g.count += 1
+      m.set(k, g)
+    })
+    return [...m.values()]
+      .sort((a, b) => (mode === '일자별' ? (a.key < b.key ? -1 : 1) : b.revenue - a.revenue))
+      .map((g) => ({ key: g.key, c1: g.label[0], c2: g.label[1], c3: g.label[2], c4: g.label[3], qty: g.qty, revenue: g.revenue, cost: g.cost, profit: g.profit, count: g.count, extra: g.extra }))
+  }, [lines, mode])
+
+  /**
+   * 판매액은 모든 라인이 알 수 있지만 원가·이익은 <b>원가를 아는 라인만</b> 더한다.
+   * 이익률까지 전체 판매액으로 나누면 원가를 모르는 만큼 이익률이 좋아 보인다 —
+   * 그래서 비율은 아는 라인의 판매액(knownRevenue)으로 낸다.
+   */
+  const known = lines.filter((l) => l.cost !== null)
+  const totals = {
+    revenue: lines.reduce((n, l) => n + l.revenue, 0),
+    knownRevenue: known.reduce((n, l) => n + l.revenue, 0),
+    cost: known.reduce((n, l) => n + (l.cost ?? 0), 0),
+    profit: known.reduce((n, l) => n + (l.profit ?? 0), 0),
+  }
+  /** 판매부대비용과 그것을 뺀 이익. 규칙은 utils/costBasis 에 못 박아 뒀다. */
+  const extraTotals = sumExtraCost(lines.map((l) => ({ profit: l.profit, extraCost: l.extraCost })))
+
+  const allUnknown = lines.length > 0 && known.length === 0
+
+  /* 처음 값으로 — 구분은 원본 기본 [품목별](예전엔 '라인별' 로 돌려 처음 화면과 달랐다). */
+  const reset = () => {
+    setMode('품목별'); setBasis('선입선출(판매)'); setWithVat(false); setPickLabel('금월(~오늘)')
+    setWithUntracked(false); setSignBox(false); setAgg(EMPTY_AGG); setCompare('사용안함')
+    setCond({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '',
+      partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
+    setTradeKind('전체')
+  }
+
+  /** 구분마다 앞쪽 라벨 열이 다르다. 열 수가 바뀌므로 한 곳에서 정한다. */
+  const HEADS: Record<Mode, string[]> = {
+    일자별: ['일자'],
+    라인별: ['일자', '전표번호', '거래처', '품목'],
+    /* 원본은 규격을 품목명 뒤 대괄호에 붙여 <b>[품목명[규격]]</b> 한 칸으로 적는다. */
+    품목별: ['품목코드', '품목명[규격]'],
+    거래처별: ['거래처'],
+    품목별거래처별: ['품목코드', '품목명[규격]', '거래처'],
+    거래처별품목별: ['거래처', '품목코드', '품목명[규격]'],
+    사용자지정집계: [],
+  }
+  const heads = HEADS[mode]
+  /*
+   * 꼬리 열 <b>아홉</b> — 판매(수량 · 단가 · 금액) · 원가(단가 · 금액) · 부대비용 · 이익(단가 · 금액) · 이익율.
+   * 원본 두 줄 머리의 잎이다.
+   */
+  const TAIL = 9
+  /** 합계행의 단가도 <b>합계금액 ÷ 합계수량</b>이다 — 줄 단가의 평균이 아니다. */
+  const totalQty = rows.reduce((n, r) => n + r.qty, 0)
+  /* 2026-10-20 원본(재고1 출력물 › 기타) 격자에 번호 열이 없다 — 품목코드부터 */
+  const colCount = heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + TAIL
+  /** 수량으로 나눈 단가. 수량이 없으면 <b>0 이 아니라 모른다</b>(null). */
+  const per = (amount: number | null, qty: number) =>
+    (amount === null || qty === 0 ? null : amount / qty)
+
+  // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
+  // 개발 모드에서 렌더된 표를 직접 재서 합계행이 밀렸는지 잡는다.
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '일별이익현황', [mode, basis, withVat, rows.length])
+
+  /*
+   * 조건 칸 — 2026-10-31 loginad E040806 실측: 한 줄에 하나, 이름표 왼쪽 · 칸 오른쪽, 고르기는 라디오(◉).
+   * 원본 [기본] 탭 차례: 구분 · 기준일자 · 창고 · 프로젝트 · 거래처 · 품목 · 판매액 · 원가 · 기타 · 거래구분 · 정렬/소계기준.
+   * [전체] 탭(2026-09-08 실측 스물다섯)은 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 · 거래처관리담당자 · 거래유형이 더 있고 차례가 다르다 —
+   * 그 여섯은 [전체] 탭에만 둔다(거르기는 그대로 산다). 아래 글은 [전체] 차례로 적고, [기본] 은 BASIC_ORDER 로 다시 세운다.
+   */
+  const radios = <T extends string>(name: string, opts: readonly (readonly [T, string])[], value: T, set: (v: T) => void) => (
+    <span className="inline-flex flex-wrap items-center gap-x-[12px] gap-y-[4px]">
+      {opts.map(([v, label]) => (
+        <label key={label} className="inline-flex items-center gap-[3px]">
+          <input type="radio" name={name} checked={value === v} onChange={() => set(v)} /> {label}
+        </label>
+      ))}
+    </span>
+  )
+  const reportTitle = REPORT_TITLE[mode]
+
+  return (
+    <EcListShell
+      title="일별이익현황"
+      searchable={false}
+      onReset={reset}
+      actions={[
+        /*
+         * 원본 하단(검색 뒤): [인쇄│▲] [Excel] [이익이 안 나올 경우]. [검색(F8)] · [다시 작성] 은 조건 판 아래 줄에 있다.
+         * [이익이 안 나올 경우] 는 원본 안내문이 아니라 우리 계산 규칙을 적은 창이다.
+         */
+        { label: '인쇄', menu: [{ label: '프린트문제해결', onClick: () => void ecAlert('이 기능은 이 ERP 에서 제공하지 않습니다.\n(프린트문제해결)') }] },
+        { label: 'Excel' },
+        { label: '이익이 안 나올 경우', onClick: () => setWhyOpen(true) },
+      ]}
+      signLine={signBox}
+    >
+      <ul className="ec-cond mb-[8px] grid-cols-1 [&>li]:col-span-full">
+        <EcCondTabs tab={condTab} onTab={setCondTab} />
+        {(() => {
+          const CONDS: Record<string, ReactNode> = {
+            구분: (
+              <EcCond label="구분">
+                {radios('dp-mode', MODES.map((m) => [m, m] as const), mode, setMode)}
+                {mode === '사용자지정집계' && <CustomAggregateConds dims={PROFIT_DIMS} targets={PROFIT_TARGETS} value={agg} onChange={setAgg} />}
+                {mode === '사용자지정집계' && (
+                  <span className="inline-flex flex-wrap items-center gap-[8px] mt-[4px]">
+                    <span className="inline-block w-[70px] rounded-ec bg-ec-disabled px-[6px] text-ec-label">비교기간</span>
+                    {COMPARE_PERIODS.map((k) => (
+                      <label key={k} className="inline-flex items-center gap-[3px]">
+                        <input type="radio" name="dp-compare" checked={compare === k} onChange={() => setCompare(k)} /> {k}
+                      </label>
+                    ))}
+                  </span>
+                )}
+              </EcCond>
+            ),
+            기준일자: (
+              <EcCond label="기준일자">
+                {/* 원본: [금월(~오늘)▾] 2026/10/01 ~ 2026/10/31 📅 — 빠른선택 단추줄은 판 아래 줄에 있다. */}
+                <select className="ec-input w-[120px]" aria-label="기준일자 빠른선택" value={pickLabel}
+                        onChange={(e) => {
+                          setPickLabel(e.target.value)
+                          const r = periodOf(e.target.value, new Date(), undefined, { from: cond.from, to: cond.to })
+                          if (r) setC({ from: r.from || cond.from, to: r.to })
+                        }}>
+                  {INQUIRY_PICKS.map((l) => <option key={l} value={l}>{l}</option>)}
+                </select>
+                <EcDateRange from={{ className: 'ec-input', value: cond.from, onChange: (e) => setC({ from: e.target.value }) }}
+                             to={{ className: 'ec-input', value: cond.to, onChange: (e) => setC({ to: e.target.value }) }} />
+              </EcCond>
+            ),
+            창고: (
+              <EcCond label="창고" pick>
+                <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
+                                 value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
+                                 items={warehouses.map((w) => ({ value: String(w.id), code: (w as { code?: string }).code, name: w.name }))} />
+              </EcCond>
+            ),
+            거래처: (
+              <EcCond label="거래처" pick>
+                <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                                 value={cond.partner} onChange={(v) => setC({ partner: v })}
+                                 items={pickers.partners} />
+              </EcCond>
+            ),
+            거래처그룹1: (
+              <EcCond label="거래처그룹1" pick>
+                <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                                 value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                                 items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+              </EcCond>
+            ),
+            품목: (
+              <EcCond label="품목" pick>
+                <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
+                                 value={cond.item} onChange={(v) => setC({ item: v })}
+                                 items={pickers.items} />
+              </EcCond>
+            ),
+            품목구분: (
+              <EcCond label="품목구분" pick>
+                <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                                 value={cond.category} onChange={(v) => setC({ category: v })}
+                                 items={[...new Set(sales.flatMap((d) => d.lines.map((l) => l.itemCategoryName))
+                                   .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+              </EcCond>
+            ),
+            품목그룹1: (
+              <EcCond label="품목그룹1" pick>
+                <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                                 value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                                 items={mgmtItems.groupOptions.map((g) => ({ value: g, name: g }))} />
+              </EcCond>
+            ),
+            프로젝트: (
+              <EcCond label="프로젝트" pick>
+                <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                                 value={cond.project} onChange={(v) => setC({ project: v })}
+                                 items={pickers.projects} />
+              </EcCond>
+            ),
+            담당자: (
+              <EcCond label="담당자" pick>
+                <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                                 value={cond.employee} onChange={(v) => setC({ employee: v })}
+                                 items={[...new Set(sales.map((d) => d.employeeName).filter(Boolean) as string[])].sort()
+                                   .map((n) => ({ value: n, name: n }))} />
+              </EcCond>
+            ),
+            거래처관리담당자: (
+              <EcCond label="거래처관리담당자" pick>
+                <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                                 value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
+                                 items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+              </EcCond>
+            ),
+            거래유형: (
+              <EcCond label="거래유형">
+                {radios('dp-tax', [['', '전체'], ['과세', '과세'], ['면세', '면세']] as const, cond.taxType as '' | '과세' | '면세', (v) => setC({ taxType: v }))}
+              </EcCond>
+            ),
+            판매액: (
+              <EcCond label="판매액">
+                {radios('dp-vat', [['n', '공급가액'], ['y', '공급가액+VAT']] as const, withVat ? 'y' : 'n', (v) => setWithVat(v === 'y'))}
+              </EcCond>
+            ),
+            /* 원본 넷째 [입고단가(품목) - VAT 제외] 대신 우리 [최종구매가] — 우리 입고단가는 이미 VAT 별도라 같은 값이 된다(ui-check NO_OPTION). */
+            원가: (
+              <EcCond label="원가">
+                {radios('dp-basis', (['선입선출(판매)', '월별원가', '입고단가(품목)', '최종구매가'] as const).map((b) => [b, b] as const), basis, setBasis)}
+              </EcCond>
+            ),
+            거래구분: (
+              <EcCond label="거래구분">
+                {radios('dp-trade', (['전체', '반품만', '반품제외'] as const).map((k) => [k, k] as const), tradeKind, setTradeKind)}
+              </EcCond>
+            ),
+            /* 원본 [기타] — ☐결재방표시 ☐수량관리제외품목포함, 한 줄(기본 둘 다 꺼짐, 사본 실측). */
+            기타: (
+              <EcCond label="기타">
+                <span className="inline-flex flex-wrap items-center gap-x-[12px]">
+                  <label className="inline-flex items-center gap-[3px]">
+                    <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+                  </label>
+                  <label className="inline-flex items-center gap-[3px]">
+                    <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+                  </label>
+                </span>
+              </EcCond>
+            ),
+            '정렬/소계기준': (
+              <EcCond label="정렬/소계기준">
+                {/* 원본: [설정] 단추 하나(정렬 · 소계 기준 창). 우리 현황표에는 정렬/소계 기능이 없어 안내만 한다. */}
+                <button type="button" className="ec-btn ec-btn-sm"
+                        onClick={() => void ecAlert('이 기능은 이 ERP 에서 제공하지 않습니다.\n(정렬/소계기준 설정)')}>설정</button>
+              </EcCond>
+            ),
+          }
+          const BASIC_ORDER = ['구분', '기준일자', '창고', '프로젝트', '거래처', '품목', '판매액', '원가', '기타', '거래구분', '정렬/소계기준']
+          return (condTab === '기본' ? BASIC_ORDER : Object.keys(CONDS)).map((k) => <Fragment key={k}>{CONDS[k]}</Fragment>)
+        })()}
+        {/*
+          판 아래 줄(원본): [검색(F8)] 금일 전일 금주(~오늘) 전주 금월(~오늘) 전월 종료일 설정 다시 작성.
+          검색 뒤 판이 접히고 [Search(F3)] 로 다시 펴면 셸이 같은 줄을 그리므로 이 줄은 감춘다(셸이 이 단추들을 눌러 쓴다).
+        */}
+        <li className="full mt-[4px] -mb-[9px] gap-[4px] px-[7.2px] py-[3.6px] bg-ec-page rounded-b-ec-panel [.conds-open_&]:hidden">
+          <button type="button" className="ec-btn ec-btn-primary ec-btn-sm" onClick={() => { setShown(true); load() }}>검색(F8)</button>
+          <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={cond.from} currentTo={cond.to}
+                         onPick={(r) => setC({ from: r.from, to: r.to })} onPickLabel={setPickLabel} />
+          <button type="button" className="ec-btn ec-btn-sm ec-btn-flat" onClick={() => void ecAlert('기간 빠른선택 설정은 지원하지 않습니다.')}>설정</button>
+          <button type="button" className="ec-btn ec-btn-sm ec-btn-flat" onClick={reset}>다시 작성</button>
+        </li>
+      </ul>
+
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      {/* 원본은 [검색(F8)] 을 눌러야 보고서가 선다 — 제목 · 회사명 · 격자 · [P.1]. 색 요약 줄은 원본에 없다. */}
+      {shown && (mode === '사용자지정집계' ? (<>
+        <EcReportHead title="일별이익현황" period={reportPeriod(cond.from, cond.to)} sign={signBox} />
+        {cmpRange && dateAxis ? (
+          <p className="ec-alert ec-alert-danger">집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.</p>
+        ) : (
+          <CustomAggregateTable dims={PROFIT_DIMS} targets={PROFIT_TARGETS} records={aggRecords} agg={agg} name="일별이익현황"
+                                compare={cmpRange ? { records: cmpRecords, labels: [reportPeriod(cond.from, cond.to), reportPeriod(cmpRange.from, cmpRange.to)] } : undefined} />
+        )}
+        <EcReportFoot />
+      </>) : (<>
+      {/* 원본(검색 뒤): 큰 굵은 제목 '품목별이익현황'(구분마다 이름) · 왼쪽 '회사명 : …' · 격자 · 아래 '[P.1]'. */}
+      <EcReportHead title={reportTitle} period={reportPeriod(cond.from, cond.to)} sign={signBox} />
+      <div ref={tableRef} className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            {/*
+              <b>2026-10-04 원본 격자 실측</b>(품목별, 자료가 든 판) — 머리는 <b>두 줄</b>이다.
+              위: 품목코드 · 품목명[규격] · 판매(3) · 원가(2) · 부대비용 · 이익(2) · 이익율, 아래: 판매 밑 [수량 · 단가 · 금액],
+              원가 · 이익 밑 [단가 · 금액]. 예전엔 한 줄 머리에 [판매단가] 처럼 묶음 이름을 붙였고, 09-09 기록대로
+              [이익금액(부대비용포함)] · [판매부대비용] 을 맨 뒤에 두었는데 지금 원본 기본 판에는 [부대비용] 한 칸뿐이다.
+              앞머리 칸은 [구분]에 따라 갈려 <code>HEADS</code> 가 든다.
+            */}
+            <tr>
+              {heads.map((h) => <th key={h} rowSpan={2}>{h}</th>)}
+              {(mode === '일자별' || mode === '거래처별') && <th rowSpan={2} className="text-right w-[70px]">건수</th>}
+              <th colSpan={3} className="text-center">판매</th>
+              <th colSpan={2} className="text-center">원가</th>
+              <th rowSpan={2} className="text-right w-[110px]">부대비용</th>
+              <th colSpan={2} className="text-center">이익</th>
+              <th rowSpan={2} className="text-right w-[80px]">이익율</th>
+            </tr>
+            <tr>
+              <th className="text-right w-[90px]">수량</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={colCount} className="ec-empty">불러오는 중…</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : rows.map((r) => {
+              /* 원본 격자의 숫자는 모두 검정이다(월별이익현황과 같다) — 판매금액 파랑 · 이익 초록/빨강을 칠하지 않는다. */
+              return (
+                <tr key={r.key}>
+                  {heads.map((h, hi) => <td key={h}>{[r.c1, r.c2, r.c3, r.c4][hi]}</td>)}
+                  {(mode === '일자별' || mode === '거래처별') && (
+                    <td className="text-right">{num(r.count)}</td>
+                  )}
+                  <td className="text-right">{num(r.qty)}</td>
+                  <td className="text-right">
+                    {per(r.revenue, r.qty) === null ? '—' : fmtAmount(Math.round(per(r.revenue, r.qty) as number))}
+                  </td>
+                  <td className="text-right">{fmtAmount(r.revenue)}</td>
+                  <td className="text-right">
+                    {per(r.cost, r.qty) === null ? '—' : fmtAmount(Math.round(per(r.cost, r.qty) as number))}
+                  </td>
+                  <td className="text-right">{r.cost === null ? '—' : fmtAmount(r.cost)}</td>
+                  <td className="text-right">{fmtAmount(r.extra)}</td>
+                  <td className="text-right">
+                    {per(r.profit, r.qty) === null ? '—' : fmtAmount(Math.round(per(r.profit, r.qty) as number))}
+                  </td>
+                  <td className="text-right">{r.profit === null ? '—' : fmtAmount(r.profit)}</td>
+                  <td className="text-right">{r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot>
+              <tr>
+                {/* 원본 합계 줄(2026-10-21 기록): '합계 │ (빈칸) │ 수량 …' — 앞머리 칸마다 한 칸씩, 첫 칸에만 글자. */}
+                {heads.map((h, hi) => <td key={h} className="font-bold bg-ec-page">{hi === 0 ? '합계' : ''}</td>)}
+                {(mode === '일자별' || mode === '거래처별') && <td className="bg-ec-page"></td>}
+                {/* 원본 합계 줄은 단가 칸을 비운다(2026-10-04 실측: 72 · · 1,885,292 · · 1,113,858 · 0 · · 771,434 · 41%). */}
+                <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{fmtAmount(totals.revenue)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : fmtAmount(totals.cost)}</td>
+                <td className="text-right font-bold bg-ec-page">{fmtAmount(extraTotals.extra)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : fmtAmount(totals.profit)}</td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      <EcReportFoot />
+      </>))}
+      <Modal error={error} open={whyOpen} title="이익이 안 나올 경우" onClose={() => setWhyOpen(false)}>{(
+        <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
+          이익 = 판매액 − (판매수량 × 원가단가) 입니다. 원가단가를 못 찾으면 이익 칸이 비거나
+          판매액과 같아집니다. 아래를 차례로 보세요.
+          <ol style={{ margin: '10px 0 0 20px', listStyleType: 'decimal' }}>
+            <li>[원가] 를 [월별원가]로 두었다면 그 달 <b>표준원가가 생성돼 있어야</b> 합니다 —
+                [원가생성/수정]에서 그 기준월로 만듭니다.</li>
+            <li>[최종구매가]·[입고단가(품목)]는 그 품목을 <b>사 본 적이 있어야</b> 값이 잡힙니다.</li>
+            <li>기간에 판매 전표가 없으면 줄 자체가 없습니다 — [기준일자]를 넓혀 보세요.</li>
+            <li>[구분]이 품목별인데 전표에 품목이 없으면(수동 금액 전표) 그 줄은 빠집니다.</li>
+            <li>원가를 못 찾은 줄은 원가 · 이익을 <b>'—'</b> 로 두고 합계에서도 뺍니다 — 0 으로 채우면 이익이 매출 전액으로 부풀어 오릅니다.</li>
+          </ol>
+        </div>
+      )}</Modal>
+    </EcListShell>
+  )
+}

@@ -149,307 +149,307 @@
   "color": 0,
   "palette": 0
  },
- "pages/accounting/AccountDetailPage.tsx": {
+ "pages/accounting/ledger/AccountDetailPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/AccountFlowPage.tsx": {
+ "pages/accounting/ledger/AccountFlowPage.tsx": {
   "inline": 2,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/AccountPartnerLedgerPage.tsx": {
+ "pages/accounting/ledger/AccountPartnerLedgerPage.tsx": {
   "inline": 4,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/AccountRemarkLedgerPage.tsx": {
+ "pages/accounting/ledger/AccountRemarkLedgerPage.tsx": {
   "inline": 5,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/AccountsPage.tsx": {
+ "pages/accounting/account/AccountsPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/ActualCostPage.tsx": {
+ "pages/accounting/cost/ActualCostPage.tsx": {
   "inline": 4,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/ArApAgingPage.tsx": {
+ "pages/accounting/ledger/ArApAgingPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/BalanceSheetPage.tsx": {
+ "pages/accounting/statementsheet/BalanceSheetPage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/BankCardPage.tsx": {
+ "pages/accounting/bankcard/BankCardPage.tsx": {
   "inline": 47,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/CashBookPage.tsx": {
+ "pages/accounting/ledger/CashBookPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/CashDetailPage.tsx": {
+ "pages/accounting/cash/CashDetailPage.tsx": {
   "inline": 9,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/CashFlowListPage.tsx": {
+ "pages/accounting/ledger/CashFlowListPage.tsx": {
   "inline": 4,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/CashPlanPage.tsx": {
+ "pages/accounting/cash/CashPlanPage.tsx": {
   "inline": 12,
   "color": 3,
   "palette": 0
  },
- "pages/accounting/CashTxnPage.tsx": {
+ "pages/accounting/cash/CashTxnPage.tsx": {
   "inline": 4,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/CheckFlowPage.tsx": {
+ "pages/accounting/bankcheck/CheckFlowPage.tsx": {
   "inline": 6,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/CheckHoldingPage.tsx": {
+ "pages/accounting/bankcheck/CheckHoldingPage.tsx": {
   "inline": 5,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/CheckLedgerPage.tsx": {
+ "pages/accounting/bankcheck/CheckLedgerPage.tsx": {
   "inline": 5,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/CheckListPage.tsx": {
+ "pages/accounting/bankcheck/CheckListPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/CheckPage.tsx": {
+ "pages/accounting/bankcheck/CheckPage.tsx": {
   "inline": 11,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/ContractPage.tsx": {
+ "pages/accounting/econtract/ContractPage.tsx": {
   "inline": 13,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/CorporateTaxPage.tsx": {
+ "pages/accounting/corporatetax/CorporateTaxPage.tsx": {
   "inline": 28,
   "color": 6,
   "palette": 0
  },
- "pages/accounting/CostStatementPage.tsx": {
+ "pages/accounting/statementsheet/CostStatementPage.tsx": {
   "inline": 5,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/DailyProfitPage.tsx": {
+ "pages/accounting/summary/DailyProfitPage.tsx": {
   "inline": 2,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/DayMonthSheetPage.tsx": {
+ "pages/accounting/ledger/DayMonthSheetPage.tsx": {
   "inline": 4,
   "color": 3,
   "palette": 0
  },
- "pages/accounting/EvidenceCenterPage.tsx": {
+ "pages/accounting/evidence/EvidenceCenterPage.tsx": {
   "inline": 5,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/ExpenseDetailPage.tsx": {
+ "pages/accounting/expense/ExpenseDetailPage.tsx": {
   "inline": 6,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/ExpenseListPage.tsx": {
+ "pages/accounting/expense/ExpenseListPage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/FixedAssetFlowPage.tsx": {
+ "pages/accounting/fixedasset/FixedAssetFlowPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/FixedAssetLedgerPage.tsx": {
+ "pages/accounting/fixedasset/FixedAssetLedgerPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/FixedAssetMovementPage.tsx": {
+ "pages/accounting/fixedasset/FixedAssetMovementPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/FixedAssetPage.tsx": {
+ "pages/accounting/fixedasset/FixedAssetPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/FixedAssetSlipListPage.tsx": {
+ "pages/accounting/fixedasset/FixedAssetSlipListPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/FundDailyPage.tsx": {
+ "pages/accounting/cash/FundDailyPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/FundStatusPage.tsx": {
+ "pages/accounting/cash/FundStatusPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/IncomePage.tsx": {
+ "pages/accounting/income/IncomePage.tsx": {
   "inline": 16,
   "color": 6,
   "palette": 0
  },
- "pages/accounting/IncomeStatementPage.tsx": {
+ "pages/accounting/statementsheet/IncomeStatementPage.tsx": {
   "inline": 5,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/ItemCostPage.tsx": {
+ "pages/accounting/cost/ItemCostPage.tsx": {
   "inline": 3,
   "color": 5,
   "palette": 0
  },
- "pages/accounting/JournalBookPage.tsx": {
+ "pages/accounting/journal/JournalBookPage.tsx": {
   "inline": 7,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/JournalHistoryPage.tsx": {
+ "pages/accounting/journal/JournalHistoryPage.tsx": {
   "inline": 10,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/JournalListPage.tsx": {
+ "pages/accounting/journal/JournalListPage.tsx": {
   "inline": 3,
   "color": 3,
   "palette": 0
  },
- "pages/accounting/JournalStatusPage.tsx": {
+ "pages/accounting/journal/JournalStatusPage.tsx": {
   "inline": 8,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/MonthlyCostPage.tsx": {
+ "pages/accounting/statementsheet/MonthlyCostPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/MonthlyPnlPage.tsx": {
+ "pages/accounting/statementsheet/MonthlyPnlPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/NonCashPage.tsx": {
+ "pages/accounting/noncash/NonCashPage.tsx": {
   "inline": 8,
   "color": 3,
   "palette": 0
  },
- "pages/accounting/NoteFlowPage.tsx": {
+ "pages/accounting/promissorynote/NoteFlowPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/NoteHoldingPage.tsx": {
+ "pages/accounting/promissorynote/NoteHoldingPage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/NoteLedgerPage.tsx": {
+ "pages/accounting/promissorynote/NoteLedgerPage.tsx": {
   "inline": 4,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/NoteListPage.tsx": {
+ "pages/accounting/promissorynote/NoteListPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/PartnerAccountLedgerPage.tsx": {
+ "pages/accounting/ledger/PartnerAccountLedgerPage.tsx": {
   "inline": 4,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/PartnerTxListPage.tsx": {
+ "pages/accounting/ledger/PartnerTxListPage.tsx": {
   "inline": 5,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/ProfitSummaryPage.tsx": {
+ "pages/accounting/summary/ProfitSummaryPage.tsx": {
   "inline": 3,
   "color": 3,
   "palette": 0
  },
- "pages/accounting/ProjectPlanPage.tsx": {
+ "pages/accounting/project/ProjectPlanPage.tsx": {
   "inline": 9,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/ProjectProfitPage.tsx": {
+ "pages/accounting/project/ProjectProfitPage.tsx": {
   "inline": 6,
   "color": 7,
   "palette": 0
  },
- "pages/accounting/PromissoryNotePage.tsx": {
+ "pages/accounting/promissorynote/PromissoryNotePage.tsx": {
   "inline": 9,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/TaxInvoiceJournalPage.tsx": {
+ "pages/accounting/vat/TaxInvoiceJournalPage.tsx": {
   "inline": 5,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/TaxInvoicePage.tsx": {
+ "pages/accounting/vat/TaxInvoicePage.tsx": {
   "inline": 5,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/TransferListPage.tsx": {
+ "pages/accounting/journal/TransferListPage.tsx": {
   "inline": 5,
   "color": 2,
   "palette": 0
  },
- "pages/accounting/TrialBalancePage.tsx": {
+ "pages/accounting/statementsheet/TrialBalancePage.tsx": {
   "inline": 6,
   "color": 5,
   "palette": 0
  },
- "pages/accounting/VariancePage.tsx": {
+ "pages/accounting/cost/VariancePage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/accounting/VatBookPage.tsx": {
+ "pages/accounting/vat/VatBookPage.tsx": {
   "inline": 3,
   "color": 1,
   "palette": 0
  },
- "pages/accounting/VatSummaryPage.tsx": {
+ "pages/accounting/vat/VatSummaryPage.tsx": {
   "inline": 3,
   "color": 5,
   "palette": 0

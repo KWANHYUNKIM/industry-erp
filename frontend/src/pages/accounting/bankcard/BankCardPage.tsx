@@ -1,0 +1,927 @@
+import { useEffect, useMemo, useState } from 'react'
+import { api, extractErrorMessage } from '../../../api/client'
+import EcListShell from '../../../components/EcListShell'
+import { useTableSort } from '../../../utils/useTableSort'
+import Modal from '../../../components/Modal'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { EcCond } from '../../../components/EcStatusPanel'
+import { periodOf } from '../../../components/EcPeriodPicks'
+import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Currency, Partner } from '../../../types/api'
+import { partnerCodeItems } from '../../../utils/codeItems'
+import { dateText } from '../../../utils/dateText'
+import { ecConfirm } from '../../../components/EcDialog'
+import EcDateInput, { EcDateRange } from '../../../components/ui/EcDateInput'
+import { todayYmd } from '../../../utils/periods'
+import { fmtNumber } from '../../../utils/format'
+
+
+interface AccountOption {
+  id: number
+  code: string
+  name: string
+  division: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+}
+
+const TABS = ['계좌등록', '카드등록', '계좌입출금', '카드사용'] as const
+type Tab = (typeof TABS)[number]
+
+/**
+ * 회계 I > 기초등록 > 계좌/카드.
+ * 계좌·카드 마스터를 등록하고, 입출금·카드사용을 넣으면 회계전표가 자동 생성된다.
+ *   계좌입금 차)예금 / 대)상대계정 · 계좌출금 차)상대계정 / 대)예금
+ *   카드사용 차)비용·부가세대급금 / 대)미지급금
+ */
+interface BankTxnList {
+  rows: BankTxn[]
+  /** 전체 줄 수 — 잘려도 탭 옆 숫자는 참말이어야 한다. */
+  totalRows: number
+  /** 잘라서 온 것인가. 이때만 안내와 [오천건이상조회] 를 띄운다. */
+  truncated: boolean
+}
+
+export default function BankCardPage() {
+  const [tab, setTab] = useState<Tab>('계좌등록')
+  const [accounts, setAccounts] = useState<BankAccountRow[]>([])
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [curCond, setCurCond] = useState('')
+  /**
+   * 원본 예금출납장의 <b>[기간]</b>. 예전에는 물어보지도 않고 <b>전 기간 5,000줄·2MB</b> 를
+   * 받아 브라우저에서 걸렀다. 서버가 이제 기간을 받는다.
+   *
+   * <p>기본은 <b>금월(~오늘)</b> 이다 — 출납장은 <b>흘러간 기록</b>이라 오래된 줄이 살아
+   * 있는 것이 아니다(미결제 수표·어음과는 다르다).
+   */
+  const [txnFrom, setTxnFrom] = useState(periodOf('금월(~오늘)')?.from ?? '')
+  const [txnTo, setTxnTo] = useState(periodOf('금월(~오늘)')?.to ?? '')
+  const [cards, setCards] = useState<CreditCardRow[]>([])
+  const [txns, setTxns] = useState<BankTxn[]>([])
+  /*
+   * 계좌 입출금은 조건이 하나도 없어서 늘 전부 왔다 — 1만 2천 줄·5MB 였고, <b>다른 탭을
+   * 보고 있어도</b> 화면을 열 때 함께 받았다. 이제 앞 5천 줄만 받고, 전체 수는 따로 받아
+   * 탭 옆 숫자가 그대로 참말이게 한다(원본 [오천건이상조회] 와 같은 문턱).
+   */
+  const [txnTotal, setTxnTotal] = useState(0)
+  const [txnTruncated, setTxnTruncated] = useState(false)
+  const [usages, setUsages] = useState<CardUsage[]>([])
+  const [glAccounts, setGlAccounts] = useState<AccountOption[]>([])
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  /**
+   * 계좌·카드를 <b>고치는</b> 자리. 서버에는 진작 PUT 이 있었는데 화면에는 등록만
+   * 있어서, 계좌번호를 잘못 치면 <b>그 계좌를 영영 그대로 두거나</b> 새로 만들어야 했다.
+   */
+  const [editAccount, setEditAccount] = useState<BankAccountRow | null>(null)
+  const [editCard, setEditCard] = useState<CreditCardRow | null>(null)
+  const [kw, setKw] = useState('')
+  const [useCond, setUseCond] = useState<'전체' | '사용' | '중지'>('전체')
+  const [glCond, setGlCond] = useState('')
+  /* 원본 차례: <b>계좌코드 · 계좌명</b> · 계정 · 검색창내용 · 외화통장환종 · 사용구분 */
+  const [codeCond, setCodeCond] = useState('')
+  const [nameCond, setNameCond] = useState('')
+
+  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
+
+  /** 원본 [오천건이상조회] — 잘린 뒤 눌러서 전부 가져온다. */
+  async function loadAllTxns() {
+    const r = await api.get<BankTxnList>('/bank-cards/transactions',
+      { params: { all: true, from: txnFrom || undefined, to: txnTo || undefined } })
+    setTxns(r.data.rows)
+    setTxnTotal(r.data.totalRows)
+    setTxnTruncated(r.data.truncated)
+  }
+
+  async function load() {
+    setLoading(true)
+    try {
+      const [a, cur, c, t, u, gl, p] = await Promise.all([
+        api.get<BankAccountRow[]>('/bank-cards/accounts'),
+        api.get<Currency[]>('/currencies'),
+        api.get<CreditCardRow[]>('/bank-cards/cards'),
+        api.get<BankTxnList>('/bank-cards/transactions', { params: { from: txnFrom || undefined, to: txnTo || undefined } }),
+        /* 카드사용내역도 같은 [기간]을 쓴다 — 한 화면 안에서 예금·카드가 다른 구간을 보면 헷갈린다. */
+        api.get<CardUsage[]>('/bank-cards/usages', { params: { from: txnFrom || undefined, to: txnTo || undefined } }),
+        api.get<AccountOption[]>('/accounts', { params: { slip: true } }),
+        api.get<Partner[]>('/partners'),
+      ])
+      setAccounts(a.data)
+      setCurrencies(cur.data)
+      setCards(c.data)
+      setTxns(t.data.rows)
+      setTxnTotal(t.data.totalRows)
+      setTxnTruncated(t.data.truncated)
+      setUsages(u.data)
+      setGlAccounts(gl.data)
+      setPartners(p.data)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /* 기간을 바꾸면 다시 물어본다 — 서버가 그 구간만 주므로 화면에서 다시 거를 것이 없다. */
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [txnFrom, txnTo])
+
+  function switchTab(t: Tab) {
+    setTab(t)
+    setShowForm(false)
+    setError('')
+  }
+
+  async function saved(message: string) {
+    setShowForm(false)
+    setError('')
+    flash(message)
+    await load()
+  }
+
+  const count = (t: Tab) =>
+    t === '계좌등록' ? accounts.length : t === '카드등록' ? cards.length : t === '계좌입출금' ? txnTotal : usages.length
+
+  const totalBalance = accounts.filter((a) => a.active).reduce((s, a) => s + a.balance, 0)
+
+  /*
+   * 원본 계좌등록 조건: 계좌코드 · 계좌명 · <b>계정</b> · <b>검색창내용</b> · 외화통장환종 · <b>사용구분</b>
+   * 원본 카드등록 조건: 카드코드 · <b>검색창내용</b> · <b>사용구분</b>
+   *
+   * <p>두 탭 다 표만 있고 조건이 하나도 없어서, 쓰지 않는 계좌까지 늘 같이 보였다.
+   *
+   * <p>[외화통장환종]도 이제 만든다. 예전에는 '통장은 원화만 둔다' 고 적어 뒀는데,
+   * <b>외화등록 마스터는 진작 있었다</b> — 없던 것은 통장이 어느 돈으로 담기는지를
+   * 적을 칸뿐이었다. 그것 없이는 원화통장과 외화통장이 <b>잔액 숫자만으로 나란히 서서</b>,
+   * 1,000,000 이 원인지 달러인지 알 수가 없다.
+   */
+  const onOff = (active: boolean) => (active ? '사용' : '중지')
+  const shownAccounts = useMemo(() => accounts
+    .filter((r) => !codeCond || (r.code ?? '').includes(codeCond))
+    .filter((r) => !nameCond || (r.name ?? '').includes(nameCond))
+    .filter((r) => useCond === '전체' || onOff(r.active) === useCond)
+    .filter((r) => !glCond || r.glAccountName === glCond)
+    // 원본 [외화통장환종]. 안 정한 통장(원화)은 어떤 환종을 골라도 안 걸린다.
+    .filter((r) => !curCond || r.currencyName === curCond)
+    .filter((r) => !kw || [r.bankName, r.accountNo, r.holder, r.glAccountName, r.remark]
+      .some((v) => (v ?? '').includes(kw))),
+    [accounts, useCond, glCond, kw, codeCond, nameCond, curCond])
+  const shownCards = useMemo(() => cards
+    .filter((r) => !codeCond || (r.code ?? '').includes(codeCond))
+    .filter((r) => useCond === '전체' || onOff(r.active) === useCond)
+    .filter((r) => !kw || [r.cardName, r.cardCompany, r.cardNo, r.ownerName, r.settlementAccountName, r.remark]
+      .some((v) => (v ?? '').includes(kw))),
+    [cards, useCond, kw, codeCond])
+
+  /*
+   * 원본 계좌등록·카드등록의 <b>[사용중단/재사용]</b> — 고른 것을 한 번에 세운다.
+   * 표에 [사용]/[중지] 칸은 진작 있었는데 <b>바꾸는 자리가 폼 안에만</b> 있어서,
+   * 안 쓰는 계좌 열 개를 접으려면 열 번 열어야 했다.
+   *
+   * <p>고른 것이 <b>모두 중지면 되살리고</b>, 하나라도 살아 있으면 중단한다 —
+   * 품목·거래처와 같은 규칙이다.
+   *
+   * <p>그 계좌를 <b>통째로 다시 보낸다.</b> 수정은 통째로 덮으므로 몇 칸만 골라 보내면
+   * 안 보낸 칸(계좌코드·예금계정·외화통장환종·적요 …)이 사용중단 한 번에 조용히 지워진다.
+   * 거래처·품목에서 이미 겪은 함정이다. 기초잔액만은 응답에 없는데, 서버가 수정 때
+   * <b>일부러 안 받는다</b> — 잔액은 입출금으로만 움직인다.
+   */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const pick = (id: number) => setPicked((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+  const pickedRows = tab === '계좌등록'
+    ? shownAccounts.filter((r) => picked.has(r.id))
+    : shownCards.filter((r) => picked.has(r.id))
+
+  async function toggleActive() {
+    if (pickedRows.length === 0) { setError(`사용중단하거나 되살릴 ${tab === '계좌등록' ? '계좌' : '카드'}를 고르세요.`); return }
+    const reviving = pickedRows.every((r) => !r.active)
+    setError('')
+    try {
+      for (const r of pickedRows) {
+        if (tab === '계좌등록') {
+          const a = r as BankAccountRow
+          await api.put(`/bank-cards/accounts/${a.id}`, {
+            code: a.code, name: a.name, bankName: a.bankName, accountNo: a.accountNo,
+            holder: a.holder, glAccountId: a.glAccountId, currencyId: a.currencyId,
+            active: reviving, remark: a.remark,
+          })
+        } else {
+          const c = r as CreditCardRow
+          await api.put(`/bank-cards/cards/${c.id}`, {
+            code: c.code, cardName: c.cardName, cardCompany: c.cardCompany, cardNo: c.cardNo,
+            type: c.type, ownerName: c.ownerName, settlementAccountId: c.settlementAccountId,
+            settlementDay: c.settlementDay, active: reviving, remark: c.remark,
+          })
+        }
+      }
+      setPicked(new Set())
+      await load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  /* 탭을 옮기면 고른 것을 놓는다 — 계좌에서 고른 id 가 카드 id 와 겹친다. */
+  useEffect(() => { setPicked(new Set()) }, [tab])
+
+  const bulkable = tab === '계좌등록' || tab === '카드등록'
+
+  return (
+    <EcListShell
+      title="계좌/카드"
+      newLabel={showForm ? '입력닫기' : `${tab}(F2)`}
+      onNew={() => setShowForm(true)}
+      actions={[
+        { label: '새로고침', onClick: load },
+        /* 원본 차례: 신규(F2) · 사용중단/재사용 · Excel (사본 실측) */
+        ...(bulkable
+          ? [{ label: `사용중단/재사용${picked.size ? ` (${picked.size})` : ''}`, onClick: toggleActive }]
+          : []),
+        { label: 'Excel' },
+      ]}
+    >
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
+        {TABS.map((t) => (
+          <button key={t} onClick={() => switchTab(t)} className="no-ec" style={{
+            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
+            fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
+          }}>{t} ({count(t)})</button>
+        ))}
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
+          사용중 계좌 잔액 합계 <b className="text-ec-navy">{fmtNumber(totalBalance)}</b>
+        </span>
+      </div>
+
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
+
+      <Modal error={error} open={(showForm || !!editAccount) && tab === '계좌등록'}
+             title={editAccount ? '계좌 수정' : '계좌/카드 등록'}
+             onClose={() => { setShowForm(false); setEditAccount(null) }}>{(
+        <BankAccountForm key={editAccount?.id ?? 'new'} edit={editAccount}
+          glAccounts={glAccounts} currencies={currencies} onError={setError}
+          onSaved={() => { setEditAccount(null); saved(editAccount ? '계좌를 수정했습니다.' : '계좌를 등록했습니다.') }} />
+      )}</Modal>
+      <Modal error={error} open={(showForm || !!editCard) && tab === '카드등록'}
+             title={editCard ? '카드 수정' : '계좌/카드 등록'}
+             onClose={() => { setShowForm(false); setEditCard(null) }}>{(
+        <CardForm key={editCard?.id ?? 'new'} edit={editCard}
+          accounts={accounts} onError={setError}
+          onSaved={() => { setEditCard(null); saved(editCard ? '카드를 수정했습니다.' : '카드를 등록했습니다.') }} />
+      )}</Modal>
+      <Modal error={error} open={showForm && tab === '계좌입출금'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
+        <BankTxnForm accounts={accounts} glAccounts={glAccounts} partners={partners}
+          onError={setError} onSaved={() => saved('입출금을 처리하고 회계전표를 생성했습니다.')} />
+      )}</Modal>
+      <Modal error={error} open={showForm && tab === '카드사용'} title="계좌/카드 등록" onClose={() => setShowForm(false)}>{(
+        <CardUsageForm cards={cards} glAccounts={glAccounts}
+          onError={setError} onSaved={() => saved('카드사용을 등록하고 회계전표를 생성했습니다.')} />
+      )}</Modal>
+
+      {(tab === '계좌등록' || tab === '카드등록') && (
+        <ul className="ec-cond" style={{ marginBottom: 8 }}>
+          {/* 원본 차례: <b>계좌코드 · 계좌명</b> · 계정 · 검색창내용 · 외화통장환종 · 사용구분 */}
+          <EcCond label={tab === '계좌등록' ? '계좌코드' : '카드코드'}>
+            <input className="ec-input" value={codeCond} placeholder="코드"
+                   onChange={(e) => setCodeCond(e.target.value)} style={{ width: 110 }} />
+          </EcCond>
+          {tab === '계좌등록' && (
+            <EcCond label="계좌명">
+              <input className="ec-input" value={nameCond} placeholder="계좌명"
+                     onChange={(e) => setNameCond(e.target.value)} style={{ width: 140 }} />
+            </EcCond>
+          )}
+          {tab === '계좌등록' && (
+            <EcCond label="계정" pick>
+              <CodePickerField label="계정" hideLabel width={170} emptyLabel="전체"
+                               value={glCond} onChange={setGlCond}
+                               items={glAccounts.map((a) => ({ value: a.name, code: a.code, name: a.name }))} />
+            </EcCond>
+          )}
+          {/* 원본 예금출납장의 [기간] — 서버가 이 구간만 준다. */}
+          <EcCond label="기간">
+            <EcDateRange from={{ className: "ec-input", value: txnFrom, onChange: (e) => setTxnFrom(e.target.value) }} to={{ className: "ec-input", value: txnTo, onChange: (e) => setTxnTo(e.target.value) }} />
+          </EcCond>
+          <EcCond label="검색창내용">
+            <input className="ec-input" value={kw} placeholder="검색창내용"
+                   onChange={(e) => setKw(e.target.value)} style={{ width: 190 }} />
+          </EcCond>
+          {tab === '계좌등록' && (
+            <EcCond label="외화통장환종" pick>
+              <CodePickerField label="외화통장환종" hideLabel width={150} emptyLabel="전체"
+                               value={curCond} onChange={setCurCond}
+                               items={currencies.map((c) => ({ value: c.name, code: c.code, name: c.name }))} />
+            </EcCond>
+          )}
+          <EcCond label="사용구분">
+            <select className="ec-input" value={useCond} style={{ width: 90 }}
+                    onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중지')}>
+              <option>전체</option><option>사용</option><option>중지</option>
+            </select>
+          </EcCond>
+        </ul>
+      )}
+
+      {loading ? <p className="ec-empty">불러오는 중…</p>
+        : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} onEdit={setEditAccount} picked={picked} onPick={pick} />
+        : tab === '카드등록' ? <CardTable rows={shownCards} onEdit={setEditCard} picked={picked} onPick={pick} />
+        : tab === '계좌입출금' ? (
+          <>
+            {/*
+              잘라서 받았으면 말한다. 탭 옆 숫자는 전체를 그대로 보여 주므로,
+              말이 없으면 "1만 2천 건" 이라 써 놓고 5천 줄만 그리는 꼴이 된다.
+            */}
+            {txnTruncated && (
+              <p style={{ background: 'var(--ec-warn-bg)', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+                모두 {txnTotal.toLocaleString('ko-KR')}건 중 앞 {txns.length.toLocaleString('ko-KR')}건만 보고 있습니다.
+                {' '}
+                <button className="ec-btn" style={{ marginLeft: 4 }} onClick={() => void loadAllTxns()}>오천건이상조회</button>
+              </p>
+            )}
+            <BankTxnTable rows={txns} onRemove={async (r) => {
+              /* 이 화면에서 넣은 입출금만 지운다 — 다른 전표가 만든 것은 서버가 막고 어디서 지울지 알려 준다(QA 63회차). */
+              if (!(await ecConfirm(`${r.txnNo} ${r.deposit ? '입금' : '출금'} ${fmtNumber(r.amount)}원을 지울까요? 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`))) return
+              setError('')
+              try { await api.delete(`/bank-cards/transactions/${r.id}`); flash(`${r.txnNo} 삭제 — 잔액을 되돌리고 회계전표도 지웠습니다.`); load() }
+              catch (err) { setError(extractErrorMessage(err)) }
+            }} />
+          </>
+        )
+        : <CardUsageTable rows={usages} onRemove={async (r) => {
+            /* 결제 전 사용내역만 지운다 — 결제된 것은 서버가 막는다(QA 56회차). */
+            if (!(await ecConfirm(`${r.usageNo} 카드사용(${r.merchant} ${fmtNumber(r.totalAmount)}원)을 지울까요? 회계전표도 지워집니다.`))) return
+            setError('')
+            try { await api.delete(`/bank-cards/usages/${r.id}`); flash(`${r.usageNo} 삭제 — 회계전표도 지웠습니다.`); load() }
+            catch (err) { setError(extractErrorMessage(err)) }
+          }} />}
+    </EcListShell>
+  )
+}
+
+// ── 목록 ────────────────────────────────────────────────────────────────
+
+function BankAccountTable({ rows, onEdit, picked, onPick }: {
+  rows: BankAccountRow[]; onEdit: (r: BankAccountRow) => void
+  picked: Set<number>; onPick: (id: number) => void
+}) {
+  return (
+    <table className="w-full text-left">
+      <thead>
+        <tr>
+          <th className="w-[28px] text-center"></th>
+          <th className="w-[34px]"></th>
+          <th className="w-[90px]">계좌코드</th>
+          <th className="w-[130px]">계좌명</th>
+          <th className="w-[120px]">은행</th>
+          <th className="w-[180px]">계좌번호</th>
+          <th className="w-[100px]">예금주</th>
+          <th className="w-[130px]">예금계정</th>
+          <th className="w-[130px] text-right">잔액</th>
+          {/* 원본 계좌등록의 이름은 [비고]가 아니라 <b>[적요]</b> 이고, 차례도 [사용]보다 앞이다. */}
+          <th>적요</th>
+          {/*
+            원본 이름은 <b>[외화통장]</b> 이고, 차례는 <b>[적요] 뒤 · [사용] 앞</b>,
+            가운데정렬에 폭은 [계좌코드]보다 좁다(qa/fixtures/ecount-column-align.json).
+            우리는 [외화통장환종] 이라 적고 <b>주석에도 그게 원본 이름인 것처럼</b> 적어 두었다.
+            이름이 한 글자라도 어긋나면 낡은 예외 검사가 못 잡는다 — 실제로 '통장은 원화만
+            둔다' 는 예외가 <b>이미 만든 열 옆에서</b> 살아남아 있었다.
+
+            <p>칸에 무엇이 찍히는지는 <b>못 쟀다</b>. 2026-09-07 에 원본을 열어 보니
+            "사용 불가능하거나 존재하지 않는 메뉴명입니다" 다(권한 없음). 우리는 환종 이름을
+            찍는다 — 가운데정렬인 것으로 보아 원본은 표시(Y/N)일 수도 있다. 권한이 생기면 잰다.
+          */}
+          <th className="w-[65px] text-center">외화통장</th>
+          <th className="w-[70px] text-center">사용</th>
+          <th className="w-[70px] text-center">처리</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+        ) : rows.map((r, i) => (
+          <tr key={r.id}>
+            <td className="text-center">
+              <input type="checkbox" checked={picked.has(r.id)} onChange={() => onPick(r.id)} />
+            </td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td className="text-ec-label">{r.code ?? ''}</td>
+            <td>{r.name ?? ''}</td>
+            <td>{r.bankName}</td>
+            <td>{r.accountNo}</td>
+            <td>{r.holder ?? ''}</td>
+            <td className="text-ec-label">{r.glAccountCode} {r.glAccountName}</td>
+            <td className="text-right font-bold">{fmtNumber(r.balance)}</td>
+            <td className="text-ec-label">{r.remark ?? ''}</td>
+            {/* 안 정한 통장은 원화라 흐리게 둔다 — 지어내지 않는다. */}
+            <td style={{ textAlign: 'center', color: r.currencyName ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.currencyName ?? '원화'}</td>
+            <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{r.active ? '사용' : '중지'}</td>
+            <td className="text-center">
+              <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function CardTable({ rows, onEdit, picked, onPick }: {
+  rows: CreditCardRow[]; onEdit: (r: CreditCardRow) => void
+  picked: Set<number>; onPick: (id: number) => void
+}) {
+  return (
+    <table className="w-full text-left">
+      <thead>
+        <tr>
+          <th className="w-[28px] text-center"></th>
+          <th className="w-[34px]"></th>
+          <th className="w-[90px]">카드코드</th>
+          <th className="w-[120px]">카드명</th>
+          <th className="w-[100px]">카드사</th>
+          <th className="w-[180px]">카드번호</th>
+          <th className="w-[90px] text-center">종류</th>
+          <th className="w-[100px]">명의자</th>
+          {/* 원본 카드등록의 이름은 <b>[결제계좌명]</b> 이다. */}
+            <th>결제계좌명</th>
+          {/* 원본 카드등록의 [계정명] — 카드 사용이 <b>어느 계정으로 분개되는지</b>를 여기서 본다. */}
+          <th className="w-[110px]">계정명</th>
+          <th className="w-[80px] text-center">결제일</th>
+          <th className="w-[70px] text-center">사용</th>
+          <th className="w-[70px] text-center">처리</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+        ) : rows.map((r, i) => (
+          <tr key={r.id}>
+            <td className="text-center">
+              <input type="checkbox" checked={picked.has(r.id)} onChange={() => onPick(r.id)} />
+            </td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td className="text-ec-label">{r.code ?? ''}</td>
+            <td className="font-semibold">{r.cardName}</td>
+            <td>{r.cardCompany}</td>
+            <td>{r.cardNo}</td>
+            <td style={{ textAlign: 'center', color: r.type === 'CORPORATE' ? 'var(--ec-blue)' : 'var(--ec-label)' }}>{r.typeName}</td>
+            <td>{r.ownerName ?? ''}</td>
+            <td className="text-ec-label">{r.settlementAccountName ?? ''}</td>
+            <td className="text-ec-label">{r.glAccountName ?? ''}</td>
+            <td className="text-center">{r.settlementDay ? `${r.settlementDay}일` : ''}</td>
+            <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{r.active ? '사용' : '중지'}</td>
+            <td className="text-center">
+              <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function BankTxnTable({ rows, onRemove }: { rows: BankTxn[]; onRemove: (r: BankTxn) => void }) {
+  /* [일자] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(rows, { 일자: (r) => r.txnDate })
+  return (
+    <table className="w-full text-left">
+      <thead>
+        <tr>
+          <th className="w-[34px]"></th>
+          <th className="w-[130px]">전표번호</th>
+          <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+          <th className="w-[170px]">계좌</th>
+          <th className="w-[60px] text-center">구분</th>
+          <th className="w-[110px] text-right">금액</th>
+          <th className="w-[120px]">상대계정</th>
+          <th className="w-[110px]">거래처</th>
+          <th className="w-[120px] text-right">거래후 잔액</th>
+          <th className="w-[130px]">회계전표</th>
+          <th>적요</th>
+          <th className="w-[50px] text-center">삭제</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+        ) : sort.sorted.map((r, i) => (
+          <tr key={r.id}>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td>{r.txnNo}</td>
+            <td>{dateText(r.txnDate)}</td>
+            <td>{r.bankName} {r.accountNo}</td>
+            <td style={{ textAlign: 'center', fontWeight: 700, color: r.deposit ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.directionName}</td>
+            <td className="text-right font-semibold">{fmtNumber(r.amount)}</td>
+            <td className="text-ec-label">{r.counterAccountName}</td>
+            <td>{r.partnerName ?? ''}</td>
+            <td className="text-right">{fmtNumber(r.balanceAfter)}</td>
+            <td className="text-ec-blue">{r.journalDocNo ?? ''}</td>
+            <td className="text-ec-label">{r.description ?? ''}</td>
+            <td className="text-center">
+              <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function CardUsageTable({ rows, onRemove }: { rows: CardUsage[]; onRemove: (r: CardUsage) => void }) {
+  /* [사용일] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
+  const sort = useTableSort(rows, { 사용일: (r) => r.usageDate })
+  return (
+    <table className="w-full text-left">
+      <thead>
+        <tr>
+          <th className="w-[34px]"></th>
+          <th className="w-[130px]">전표번호</th>
+          <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('사용일')}>사용일 {sort.mark('사용일')}</th>
+          <th className="w-[140px]">카드</th>
+          <th>가맹점</th>
+          <th className="w-[120px]">비용계정</th>
+          <th className="w-[110px] text-right">공급가액</th>
+          <th className="w-[100px] text-right">부가세</th>
+          <th className="w-[110px] text-right">합계</th>
+          <th className="w-[130px]">회계전표</th>
+          <th className="w-[50px] text-center">삭제</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+        ) : sort.sorted.map((r, i) => (
+          <tr key={r.id}>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td>{r.usageNo}</td>
+            <td>{dateText(r.usageDate)}</td>
+            <td>{r.cardCompany} {r.cardName}</td>
+            <td className="font-semibold">{r.merchant}</td>
+            <td className="text-ec-label">{r.expenseAccountName}</td>
+            <td className="text-right">{fmtNumber(r.supplyAmount)}</td>
+            <td className="text-right text-ec-hint">{fmtNumber(r.vatAmount)}</td>
+            <td className="text-right font-bold">{fmtNumber(r.totalAmount)}</td>
+            <td className="text-ec-blue">{r.journalDocNo ?? ''}</td>
+            <td className="text-center">
+              <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+// ── 입력 폼 ─────────────────────────────────────────────────────────────
+
+function Panel({ title, hint, children, onSubmit, submitLabel }: {
+  title: string; hint: string; children: React.ReactNode; onSubmit: () => void; submitLabel: string
+}) {
+  return (
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{title}</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
+        {children}
+        <button className="ec-btn ec-btn-primary" onClick={onSubmit}>{submitLabel}</button>
+      </div>
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">{hint}</div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
+      {children}
+    </label>
+  )
+}
+
+function BankAccountForm({ edit, glAccounts, currencies, onError, onSaved }: {
+  edit?: BankAccountRow | null
+  glAccounts: AccountOption[]; currencies: Currency[]
+  onError: (m: string) => void; onSaved: () => void
+}) {
+  const deposits = useMemo(() => glAccounts.filter((a) => a.division === 'ASSET'), [glAccounts])
+  const [form, setForm] = useState({
+    code: edit?.code ?? '', name: edit?.name ?? '',
+    bankName: edit?.bankName ?? '', accountNo: edit?.accountNo ?? '', holder: edit?.holder ?? '',
+    glAccountId: edit?.glAccountId != null ? String(edit.glAccountId) : '',
+    currencyId: edit?.currencyId != null ? String(edit.currencyId) : '',
+    openingBalance: '',
+    remark: edit?.remark ?? '',
+    /* 고칠 때만 쓴다 — 등록은 늘 사용중으로 시작한다. */
+    active: edit ? edit.active : true,
+  })
+  const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }))
+
+  async function submit() {
+    onError('')
+    if (!form.bankName) return onError('은행명을 입력하세요.')
+    if (!form.accountNo) return onError('계좌번호를 입력하세요.')
+    try {
+      const body = {
+        code: form.code || undefined,
+        name: form.name || undefined,
+        bankName: form.bankName,
+        accountNo: form.accountNo,
+        holder: form.holder || undefined,
+        glAccountId: form.glAccountId ? Number(form.glAccountId) : undefined,
+        currencyId: form.currencyId ? Number(form.currencyId) : undefined,
+        openingBalance: form.openingBalance ? Number(form.openingBalance) : 0,
+        remark: form.remark || undefined,
+        active: form.active,
+      }
+      if (edit) await api.put(`/bank-cards/accounts/${edit.id}`, body)
+      else await api.post('/bank-cards/accounts', body)
+      onSaved()
+    } catch (err) {
+      onError(extractErrorMessage(err))
+    }
+  }
+
+  return (
+    <Panel title={edit ? '계좌수정' : '계좌등록'} submitLabel={edit ? '수정' : '등록'} onSubmit={submit}
+      hint="※ 예금계정을 비우면 보통예금(103)으로 분개됩니다. 기초잔액 이후 잔액은 입출금으로만 움직입니다.">
+      {/* 원본 계좌등록 차례: <b>계좌코드 · 계좌명</b> · 계정 · … */}
+      <Field label="계좌코드">
+        <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 110 }} placeholder="A001" />
+      </Field>
+      <Field label="계좌명">
+        <input className="ec-input" value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 150 }} placeholder="주거래통장" />
+      </Field>
+      <Field label="은행 *">
+        <input className="ec-input" value={form.bankName} onChange={(e) => set('bankName', e.target.value)} style={{ width: 130 }} placeholder="국민은행" />
+      </Field>
+      <Field label="계좌번호 *">
+        <input className="ec-input" value={form.accountNo} onChange={(e) => set('accountNo', e.target.value)} style={{ width: 190 }} placeholder="123456-04-567890" />
+      </Field>
+      <Field label="예금주">
+        <input className="ec-input" value={form.holder} onChange={(e) => set('holder', e.target.value)} style={{ width: 110 }} />
+      </Field>
+      <Field label="예금계정">
+        <select className="ec-input" value={form.glAccountId} onChange={(e) => set('glAccountId', e.target.value)} style={{ width: 160 }}>
+          <option value="">보통예금(103) 기본</option>
+          {deposits.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+        </select>
+      </Field>
+      {/* 안 고르면 원화 통장이다 — 대부분이 그렇다. */}
+      <Field label="외화통장환종">
+        <select className="ec-input" value={form.currencyId} onChange={(e) => set('currencyId', e.target.value)} style={{ width: 140 }}>
+          <option value="">원화</option>
+          {currencies.map((c) => <option key={c.id} value={c.id}>{c.code} {c.name}</option>)}
+        </select>
+      </Field>
+      {/*
+        고칠 때는 기초잔액을 묻지 않는다 — 서버가 <b>일부러 안 받는다</b>.
+        잔액은 입출금으로만 움직이므로 여기서 덮어쓰면 수불과 어긋난다.
+      */}
+      {!edit && (
+        <Field label="기초잔액">
+          <input className="ec-input" type="number" step="any" value={form.openingBalance} onChange={(e) => set('openingBalance', e.target.value)} style={{ width: 120, textAlign: 'right' }} />
+        </Field>
+      )}
+      <Field label="비고">
+        <input className="ec-input" value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: 160 }} />
+      </Field>
+      {edit && (
+        <Field label="사용">
+          <label className="text-[12.5px] flex items-center gap-[4px] h-[24px]">
+            <input type="checkbox" checked={form.active} onChange={(e) => set('active', e.target.checked)} />
+            사용중
+          </label>
+        </Field>
+      )}
+    </Panel>
+  )
+}
+
+function CardForm({ edit, accounts, onError, onSaved }: {
+  edit?: CreditCardRow | null
+  accounts: BankAccountRow[]; onError: (m: string) => void; onSaved: () => void
+}) {
+  const [form, setForm] = useState({
+    code: edit?.code ?? '',
+    cardName: edit?.cardName ?? '', cardCompany: edit?.cardCompany ?? '', cardNo: edit?.cardNo ?? '',
+    type: (edit?.type ?? 'CORPORATE') as CardType,
+    ownerName: edit?.ownerName ?? '',
+    settlementAccountId: edit?.settlementAccountId != null ? String(edit.settlementAccountId) : '',
+    settlementDay: edit?.settlementDay != null ? String(edit.settlementDay) : '',
+    remark: edit?.remark ?? '',
+  })
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  async function submit() {
+    onError('')
+    if (!form.cardName) return onError('카드명을 입력하세요.')
+    if (!form.cardCompany) return onError('카드사를 입력하세요.')
+    if (!form.cardNo) return onError('카드번호를 입력하세요.')
+    try {
+      const body = {
+        code: form.code || undefined,
+        cardName: form.cardName,
+        cardCompany: form.cardCompany,
+        cardNo: form.cardNo,
+        type: form.type,
+        ownerName: form.ownerName || undefined,
+        settlementAccountId: form.settlementAccountId ? Number(form.settlementAccountId) : undefined,
+        settlementDay: form.settlementDay ? Number(form.settlementDay) : undefined,
+        remark: form.remark || undefined,
+      }
+      if (edit) await api.put(`/bank-cards/cards/${edit.id}`, body)
+      else await api.post('/bank-cards/cards', body)
+      onSaved()
+    } catch (err) {
+      onError(extractErrorMessage(err))
+    }
+  }
+
+  return (
+    <Panel title="카드등록" submitLabel="등록" onSubmit={submit}
+      hint="※ 카드번호는 마스킹된 형태로 저장하세요(예: 5310-****-****-1234). 결제계좌는 카드대금이 빠져나갈 계좌입니다.">
+      {/* 원본 카드등록 차례: <b>카드코드</b> · … */}
+      <Field label="카드코드">
+        <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 110 }} placeholder="C001" />
+      </Field>
+      <Field label="카드명 *">
+        <input className="ec-input" value={form.cardName} onChange={(e) => set('cardName', e.target.value)} style={{ width: 130 }} placeholder="법인 업무용" />
+      </Field>
+      <Field label="카드사 *">
+        <input className="ec-input" value={form.cardCompany} onChange={(e) => set('cardCompany', e.target.value)} style={{ width: 110 }} placeholder="신한카드" />
+      </Field>
+      <Field label="카드번호 *">
+        <input className="ec-input" value={form.cardNo} onChange={(e) => set('cardNo', e.target.value)} style={{ width: 180 }} placeholder="5310-****-****-1234" />
+      </Field>
+      <Field label="종류 *">
+        <select className="ec-input" value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 110 }}>
+          <option value="CORPORATE">법인카드</option>
+          <option value="PERSONAL">개인카드</option>
+        </select>
+      </Field>
+      <Field label="명의자">
+        <input className="ec-input" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} style={{ width: 100 }} />
+      </Field>
+      <Field label="결제계좌">
+        <select className="ec-input" value={form.settlementAccountId} onChange={(e) => set('settlementAccountId', e.target.value)} style={{ width: 190 }}>
+          <option value="">선택 안함</option>
+          {accounts.map((a) => <option key={a.id} value={a.id}>{a.bankName} {a.accountNo}</option>)}
+        </select>
+      </Field>
+      <Field label="결제일">
+        <input className="ec-input" type="number" min="1" max="31" value={form.settlementDay} onChange={(e) => set('settlementDay', e.target.value)} style={{ width: 70, textAlign: 'right' }} />
+      </Field>
+      <Field label="비고">
+        <input className="ec-input" value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: 140 }} />
+      </Field>
+    </Panel>
+  )
+}
+
+function BankTxnForm({ accounts, glAccounts, partners, onError, onSaved }: {
+  accounts: BankAccountRow[]; glAccounts: AccountOption[]; partners: Partner[]
+  onError: (m: string) => void; onSaved: () => void
+}) {
+  const usable = accounts.filter((a) => a.active)
+  const [form, setForm] = useState({
+    bankAccountId: usable[0] ? String(usable[0].id) : '',
+    deposit: 'true', amount: '', counterAccountId: '', partnerId: '',
+    txnDate: todayYmd(), description: '',
+  })
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  const selected = usable.find((a) => String(a.id) === form.bankAccountId)
+
+  async function submit() {
+    onError('')
+    if (!form.bankAccountId) return onError('계좌를 선택하세요.')
+    if (!form.counterAccountId) return onError('상대계정을 선택하세요.')
+    if (!form.amount || Number(form.amount) <= 0) return onError('금액을 입력하세요.')
+    try {
+      await api.post('/bank-cards/transactions', {
+        bankAccountId: Number(form.bankAccountId),
+        deposit: form.deposit === 'true',
+        amount: Number(form.amount),
+        counterAccountId: Number(form.counterAccountId),
+        partnerId: form.partnerId ? Number(form.partnerId) : undefined,
+        txnDate: form.txnDate,
+        description: form.description || undefined,
+      })
+      onSaved()
+    } catch (err) {
+      onError(extractErrorMessage(err))
+    }
+  }
+
+  return (
+    <Panel title="계좌 입출금" submitLabel="처리" onSubmit={submit}
+      hint="※ 입금은 차)예금·대)상대계정, 출금은 그 반대로 분개됩니다. 잔액보다 많이 출금하면 거절됩니다.">
+      <Field label="일자">
+        <EcDateInput className="ec-input" value={form.txnDate} onChange={(e) => set('txnDate', e.target.value)} />
+      </Field>
+      <Field label="계좌 *">
+        <select className="ec-input" value={form.bankAccountId} onChange={(e) => set('bankAccountId', e.target.value)} style={{ width: 200 }}>
+          <option value="">선택하세요</option>
+          {usable.map((a) => <option key={a.id} value={a.id}>{a.bankName} {a.accountNo}</option>)}
+        </select>
+      </Field>
+      <Field label="현재 잔액">
+        <div className="ec-input" style={{ width: 110, textAlign: 'right', background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
+          {selected ? fmtNumber(selected.balance) : '-'}
+        </div>
+      </Field>
+      <Field label="구분 *">
+        <select className="ec-input" value={form.deposit} onChange={(e) => set('deposit', e.target.value)} style={{ width: 80 }}>
+          <option value="true">입금</option>
+          <option value="false">출금</option>
+        </select>
+      </Field>
+      <Field label="금액 *">
+        <input className="ec-input" type="number" step="any" value={form.amount} onChange={(e) => set('amount', e.target.value)} style={{ width: 120, textAlign: 'right' }} />
+      </Field>
+      <Field label="상대계정 *">
+        <select className="ec-input" value={form.counterAccountId} onChange={(e) => set('counterAccountId', e.target.value)} style={{ width: 180 }}>
+          <option value="">선택하세요</option>
+          {glAccounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+        </select>
+      </Field>
+      <Field label="거래처">
+        <CodePickerField label="거래처" hideLabel width={150} emptyLabel="선택 안 함" placeholder="선택 안함"
+                         value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                         items={partnerCodeItems(partners)} />
+      </Field>
+      <Field label="적요">
+        <input className="ec-input" value={form.description} onChange={(e) => set('description', e.target.value)} style={{ width: 160 }} />
+      </Field>
+    </Panel>
+  )
+}
+
+function CardUsageForm({ cards, glAccounts, onError, onSaved }: {
+  cards: CreditCardRow[]; glAccounts: AccountOption[]; onError: (m: string) => void; onSaved: () => void
+}) {
+  const expenses = useMemo(() => glAccounts.filter((a) => a.division === 'EXPENSE'), [glAccounts])
+  const usable = cards.filter((c) => c.active)
+  const [form, setForm] = useState({
+    cardId: usable[0] ? String(usable[0].id) : '',
+    merchant: '', expenseAccountId: '', supplyAmount: '', vatAmount: '',
+    usageDate: todayYmd(), description: '',
+  })
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  const supply = Number(form.supplyAmount) || 0
+
+  async function submit() {
+    onError('')
+    if (!form.cardId) return onError('카드를 선택하세요.')
+    if (!form.merchant) return onError('가맹점을 입력하세요.')
+    if (!form.expenseAccountId) return onError('비용계정을 선택하세요.')
+    if (supply <= 0) return onError('금액을 입력하세요.')
+    try {
+      await api.post('/bank-cards/usages', {
+        cardId: Number(form.cardId),
+        merchant: form.merchant,
+        expenseAccountId: Number(form.expenseAccountId),
+        supplyAmount: supply,
+        /* 원본 신용카드전표(E010504)에는 부가세 칸이 없다 — 차) 비용 11,000 / 대) 미지급금 11,000(2026-10-21 다시 확인). */
+        vatAmount: 0,
+        usageDate: form.usageDate,
+        description: form.description || undefined,
+      })
+      onSaved()
+    } catch (err) {
+      onError(extractErrorMessage(err))
+    }
+  }
+
+  return (
+    <Panel title="카드사용 등록" submitLabel="등록" onSubmit={submit}
+      hint="※ 차)비용계정 / 대)미지급금으로 분개됩니다.">
+      <Field label="사용일">
+        <EcDateInput className="ec-input" value={form.usageDate} onChange={(e) => set('usageDate', e.target.value)} />
+      </Field>
+      <Field label="카드 *">
+        <select className="ec-input" value={form.cardId} onChange={(e) => set('cardId', e.target.value)} style={{ width: 190 }}>
+          <option value="">선택하세요</option>
+          {usable.map((c) => <option key={c.id} value={c.id}>{c.cardCompany} {c.cardName} ({c.typeName})</option>)}
+        </select>
+      </Field>
+      <Field label="가맹점 *">
+        <input className="ec-input" value={form.merchant} onChange={(e) => set('merchant', e.target.value)} style={{ width: 160 }} placeholder="스타벅스 역삼점" />
+      </Field>
+      <Field label="비용계정 *">
+        <select className="ec-input" value={form.expenseAccountId} onChange={(e) => set('expenseAccountId', e.target.value)} style={{ width: 170 }}>
+          <option value="">선택하세요</option>
+          {expenses.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+        </select>
+      </Field>
+      <Field label="금액 *">
+        <input className="ec-input" type="number" step="any" value={form.supplyAmount} onChange={(e) => set('supplyAmount', e.target.value)} style={{ width: 110, textAlign: 'right' }} />
+      </Field>
+      <Field label="적요">
+        <input className="ec-input" value={form.description} onChange={(e) => set('description', e.target.value)} style={{ width: 150 }} />
+      </Field>
+    </Panel>
+  )
+}
