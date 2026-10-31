@@ -21,6 +21,7 @@ import com.erp.hr.employee.dto.EmployeeDtos;
  * 사원 마스터. 급여관리 기초등록의 사원등록에 대응.
  * (HrController 의 /hr/employees 는 로그인 User 기반이라 별개다)
  */
+@lombok.extern.slf4j.Slf4j
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
@@ -59,6 +60,19 @@ public class EmployeeController {
         if (principal.isAdmin()) return true;
         return principal.getPermissionCodes().contains("PAYROLL")
                 || principal.getPermissionCodes().contains("HR");
+    }
+
+    /**
+     * 주민등록번호 원문 — 사원등록 수정 창만 쓴다. 목록 · 상세 응답은 늘 가린다(900101-1******, docs/보안-점검.md H3).
+     * 인사 · 급여 권한(또는 마스터)만, 화면 머리와 무관하게. 누가 누구 것을 봤는지 남긴다(번호는 안 남긴다).
+     */
+    @GetMapping("/{id}/resident-no")
+    public EmployeeDtos.ResidentNoResponse residentNo(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        if (!canSeeSalary(principal)) {
+            throw com.erp.common.ApiException.forbidden("주민등록번호 원문은 인사 · 급여 권한이 있어야 볼 수 있습니다.");
+        }
+        log.info("주민등록번호 원문 조회 — 사용자 {} · 사원 id {}", principal.getUsername(), id);
+        return new EmployeeDtos.ResidentNoResponse(employeeService.residentNo(id));
     }
 
     /** 사원별 발령이력 */

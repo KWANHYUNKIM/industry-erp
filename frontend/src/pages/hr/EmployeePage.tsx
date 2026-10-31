@@ -136,6 +136,12 @@ export default function EmployeePage() {
     })
     setPayVals(new Map())
     profileRef.current = null
+    /* 주민등록번호 — 목록 응답은 가려 온다(900101-1******). 원문은 이 수정 창만 따로 받는다(인사 · 급여 권한, docs/보안-점검.md H3) */
+    if (e.residentNo) {
+      api.get<{ residentNo: string | null }>(`/employees/${e.id}/resident-no`)
+        .then((r) => setForm((f) => ({ ...f, residentNo: r.data.residentNo ?? '' })))
+        .catch(() => undefined)
+    }
     api.get<Record<string, unknown>>(`/employees/${e.id}/profile`)
       .then((r) => { profileRef.current = r.data; setForm((f) => ({ ...f, birthDate: String(r.data.birthDate ?? ''), passportNo: String(r.data.passportNo ?? '') })) })
       .catch(() => undefined)

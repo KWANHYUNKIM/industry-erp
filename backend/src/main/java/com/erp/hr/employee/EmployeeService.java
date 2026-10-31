@@ -1,5 +1,6 @@
 package com.erp.hr.employee;
 
+import com.erp.common.crypto.ResidentNoMask;
 import com.erp.hr.department.Department;
 import com.erp.hr.department.DepartmentService;
 import com.erp.common.ApiException;
@@ -101,7 +102,7 @@ public class EmployeeService {
                 .foreignName1(blankToNull(req.foreignName1()))
                 .foreignName2(blankToNull(req.foreignName2()))
                 .household(blankToNull(req.household()))
-                .residentNo(blankToNull(req.residentNo()))
+                .residentNo(ResidentNoMask.isMasked(req.residentNo()) ? null : blankToNull(req.residentNo()))
                 .zipcode(blankToNull(req.zipcode()))
                 .address(req.address())
                 .bankCode(req.bankCode())
@@ -153,7 +154,8 @@ public class EmployeeService {
         if (req.foreignName1() != null) e.setForeignName1(blankToNull(req.foreignName1()));
         if (req.foreignName2() != null) e.setForeignName2(blankToNull(req.foreignName2()));
         if (req.household() != null) e.setHousehold(blankToNull(req.household()));
-        if (req.residentNo() != null) e.setResidentNo(blankToNull(req.residentNo()));
+        // 가린 값(900101-1******)이 그대로 돌아오면 저장값을 그대로 둔다(원문을 못 받은 화면 · 복사)
+        if (req.residentNo() != null && !ResidentNoMask.isMasked(req.residentNo())) e.setResidentNo(blankToNull(req.residentNo()));
         if (req.zipcode() != null) e.setZipcode(blankToNull(req.zipcode()));
         e.setAddress(req.address());
         e.setBankCode(req.bankCode());
@@ -483,6 +485,12 @@ public class EmployeeService {
     public Employee get(Long id) {
         return employeeRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("사원을 찾을 수 없습니다. id=" + id));
+    }
+
+    /** 주민등록번호 원문(복호화). 권한(HR · PAYROLL)은 컨트롤러가 본다. */
+    @Transactional(readOnly = true)
+    public String residentNo(Long id) {
+        return get(id).getResidentNo();
     }
 
     private static String blankToNull(String s) {

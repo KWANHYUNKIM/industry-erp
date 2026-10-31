@@ -1,5 +1,6 @@
 package com.erp.hr.employee.dto;
 
+import com.erp.common.crypto.ResidentNoMask;
 import com.erp.hr.employee.Employee;
 import com.erp.hr.employee.EmployeeAssignment;
 import com.erp.hr.employee.AssignmentType;
@@ -259,7 +260,7 @@ public class EmployeeDtos {
                     e.getHireDate(), e.getResignDate(), e.isActive(),
                     e.getPhone(), e.getEmail(), e.getSearchKeyword(), e.getRemark(),
                     e.getPayType(), e.getPayType().getDisplayName(),
-                    e.getMobile(), e.getResignReason(), e.getForeignName1(), e.getForeignName2(), e.getHousehold(), e.getResidentNo(), e.getZipcode(), e.getAddress(),
+                    e.getMobile(), e.getResignReason(), e.getForeignName1(), e.getForeignName2(), e.getHousehold(), ResidentNoMask.mask(e.getResidentNo()), e.getZipcode(), e.getAddress(),
                     e.getBankCode(), e.getBankName(), e.getAccountNo(), e.getAccountHolder(), e.getHireKind(), e.getDuty(), e.getProjectId());
         }
 
@@ -283,4 +284,7 @@ public class EmployeeDtos {
                     null, null, null, null, hireKind, duty, projectId);
         }
     }
+
+    /** 주민등록번호 원문(GET /api/employees/{id}/resident-no — HR · PAYROLL 만). */
+    public record ResidentNoResponse(String residentNo) {}
 }

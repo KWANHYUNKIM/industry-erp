@@ -81,6 +81,8 @@ echo "$H" > $NEW/.head
 LOCAL=backend/config/local.properties
 mkdir -p backend/config && touch $LOCAL && chmod 600 $LOCAL
 grep -q '^app.jwt.secret=' $LOCAL || echo "app.jwt.secret=$(openssl rand -base64 48 | tr -d '\n')" >> $LOCAL
+# 주민번호 암호화 키 — 잃으면 암호화된 값을 되살릴 수 없다. 이 파일을 지우지 말 것(백업은 DB 와 따로)
+grep -q '^app.pii.key=' $LOCAL || echo "app.pii.key=$(openssl rand -base64 32 | tr -d '\n')" >> $LOCAL
 mkdir -p $NEW/config && cp $LOCAL $NEW/config/local.properties
 if ! (cd $NEW && ./mvnw -o -q compile) > /tmp/erp-backend-compile.log 2>&1; then
   echo "HEAD $(git rev-parse --short HEAD) 컴파일 실패 — 서버는 그대로 둔다:"

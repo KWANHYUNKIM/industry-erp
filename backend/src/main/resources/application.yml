@@ -53,6 +53,9 @@ app:
     secret: ${JWT_SECRET:}
     # 토큰 유효기간 (밀리초): 8시간
     expiration-ms: 28800000
+  # 주민등록번호 암호화 키(base64 32바이트) — 환경변수 ERP_PII_KEY 또는 config/local.properties. 기본값 없음(dev 만 평문으로 뜬다, PiiCipher).
+  pii:
+    key: ${ERP_PII_KEY:}
 
 # 관측 — Actuator 는 health · info 만 웹에 연다(나머지 엔드포인트는 닫힘). health 는 세부(DB 등)를 안 보인다.
 management:

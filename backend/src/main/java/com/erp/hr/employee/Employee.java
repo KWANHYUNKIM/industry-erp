@@ -1,5 +1,6 @@
 package com.erp.hr.employee;
 
+import com.erp.common.crypto.EncryptedStringConverter;
 import com.erp.hr.department.Department;
 import jakarta.persistence.*;
 import lombok.*;
@@ -109,8 +110,12 @@ public class Employee extends BaseTimeEntity {
     @Column(name = "foreign_name2", length = 100)
     private String foreignName2;
 
-    /** 원본 [주민등록번호] — 기본 탭 성명 아래 칸, 필수 아님. 개인정보라 급여를 못 보는 사람에게는 가린다(maskSalary). */
-    @Column(name = "resident_no", length = 20)
+    /**
+     * 원본 [주민등록번호] — 기본 탭 성명 아래 칸, 필수 아님. DB 에는 암호화해 적는다(개인정보 보호법 제24조의2, docs/보안-점검.md H3).
+     * 응답은 늘 가린다(EmployeeResponse) — 원문은 HR · PAYROLL 이 사원등록 수정 창에서 GET /api/employees/{id}/resident-no 로만.
+     */
+    @Column(name = "resident_no", length = 100)
+    @Convert(converter = EncryptedStringConverter.class)
     private String residentNo;
 
     /** 원본 [세대주여부] — 세대주 · 세대원 · 세대주의 배우자(원본 처음 값 세대주). */

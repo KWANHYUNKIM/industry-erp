@@ -4,3 +4,7 @@
 
 # JWT 서명 비밀(환경변수 JWT_SECRET 과 같다) — 32바이트 이상 무작위: openssl rand -base64 48
 app.jwt.secret=REPLACE_ME
+
+# 주민등록번호 암호화 키(환경변수 ERP_PII_KEY 와 같다) — base64 32바이트: openssl rand -base64 32
+# 잃으면 암호화된 주민번호를 되살릴 수 없다. DB 백업과 다른 곳에 따로 보관한다.
+app.pii.key=
