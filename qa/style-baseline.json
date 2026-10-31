@@ -939,207 +939,207 @@
   "color": 5,
   "palette": 0
  },
- "pages/trade/AccountingReflectionPage.tsx": {
+ "pages/trade/sales/AccountingReflectionPage.tsx": {
   "inline": 10,
   "color": 1,
   "palette": 0
  },
- "pages/trade/ArApStatusPage.tsx": {
+ "pages/trade/arap/ArApStatusPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/trade/ConditionSearchPage.tsx": {
+ "pages/trade/report/ConditionSearchPage.tsx": {
   "inline": 9,
   "color": 0,
   "palette": 0
  },
- "pages/trade/DiscountStatusPage.tsx": {
+ "pages/trade/report/DiscountStatusPage.tsx": {
   "inline": 7,
   "color": 0,
   "palette": 0
  },
- "pages/trade/ExportPage.tsx": {
+ "pages/trade/export/ExportPage.tsx": {
   "inline": 0,
   "color": 1,
   "palette": 0
  },
- "pages/trade/LedgerPage.tsx": {
+ "pages/trade/arap/LedgerPage.tsx": {
   "inline": 23,
   "color": 13,
   "palette": 0
  },
- "pages/trade/MallAccountPage.tsx": {
+ "pages/trade/mall/MallAccountPage.tsx": {
   "inline": 5,
   "color": 1,
   "palette": 0
  },
- "pages/trade/MallItemMappingPage.tsx": {
+ "pages/trade/mall/MallItemMappingPage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/trade/MallPage.tsx": {
+ "pages/trade/mall/MallPage.tsx": {
   "inline": 19,
   "color": 6,
   "palette": 0
  },
- "pages/trade/MonthlyArApPage.tsx": {
+ "pages/trade/arap/MonthlyArApPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/trade/MonthlyCumulativePage.tsx": {
+ "pages/trade/report/MonthlyCumulativePage.tsx": {
   "inline": 2,
   "color": 0,
   "palette": 0
  },
- "pages/trade/PartnerLedgerPage.tsx": {
+ "pages/trade/partner/PartnerLedgerPage.tsx": {
   "inline": 7,
   "color": 2,
   "palette": 0
  },
- "pages/trade/PartnersPage.tsx": {
+ "pages/trade/partner/PartnersPage.tsx": {
   "inline": 9,
   "color": 3,
   "palette": 0
  },
- "pages/trade/PayablePage.tsx": {
+ "pages/trade/arap/PayablePage.tsx": {
   "inline": 9,
   "color": 7,
   "palette": 0
  },
- "pages/trade/PivotSummaryPage.tsx": {
+ "pages/trade/report/PivotSummaryPage.tsx": {
   "inline": 30,
   "color": 4,
   "palette": 0
  },
- "pages/trade/PriceBulkScreen.tsx": {
+ "pages/trade/price/PriceBulkScreen.tsx": {
   "inline": 10,
   "color": 3,
   "palette": 0
  },
- "pages/trade/PriceMovementPage.tsx": {
+ "pages/trade/price/PriceMovementPage.tsx": {
   "inline": 21,
   "color": 2,
   "palette": 0
  },
- "pages/trade/PriceRequestListPage.tsx": {
+ "pages/trade/pricerequest/PriceRequestListPage.tsx": {
   "inline": 3,
   "color": 2,
   "palette": 0
  },
- "pages/trade/PriceRequestProgressPage.tsx": {
+ "pages/trade/pricerequest/PriceRequestProgressPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/trade/PurchaseOrderPage.tsx": {
+ "pages/trade/purchaseorder/PurchaseOrderPage.tsx": {
   "inline": 9,
   "color": 3,
   "palette": 0
  },
- "pages/trade/PurchaseOrderStatusPage.tsx": {
+ "pages/trade/purchaseorder/PurchaseOrderStatusPage.tsx": {
   "inline": 85,
   "color": 6,
   "palette": 0
  },
- "pages/trade/PurchasePlanListPage.tsx": {
+ "pages/trade/purchaseplan/PurchasePlanListPage.tsx": {
   "inline": 1,
   "color": 1,
   "palette": 0
  },
- "pages/trade/PurchaseRequestListPage.tsx": {
+ "pages/trade/purchaserequest/PurchaseRequestListPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/trade/PurchaseRequestStatusPage.tsx": {
+ "pages/trade/purchaserequest/PurchaseRequestStatusPage.tsx": {
   "inline": 27,
   "color": 7,
   "palette": 0
  },
- "pages/trade/PurchaseStatusPage.tsx": {
+ "pages/trade/purchase/PurchaseStatusPage.tsx": {
   "inline": 14,
   "color": 2,
   "palette": 0
  },
- "pages/trade/QuotationPage.tsx": {
+ "pages/trade/quotation/QuotationPage.tsx": {
   "inline": 6,
   "color": 1,
   "palette": 0
  },
- "pages/trade/SalesOrderPage.tsx": {
+ "pages/trade/salesorder/SalesOrderPage.tsx": {
   "inline": 1,
   "color": 0,
   "palette": 0
  },
- "pages/trade/SalesOrderStatusPage.tsx": {
+ "pages/trade/salesorder/SalesOrderStatusPage.tsx": {
   "inline": 17,
   "color": 3,
   "palette": 0
  },
- "pages/trade/SalesPlanPage.tsx": {
+ "pages/trade/salesplan/SalesPlanPage.tsx": {
   "inline": 30,
   "color": 3,
   "palette": 0
  },
- "pages/trade/SalesPurchaseSummaryPage.tsx": {
+ "pages/trade/report/SalesPurchaseSummaryPage.tsx": {
   "inline": 22,
   "color": 0,
   "palette": 0
  },
- "pages/trade/SalesStatusPage.tsx": {
+ "pages/trade/sales/SalesStatusPage.tsx": {
   "inline": 12,
   "color": 1,
   "palette": 0
  },
- "pages/trade/SettlementPage.tsx": {
+ "pages/trade/arap/SettlementPage.tsx": {
   "inline": 10,
   "color": 4,
   "palette": 0
  },
- "pages/trade/ShipmentInquiryPage.tsx": {
+ "pages/trade/shipment/ShipmentInquiryPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/trade/ShipmentOrderStatusPage.tsx": {
+ "pages/trade/shipmentorder/ShipmentOrderStatusPage.tsx": {
   "inline": 2,
   "color": 0,
   "palette": 0
  },
- "pages/trade/ShipmentPage.tsx": {
+ "pages/trade/shipment/ShipmentPage.tsx": {
   "inline": 3,
   "color": 0,
   "palette": 0
  },
- "pages/trade/StatementPrintPage.tsx": {
+ "pages/trade/sales/StatementPrintPage.tsx": {
   "inline": 8,
   "color": 1,
   "palette": 0
  },
- "pages/trade/TradeInquiryPage.tsx": {
+ "pages/trade/sales/TradeInquiryPage.tsx": {
   "inline": 5,
   "color": 3,
   "palette": 0
  },
- "pages/trade/UnorderedStatusPage.tsx": {
+ "pages/trade/report/UnorderedStatusPage.tsx": {
   "inline": 21,
   "color": 4,
   "palette": 0
  },
- "pages/trade/UnpurchasedStatusPage.tsx": {
+ "pages/trade/report/UnpurchasedStatusPage.tsx": {
   "inline": 69,
   "color": 2,
   "palette": 0
  },
- "pages/trade/UnshippedPage.tsx": {
+ "pages/trade/shipment/UnshippedPage.tsx": {
   "inline": 8,
   "color": 0,
   "palette": 0
  },
- "pages/trade/UnsoldStatusPage.tsx": {
+ "pages/trade/report/UnsoldStatusPage.tsx": {
   "inline": 12,
   "color": 3,
   "palette": 0

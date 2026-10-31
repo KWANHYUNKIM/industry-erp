@@ -20,7 +20,7 @@ const STORAGE_KEY = 'mypage-grid-v1'
 /* 위젯 [펜] · 본문 클릭이 숨긴 채 빌려 쓰는 화면들(그 화면의 입력 · 조회 창만 보인다 — features/mypage/PopupHost) */
 const SchedulePage = lazy(() => import('./groupware/SchedulePage'))
 const WorkPage = lazy(() => import('./groupware/WorkPage'))
-const OrderStagePage = lazy(() => import('./trade/OrderStagePage'))
+const OrderStagePage = lazy(() => import('./trade/ordertype/OrderStagePage'))
 
 type GripDir = 'e' | 'se' | 's' | 'sw' | 'w'
 const GRIPS: GripDir[] = ['e', 'se', 's', 'sw', 'w']

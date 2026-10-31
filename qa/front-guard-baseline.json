@@ -8,6 +8,6 @@
   "pages/accounting/ProjectPlanStatusPage.tsx",
   "pages/hr/DailyWorkerListPage.tsx",
   "pages/production/RequirementCalcPage.tsx",
-  "pages/trade/ArApStatusPage.tsx"
+  "pages/trade/arap/ArApStatusPage.tsx"
  ]
 }

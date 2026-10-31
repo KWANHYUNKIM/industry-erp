@@ -1,7 +1,7 @@
 import type { SalesDoc, PurchaseDoc, Partner } from '../../types/api'
 import { roundWon } from '../../utils/lineSupply'
 
-/* 판매입력 · 구매입력(pages/trade/TradeEntry)의 판매 / 구매 설정(CFG) · 줄 모양 · 불러오기 자료형 — TradeEntry 에서 몸통 그대로 옮겼다(단계 10). */
+/* 판매입력 · 구매입력(pages/trade/sales/TradeEntry)의 판매 / 구매 설정(CFG) · 줄 모양 · 불러오기 자료형 — TradeEntry 에서 몸통 그대로 옮겼다(단계 10). */
 
 export type Mode = 'sales' | 'purchase'
 

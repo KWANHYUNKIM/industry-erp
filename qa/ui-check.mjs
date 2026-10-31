@@ -1291,37 +1291,37 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
 
   /** 사본 화면 이름 → 우리 화면 파일 */
   const FILE_OF = new Map([
-    ['채권현황', 'trade/ArApStatusPage.tsx'],
+    ['채권현황', 'trade/arap/ArApStatusPage.tsx'],
     /*
      * <b>채권/채무현황(E040703)</b> 은 채권현황(E040721)과 <b>다른 화면</b>이다 —
      * 판도 다르고(이쪽에만 [구분]·[양식], 체크가 [기타] 안에 묶인다),
      * <b>기준일자 기본값도 다르다</b> — 채권현황 금월(~오늘) · 채권/채무현황 <b>금일</b>.
      * 우리 화면 하나(ArApStatusPage)가 mode 로 셋을 겸한다.
      */
-    ['채권/채무현황', 'trade/ArApStatusPage.tsx'],
+    ['채권/채무현황', 'trade/arap/ArApStatusPage.tsx'],
     /* 채무현황(E040722)도 같은 표가 겸한다 — 조건·격자·버튼줄이 채권현황과 글자 하나까지 같다. */
-    ['채무현황', 'trade/ArApStatusPage.tsx'],
-    ['판매현황', 'trade/SalesStatusPage.tsx'],
-    ['구매현황', 'trade/PurchaseStatusPage.tsx'],
-    ['거래처관리대장 I', 'trade/PartnerLedgerPage.tsx'],
+    ['채무현황', 'trade/arap/ArApStatusPage.tsx'],
+    ['판매현황', 'trade/sales/SalesStatusPage.tsx'],
+    ['구매현황', 'trade/purchase/PurchaseStatusPage.tsx'],
+    ['거래처관리대장 I', 'trade/partner/PartnerLedgerPage.tsx'],
     /*
      * <b>판매일괄회계반영(E040215)</b> — 원본은 [전월]로 열린다(2026-09-09 실측).
      * 같은 파일이 겸하는 회계미반영현황은 금월이라, 메뉴가 넘기는 <code>?view=</code>
      * 로 갈라 준다. 이 검사는 <b>그 파일이 그 기본값을 쓰기는 하나</b>까지만 본다.
      */
-    ['판매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
-    ['결제내역자료비교', 'trade/PaymentComparePage.tsx'],
-    ['구매할인현황', 'trade/PurchaseDiscountPage.tsx'],
-    ['수금현황', 'trade/CollectionPage.tsx'],
+    ['판매일괄회계반영', 'trade/sales/AccountingReflectionPage.tsx'],
+    ['결제내역자료비교', 'trade/sales/PaymentComparePage.tsx'],
+    ['구매할인현황', 'trade/report/PurchaseDiscountPage.tsx'],
+    ['수금현황', 'trade/arap/CollectionPage.tsx'],
     /* 메뉴 [지급현황]은 /sales/payment 로 간다 — 수금현황과 같은 파일이 아니다(2026-09-10 바로잡음). */
-    ['지급현황', 'trade/PaymentPage.tsx'],
+    ['지급현황', 'trade/arap/PaymentPage.tsx'],
     ['업무일지', 'groupware/WorkLogPage.tsx'],
     ['작업지시서작업처리', 'production/WorkProcessPage.tsx'],
     ['품질검사요청조회', 'quality/QualityRequestPage.tsx'],
-    ['오더관리진행단계', 'trade/OrderStagePage.tsx'],
-    ['Invoice / Packing List', 'trade/ExportPage.tsx'],
-    ['거래처별채권', 'trade/LedgerPage.tsx'],
-    ['거래처별채무', 'trade/LedgerPage.tsx'],
+    ['오더관리진행단계', 'trade/ordertype/OrderStagePage.tsx'],
+    ['Invoice / Packing List', 'trade/export/ExportPage.tsx'],
+    ['거래처별채권', 'trade/arap/LedgerPage.tsx'],
+    ['거래처별채무', 'trade/arap/LedgerPage.tsx'],
     ['설문조사현황', 'groupware/SurveyStatusPage.tsx'],
     /*
      * 기타이동 다섯은 <b>한 파일</b>이 화면마다 kind 로 갈라 그린다. 파일이 하나라
@@ -1334,11 +1334,11 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['대체사용현황', 'inventory/StockMoveStatusPage.tsx'],
     ['폐기현황', 'inventory/StockMoveStatusPage.tsx'],
     ['재고조정현황', 'inventory/StockMoveStatusPage.tsx'],
-    ['미구매현황', 'trade/UnpurchasedStatusPage.tsx'],
-    ['발주요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
-    ['발주계획현황', 'trade/PurchaseRequestStatusPage.tsx'],
-    ['단가요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
-    ['견적서조회', 'trade/QuotationPage.tsx'],
+    ['미구매현황', 'trade/report/UnpurchasedStatusPage.tsx'],
+    ['발주요청현황', 'trade/purchaserequest/PurchaseRequestStatusPage.tsx'],
+    ['발주계획현황', 'trade/purchaserequest/PurchaseRequestStatusPage.tsx'],
+    ['단가요청현황', 'trade/purchaserequest/PurchaseRequestStatusPage.tsx'],
+    ['견적서조회', 'trade/quotation/QuotationPage.tsx'],
     ['품질검사요청현황', 'quality/QualityRequestStatusPage.tsx'],
     ['A/S수리현황', 'quality/AsRepairStatusPage.tsx'],
     ['품질검사조회', 'quality/QualityInspectionPage.tsx'],
@@ -1348,10 +1348,10 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['재고조정조회', 'inventory/AdjustListPage.tsx'],
     ['재고실사조회', 'inventory/StocktakeListPage.tsx'],
     ['시리얼/로트No.내역조회', 'quality/LotTxListPage.tsx'],
-    ['주문서조회', 'trade/SalesOrderPage.tsx'],
-    ['발주요청조회', 'trade/PurchaseRequestListPage.tsx'],
-    ['발주계획조회', 'trade/PurchasePlanListPage.tsx'],
-    ['단가요청조회', 'trade/PriceRequestListPage.tsx'],
+    ['주문서조회', 'trade/salesorder/SalesOrderPage.tsx'],
+    ['발주요청조회', 'trade/purchaserequest/PurchaseRequestListPage.tsx'],
+    ['발주계획조회', 'trade/purchaseplan/PurchasePlanListPage.tsx'],
+    ['단가요청조회', 'trade/pricerequest/PriceRequestListPage.tsx'],
     ['매출(세금)계산서현황(재고)', 'production/PurchaseTaxStockPage.tsx'],
     ['매출(세금)계산서조회(재고)', 'production/PurchaseTaxStockPage.tsx'],
     ['매입(세금)계산서조회(재고)', 'production/PurchaseTaxStockPage.tsx'],
@@ -1397,9 +1397,9 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['매입(세금)계산서현황', 'accounting/TaxInvoiceJournalPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
     ['발행수표조회', 'accounting/CheckListPage.tsx'],
-    ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
-    ['미주문현황', 'trade/UnorderedStatusPage.tsx'],
-    ['미판매현황', 'trade/UnsoldStatusPage.tsx'],
+    ['주문서현황', 'trade/salesorder/SalesOrderStatusPage.tsx'],
+    ['미주문현황', 'trade/report/UnorderedStatusPage.tsx'],
+    ['미판매현황', 'trade/report/UnsoldStatusPage.tsx'],
     ['A/S접수현황', 'quality/AsStatusPage.tsx'],
     ['품질검사현황', 'quality/QualityStatusPage.tsx'],
     ['작업지시서조회', 'production/WorkOrderPage.tsx'],
@@ -1409,21 +1409,21 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['생산불출조회', 'production/IssuePage.tsx'],
     ['생산입고조회', 'production/ReceiptInquiryPage.tsx'],
     ['불량률파악보고서', 'quality/DefectReportPage.tsx'],
-    ['발주서현황', 'trade/PurchaseOrderStatusPage.tsx'],
-    ['결제내역조회', 'trade/PaymentHistoryPage.tsx'],
+    ['발주서현황', 'trade/purchaseorder/PurchaseOrderStatusPage.tsx'],
+    ['결제내역조회', 'trade/sales/PaymentHistoryPage.tsx'],
     ['재고현황', 'inventory/CurrentStockPage.tsx'],
-    ['회계미반영현황 (구매)', 'trade/AccountingReflectionPage.tsx'],
-    ['단가요청진행단계', 'trade/PriceRequestProgressPage.tsx'],
+    ['회계미반영현황 (구매)', 'trade/sales/AccountingReflectionPage.tsx'],
+    ['단가요청진행단계', 'trade/pricerequest/PriceRequestProgressPage.tsx'],
     ['재고수불부', 'inventory/StockLedgerPage.tsx'],
-    ['발주서', 'trade/PurchaseOrderPage.tsx'],
-    ['발주서조회', 'trade/PurchaseOrderPage.tsx'],
+    ['발주서', 'trade/purchaseorder/PurchaseOrderPage.tsx'],
+    ['발주서조회', 'trade/purchaseorder/PurchaseOrderPage.tsx'],
     ['BOM환산재고현황', 'inventory/BomStockPage.tsx'],
     ['일별재고현황', 'inventory/DailyStockPage.tsx'],
     ['재고잔량분석표', 'inventory/StockAnalysisPage.tsx'],
     ['A/S소모현황', 'quality/AsConsumptionPage.tsx'],
-    ['판매구매집계표', 'trade/SalesPurchaseSummaryPage.tsx'],
+    ['판매구매집계표', 'trade/report/SalesPurchaseSummaryPage.tsx'],
     /* 단가변동표는 2026-09-08 에 원본(E040819)을 열어 [기준일자] 칸에서 직접 쟀다 — 달 칸이 09 하나다. */
-    ['단가변동표', 'trade/PriceMovementPage.tsx'],
+    ['단가변동표', 'trade/price/PriceMovementPage.tsx'],
     /* 경영자보고서(E040704)도 같은 날 열어 쟀다 — 조건이 [기준일자]·[기타] 둘뿐인 화면이다. */
     ['경영자보고서', 'inventory/ExecutiveReportPage.tsx'],
     ['의료기기공급내역보고', 'datacenter/MedicalDeviceReportPage.tsx'],
@@ -1437,8 +1437,8 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
      * /sales/outsourcing-discount 로 따로 간다. 여기 둘을 DiscountStatusPage 로 적어 두어
      * <b>사용자가 안 여는 파일</b>의 기본값을 재고 있었다(2026-09-10 바로잡음).
      */
-    ['판매할인현황', 'trade/SalesDiscountPage.tsx'],
-    ['외주비할인현황', 'trade/OutsourcingDiscountPage.tsx'],
+    ['판매할인현황', 'trade/report/SalesDiscountPage.tsx'],
+    ['외주비할인현황', 'trade/report/OutsourcingDiscountPage.tsx'],
   ])
 
   /**
@@ -1499,14 +1499,14 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
 
   /** 사본 화면 이름 → 우리 화면 파일 */
   const FILE_OF = new Map([
-    ['판매현황', 'trade/SalesStatusPage.tsx'],
-    ['출하현황', 'trade/ShipmentPage.tsx'],
-    ['출하지시서현황', 'trade/ShipmentOrderStatusPage.tsx'],
-    ['미출하현황', 'trade/UnshippedPage.tsx'],
-    ['판매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
-    ['구매현황', 'trade/PurchaseStatusPage.tsx'],
-    ['거래처별채무', 'trade/LedgerPage.tsx'],
-    ['구매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
+    ['판매현황', 'trade/sales/SalesStatusPage.tsx'],
+    ['출하현황', 'trade/shipment/ShipmentPage.tsx'],
+    ['출하지시서현황', 'trade/shipmentorder/ShipmentOrderStatusPage.tsx'],
+    ['미출하현황', 'trade/shipment/UnshippedPage.tsx'],
+    ['판매일괄회계반영', 'trade/sales/AccountingReflectionPage.tsx'],
+    ['구매현황', 'trade/purchase/PurchaseStatusPage.tsx'],
+    ['거래처별채무', 'trade/arap/LedgerPage.tsx'],
+    ['구매일괄회계반영', 'trade/sales/AccountingReflectionPage.tsx'],
     ['창고이동현황', 'inventory/TransferStatusPage.tsx'],
     ['자가사용현황', 'inventory/StockMoveStatusPage.tsx'],
     ['불량처리현황', 'inventory/StockMoveStatusPage.tsx'],
@@ -1525,24 +1525,24 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
     ['작업지시서별진행현황', 'production/WoProgressPage.tsx'],
     ['생산입고/소모현황 I', 'production/ProductionIssueStatusPage.tsx'],
     ['작업내역현황', 'production/WorkResultListPage.tsx'],
-    ['미판매현황', 'trade/UnsoldStatusPage.tsx'],
-    ['거래처별채권', 'trade/LedgerPage.tsx'],
+    ['미판매현황', 'trade/report/UnsoldStatusPage.tsx'],
+    ['거래처별채권', 'trade/arap/LedgerPage.tsx'],
     /*
      * <b>거래처관리대장1(채권·채무) E040723·E040724</b> — 원본 [집계구분]은
      * 전표별/전표별+내역/일별/월별/회계전표별 이고 <b>기본이 [전표별+내역]</b> 이다
      * (2026-09-09 실측). 대조표의 열쇠 이름은 이 검사가 보는 '구분' 으로 적는다.
      */
-    ['거래처관리대장1(채권)', 'trade/PartnerLedgerPage.tsx'],
-    ['거래처관리대장1(채무)', 'trade/PartnerLedgerPage.tsx'],
+    ['거래처관리대장1(채권)', 'trade/partner/PartnerLedgerPage.tsx'],
+    ['거래처관리대장1(채무)', 'trade/partner/PartnerLedgerPage.tsx'],
     ['일별이익현황', 'accounting/DailyProfitPage.tsx'],
     ['실제원가현황', 'accounting/ActualCostPage.tsx'],
     ['월별이익현황', 'accounting/MonthlyProfitPage.tsx'],
     ['차이분석', 'accounting/VariancePage.tsx'],
-    ['발주요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
-    ['발주계획현황', 'trade/PurchaseRequestStatusPage.tsx'],
-    ['발주서현황', 'trade/PurchaseOrderStatusPage.tsx'],
+    ['발주요청현황', 'trade/purchaserequest/PurchaseRequestStatusPage.tsx'],
+    ['발주계획현황', 'trade/purchaserequest/PurchaseRequestStatusPage.tsx'],
+    ['발주서현황', 'trade/purchaseorder/PurchaseOrderStatusPage.tsx'],
     ['작업지시서현황', 'production/WoStatusPage.tsx'],
-    ['미구매현황', 'trade/UnpurchasedStatusPage.tsx'],
+    ['미구매현황', 'trade/report/UnpurchasedStatusPage.tsx'],
   ])
 
   const bad = []
@@ -1819,12 +1819,12 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
   const ORDERMAP_BASE = JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8'))
   const ALIGN_MAP = new Map([
     ...ORDERMAP_BASE,
-    ['거래처리스트', 'trade/PartnersPage.tsx'],
-    ['거래처별채권', 'trade/LedgerPage.tsx'],
+    ['거래처리스트', 'trade/partner/PartnersPage.tsx'],
+    ['거래처별채권', 'trade/arap/LedgerPage.tsx'],
     ['거래처특별단가그룹', 'inventory/SpecialPriceGroupPage.tsx'],
     ['공정등록', 'production/ProcessPage.tsx'],
-    ['구매단가일괄변경', 'trade/PriceBulkScreen.tsx'],
-    ['구매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
+    ['구매단가일괄변경', 'trade/price/PriceBulkScreen.tsx'],
+    ['구매일괄회계반영', 'trade/sales/AccountingReflectionPage.tsx'],
     ['근태조회', 'hr/LeaveListPage.tsx'],
     ['근태현황', 'hr/AttendanceKindStatusPage.tsx'],
     ['단가적용순서설정', 'inventory/PriceOrderPage.tsx'],
@@ -1833,9 +1833,9 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     ['생산입고조회', 'production/ReceiptInquiryPage.tsx'],
     ['생산입고현황', 'production/ReceiptStatusPage.tsx'],
     ['생산입고_소모현황 I', 'production/ProductionIssueStatusPage.tsx'],
-    ['오더관리유형리스트', 'trade/OrderTypePage.tsx'],
-    ['오더관리진행단계', 'trade/OrderStagePage.tsx'],
-    ['외주비할인현황', 'trade/OutsourcingDiscountPage.tsx'],
+    ['오더관리유형리스트', 'trade/ordertype/OrderTypePage.tsx'],
+    ['오더관리진행단계', 'trade/ordertype/OrderStagePage.tsx'],
+    ['외주비할인현황', 'trade/report/OutsourcingDiscountPage.tsx'],
     ['일별이익현황', 'accounting/DailyProfitPage.tsx'],
     ['자원등록', 'production/ResourcePage.tsx'],
     ['작업내역조회', 'production/WorkResultInquiryPage.tsx'],
@@ -1846,7 +1846,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
     ['품목등록 리스트', 'inventory/ItemsPage.tsx'],
     ['휴가잔여일수현황', 'hr/VacationRemainPage.tsx'],
     ['관리항목리스트', 'inventory/ManageItemsPage.tsx'],
-    ['결제내역조회', 'trade/PaymentHistoryPage.tsx'],
+    ['결제내역조회', 'trade/sales/PaymentHistoryPage.tsx'],
   ])
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c)
   /*
@@ -2064,11 +2064,11 @@ console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
   const ORDERMAP_BASE = JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8'))
   const TOTAL_MAP = new Map([
     ...ORDERMAP_BASE,
-    ['거래처별채권', 'trade/LedgerPage.tsx'],
-    ['거래처별채무', 'trade/LedgerPage.tsx'],
-    ['구매입력', 'trade/TradeEntry.tsx'],
-    ['판매입력', 'trade/TradeEntry.tsx'],
-    ['구매조회', 'trade/TradeInquiryPage.tsx'],
+    ['거래처별채권', 'trade/arap/LedgerPage.tsx'],
+    ['거래처별채무', 'trade/arap/LedgerPage.tsx'],
+    ['구매입력', 'trade/sales/TradeEntry.tsx'],
+    ['판매입력', 'trade/sales/TradeEntry.tsx'],
+    ['구매조회', 'trade/sales/TradeInquiryPage.tsx'],
     ['근태현황', 'hr/AttendanceKindStatusPage.tsx'],
     ['생산불출입력', 'production/IssueEntryPage.tsx'],
     ['생산불출조회', 'production/IssuePage.tsx'],
@@ -2076,8 +2076,8 @@ console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
     ['생산입고II-소모품목 선택', 'production/ProductionResultPage.tsx'],
     ['소요시간계산', 'production/TimeCalcPage.tsx'],
     ['작업내역입력', 'production/WorkResultPage.tsx'],
-    ['회계미반영현황(판매)', 'trade/AccountingReflectionPage.tsx'],
-    ['회계미반영현황 (구매)', 'trade/AccountingReflectionPage.tsx'],
+    ['회계미반영현황(판매)', 'trade/sales/AccountingReflectionPage.tsx'],
+    ['회계미반영현황 (구매)', 'trade/sales/AccountingReflectionPage.tsx'],
   ])
   /** 원본에는 합계가 있지만 우리 화면 구조가 달라 붙일 자리가 없는 것 — 이유를 적는다. */
   const NO_PLACE = new Map([

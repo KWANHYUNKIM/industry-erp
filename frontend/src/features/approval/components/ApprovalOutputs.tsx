@@ -29,8 +29,8 @@ interface OutputMenu {
 }
 
 export const OUTPUT_MENUS: OutputMenu[] = [
-  { group1: '재고 I', group2: '영업관리', name: '판매현황', Page: lazy(() => import('../../../pages/trade/SalesStatusPage')) },
-  { group1: '재고 I', group2: '영업관리', name: '미판매현황', Page: lazy(() => import('../../../pages/trade/UnsoldStatusPage')) },
+  { group1: '재고 I', group2: '영업관리', name: '판매현황', Page: lazy(() => import('../../../pages/trade/sales/SalesStatusPage')) },
+  { group1: '재고 I', group2: '영업관리', name: '미판매현황', Page: lazy(() => import('../../../pages/trade/report/UnsoldStatusPage')) },
 ]
 
 const menuOf = (name: string) => OUTPUT_MENUS.find((m) => m.name === name)

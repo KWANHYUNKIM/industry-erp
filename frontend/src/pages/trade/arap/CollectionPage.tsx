@@ -1,0 +1,345 @@
+import { useEffect, useMemo, useState } from 'react'
+import EcListShell from '../../../components/EcListShell'
+import { useTableSort } from '../../../utils/useTableSort'
+import { usePartnerGroups } from '../../../utils/partnerGroups'
+import EcStatusPanel, { EcCond } from '../../../components/EcStatusPanel'
+import EcBarChart from '../../../components/EcBarChart'
+import { SETTLE_PICKS, periodOf } from '../../../components/EcPeriodPicks'
+import { api, extractErrorMessage } from '../../../api/client'
+import { dateNo } from '../../../utils/dateNo'
+import CodePickerField from '../../../components/codepicker/CodePickerField'
+import { useCondPickers } from '../../../utils/useCondPickers'
+import { subtotalBy } from '../../../utils/subtotalBy'
+import { useDeptGroups } from '../../../utils/deptGroups'
+
+/**
+ * 영업관리 > 수금현황 (이카운트 E040217)
+ * 정산(수금) 내역 실데이터 (/api/settlements, type=RECEIPT).
+ *
+ * 원본은 조회 조건 패널이 화면의 본체다: 기준일자 · 거래처 · 부서 · 프로젝트 · 거래처관리담당자.
+ * 우리 화면은 조건이 검색어 한 칸뿐이었다.
+ *
+ * 이 화면의 기간 빠른선택에는 **[이번기수][직전기수]** 가 있다 — 회계 기수다.
+ * 시작월은 회사 설정(Preference.fiscalStart)에서 가져온다. 회사마다 다르므로 1월로 넘겨짚지 않는다.
+ *
+ * 거래처관리담당자는 <b>거래처 마스터에 있다</b>. Settlement 에 없다고 조건을 빼 뒀었는데,
+ * 원본도 정산이 아니라 거래처를 보고 거르는 것이라 거래처를 통해 이으면 된다.
+ * <p>[프로젝트]도 이제 있다. 판매·구매·비용은 진작 프로젝트를 다는데 정산만 안 달아서,
+ * 프로젝트별로 얼마를 받았는지 셀 수가 없었다.
+ * [부서]도 이제 있다(2026-10-06) — 판매·구매입력의 현금수금/현금지급 창이 원본처럼 부서를 받는다.
+ */
+interface Settlement {
+  id: number
+  docNo: string
+  type: 'RECEIPT' | 'PAYMENT'
+  typeName: string
+  /** 거래처관리담당자를 잇는 열쇠. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  partnerId: number
+  partnerName: string
+  settleDate: string
+  amount: number
+  method: string | null
+  /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
+  projectId: number | null
+  /** 부서(id). 원본 조건의 [부서] — 판매·구매입력의 현금수금/현금지급 창에서 정한다. */
+  departmentId: number | null
+  projectName: string | null
+  note: string | null
+  /** 원본 조건의 [최초작성자]. 응답이 진작 싣던 값인데 화면이 안 받고 있었다. */
+  createdBy: string | null
+}
+
+/** 수금현황(RECEIPT)·지급현황(PAYMENT)이 같은 화면이라 종류만 바꿔 쓴다. */
+export function SettlementStatusPage({ type, title, moneyLabel }: {
+  type: 'RECEIPT' | 'PAYMENT'
+  title: string
+  moneyLabel: string
+}) {
+  /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
+  const pickers = useCondPickers(['partners', 'projects', 'employees'])
+  /*
+   * 원본 [결재방표시] — 켜면 출력물에 <b>결재란</b>(담당/검토/승인 도장칸)이 찍힌다.
+   * 기본값은 <b>꺼짐</b>이다(사본 실측). 우리는 그 칸을 늘 찍고 있었다 —
+   * 결재를 안 받을 자료까지 도장칸을 달고 나가면 종이가 한 칸씩 밀린다.
+   */
+  const [signBox, setSignBox] = useState(false)
+  const [rows, setRows] = useState<Settlement[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [keyword, setKeyword] = useState('')
+  const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
+  const [partners, setPartners] = useState<{ id: number; manager: string | null }[]>([])
+  const [depts, setDepts] = useState<{ id: number; code: string | null; name: string }[]>([])
+  /*
+   * <b>원본 수금현황의 기본 기간은 [금월(~오늘)] 이다</b> — 2026-09-08 에 원본(E040217)을
+   * 열어 간편검색 칸에서 직접 쟀다. 사본을 보고 [이번기수]로 적어 두었던 것이 틀렸다.
+   * [이번기수]·[직전기수]는 이 화면에만 있는 <b>버튼</b>이라 사본에 눈에 띄었을 뿐,
+   * 눌려 있는 것은 [금월(~오늘)]다.
+   *
+   * <p>그대로 두면 화면을 열자마자 <b>기수 전체</b>의 수금이 합계로 잡힌다 —
+   * 원본을 열었을 때 보이는 숫자와 다르다.
+   */
+  const initPeriod = periodOf('금월(~오늘)')!
+  const [cond, setCond] = useState({
+    from: initPeriod.from, to: initPeriod.to, partner: '', manager: '', project: '', dept: '', deptGroup: '',
+    partnerGroup: '', author: '',
+  })
+  const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
+
+  async function load() {
+    setLoading(true)
+    try {
+      const [res, pt] = await Promise.all([
+        api.get<Settlement[]>('/settlements'),
+        api.get<{ id: number; manager: string | null }[]>('/partners'),
+      ])
+      setRows(res.data.filter((s) => s.type === type))
+      setPartners(pt.data)
+      api.get<typeof depts>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [type])
+
+  useEffect(() => {
+    // 회계 기수 계산에 필요한 시작월. 못 받으면 [이번기수]·[직전기수] 는 눌러도 아무 일이 없다
+    // — 잘못된 기간을 내놓는 것보다 낫다.
+    api.get<{ fiscalStart?: string } | null>('/preferences')
+      .then((r) => { const m = Number(r.data?.fiscalStart); if (m >= 1 && m <= 12) setFiscalStart(m) })
+      .catch(() => {})
+  }, [])
+
+  /** [거래처그룹1] — 거래처 마스터에 붙는 값이라 정산 전표 응답에는 없다. 이름으로 잇는다. */
+  const pgroup = usePartnerGroups()
+  /** [부서계층그룹] — 그 부서와 그 아래 전부. 정산은 부서 id 를 들고 있어 이름으로 바꿔 부서 트리를 탄다. */
+  const { groups: deptGroups, inGroup } = useDeptGroups()
+  const deptName = useMemo(() => new Map(depts.map((d) => [d.id, d.name])), [depts])
+
+  const managerOf = useMemo(
+    () => new Map(partners.map((p) => [p.id, p.manager ?? ''])),
+    [partners],
+  )
+
+  /*
+   * 원본 [정렬/소계기준]. 수금은 한 거래처에서 여러 번 들어오고 방법도 섞인다 —
+   * 어느 거래처에서 얼마가 들어왔는지, 어느 방법으로 들어왔는지를 눈으로 더해야 했다.
+   */
+  // 지급현황도 이 화면을 쓴다 — '수금방법' 을 박아 두면 지급현황의 알약이 수금방법으로 나왔다.
+  const methodLabel = `${moneyLabel}방법`
+  const SUBTOTALS = ['거래처', methodLabel, '거래처관리담당자']
+  const [subtotal, setSubtotal] = useState<string>('거래처')
+  const shown = rows
+    .filter((r) => !cond.from || r.settleDate >= cond.from)
+    .filter((r) => !cond.to || r.settleDate <= cond.to)
+    .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
+    .filter((r) => !cond.partnerGroup || pgroup.groupOfName(r.partnerName) === cond.partnerGroup)
+    .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
+    // 거래처관리담당자는 정산이 아니라 거래처에 달려 있다 — 거래처를 통해 잇는다.
+    .filter((r) => !cond.manager
+      || (managerOf.get(r.partnerId) ?? '').includes(cond.manager))
+    .filter((r) => !cond.dept || String(r.departmentId) === cond.dept)
+    .filter((r) => inGroup(r.departmentId != null ? deptName.get(r.departmentId) ?? null : null, cond.deptGroup))
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
+    .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
+
+  const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
+  const [view, setView] = useState<'표' | '그래프'>('표')
+
+  /*
+   * 원본 [데이터 보기형식] · [그래프로 보기]. 수금·지급은 <b>거래처별로 얼마</b> 를
+   * 보는 화면이라 거래처로 묶어 그린다 — 전표 한 줄씩 그리면 같은 거래처가 흩어진다.
+   */
+  const chartRows = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of shown) m.set(r.partnerName, (m.get(r.partnerName) ?? 0) + r.amount)
+    return [...m].map(([label, value]) => ({ label, value }))
+  }, [shown])
+  const reset = () => {
+    setCond({ from: '', to: '', partner: '', manager: '', project: '', dept: '', deptGroup: '', partnerGroup: '', author: '' })
+    setKeyword('')
+  }
+
+
+  /*
+   * 한 칸에 일자와 번호를 함께 적는 칸이라 <b>찍히는 그대로</b> 이어 붙여 견준다 —
+   * 일자가 같은 건은 번호 차례로 선다.
+   */
+  const sort = useTableSort(shown, {
+    '일자-No.': (r) => `${r.settleDate} ${r.docNo}`,
+  })
+
+  return (
+    <EcListShell
+      title={title}
+      searchable={false}
+      actions={[
+        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '다시 작성', onClick: reset },
+        { label: '인쇄' },
+        { label: 'Excel' },
+      ]}
+      signLine={signBox}
+    >
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      <EcStatusPanel
+        from={cond.from} to={cond.to}
+        onPeriod={(r) => setC({ from: r.from, to: r.to })}
+        picks={SETTLE_PICKS}
+        fiscalStart={fiscalStart}
+        view={view} onViewChange={setView}
+        subtotal={subtotal} subtotals={SUBTOTALS}
+        onSubtotalChange={(v) => setSubtotal(v)}
+      >
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                           value={cond.partner} onChange={(v) => setC({ partner: v })}
+                           items={pickers.partners} />
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 열아홉 — 이 화면은 <b>접힌 줄이 없다</b>):
+          기준일자 · 거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) ·
+          (부서 · 부서계층그룹) · 프로젝트 · (프로젝트그룹1 · 프로젝트그룹2) ·
+          거래처관리담당자 · <b>최초작성자</b> · (최종수정자 · 양식) ·
+          적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+        */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={200} emptyLabel="전체"
+                           value={cond.dept} onChange={(v) => setC({ dept: v })}
+                           items={depts.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))} />
+        </EcCond>
+        <EcCond label="부서계층그룹">
+          <select className="ec-input w-[160px]" value={cond.deptGroup} onChange={(e) => setC({ deptGroup: e.target.value })}>
+            <option value="">전체</option>
+            {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체"
+                           value={cond.manager} onChange={(v) => setC({ manager: v })}
+                           items={pickers.employees} />
+        </EcCond>
+        {/*
+          <b>[수금방법]/[지급방법] 을 걷어냈다.</b> 원본 조건 판 열아홉에 그런 칸이 없다 —
+          우리만 하나 더 두고 있었다. 수금방법은 표의 열로는 그대로 보인다.
+        */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.author} onChange={(v) => setC({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="결재방표시">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
+            인쇄물에 결재란(도장칸)을 찍는다
+          </label>
+        </EcCond>
+      </EcStatusPanel>
+
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        {moneyLabel} 합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString()}</b>
+      </div>
+
+      {view === '그래프' ? (
+        <EcBarChart rows={chartRows} unit=" 원" emptyText={`조회된 ${moneyLabel} 내역이 없습니다.`} />
+      ) : (
+      <table className="w-full text-left">
+        <colgroup>
+          <col className="w-[4%]" /><col className="w-[12%]" /><col className="w-[18%]" />
+          <col /><col className="w-[14%]" /><col className="w-[12%]" /><col className="w-[20%]" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th></th>
+            <th className="text-center w-[190px] cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            {/* 원본 열 이름 그대로 — 수금현황·지급현황 둘 다 [거래처명]·[금액]·[적요] 다. */}
+            <th>거래처명</th>
+            <th className="text-right">금액</th>
+            <th className="text-center">{moneyLabel}방법</th>
+            <th>적요</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={6} className="text-center text-ec-ink">불러오는 중…</td></tr>
+          ) : shown.length === 0 ? (
+            <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+          ) : sort.sorted.map((r, i) => (
+            <tr key={r.id}>
+              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+              <td className="text-center">
+                {dateNo(r.settleDate, r.docNo)}
+              </td>
+              <td>{r.partnerName}</td>
+              <td className="text-right font-bold">{r.amount.toLocaleString()}</td>
+              <td className="text-center">{r.method ?? ''}</td>
+              <td className="text-ec-label">{r.note ?? ''}</td>
+            </tr>
+          ))}
+        </tbody>
+        {shown.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={3} className="text-right font-bold bg-ec-page">합계 ({shown.length}건)</td>
+              <td className="text-right font-bold bg-ec-page">{total.toLocaleString()}</td>
+              <td colSpan={2} className="bg-ec-page"></td>
+            </tr>
+          </tfoot>
+        )}
+      </table>
+      )}
+
+      {view === '표' && shown.length > 0 && (() => {
+        const groups = subtotalBy(shown,
+          (r) => (subtotal === methodLabel ? r.method
+            : subtotal === '거래처관리담당자' ? (managerOf.get(r.partnerId) || null)
+              : r.partnerName),
+          { amount: (r) => r.amount })
+        return (
+          <>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
+            <table className="w-full text-left">
+              <thead><tr>
+                <th>{subtotal}</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[160px] text-right">{moneyLabel}액</th>
+              </tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.label}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right font-bold">
+                      {g.sums.amount.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      })()}
+    </EcListShell>
+  )
+}
+
+export default function CollectionPage() {
+  return <SettlementStatusPage type="RECEIPT" title="수금현황" moneyLabel="수금" />
+}

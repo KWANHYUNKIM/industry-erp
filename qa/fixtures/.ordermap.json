@@ -1,15 +1,15 @@
 [
  [
   "거래처리스트",
-  "trade/PartnersPage.tsx"
+  "trade/partner/PartnersPage.tsx"
  ],
  [
   "거래처별채권",
-  "trade/LedgerPage.tsx"
+  "trade/arap/LedgerPage.tsx"
  ],
  [
   "거래처별채무",
-  "trade/LedgerPage.tsx"
+  "trade/arap/LedgerPage.tsx"
  ],
  [
   "거래처특별단가그룹",
@@ -21,11 +21,11 @@
  ],
  [
   "구매단가일괄변경",
-  "trade/PriceBulkScreen.tsx"
+  "trade/price/PriceBulkScreen.tsx"
  ],
  [
   "구매일괄회계반영",
-  "trade/AccountingReflectionPage.tsx"
+  "trade/sales/AccountingReflectionPage.tsx"
  ],
  [
   "근태조회",
@@ -73,15 +73,15 @@
  ],
  [
   "오더관리유형리스트",
-  "trade/OrderTypePage.tsx"
+  "trade/ordertype/OrderTypePage.tsx"
  ],
  [
   "오더관리진행단계",
-  "trade/OrderStagePage.tsx"
+  "trade/ordertype/OrderStagePage.tsx"
  ],
  [
   "외주비할인현황",
-  "trade/OutsourcingDiscountPage.tsx"
+  "trade/report/OutsourcingDiscountPage.tsx"
  ],
  [
   "일별이익현황",
@@ -137,7 +137,7 @@
  ],
  [
   "결제내역조회",
-  "trade/PaymentHistoryPage.tsx"
+  "trade/sales/PaymentHistoryPage.tsx"
  ],
  [
   "BOR(작업소요시간)",
@@ -149,11 +149,11 @@
  ],
  [
   "거래명세서인쇄",
-  "trade/StatementPrintPage.tsx"
+  "trade/sales/StatementPrintPage.tsx"
  ],
  [
   "거래처중심입력",
-  "trade/PartnerEntryPage.tsx"
+  "trade/partner/PartnerEntryPage.tsx"
  ],
  [
   "건설예정공정표",
@@ -161,19 +161,19 @@
  ],
  [
   "결제내역자료비교",
-  "trade/PaymentComparePage.tsx"
+  "trade/sales/PaymentComparePage.tsx"
  ],
  [
   "구매할인현황",
-  "trade/PurchaseDiscountPage.tsx"
+  "trade/report/PurchaseDiscountPage.tsx"
  ],
  [
   "구매현황",
-  "trade/PurchaseStatusPage.tsx"
+  "trade/purchase/PurchaseStatusPage.tsx"
  ],
  [
   "미출하현황",
-  "trade/UnshippedPage.tsx"
+  "trade/shipment/UnshippedPage.tsx"
  ],
  [
   "생산불출현황",
@@ -221,23 +221,23 @@
  ],
  [
   "출하조회",
-  "trade/ShipmentInquiryPage.tsx"
+  "trade/shipment/ShipmentInquiryPage.tsx"
  ],
  [
   "출하지시서현황",
-  "trade/ShipmentOrderStatusPage.tsx"
+  "trade/shipmentorder/ShipmentOrderStatusPage.tsx"
  ],
  [
   "출하현황",
-  "trade/ShipmentPage.tsx"
+  "trade/shipment/ShipmentPage.tsx"
  ],
  [
   "판매할인현황",
-  "trade/SalesDiscountPage.tsx"
+  "trade/report/SalesDiscountPage.tsx"
  ],
  [
   "판매현황",
-  "trade/SalesStatusPage.tsx"
+  "trade/sales/SalesStatusPage.tsx"
  ],
  [
   "표준원가현황",
@@ -245,43 +245,43 @@
  ],
  [
   "판매입력",
-  "trade/TradeEntry.tsx"
+  "trade/sales/TradeEntry.tsx"
  ],
  [
   "구매입력",
-  "trade/TradeEntry.tsx"
+  "trade/sales/TradeEntry.tsx"
  ],
  [
   "판매조회",
-  "trade/TradeInquiryPage.tsx"
+  "trade/sales/TradeInquiryPage.tsx"
  ],
  [
   "구매조회",
-  "trade/TradeInquiryPage.tsx"
+  "trade/sales/TradeInquiryPage.tsx"
  ],
  [
   "판매단가일괄변경",
-  "trade/SalesPriceBulkPage.tsx"
+  "trade/price/SalesPriceBulkPage.tsx"
  ],
  [
   "판매일괄회계반영",
-  "trade/AccountingReflectionPage.tsx"
+  "trade/sales/AccountingReflectionPage.tsx"
  ],
  [
   "회계미반영현황(판매)",
-  "trade/AccountingReflectionPage.tsx"
+  "trade/sales/AccountingReflectionPage.tsx"
  ],
  [
   "회계미반영현황 (구매)",
-  "trade/AccountingReflectionPage.tsx"
+  "trade/sales/AccountingReflectionPage.tsx"
  ],
  [
   "수금현황",
-  "trade/CollectionPage.tsx"
+  "trade/arap/CollectionPage.tsx"
  ],
  [
   "지급현황",
-  "trade/PaymentPage.tsx"
+  "trade/arap/PaymentPage.tsx"
  ],
  [
   "업무일지",
@@ -293,11 +293,11 @@
  ],
  [
   "출하지시서입력",
-  "trade/ShipmentOrderEntry.tsx"
+  "trade/shipmentorder/ShipmentOrderEntry.tsx"
  ],
  [
   "출하지시서조회",
-  "trade/ShipmentOrderPage.tsx"
+  "trade/shipmentorder/ShipmentOrderPage.tsx"
  ],
  [
   "출하입력",
@@ -317,11 +317,11 @@
  ],
  [
   "거래처관리대장 I",
-  "trade/LedgerPage.tsx"
+  "trade/arap/LedgerPage.tsx"
  ],
  [
   "거래처관리대장 II",
-  "trade/PartnersPage.tsx"
+  "trade/partner/PartnersPage.tsx"
  ],
  [
   "출_퇴근기록부(ID)",
@@ -353,7 +353,7 @@
  ],
  [
   "판매입력II",
-  "trade/TradeEntry.tsx"
+  "trade/sales/TradeEntry.tsx"
  ],
  [
   "ECDrive",
@@ -361,15 +361,15 @@
  ],
  [
   "발주서",
-  "trade/PurchaseOrderPage.tsx"
+  "trade/purchaseorder/PurchaseOrderPage.tsx"
  ],
  [
   "발주서현황",
-  "trade/PurchaseOrderStatusPage.tsx"
+  "trade/purchaseorder/PurchaseOrderStatusPage.tsx"
  ],
  [
   "단가요청진행단계",
-  "trade/PriceRequestProgressPage.tsx"
+  "trade/pricerequest/PriceRequestProgressPage.tsx"
  ],
  [
   "카드등록",
@@ -405,11 +405,11 @@
  ],
  [
   "쇼핑몰품목코드연결",
-  "trade/MallItemMappingPage.tsx"
+  "trade/mall/MallItemMappingPage.tsx"
  ],
  [
   "견적서",
-  "trade/QuotationPage.tsx"
+  "trade/quotation/QuotationPage.tsx"
  ],
  [
   "재고현황",
@@ -433,11 +433,11 @@
  ],
  [
   "현황누계표",
-  "trade/MonthlyCumulativePage.tsx"
+  "trade/report/MonthlyCumulativePage.tsx"
  ],
  [
   "집계표",
-  "trade/PivotSummaryPage.tsx"
+  "trade/report/PivotSummaryPage.tsx"
  ],
  [
   "창고별재고현황",
@@ -445,7 +445,7 @@
  ],
  [
   "거래이력조회",
-  "trade/TradeHistoryPage.tsx"
+  "trade/report/TradeHistoryPage.tsx"
  ],
  [
   "재고변동표",
@@ -453,7 +453,7 @@
  ],
  [
   "판매구매집계표",
-  "trade/SalesPurchaseSummaryPage.tsx"
+  "trade/report/SalesPurchaseSummaryPage.tsx"
  ],
  [
   "BOM환산재고현황",
@@ -473,7 +473,7 @@
  ],
  [
   "단가변동표",
-  "trade/PriceMovementPage.tsx"
+  "trade/price/PriceMovementPage.tsx"
  ],
  [
   "A/S소모현황",
@@ -501,11 +501,11 @@
  ],
  [
   "특별단가등록",
-  "trade/SpecialPricePage.tsx"
+  "trade/price/SpecialPricePage.tsx"
  ],
  [
   "조건별검색",
-  "trade/ConditionSearchPage.tsx"
+  "trade/report/ConditionSearchPage.tsx"
  ],
  [
   "의료기기공급내역보고",
@@ -525,7 +525,7 @@
  ],
  [
   "거래처등록",
-  "trade/PartnersPage.tsx"
+  "trade/partner/PartnersPage.tsx"
  ],
  [
   "시리얼/로트No.등록",
@@ -549,15 +549,15 @@
  ],
  [
   "매출계획",
-  "trade/SalesPlanPage.tsx"
+  "trade/salesplan/SalesPlanPage.tsx"
  ],
  [
   "매출계획입력",
-  "trade/SalesPlanPage.tsx"
+  "trade/salesplan/SalesPlanPage.tsx"
  ],
  [
   "매출계획조회",
-  "trade/SalesPlanPage.tsx"
+  "trade/salesplan/SalesPlanPage.tsx"
  ],
  [
   "창고이동조회",
@@ -605,11 +605,11 @@
  ],
  [
   "발주서입력",
-  "trade/PurchaseOrderPage.tsx"
+  "trade/purchaseorder/PurchaseOrderPage.tsx"
  ],
  [
   "발주서조회",
-  "trade/PurchaseOrderPage.tsx"
+  "trade/purchaseorder/PurchaseOrderPage.tsx"
  ],
  [
   "기타이동현황",
@@ -617,15 +617,15 @@
  ],
  [
   "매출계획비교표",
-  "trade/SalesPlanPage.tsx"
+  "trade/salesplan/SalesPlanPage.tsx"
  ],
  [
   "매출계획현황",
-  "trade/SalesPlanStatusPage.tsx"
+  "trade/salesplan/SalesPlanStatusPage.tsx"
  ],
  [
   "오더관리유형등록",
-  "trade/OrderTypePage.tsx"
+  "trade/ordertype/OrderTypePage.tsx"
  ],
  [
   "자가사용현황",
@@ -649,47 +649,47 @@
  ],
  [
   "미구매현황",
-  "trade/UnpurchasedStatusPage.tsx"
+  "trade/report/UnpurchasedStatusPage.tsx"
  ],
  [
   "발주요청현황",
-  "trade/PurchaseRequestStatusPage.tsx"
+  "trade/purchaserequest/PurchaseRequestStatusPage.tsx"
  ],
  [
   "발주계획현황",
-  "trade/PurchaseRequestStatusPage.tsx"
+  "trade/purchaserequest/PurchaseRequestStatusPage.tsx"
  ],
  [
   "단가요청현황",
-  "trade/PurchaseRequestStatusPage.tsx"
+  "trade/purchaserequest/PurchaseRequestStatusPage.tsx"
  ],
  [
   "견적서조회",
-  "trade/QuotationPage.tsx"
+  "trade/quotation/QuotationPage.tsx"
  ],
  [
   "주문서현황",
-  "trade/SalesOrderStatusPage.tsx"
+  "trade/salesorder/SalesOrderStatusPage.tsx"
  ],
  [
   "미주문현황",
-  "trade/UnorderedStatusPage.tsx"
+  "trade/report/UnorderedStatusPage.tsx"
  ],
  [
   "미판매현황",
-  "trade/UnsoldStatusPage.tsx"
+  "trade/report/UnsoldStatusPage.tsx"
  ],
  [
   "거래처관리대장1(채권)",
-  "trade/PartnerLedgerPage.tsx"
+  "trade/partner/PartnerLedgerPage.tsx"
  ],
  [
   "거래처관리대장1(채무)",
-  "trade/PartnerLedgerPage.tsx"
+  "trade/partner/PartnerLedgerPage.tsx"
  ],
  [
   "견적서현황",
-  "trade/QuotationPage.tsx"
+  "trade/quotation/QuotationPage.tsx"
  ],
  [
   "결제대행사등록",
@@ -701,11 +701,11 @@
  ],
  [
   "월별채권증감내역",
-  "trade/MonthlyArApPage.tsx"
+  "trade/arap/MonthlyArApPage.tsx"
  ],
  [
   "월별채무증감내역",
-  "trade/MonthlyArApPage.tsx"
+  "trade/arap/MonthlyArApPage.tsx"
  ],
  [
   "일별근무시간(ID)",
@@ -721,15 +721,15 @@
  ],
  [
   "채권현황",
-  "trade/ArApStatusPage.tsx"
+  "trade/arap/ArApStatusPage.tsx"
  ],
  [
   "채무현황",
-  "trade/ArApStatusPage.tsx"
+  "trade/arap/ArApStatusPage.tsx"
  ],
  [
   "채권/채무현황",
-  "trade/ArApStatusPage.tsx"
+  "trade/arap/ArApStatusPage.tsx"
  ],
  [
   "출/퇴근기록부(ID)",
@@ -765,11 +765,11 @@
  ],
  [
   "Invoice / Packing List",
-  "trade/ExportPage.tsx"
+  "trade/export/ExportPage.tsx"
  ],
  [
   "Invoice/Packing List Status",
-  "trade/ExportStatusPage.tsx"
+  "trade/export/ExportStatusPage.tsx"
  ],
  [
   "매입(세금)계산서현황(재고)",
@@ -893,19 +893,19 @@
  ],
  [
   "주문서조회",
-  "trade/SalesOrderPage.tsx"
+  "trade/salesorder/SalesOrderPage.tsx"
  ],
  [
   "발주요청조회",
-  "trade/PurchaseRequestListPage.tsx"
+  "trade/purchaserequest/PurchaseRequestListPage.tsx"
  ],
  [
   "발주계획조회",
-  "trade/PurchasePlanListPage.tsx"
+  "trade/purchaseplan/PurchasePlanListPage.tsx"
  ],
  [
   "단가요청조회",
-  "trade/PriceRequestListPage.tsx"
+  "trade/pricerequest/PriceRequestListPage.tsx"
  ],
  [
   "매출(세금)계산서현황(재고)",
