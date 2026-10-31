@@ -26,4 +26,5 @@ run ui-check  node qa/ui-check.mjs
 run dto-check node qa/dto-check.mjs
 run arch      node qa/arch-check.mjs
 run style     node qa/style-check.mjs
+run front     node qa/front-guard.mjs
 exit $fail
