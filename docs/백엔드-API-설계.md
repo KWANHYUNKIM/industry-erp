@@ -129,13 +129,23 @@
 | 단계 | 할 일 | 위험 | 확인 |
 |---|---|---|---|
 | **0. 전 기간 올리기 막기 (P1)** | `CostService.weightedAvgUnitCosts`(:325, :348) 를 `findWithRefsAndLinesByPeriod(월초, 월말)` 같은 기간 쿼리로. `SalesService/PurchaseService.findAll` 은 기간 없으면 **기본 기간(이번 달)** 또는 상한(예 5,000줄) + 넘으면 400 | 기간 없이 부르던 화면(대시보드 · 불러오기 창)이 줄어든 결과를 받는다 → 그 화면 목록을 grep 해 기간을 넘기게 | `qa/qa.mjs` 원가 · 판매 · 구매 · `screen-check sales` · 회사 0001(38만 줄) 에서 원가 계산 응답 시간 · 힙 |
-| **1. ProblemDetail (P3)** | `spring.mvc.problemdetails.enabled: true` + `GlobalExceptionHandler` 가 `ProblemDetail` 반환(지금 상태코드 매핑 그대로). 확장 필드 `message`(지금 문구) · `permission`(권한 거부) · `errors[]`(필드 오류) 유지 | 프론트 `client.ts:77` 는 `data.message` 를 읽으니 **message 를 남기면 무변경**. Content-Type 이 `application/problem+json` 으로 바뀜 → axios 는 그대로 JSON 파싱 | `qa/qa.mjs` 오류 케이스(400 · 403 · 404) · 판매입력에서 필수칸 빼고 저장 → 안내 문구 같음 |
-| **2. springdoc + 타입 생성 (P2)** | `springdoc-openapi-starter-webmvc-ui`(v2) · Security 에 `/v3/api-docs/**` 허용(로컬만, 운영은 끔). `frontend` 에 `openapi-typescript` 로 `src/types/generated.ts` 생성 스크립트 · `npm run gen:api` | 첫 생성본은 **기존 `types/api.ts` 와 이름이 다르다** → 한 번에 갈아끼우지 말고, 화면을 고칠 일이 생길 때 그 화면부터 생성 타입으로(CLAUDE.md 4.4 와 같은 방식). `Map<String,…>` 13곳 · 제네릭 `ResponseEntity<?>` 는 스펙이 흐려진다 | 생성본 커밋 후 `npm run typecheck` · `dto-check` 와 결과 비교. CI 대신 `precommit.sh` 에 "스펙 다시 뽑아서 diff 없음" 단계(서버가 떠 있을 때만) |
-| **3. 검증 채우기 (P5)** | `@Valid` 빠진 `@RequestBody` 88곳 · 일괄 id 목록에 `@NotEmpty` · 컨트롤러에 쿼리 검증. `qa/arch-check.mjs` 또는 새 래칫에 "`@RequestBody` 앞 `@Valid` 없음" 수 기준 | 지금까지 통과하던 이상한 요청(빈 배열 등)이 400 이 된다 → 프론트가 빈 선택으로 부르던 곳이 드러남(좋은 일) | `qa/qa.mjs` 전체 · `qa/flows/*.json` |
+| **1. ProblemDetail (P3)** — 고침(0e92b187) | `spring.mvc.problemdetails.enabled: true` + `GlobalExceptionHandler` 가 `ProblemDetail` 반환(지금 상태코드 매핑 그대로). 확장 필드 `message`(지금 문구) · `permission`(권한 거부) · `errors[]`(필드 오류) 유지 | 프론트 `client.ts:77` 는 `data.message` 를 읽으니 **message 를 남기면 무변경**. Content-Type 이 `application/problem+json` 으로 바뀜 → axios 는 그대로 JSON 파싱 | `qa/qa.mjs` 오류 케이스(400 · 403 · 404) · 판매입력에서 필수칸 빼고 저장 → 안내 문구 같음 |
+| **2. springdoc + 타입 생성 (P2)** — 고침(6d5b627e, 스크립트까지) | `springdoc-openapi-starter-webmvc-ui`(v2) · Security 에 `/v3/api-docs/**` 허용(로컬만, 운영은 끔). `frontend` 에 `openapi-typescript` 로 `src/types/generated.ts` 생성 스크립트 · `npm run gen:api` | 첫 생성본은 **기존 `types/api.ts` 와 이름이 다르다** → 한 번에 갈아끼우지 말고, 화면을 고칠 일이 생길 때 그 화면부터 생성 타입으로(CLAUDE.md 4.4 와 같은 방식). `Map<String,…>` 13곳 · 제네릭 `ResponseEntity<?>` 는 스펙이 흐려진다 | 생성본 커밋 후 `npm run typecheck` · `dto-check` 와 결과 비교. CI 대신 `precommit.sh` 에 "스펙 다시 뽑아서 diff 없음" 단계(서버가 떠 있을 때만) |
+| **3. 검증 채우기 (P5)** — 일부 고침(2a148c9d) | `@Valid` 빠진 `@RequestBody` 88곳 · 일괄 id 목록에 `@NotEmpty` · 컨트롤러에 쿼리 검증. `qa/arch-check.mjs` 또는 새 래칫에 "`@RequestBody` 앞 `@Valid` 없음" 수 기준 | 지금까지 통과하던 이상한 요청(빈 배열 등)이 400 이 된다 → 프론트가 빈 선택으로 부르던 곳이 드러남(좋은 일) | `qa/qa.mjs` 전체 · `qa/flows/*.json` |
 | **4. 페이징 표준 (P1 마무리)** | 목록 API 규칙: `from`·`to` 필수(또는 기본값) + `page`·`size`(기본 size 상한). 응답은 Spring `PagedModel` 꼴 `{content, page:{number,size,totalElements}}` 하나로. **Ecount 쪽번호 화면부터**(판매조회 · 구매조회 · 전표조회) | 프론트 목록 훅이 배열 대신 객체를 받는다 → 화면별로 옮기며 `EcListShell` 쪽번호에 연결. fetch join + `Pageable` 은 HHH000104(메모리 자르기)라 **id 만 먼저 페이징 → 그 id 로 fetch join** 두 번 쿼리 | `screen-check` · 쪽번호 넘김 흐름 하나 `qa/flows` 에 |
-| **5. 관측 최소 (P4)** | `spring-boot-starter-actuator` (health · metrics · `jvm.memory.used` · `http.server.requests`), 노출은 로컬만. 요청마다 `X-Request-Id` 필터 → MDC → 로그 패턴 · ProblemDetail `instance`/확장필드에 실어 화면 오류창에서 보이게. 느린 쿼리는 Hibernate `log_queries_slower_than_ms` | 액추에이터 엔드포인트가 인증 없이 열리면 안 된다(Security 에서 `health` 만 허용) | `curl /actuator/health` · 힙이 오르는지 `/actuator/metrics/jvm.memory.used` 로 FIFO 같은 화면 열며 보기 |
-| **6. 중복 제출 (P6)** | ① 프론트 저장 버튼 처리 중 잠금(공용 `EcSlip*` 저장 한 곳) ② 그래도 필요하면 판매 · 구매 · 전표 저장만 `Idempotency-Key` 헤더 + 표 하나(본사 · 테넌트 마이그레이션 둘 다 — CLAUDE.md 7.4) | ②는 테넌트 마이그레이션 · 키 만료 청소가 따라온다 → ①만으로 충분한지 먼저 본다 | 저장 버튼 두 번 빠르게 누르는 흐름 하나 `qa/flows` |
+| **5. 관측 최소 (P4)** — 고침(0560df8c, health · info 만) | `spring-boot-starter-actuator` (health · metrics · `jvm.memory.used` · `http.server.requests`), 노출은 로컬만. 요청마다 `X-Request-Id` 필터 → MDC → 로그 패턴 · ProblemDetail `instance`/확장필드에 실어 화면 오류창에서 보이게. 느린 쿼리는 Hibernate `log_queries_slower_than_ms` | 액추에이터 엔드포인트가 인증 없이 열리면 안 된다(Security 에서 `health` 만 허용) | `curl /actuator/health` · 힙이 오르는지 `/actuator/metrics/jvm.memory.used` 로 FIFO 같은 화면 열며 보기 |
+| **6. 중복 제출 (P6)** — ① 고침(50231dd9) | ① 프론트 저장 버튼 처리 중 잠금(공용 `EcSlip*` 저장 한 곳) ② 그래도 필요하면 판매 · 구매 · 전표 저장만 `Idempotency-Key` 헤더 + 표 하나(본사 · 테넌트 마이그레이션 둘 다 — CLAUDE.md 7.4) | ②는 테넌트 마이그레이션 · 키 만료 청소가 따라온다 → ①만으로 충분한지 먼저 본다 | 저장 버튼 두 번 빠르게 누르는 흐름 하나 `qa/flows` |
 | **7. 정리 (P7, 만질 때마다)** | `POST /delete` → `DELETE /api/x?ids=…` 또는 `POST /api/x:batchDelete` 중 하나로 이름 통일 · 컨트롤러 리포지토리 3곳을 서비스로 · 모듈 간 리포지토리 54건 줄이기 · CLAUDE.md 4.4 숫자 갱신 | URL 을 바꾸면 프론트 호출부도 → 생성 타입(2단계) 이후가 안전 | `arch-check` 래칫 |
+
+### 4.1 고침 기록 (2026-10-31)
+
+| 단계 | 커밋 | 한 것 | 남은 것 |
+|---|---|---|---|
+| 1 ProblemDetail | 0e92b187 · 0560df8c | `GlobalExceptionHandler` 가 전부 `ProblemDetail`(`application/problem+json`) — `type · title · status · detail · instance` + 확장 `message`(= detail, 5장 2번 기본값대로 유지) · `timestamp` · `permission` · `errors[{field, message}]`(본문 검증) · `requestId`. 상태코드 매핑은 그대로. **500 은 예외 문구를 응답에 안 싣고** `log.error` 로 스택을 남긴다(응답은 "서버 오류가 발생했습니다. (요청 번호 …)"). `spring.mvc.problemdetails.enabled` 는 **켜지 않았다** — Boot 의 `ProblemDetailsExceptionHandler` 가 우리 핸들러와 겹쳐 영어 기본 문구가 나갈 수 있다(우리 핸들러가 이미 모든 예외를 받는다) | 보안 필터가 직접 쓰는 401(`security/JwtAuthenticationEntryPoint`) · 403 본문은 옛 꼴 `{status, message, timestamp}` 그대로 — 보안 코더 파일이라 안 건드림. 프론트 칸 빨간 테두리를 `errors[]` 로 잇는 것은 화면을 고칠 때 |
+| 3 검증 | 2a148c9d | DTO 본문 49곳에 `@Valid` — 제약 있는 16곳(글자 길이 `@Size` = DB 칸 길이라 400 이 그대로 400 · 비용 통제확인은 저장과 같은 본문 · AS 수정 줄 · 보안정책 0 이상)은 이제 검증, 제약 없는 33곳은 무동작(앞으로 제약을 달면 바로 먹는다) | `List`/`Map` 본문 35곳(일괄 id 목록 등)은 그대로 — `@NotEmpty` 를 달면 빈 선택으로 부르던 곳이 400 이 되어 **동작이 바뀐다**. 쿼리 · 경로 `@Validated` · "`@RequestBody` 앞 `@Valid`" 래칫도 아직 |
+| 5 관측 | 0560df8c | Actuator — 웹 노출 `health · info` 만(`show-details: never`, 나머지는 닫힘 · SecurityConfig 는 두 경로 허용 한 줄). `common/RequestIdFilter`(가장 먼저 도는 필터): `X-Request-Id` 를 받거나(영숫자 · `._-` 64자까지만, 로그 위조 막기) 만들어 MDC `requestId` · 응답 머리. 로그 패턴 `logging.pattern.level: "%5p [%X{requestId:-}]"` | metrics(힙 · 응답시간) 노출 · 느린 쿼리 로그 |
+| 6 중복 제출 ① | 50231dd9 | `EcSlipShell` 한 곳: [저장] 을 받으면 그 뒤 요청이 다 끝날 때까지 다음 저장을 버린다(`utils/saveLock` · `api/client` 도는 요청 수). 저장 단추 · ▴'저장…' 항목 · F7 · F8 · form 제출(칸에서 Enter) 전부. 잠긴 동안 저장 단추 흐림. `qa/flows/double-save-guard.json` 통과 | ② 서버 `Idempotency-Key` 는 5장 5번 결정 전이라 안 함. `EcSlipShell` 을 안 쓰는 저장 창(모달 입력 등)은 화면별 `useSubmitting` 그대로 |
+| 2 springdoc | 6d5b627e | `springdoc-openapi-starter-webmvc-api` 2.8.13(화면 없이 JSON). `/v3/api-docs` 는 **dev 프로필에서만** 연다(application.yml 아래 `on-profile: dev` 문서, 5장 3번 기본값). 열려도 로그인한 요청만(SecurityConfig 손 안 댐). `frontend` `npm run gen:api`(`scripts/gen-api.mjs` — 로그인 → 스펙 → `openapi-typescript@7.13.0` → `src/types/generated.ts`). 시험 생성: 스펙 811KB → 54,876줄 | `types/api.ts` 이관(5장 4번) · 생성본 커밋 · precommit 의 "스펙 diff 없음" 단계 |
 
 **지금은 안 함**: API 버전(`/v1`) · 계약 우선(yaml 먼저) · orval/React Query 전환 · 커서 페이징 · 응답 봉투 · MapStruct · 분산 추적 수집기 · REST Docs · `@WebMvcTest` 전면 · 멀티모듈.
 
@@ -144,8 +154,8 @@
 ## 5. 정할 것
 
 1. **목록 기본 기간** — 기간 없이 부르면 (a) 이번 달로 본다 (b) 400 을 낸다 (c) 상한 줄 수까지만. Ecount 원본은 화면마다 기본 기간이 있으니 **(a)** 추천, 단 화면별 기본값을 프론트가 이미 보내는지 먼저 확인.
-2. **ProblemDetail 로 바꿀 때 `message` 를 영구히 둘지** — 추천: 둔다(프론트는 `api/client.ts` 한 곳에서 `data.message` 를 읽어 화면들에 넘긴다 — 무변경). `detail` 과 같은 값.
-3. **springdoc 을 운영에서 켤지** — 추천: 로컬 · 개발 프로파일만.
+2. **ProblemDetail 로 바꿀 때 `message` 를 영구히 둘지** (지금은 기본값대로 둠 — 0e92b187) — 추천: 둔다(프론트는 `api/client.ts` 한 곳에서 `data.message` 를 읽어 화면들에 넘긴다 — 무변경). `detail` 과 같은 값.
+3. **springdoc 을 운영에서 켤지** (지금은 기본값대로 dev 만 — 6d5b627e) — 추천: 로컬 · 개발 프로파일만.
 4. **생성 타입으로 옮기는 방식** — 한 번에(하루 묶어 `types/api.ts` 교체) vs 화면 고칠 때마다. 추천: 화면 고칠 때마다(지금 Fixing 과 충돌 안 함).
-5. **멱등키까지 갈지** — 프론트 버튼 잠금만 하고 지켜볼지.
+5. **멱등키까지 갈지** (버튼 잠금은 함 — 50231dd9) — 프론트 버튼 잠금만 하고 지켜볼지.
 6. CLAUDE.md 에 "목록 API 는 기간 · 상한 필수", "`@RequestBody` 는 `@Valid`", "오류는 ProblemDetail" 세 줄을 규칙으로 넣을지.
