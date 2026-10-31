@@ -42,12 +42,12 @@
       ]
     },
     {
-      "name": "구매조회 — 번호 다음 체크박스 열, 그 구매의 [불러온전표] 는 주황 꼬리표 '조회'",
+      "name": "구매조회 — 맨 앞 체크박스 열(번호 열 없음, 2026-10-31 loginad), 그 구매의 [불러온전표] 는 주황 꼬리표 '조회'",
       "path": "/sales/purchase-list",
       "steps": [
         "wait:2000",
         "expect:!!document.querySelector('thead input[type=checkbox][aria-label=\"전체 선택\"]')",
-        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ptpBuyLong')));if(!tr)return false;const b=tr.cells[tr.cells.length-1].querySelector('button');return !!tr.cells[1].querySelector('input[type=checkbox]')&&b.textContent.trim()==='조회'&&b.className.includes('ec-tag-warn')})()"
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ptpBuyLong')));if(!tr)return false;const b=tr.cells[tr.cells.length-1].querySelector('button');return !!tr.cells[0].querySelector('input[type=checkbox]')&&b.textContent.trim()==='조회'&&b.className.includes('ec-tag-warn')})()"
       ]
     },
     {
@@ -60,8 +60,10 @@
         "expect:document.querySelector('input.code[placeholder=\"담당자\"]').value===''",
         "clicklast:발주",
         "wait:2500",
+        "click:라인별",
+        "wait:400",
         "js:(async()=>{const find=()=>[...document.querySelectorAll('tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ptpPoDoc'))&&t.querySelector('input[type=checkbox]'));let tr=find();for(let k=0;k<30&&!tr;k++){await new Promise((r)=>setTimeout(r,500));tr=find()}if(!tr)return 'no row: '+document.body.innerText.slice(-300);const cb=tr.querySelector('input[type=checkbox]');if(!cb.checked)cb.click();return true})()",
-        "click:선택 담기",
+        "click:잔량적용(F8)",
         "wait:800",
         "expect:document.querySelector('input.code[placeholder=\"담당자\"]').value===sessionStorage.getItem('ptpEmpCode')"
       ]

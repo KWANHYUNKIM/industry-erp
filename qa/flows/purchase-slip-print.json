@@ -42,7 +42,7 @@
       "path": "/sales/purchase-list",
       "steps": [
         "wait:2500",
-        "js:(async()=>{const find=()=>[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells[1]&&t.cells[1].querySelector('input[type=checkbox]'));let rows=find();for(let k=0;k<30&&rows.length<2;k++){await new Promise((r)=>setTimeout(r,500));rows=find()}if(rows.length<2)return 'rows '+rows.length;rows.slice(0,2).forEach((t)=>t.cells[1].querySelector('input[type=checkbox]').click());return true})()",
+        "js:(async()=>{const find=()=>[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells[0]&&t.cells[0].querySelector('input[type=checkbox]'));let rows=find();for(let k=0;k<30&&rows.length<2;k++){await new Promise((r)=>setTimeout(r,500));rows=find()}if(rows.length<2)return 'rows '+rows.length;rows.slice(0,2).forEach((t)=>t.cells[0].querySelector('input[type=checkbox]').click());return true})()",
         "wait:300",
         "js:[...document.querySelectorAll('button')].filter((b)=>!b.closest('table')&&b.textContent.trim()==='인쇄').pop().click(); true",
         "wait:800",

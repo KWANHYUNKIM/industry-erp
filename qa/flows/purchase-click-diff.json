@@ -1,0 +1,81 @@
+{
+  "about": "구매조회 · 구매입력 클릭 대조(2026-10-31 loginad E040304 구매 QA): 구매조회 — 알약 전체 · 결재중 · 미확인 · 확인, 맨 앞 체크박스 열(번호 열 · ▸ 없음), 머리 품목명 · 거래유형, 조건 판 기준일자 · 거래유형 · 창고 · 프로젝트 · 거래처 · 품목 · 기타 차례, 판 아래 빠른선택에 말일 · 최근30일(+1개월) 있고 금년 없음, [Option] 검색항목설정 · 양식설정 · 조건양식설정 · 문서발송내역 · 리스트탭설정(+ 우리 회계반영 · 거래내역보기(구매)), 하단 신규(F2) · Email│▲ · 진행상태변경 · 보내기 · 인쇄│▲ · 바코드(품목)│▲ · 전자결재 · 선택삭제 · Excel · 이력조회. 구매입력 — 거래처 · 입고창고에 * 없음, 툴바 발주 · 주문 · 할인 · 전표불러오기 차례 · 소요 · 판매 · 보류 · 거래별부가세계산 없음(거래별부가세계산은 ⌄ 아래 줄), [발주] = '발주서조회' 창(알약 · 담당자명 · 발주금액합계 · 라인별 · 잔량적용(F8)▲ · Excel · 닫기 · 이력조회), [주문] = '주문서검색창(조회)'. 구매조회 [신규(F2)] 창 아래 줄 ✈ · 저장(F8)▲ · 저장/전표(F7) · 다시 작성 · 현금지급▲ · 닫기 · 웹자료올리기. 저장하는 것 없음. node qa/shot.mjs qa/flows/purchase-click-diff.json",
+  "shots": [
+    {
+      "name": "구매조회 — 알약 · 체크박스 열 · 머리 이름 · 하단 단추",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.textContent.replace(/\\s*\\(\\d+\\)$/, '').trim()).slice(0, 4).join('|') === '전체|결재중|미확인|확인'",
+        "expect:(() => { const th = document.querySelector('.ec-list-grid thead th'); return !!th.querySelector('input[type=checkbox]') && th.textContent.trim() === '' })()",
+        "expect:(() => { const h = [...document.querySelectorAll('.ec-list-grid thead th')].map((t) => t.textContent.trim()); return h.slice(1).join('|') === '일자-No.|거래처명|품목명|금액합계|거래유형|창고명|회계반영여부|인쇄|불러온전표' })()",
+        "expect:(() => { const td = document.querySelector('.ec-list-grid tbody tr td'); if (td.classList.contains('ec-empty')) return true; const r = td.parentElement; return !!td.querySelector('input[type=checkbox]') && !r.cells[1].textContent.includes('▸') })()",
+        "expect:(() => { const f = document.querySelector('.ec-footer-btns'); const row = [...f.children].map((c) => c.classList.contains('ec-btn-group') ? c.querySelector('button').textContent.trim() + '|▲' : c.textContent.replace(/▴/g, '').trim()); return row.join(' / ') === '신규(F2) / Email|▲ / 진행상태변경 / 보내기 / 인쇄|▲ / 바코드(품목)|▲ / 전자결재 / 선택삭제 / Excel / 이력조회' })()",
+        "js:(() => { [...document.querySelectorAll('.ec-footer-btns button')].find((b) => b.textContent.replace(/▴/g, '').trim() === '진행상태변경').click(); return true })()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('.ec-footer-btns .ec-menu button')].map((b) => b.textContent.trim()).join('|') === '미확인|확인'",
+        "js:(() => { document.querySelector('.ec-backdrop-clear').click(); return true })()",
+        "wait:200",
+        "click:이력조회",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('구매 이력조회'))"
+      ]
+    },
+    {
+      "name": "구매조회 — Option 메뉴(공용 + 회계반영 · 거래내역보기(구매))",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "wait:1500",
+        "click:Option",
+        "wait:300",
+        "expect:[...document.querySelectorAll('.ec-page-head .ec-menu[role=menu] > button, .ec-page-head .ec-menu[role=menu] > div > button')].map((b) => b.textContent.replace(/[▸▾]/g, '').trim()).join('|') === '검색항목설정|양식설정|조건양식설정|문서발송내역|리스트탭설정|회계반영|거래내역보기(구매)'"
+      ]
+    },
+    {
+      "name": "구매조회 — 조건 판 차례 · 빠른선택",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "wait:1500",
+        "click:Search(F3)",
+        "wait:500",
+        "expect:(() => { const ts = [...document.querySelectorAll('.ec-cond > li .title')].map((t) => t.textContent.trim()); return ts.slice(0, 7).join('|') === '기준일자|거래유형|창고|프로젝트|거래처|품목|기타' })()",
+        "expect:(() => { const t = document.body.innerText; const picks = [...document.querySelectorAll('button')].map((b) => b.textContent.trim()); return picks.includes('말일') && picks.includes('최근30일(+1개월)') && !picks.includes('금년') })()"
+      ]
+    },
+    {
+      "name": "구매입력 — * 없음 · 툴바 · [발주] 발주서조회 창 · [주문] 주문서검색창",
+      "path": "/sales/buy",
+      "steps": [
+        "wait:1500",
+        "expect:![...document.querySelectorAll('.ec-form .title .req')].length",
+        "expect:(() => { const t = [...document.querySelector('.ec-toolbar').querySelectorAll(':scope > button, :scope > span > button:first-child')].map((b) => b.textContent.trim()).filter(Boolean); const i = (x) => t.indexOf(x); return i('발주') >= 0 && i('주문') === i('발주') + 1 && i('할인') === i('주문') + 1 && i('전표불러오기') === i('할인') + 1 && !t.includes('소요') && !t.includes('판매') && !t.includes('보류') && !t.some((x) => x.startsWith('거래별부가세계산')) })()",
+        "js:[...document.querySelectorAll('.ec-toolbar button')].find((b) => b.title === '툴바 펼치기').click(); true",
+        "wait:200",
+        "expect:[...document.querySelectorAll('.ec-toolbar button')].some((b) => b.textContent.trim().startsWith('거래별부가세계산'))",
+        "js:[...document.querySelectorAll('.ec-toolbar button')].find((b) => b.textContent.trim() === '발주').click(); true",
+        "wait:2000",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const pills = [...d.querySelectorAll('.ec-pill')].map((b) => b.textContent.trim()).join('|'); const h = [...d.querySelectorAll('thead th')].map((t) => t.textContent.trim()).filter(Boolean).join('|'); const b = [...d.querySelectorAll('button')].map((x) => x.textContent.replace(/[▾▴]/g, '').trim()).filter(Boolean); return d.getAttribute('aria-label') === '발주서조회' && pills === '전체|결재중|미확인|확인|진행중|완료' && h === '일자-No.|거래처명|담당자명|품목명[규격명]|납기일자|발주금액합계|진행상태|생성한전표|인쇄' && b.join('|').endsWith('라인별|잔량적용(F8)|Excel|닫기|이력조회') && !!d.querySelector('button[aria-label=\"잔량적용(F8) 더보기\"]') })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:300",
+        "js:[...document.querySelectorAll('.ec-toolbar button')].find((b) => b.textContent.trim() === '주문').click(); true",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '주문서검색창(조회)'",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true"
+      ]
+    },
+    {
+      "name": "구매조회 [신규(F2)] 창 — ✈ · 저장(F8)▲ · 저장/전표(F7) · 다시 작성 · 현금지급▲ · 닫기 · 웹자료올리기",
+      "path": "/sales/purchase-list",
+      "steps": [
+        "wait:1500",
+        "js:(() => { window.__dlg = () => document.querySelector('[role=dialog]'); return true })()",
+        "click:신규(F2)",
+        "wait:1500",
+        "expect:[...window.__dlg().querySelector('.ec-slip-footer').querySelectorAll('button')].map((b) => b.textContent.trim() || b.getAttribute('aria-label')).filter((t) => t !== '⌄').join('|') === '보내기|저장(F8)|▴|저장/전표(F7)|다시 작성|현금지급|▴|닫기|웹자료올리기'",
+        "js:window.__dlg().querySelector('button[aria-label=\"저장(F8) 부가기능\"]').click(); true",
+        "wait:200",
+        "expect:[...window.__dlg().querySelector('button[aria-label=\"저장(F8) 부가기능\"]').parentElement.querySelectorAll(':scope > div button')].map((b) => b.textContent.trim()).join(' · ') === '저장/전자결재 · 저장/내용유지 · 저장/신규'"
+      ]
+    }
+  ]
+}

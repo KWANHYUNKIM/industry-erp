@@ -1080,12 +1080,12 @@
   "palette": 0
  },
  "pages/trade/TradeEntry.tsx": {
-  "inline": 40,
+  "inline": 39,
   "color": 13,
   "palette": 0
  },
  "pages/trade/TradeInquiryPage.tsx": {
-  "inline": 7,
+  "inline": 5,
   "color": 3,
   "palette": 0
  },

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
-import EcListShell from '../../components/EcListShell'
+import EcListShell, { slipListOptionMenu } from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
@@ -18,7 +18,7 @@ import Modal from '../../components/Modal'
 import EcSlipPrintModal, { type SlipPrintDoc } from '../../components/EcSlipPrintModal'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { EcCond } from '../../components/EcStatusPanel'
-import { ORDER_LIST_PICKS, periodOf } from '../../utils/periods'
+import { ORDER_LIST_PICKS, SELF_USE_PICKS, periodOf } from '../../utils/periods'
 
 /** 불러온 전표가 있는 구매의 [불러온전표] 주황 꼬리표(원본 실측: 바탕 --ec-tag-warn · 흰 글자 · 둥글기 6 — QuotationPage GEN_TAG 와 같다). */
 const SRC_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
@@ -100,8 +100,8 @@ const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'pur
 export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const cfg = CFG[mode]
   const isSales = mode === 'sales'
-  /* 이 줄의 이름은 화면마다 다르다 — 판매조회는 [기준일자], 구매조회는 [일자](사본 실측). */
-  const dateLabel = isSales ? '기준일자' : '일자'
+  /* 판매조회 · 구매조회 둘 다 [기준일자] 다(2026-10-31 loginad 구매 QA — 예전 사본 실측은 구매조회 [일자]). */
+  const dateLabel = '기준일자'
   /*
    * 고친 때를 묻는 줄도 화면마다 이름이 다르다 — 판매조회는 <b>[최종수정일시]</b>,
    * 구매조회는 <b>[최종작업일자]</b> 다(둘 다 실측).
@@ -162,6 +162,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   /** 목록의 [거래유형명]과 같은 규칙 — 부가세가 있으면 과세다(전표 입력과 같다). */
   // 전표가 거래유형(taxable)을 들고 오면 그것을 쓴다 — 외자 구매는 과세여도 부가세가 0 이다(원본 10/12-1 '부가세율 적용').
   const tradeTypeOf = (d: { vatAmount: number; taxable?: boolean }) => ((d.taxable ?? d.vatAmount !== 0) ? '부가세율 적용' : '면세')   // 반품은 부가세가 음수다 — > 0 이면 과세 반품이 면세로 찍혔다(26회차)
+  /*
+   * 알약 [전체 · 결재중 · 미확인 · 확인] — 판매조회 · 구매조회 둘 다(2026-10-31 loginad 구매 QA).
+   * 구매 전표에는 확인상태가 없다(서버 Purchase 에 상태 칸 없음) — 그래서 구매는 모두 '미확인' 으로 세고 결재중 · 확인은 비어 있다.
+   */
+  const inTab = (t: SalesTab, d: { confirmStatus?: SalesConfirmStatus }) =>
+    t === '전체' || (isSales ? d.confirmStatus === TAB_STATUS[t] : t === '미확인')
   // 원본 판매조회 · 구매조회 기간의 처음 값은 [최근30일(+1개월)] — 오늘−30 ~ 오늘+30(2026-10-30 판매조회 실측 2026/09/30 ~ 2026/11/29)
   const [from, setFrom] = useState(() => periodOf('최근30일(+1개월)')?.from ?? '')
   const [to, setTo] = useState(() => periodOf('최근30일(+1개월)')?.to ?? '')
@@ -424,7 +430,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     .filter((d) => !isSales || kindCond === '전체' || (kindCond === '판매 II') === !!d.inputII)
     .filter((d) => !from || d.date >= from)
     .filter((d) => !to || d.date <= to)
-    .filter((d) => !isSales || tab === '전체' || d.confirmStatus === TAB_STATUS[tab])
+    .filter((d) => inTab(tab, d))
     .sort((a, b) => (byUpdated
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
@@ -456,7 +462,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    */
   async function reflectSelected() {
     const picked = shown.filter((d) => selected.has(d.id))
-    if (picked.length === 0) { setError('회계로 넘길 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
+    if (picked.length === 0) { setError('회계로 넘길 전표를 체크박스로 고르세요.'); return }
     const targets = picked.filter((d) => !d.accountingReflected)
     const already = picked.length - targets.length
     if (targets.length === 0) { setError(`고른 ${picked.length}건이 이미 회계에 반영돼 있습니다.`); return }
@@ -501,16 +507,15 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     setError(failed.length === 0 ? '' : `지우지 못한 전표 ${failed.length}건 — ${failed.join(' / ')}`)
   }
 
-  const tabCount = (t: SalesTab) =>
-    docs.filter((d) => t === '전체' || d.confirmStatus === TAB_STATUS[t]).length
+  const tabCount = (t: SalesTab) => docs.filter((d) => inTab(t, d)).length
 
   /*
    * 2026-10-20 원본 판매조회 · 구매조회 둘 다 열은 번호 · 일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 거래유형명 · 창고명 ·
    * 회계반영여부 · 인쇄 · 불러온전표 열 개에서 끝나고 합계줄이 없다(구매조회는 같은 날 재고1c 실측 — 프로젝트명 · 공급가액 ·
    * 부가세 · 담당 · 세금계산서 열과 합계줄을 뺐다. 세금계산서는 매입(세금)계산서 화면에서 만든다).
    */
-  /* 구매조회는 번호 다음에 체크박스 열이 있다 — [선택삭제] 가 그것을 쓴다(2026-10-28 원본 실측). */
-  const colCount = isSales ? 10 : 11
+  /* 판매조회 · 구매조회 둘 다 맨 앞이 체크박스 열이고 번호 열은 없다(2026-10-31 loginad 판매 · 구매 QA). */
+  const colCount = 10
 
   /**
    * 원본은 일자와 전표번호를 '2026/08/03 -1' 로 한 칸에 적는다(게시글의 '일자-No.'와 같은 규칙).
@@ -585,6 +590,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   useTableColumnCheck(listRef, `${cfg.title} 목록`, [isSales, shown.length])
 
 
+  /*
+   * 원본 조건 판 <b>[기타]</b>. 2026-09-07 에 켜져 있는 원본(E040206 판매조회)을 열어
+   * 재 보니 [기타] 안에는 <b>[수정일자순(정렬)] 하나</b>가 들어 있다 —
+   * 기준일자 · 거래유형 · 내.외자구분 · 창고 · 프로젝트 · 거래처 · 품목 ·
+   * 발송여부 · <b>기타</b> · 적요 차례다(구매조회는 품목 바로 다음).
+   * 원본은 자잘한 체크박스를 이 이름으로 묶고 <b>우리도 묶는다</b>.
+   */
+  const etcCond = (
+    <EcCond label="기타">
+      <label className="text-[12.5px] flex items-center gap-[4px]">
+        <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+        수정일자순(정렬)
+      </label>
+    </EcCond>
+  )
+
   return (
     <EcListShell
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
@@ -605,7 +626,16 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         { label: '조건양식설정', onClick: notHere('조건양식설정') },
         { label: '문서발송내역', onClick: notHere('문서발송내역') },
         { label: '판매조회(OLD)', onClick: notHere('판매조회(OLD)') },
-      ] : undefined}
+      ] : [
+        /* 원본 구매조회 [Option](2026-10-31 loginad 구매 QA): 검색항목설정 · 양식설정 ▶ · 조건양식설정 · 문서발송내역 · 리스트탭설정 = 공용 slipListOptionMenu. */
+        ...slipListOptionMenu(),
+        /*
+         * [회계반영] · [거래내역보기(구매)] 는 원본 구매조회 하단에 없다. 우리 기능이라 지우지 않고 Option 맨 아래로 옮겼다.
+         * 회계반영 = 고른 전표를 회계로(POST /accounting-reflection/reflect), 거래내역보기 = 지금 고른 거래처(없으면 첫 줄 거래처)의 거래만.
+         */
+        { label: '회계반영', onClick: () => void reflectSelected() },
+        { label: '거래내역보기(구매)', onClick: () => setPartnerCond(partnerCond || (shown[0] ? String(shown[0].partnerId) : '')) },
+      ]}
       actions={isSales ? [
         /*
          * 원본 판매조회 하단(2026-10-31 loginad E040206 실측): 신규(F2) · [Email│▲ 카카오톡] · [진행상태변경 ▲] · [보내기 ▲] ·
@@ -614,7 +644,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
          * 보내기(E Note · 대화방 · 사용자 · 북마크 — 작업지시서조회 QA) · 전자결재 · 카카오톡 · 바코드는 받쳐 줄 것이 없어 안내만.
          */
         { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE), menu: [{ label: '카카오톡', onClick: notHere('카카오톡') }] },
-        { label: '진행상태변경', menuOnly: true, menu: [
+        { label: '진행상태변경', menuOnly: true, selected: selected.size, menu: [
           { label: '미확인', onClick: () => void confirmSelected('unconfirm') },
           { label: '확인', onClick: () => void confirmSelected('confirm') },
         ] },
@@ -632,18 +662,25 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           { label: '판매 II 이력조회', onClick: () => setHistoryMenu('판매II') },
         ] },
       ] : [
-        /* 원본 버튼줄 차례: … 선택삭제 앞이 <b>[회계반영]</b> 이다. */
-        { label: `회계반영${selected.size ? ` (${selected.size})` : ''}`,
-          onClick: () => void reflectSelected(), disabled: selected.size === 0 },
-        { label: '선택삭제', onClick: () => void deleteSelected(), selected: selected.size },
         /*
-         * 원본 [거래내역보기(구매)] — 지금 고른 거래처의 거래만 남긴다.
-         * 조회 화면에서 한 거래처만 훑고 싶을 때 조건을 다시 고르지 않아도 된다.
+         * 원본 구매조회 하단(2026-10-31 loginad E040304 구매 QA): 신규(F2) · Email▲ · 진행상태변경▲ · 보내기▲ · 인쇄▲ · 바코드(품목)▲ ·
+         * 전자결재 · 선택삭제 · Excel · 닫기 · 이력조회 — 판매조회와 같은 꼴(FooterButton menu / menuOnly). ▲ 안 항목은 판매조회에서 잰 것.
+         * [닫기] 는 목록 화면을 닫는 원본 탭 단추라 두지 않는다(판매조회도 없음). [회계반영] · [거래내역보기(구매)] 는 Option 으로 옮겼다.
          */
-        { label: isSales ? '거래내역보기(판매)' : '거래내역보기(구매)',
-          onClick: () => setPartnerCond(partnerCond || (shown[0] ? String(shown[0].partnerId) : '')) },
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE), menu: [{ label: '카카오톡', onClick: notHere('카카오톡') }] },
+        /* 구매 전표에는 확인상태가 없다(서버 Purchase 에 칸 없음) — 고른 줄이 없으면 원본 알림, 있으면 안내만. */
+        { label: '진행상태변경', menuOnly: true, selected: selected.size, menu: ['미확인', '확인'].map((l) => ({ label: l, onClick: () => void ecAlert(
+          selected.size === 0 ? NO_SELECTION_MESSAGE : '구매 전표에는 확인상태가 없습니다(진행상태변경은 판매 전표에서 씁니다).') })) },
+        { label: '보내기', menuOnly: true, menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
+        { label: '인쇄', onClick: printSelected, selected: selected.size, menu: [{ label: '프린트문제해결', onClick: notHere('프린트문제해결') }] },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: selected.size, menu: [
+          { label: '바코드(전표)', onClick: notHere('바코드(전표)') },
+          { label: '바코드(시리얼/로트No.)', onClick: notHere('바코드(시리얼/로트No.)') },
+        ] },
+        { label: '전자결재', onClick: notHere('전자결재') },
+        { label: '선택삭제', onClick: () => void deleteSelected(), selected: selected.size },
         { label: 'Excel' },
-        { label: '인쇄', onClick: printSelected, selected: selected.size },
+        { label: '이력조회', onClick: () => setHistoryMenu('구매') },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -651,7 +688,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         ? <EcSlipPrintModal title="거래명세서" docs={slipDocs} forms={['내자기본']} width={782} onClose={() => setSlipDocs(null)} />
         : <EcSlipPrintModal title="구매전표" docs={slipDocs} onClose={() => setSlipDocs(null)} />)}
       {historyMenu && (
-        <SlipMenuHistoryModal menu={historyMenu} title={historyMenu === '판매II' ? '판매 II 이력조회' : '판매 이력조회'}
+        <SlipMenuHistoryModal menu={historyMenu} title={historyMenu === '판매II' ? '판매 II 이력조회' : `${historyMenu} 이력조회`}
                               noLabel="전표번호" itemLabel="품목명" onClose={() => setHistoryMenu(null)} />
       )}
 
@@ -662,19 +699,17 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         못 바꾸게 만들 이유가 없다.
       */}
       <div className="flex flex-wrap items-center gap-[6px] mb-[6px]">
-        {isSales && (
-          <div className="ec-pills">
-            {SALES_TABS.map((t) => (
-              <button
-                key={t} type="button" onClick={() => setTab(t)}
-                className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
-              >
-                {t} ({tabCount(t)})
-              </button>
-            ))}
-          </div>
-        )}
-        <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
+        <div className="ec-pills">
+          {SALES_TABS.map((t) => (
+            <button
+              key={t} type="button" onClick={() => setTab(t)}
+              className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+            >
+              {t} ({tabCount(t)})
+            </button>
+          ))}
+        </div>
+        <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
           총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.
         </span>
         {/*
@@ -691,8 +726,9 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
             {/* 기간 빠른선택 — 판 아래 줄(EcListShell)이 이 단추 글자로 줄을 짓고 눌러 준다. 판 안에서는 감춰진다(data-shell-dup).
                 원본 판 아래 줄: 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · 최근30일(+1개월) · 금년(2026-10-30 실측) */}
-            {/* 판매조회 판 아래 줄에는 [금년] 이 없다(2026-10-31 loginad 판매 QA) — 구매조회는 그대로 */}
-            {ORDER_LIST_PICKS.filter((l) => !isSales || l !== '금년').map((l) => (
+            {/* 판매조회 판 아래 줄에는 [금년] 이 없다(2026-10-31 loginad 판매 QA).
+                구매조회는 금일 · 전일 · 말일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · 최근30일(+1개월)(같은 날 구매 QA — 자가사용조회 묶음과 같다) */}
+            {(isSales ? ORDER_LIST_PICKS.filter((l) => l !== '금년') : SELF_USE_PICKS).map((l) => (
               <button key={l} type="button" className="ec-btn ec-btn-sm ec-btn-pick" onClick={() => {
                 const r = periodOf(l, new Date(), undefined, { from, to })
                 if (!r) return
@@ -754,6 +790,12 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                              value={itemCond} onChange={setItemCond}
                              items={pickers.items} />
           </EcCond>
+          {/*
+            구매조회 원본 판은 기준일자 · 거래유형 · 내.외자구분 · 창고 · 프로젝트 · 거래처 · 품목 · <b>기타</b> · 발송여부 · 양식 열 줄뿐이다
+            (2026-10-31 loginad 구매 QA). 내.외자구분 · 발송여부 · 양식은 구매 전표에 그 값이 없어 칸을 두지 않는다(판매조회와 같은 처리).
+            아래 [오더관리번호] 부터는 원본 구매조회 판에 안 보인 우리 조건이다 — 거르는 기능이라 지우지 않고 원본 열 줄 뒤에 둔다.
+          */}
+          {!isSales && etcCond}
           {/* 원본 차례: [품목] · (발송여부는 알약) · <b>[오더관리번호]</b> · [규격] · [담당자]. */}
           <EcCond label="오더관리번호" pick>
             <CodePickerField label="오더관리번호" hideLabel fill width={130} emptyLabel="전체"
@@ -823,19 +865,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           <EcCond label={updatedLabel}>
             <EcDateRange from={{ className: "ec-input", value: updFrom, onChange: (e) => setUpdFrom(e.target.value) }} to={{ className: "ec-input", value: updTo, onChange: (e) => setUpdTo(e.target.value) }} />
           </EcCond>
-          {/*
-            원본 조건 판 <b>[기타]</b>. 2026-09-07 에 켜져 있는 원본(E040206 판매조회)을 열어
-            재 보니 [기타] 안에는 <b>[수정일자순(정렬)] 하나</b>가 들어 있다 —
-            기준일자 · 거래유형 · 내.외자구분 · 창고 · 프로젝트 · 거래처 · 품목 ·
-            발송여부 · <b>기타</b> · 적요 차례다.
-            원본은 자잘한 체크박스를 이 이름으로 묶고 <b>우리도 묶는다</b>.
-          */}
-          <EcCond label="기타">
-            <label className="text-[12.5px] flex items-center gap-[4px]">
-              <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
-              수정일자순(정렬)
-            </label>
-          </EcCond>
+          {isSales && etcCond}
         </ul>
       </div>
 
@@ -843,27 +873,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         <thead>
           <tr>
             {/*
-              판매조회 1열은 전체선택 체크박스 · 줄마다 체크박스, 번호 열은 없다(2026-10-31 loginad 판매 QA).
-              구매조회는 번호(눌러서 고름) 다음에 체크박스 열이다(2026-10-28 원본 실측) — 그대로.
+              1열은 전체선택 체크박스 · 줄마다 체크박스, 번호 열은 없다(2026-10-31 loginad 판매 QA · 구매 QA — 구매조회도 같다).
+              예전 구매조회는 번호(눌러서 고름) 다음에 체크박스 열이었다(2026-10-28 loginaa).
             */}
-            {isSales ? (
-              <th className="w-[28px] text-center">
-                <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && selected.size === shown.length}
-                  onChange={(e) => setSelected(e.target.checked ? new Set(shown.map((d) => d.id)) : new Set())} />
-              </th>
-            ) : (
-              <th
-                style={{ width: 34, cursor: shown.length > 0 ? 'pointer' : 'default' }}
-                title="전체 선택 / 해제"
-                onClick={() => setSelected(selected.size === shown.length ? new Set() : new Set(shown.map((d) => d.id)))}
-              />
-            )}
-            {!isSales && (
-              <th className="w-[28px] text-center">
-                <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && selected.size === shown.length}
-                  onChange={(e) => setSelected(e.target.checked ? new Set(shown.map((d) => d.id)) : new Set())} />
-              </th>
-            )}
+            <th className="w-[28px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && selected.size === shown.length}
+                onChange={(e) => setSelected(e.target.checked ? new Set(shown.map((d) => d.id)) : new Set())} />
+            </th>
             {/*
               여기까지가 원본 판매조회의 열이고 순서도 같다(실측 폭 70·279·304·715·201·140·201·154·101·101).
               원본은 일자와 번호를 '2026/08/03 -1' 처럼 한 칸에 적는다 — 게시글의 '일자-No.'와 같은 규칙이다.
@@ -874,10 +890,11 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             {/* 머리 정렬 없음 — 원본 판매조회 E040206 · 구매조회 E040304 는 머리가 글자(span 700)뿐, 눌러도 차례가 안 바뀐다(2026-10-21 실측). */}
             <th>일자-No.</th>
             <th>거래처명</th>
-            <th>품목명(요약)</th>
+            {/* 구매조회 머리는 [품목명] · [거래유형] 이다(2026-10-31 loginad 구매 QA) — 판매조회는 [품목명(요약)] · [거래유형명]. */}
+            <th>{isSales ? '품목명(요약)' : '품목명'}</th>
             <th className="text-right">금액합계</th>
             {/* 원본 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
-            <th className="text-center">거래유형명</th>
+            <th className="text-center">{isSales ? '거래유형명' : '거래유형'}</th>
             <th>창고명</th>
             <th className="text-center">회계반영여부</th>
             <th className="text-center">인쇄</th>
@@ -892,33 +909,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             <Fragment key={d.id}>
               <tr className={i % 2 ? 'ec-list-alt' : undefined}
                   onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>
-                {isSales ? (
-                  <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" aria-label="선택" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} />
-                  </td>
-                ) : (
-                <td
-                  style={{
-                    textAlign: 'center',
-                    background: selected.has(d.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
-                    color: selected.has(d.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
-                    fontWeight: selected.has(d.id) ? 700 : 400,
-                    cursor: 'pointer', userSelect: 'none',
-                  }}
-                  title="눌러서 이 전표를 고릅니다"
-                  onClick={(e) => { e.stopPropagation(); toggleSelect(d.id) }}
-                >
-                  {i + 1}
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" aria-label="선택" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} />
                 </td>
-                )}
-                {!isSales && (
-                  <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" aria-label="선택" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} />
-                  </td>
-                )}
                 {/* 원본: 일자-No 는 링크 색 (25,53,140) · 보통 굵기 · 본문 글꼴이다(2026-09-21 구매조회 실측). */}
                 <td style={{ color: 'rgb(25, 53, 140)' }}>
-                  {openId === d.id ? '▾ ' : '▸ '}
+                  {/* 구매조회 원본에는 ▸ 펼침 표시가 없다(2026-10-31 loginad 구매 QA) — 줄을 누르면 펼치는 것은 그대로 */}
+                  {isSales && (openId === d.id ? '▾ ' : '▸ ')}
                   {/* 원본: 일자-No. 링크를 누르면 목록 위에 수정 창이 뜬다. 줄의 다른 곳을 누르면 품목이 펼쳐진다. */}
                   <button type="button" className="ec-link" onClick={(e) => { e.stopPropagation(); editDoc(d) }}>{dateNo(d)}</button>
                 </td>

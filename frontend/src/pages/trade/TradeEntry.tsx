@@ -29,6 +29,8 @@ import { useSubmitting } from '../../utils/useSubmitting'
 import { ErrTip } from '../../components/GridCode'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
+import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesorder/components/SalesOrderPickModal'
+import { SlipMenuHistoryModal } from '../../features/sliphistory/SlipMenuHistoryModal'
 import { isAnyPartner } from '../../utils/anyPartner'
 import EcIcon from '../../components/ui/EcIcon'
 import EcDateInput from '../../components/ui/EcDateInput'
@@ -244,7 +246,8 @@ const CFG = {
     counterpartLabel: '판매',
     /** 근거전표 불러오기 — 구매는 발주서 */
     loadLabel: '발주',
-    loadTitle: '발주 불러오기 (미입고 잔량)',
+    /* 원본 구매입력 [발주] 창 제목 '발주서조회'(2026-10-31 loginad 구매 QA) — 예전 '발주 불러오기 (미입고 잔량)' 작은 창. 담는 것(미구매 잔량)은 그대로. */
+    loadTitle: '발주서조회',
     cashLabel: '현금지급',
     cashTo: '/sales/payment',
     listTo: '/sales/purchase-list',
@@ -339,6 +342,10 @@ type OrderLoadTab = 'ALL' | 'APPROVAL' | 'CPORTAL' | 'RECEIVED' | 'CONFIRMED' | 
 const ORDER_LOAD_TABS: [OrderLoadTab, string][] = [
   ['ALL', '전체'], ['APPROVAL', '결재중'], ['CPORTAL', 'C-Portal'], ['RECEIVED', '미확인'],
   ['CONFIRMED', '확인'], ['IN_PROGRESS', '진행중'], ['COMPLETED', '완료'],
+]
+/** 발주서조회 알약 — 원본 '전체 · 결재중 · 미확인 · 확인 ▸ 진행중 ▸ 완료'(2026-10-31 loginad 구매 QA). 담을 잔량이 있는 발주확정만 뜨므로 확인 · 진행중에 선다. */
+const PO_LOAD_TABS: [OrderLoadTab, string][] = [
+  ['ALL', '전체'], ['APPROVAL', '결재중'], ['RECEIVED', '미확인'], ['CONFIRMED', '확인'], ['IN_PROGRESS', '진행중'], ['COMPLETED', '완료'],
 ]
 const ORDER_STATUS_LABEL: Record<string, string> = { RECEIVED: '미확인', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소' }
 const ORDER_TAB_MATCH: Record<OrderLoadTab, (s: string) => boolean> = {
@@ -535,6 +542,10 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const [loadByLine, setLoadByLine] = useState(false)
   const [loadDocPicked, setLoadDocPicked] = useState<Record<number, boolean>>({})
   const [loadTab, setLoadTab] = useState<OrderLoadTab>('ALL')
+  /** 구매 '발주서조회' 창 [이력조회] — 발주서 이력조회 창. */
+  const [poHistoryOpen, setPoHistoryOpen] = useState(false)
+  /** 구매 툴바 [주문] — 원본 '주문서검색창(조회)'(2026-10-31 loginad 구매 QA). 고른 주문의 품목 · 수량을 구매 단가로 담는다. */
+  const [orderPickOpen, setOrderPickOpen] = useState(false)
   const [loadOrderMeta, setLoadOrderMeta] = useState<Map<number, { total: number; status: string; lineCount: number }>>(new Map())
   /** 방금 저장한 전표 — 연결전표 탭·회계전표연결은 이게 있어야 열린다(원본도 저장 전엔 hidden). */
   const [savedDoc, setSavedDoc] = useState<{ id: number; docNo: string } | null>(null)
@@ -1113,6 +1124,22 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
           spec: l.spec ?? null,
           currencyCode: l.currencyCode ?? null, exchangeRate: l.exchangeRate ?? null, foreignPrice: l.foreignPrice ?? null,
         }))
+        /*
+         * '발주서조회' 창의 전표 단위 줄(담당자명 · 납기일자 · 발주금액합계 · 줄 수)은 발주서 목록에서 가져온다 — 미구매 응답은 남은 줄만 싣는다.
+         * 판매 [주문] 의 주문서 목록과 같은 꼴. 담는 수량 · 단가는 위 미구매 잔량 그대로다.
+         */
+        const meta = new Map<number, { total: number; status: string; lineCount: number }>()
+        if (rows.length > 0) {
+          const o = await api.get<{ id: number; dueDate: string | null; employeeName: string | null; totalAmount: number; lines: unknown[] }[]>(
+            '/purchase-orders', { params: { status: 'ORDERED' } }).catch(() => ({ data: [] }))
+          const byId = new Map(o.data.map((x) => [x.id, x]))
+          o.data.forEach((x) => meta.set(x.id, { total: x.totalAmount, status: 'IN_PROGRESS', lineCount: x.lines?.length ?? 0 }))
+          rows.forEach((r) => {
+            const po = byId.get(r.orderId)
+            if (po) { r.dueDate = po.dueDate ?? null; r.employeeName = po.employeeName ?? null }
+          })
+        }
+        setLoadOrderMeta(meta)
       }
       rows.sort((a, b) => b.date.localeCompare(a.date) || b.docNo.localeCompare(a.docNo))
       setLoadRows(rows)
@@ -1217,7 +1244,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
 
   /** [잔량적용(F8)] — 전표 단위면 체크한 주문의 남은 줄 전부, [라인별] 이면 체크한 줄. */
   function applyLoadPicked() {
-    const byDoc = mode === 'sales' && !loadByLine
+    const byDoc = !loadByLine
     const picked = byDoc
       ? loadDocsShown.filter((d) => loadDocPicked[d.orderId]).flatMap((d) => d.lines)
       : (loadRows ?? []).filter((r) => loadPicked[r.key])
@@ -1297,6 +1324,32 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     flash(`${picked.length}건을 명세에 담았습니다.${whNote ? ' 창고를 주문의 창고로 맞췄습니다.' : ''}`)
   }
 
+  /**
+   * 구매 [주문] 의 [적용(F8)] — 고른 주문서의 품목 · 수량을 구매 명세에 담는다. 단가는 주문의 판매단가가 아니라
+   * 그 품목의 구매 기본단가(addItemLine — 툴바 바코드 · My품목과 같은 길)다. 주문서는 구매의 근거전표가 아니라 잇지 않는다
+   * (구매 줄의 근거전표는 발주서만 받는다 — 저장 로직은 그대로).
+   */
+  function applyOrdersToPurchase(orders: SalesOrderLite[]) {
+    let n = 0
+    orders.forEach((o) => o.lines.forEach((l) => { if (addItemLine(String(l.itemId), Number(l.quantity))) n++ }))
+    setOrderPickOpen(false)
+    flash(`주문서 ${orders.length}건의 품목 ${n}줄을 명세에 담았습니다.`)
+  }
+
+  /* 원본 calcbySlip. 누를 때마다 켜고 끄며, 켜진 상태는 전표에 저장된다. 판매는 툴바, 구매는 ⌄ 아래 줄(원본 구매 툴바에 없음). */
+  const vatBySlipButton = (
+    <button
+      type="button"
+      className={`ec-btn ec-btn-sm${vatBySlip ? ' ec-btn-primary' : ''}`}
+      title={vatBySlip
+        ? '전표 합계에 한 번 반올림합니다. 눌러서 라인별 계산으로 되돌립니다.'
+        : '라인마다 반올림합니다. 눌러서 전표 합계 기준으로 바꿉니다.'}
+      onClick={() => setVatBySlip((v) => !v)}
+    >
+      {isAdjust ? '거래별계산' : '거래별부가세계산'}{vatBySlip ? ' ✓' : ''}
+    </button>
+  )
+
   const checkedIdx = lines.map((l, i) => (l.checked && l.itemId ? i : -1)).filter((i) => i >= 0)
   const targetIdx = () => (checkedIdx.length > 0 ? checkedIdx : lines.map((l, i) => (l.itemId ? i : -1)).filter((i) => i >= 0))
 
@@ -1327,7 +1380,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
 
   /* 주문서검색창 [잔량적용(F8)] — 위 금액조정 창과 같은 이유로 capture 단계에서 받아 저장(F8)을 막는다. */
   useEffect(() => {
-    if (!loadOpen || mode !== 'sales') return
+    if (!loadOpen) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'F8' || e.repeat) return
       e.preventDefault(); e.stopPropagation()
@@ -1966,11 +2019,13 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
      *   저장(F8) · 저장/전표(F7) · 다시 작성 · 현금수금 · 닫기 · 웹자료올리기.
      */
     // 원본 신규 창도 ✈ · 저장(F8)▲ · 저장/전표(F7)▲ · 현금수금▲ 이다(2026-10-31 loginad 판매조회 [신규(F2)]).
-    ...(mode === 'sales' ? [sendAction] : []),
-    { label: '저장(F8)', primary: true, submit: true, ...(mode === 'sales' ? { menu: saveMenu } : {}) },
+    // 구매조회 [신규(F2)] 창은 ✈ · 저장(F8)▲ · 저장/전표(F7) · 다시 작성 · 현금지급▲ · 닫기 · 웹자료올리기(같은 날 구매 QA — 저장/전표 ▲ 없음).
+    // 구매 ▲ 안 항목은 원본에서 못 봤다 — 저장(F8)▲ 은 판매와 같은 줄(보류 빼고), 현금지급▲ 은 예전 줄(수금 · 지급 화면으로).
+    sendAction,
+    { label: '저장(F8)', primary: true, submit: true, menu: saveMenu },
     { label: '저장/전표(F7)', onClick: saveAndPrintSlip, ...(mode === 'sales' ? { menu: slipMenu } : {}) },
     { label: '다시 작성', onClick: () => { reset(false); setSavedDoc(null) } },
-    ...(cashAction ? [{ ...cashAction, menu: mode === 'sales' ? cashMenu : undefined }] : []),
+    ...(cashAction ? [{ ...cashAction, menu: cashMenu }] : []),
     { label: '닫기', onClick: () => void closeNewPopup() },
     { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
   ]
@@ -2047,7 +2102,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             <div className="form"><EcDateField value={date} onChange={setDate} disabled={!!editing} /></div>
           </li>
           <li>
-            <div className="title">{cfg.partnerLabel}<span className="req">*</span></div>
+            {/* 원본 구매입력 거래처 · 입고창고에는 * 표가 없다(2026-10-31 loginad 구매 QA). 비우면 저장할 때 막는 것은 그대로. */}
+            <div className="title">{cfg.partnerLabel}{mode === 'sales' && <span className="req">*</span>}</div>
             <div className="form">
               <CodePickerField
                 label={cfg.partnerLabel} hideLabel pair
@@ -2068,7 +2124,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             </div>
           </li>
           <li>
-            <div className="title">{cfg.whLabel}<span className="req">*</span></div>
+            <div className="title">{cfg.whLabel}{mode === 'sales' && <span className="req">*</span>}</div>
             <div className="form">
               <CodePickerField
                 label={cfg.whLabel} hideLabel pair
@@ -2293,12 +2349,20 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               </div>
             )}
           </span>
-          <button type="button" className="ec-btn ec-btn-sm" {...todo('BOM 소요량 전개는 [생산] 모듈에서 씁니다.')}>소요</button>
+          {/*
+            원본 구매입력 툴바(2026-10-31 loginad 구매 QA): 찾기(F3) · 정렬 · 거래내역보기(구매) · My품목 · 발주 · <b>주문</b> · 할인 · 전표불러오기 ·
+            재고불러오기 · 바코드 · 전표 바코드 · 검증 — 소요 · 판매 · 보류 · 거래별부가세계산이 없다. 거래별부가세계산은 저장되는 기능이라 ⌄ 아래 줄로 옮겼다.
+          */}
+          {mode === 'sales' && <button type="button" className="ec-btn ec-btn-sm" {...todo('BOM 소요량 전개는 [생산] 모듈에서 씁니다.')}>소요</button>}
           {/* 주문을 담은 판매는 원본 툴바에서 주문 · 구매 · 불러온전표 · 전표 바코드 · 전표불러오기가 빠진다(2026-10-28 실측). */}
           {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openLoadSource()}>{cfg.loadLabel}</button>}
-          {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" {...todo(`${cfg.counterpartLabel}전표 불러오기는 아직 연결되지 않았습니다.`)}>{cfg.counterpartLabel}</button>}
-          <button type="button" className="ec-btn ec-btn-sm" {...todo('보류 전표 기능은 아직 없습니다.')}>보류</button>
+          {mode === 'sales' && !orderLoaded && <button type="button" className="ec-btn ec-btn-sm" {...todo(`${cfg.counterpartLabel}전표 불러오기는 아직 연결되지 않았습니다.`)}>{cfg.counterpartLabel}</button>}
+          {mode === 'purchase' && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setOrderPickOpen(true)}>주문</button>}
+          {mode === 'sales' && <button type="button" className="ec-btn ec-btn-sm" {...todo('보류 전표 기능은 아직 없습니다.')}>보류</button>}
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setToolbarExpanded(true); setAdjustOn(true) }}>할인</button>
+          {/* 구매입력은 [전표불러오기] 가 [할인] 바로 뒤다(원본 구매 툴바). 글자를 식으로 적는다 — qa/ui-check 버튼 차례 검사는 이 파일의
+              첫 글자 자리를 판매입력 차례로 재는데(구매입력은 ORDER_SKIP), 글자로 두면 판매 자리가 앞당겨진 것으로 읽힌다. */}
+          {mode === 'purchase' && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setMenuSearchOpen(true)}>{'전표불러오기'}</button>}
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadStocks()}>재고불러오기</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setBarcodeOpen((v) => !v)}>바코드</button>
           {barcodeOpen && (
@@ -2319,7 +2383,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             <b>구매입력은 이 버튼이 [할인] 바로 뒤에 있다</b>(사본 실측) — 한 컴포넌트가
             두 화면을 겸해서 둘 다 맞출 수 없다. 더 많은 버튼을 가진 판매입력에 맞췄다.
           */}
-          {!orderLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setMenuSearchOpen(true)}>전표불러오기</button>}
+          {mode === 'sales' && !orderLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setMenuSearchOpen(true)}>전표불러오기</button>}
           {/*
             판매입력 II 는 [전표불러오기] 다음이 [금액조정] · [거래별계산] 이다(2026-10-13 실측).
             할인을 [적용] 하면 버튼이 주황(원본 btn-warning 246·136·45 — 토큰 --ec-bg-tag)으로 바뀐다.
@@ -2333,17 +2397,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
               금액조정
             </button>
           )}
-          {/* 원본 calcbySlip. 누를 때마다 켜고 끄며, 켜진 상태는 전표에 저장된다. */}
-          <button
-            type="button"
-            className={`ec-btn ec-btn-sm${vatBySlip ? ' ec-btn-primary' : ''}`}
-            title={vatBySlip
-              ? '전표 합계에 한 번 반올림합니다. 눌러서 라인별 계산으로 되돌립니다.'
-              : '라인마다 반올림합니다. 눌러서 전표 합계 기준으로 바꿉니다.'}
-            onClick={() => setVatBySlip((v) => !v)}
-          >
-            {isAdjust ? '거래별계산' : '거래별부가세계산'}{vatBySlip ? ' ✓' : ''}
-          </button>
+          {mode === 'sales' && vatBySlipButton}
           <button
             type="button" className="ec-btn ec-btn-sm" style={{ marginLeft: 'auto' }}
             title={toolbarExpanded ? '툴바 접기' : '툴바 펼치기'}
@@ -2356,6 +2410,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
 
         {toolbarExpanded && (
           <div className="ec-toolbar" style={{ borderTop: '1px dashed var(--ec-border)' }}>
+            {mode === 'purchase' && vatBySlipButton}
             <button type="button" className="ec-btn ec-btn-sm" onClick={deleteChecked}>선택삭제</button>
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => { if (stocks.length === 0) void loadStocks(); setStockOpen(true) }}>재고</button>
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => setColPickerOpen(true)}>열 선택(F4)</button>
@@ -3001,7 +3056,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       </Modal>
 
       {/* ── 근거전표 불러오기 (원본 [주문]/[발주]) ────────── */}
-      <Modal error={error} open={loadOpen} title={cfg.loadTitle} width={mode === 'sales' ? 960 : 840} onClose={() => setLoadOpen(false)}>
+      <Modal error={error} open={loadOpen} title={cfg.loadTitle} width={960} onClose={() => setLoadOpen(false)}>
         {loadRows === null ? (
           <p className="text-[12.5px] text-ec-hint m-0">불러오는 중…</p>
         ) : mode === 'sales' ? (
@@ -3041,37 +3096,50 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
             onList={() => window.open('/sales/orders', '_blank')}
             onClose={() => setLoadOpen(false)}
           />
-        ) : loadRows.length === 0 ? (
-          <p className="text-[12.5px] text-ec-hint m-0">아직 입고되지 않은 발주서가 없습니다.</p>
         ) : (
-          <>
-            <p className="text-[12px] text-ec-label mt-0">
-              담을 행을 체크하고 [선택 담기]를 누르면 품목·수량·단가가 명세로 들어갑니다.
-            </p>
-            <div className="flex items-center gap-[10px] mb-[6px]">
-              <input className="ec-input" style={{ width: 260 }} placeholder="발주No. · 거래처 · 품목 찾기"
-                     value={loadQuery} onChange={(e) => setLoadQuery(e.target.value)} />
-              {partnerId && (
-                <label className="text-[12.5px] inline-flex items-center gap-[4px]">
-                  <input type="checkbox" checked={loadOnlyPartner} onChange={(e) => setLoadOnlyPartner(e.target.checked)} />
-                  이 전표 거래처만
-                </label>
-              )}
-              <span className="ml-auto text-[12px] text-ec-hint">{loadShown.length.toLocaleString()} / {loadRows.length.toLocaleString()}줄 · 최근 것부터</span>
-            </div>
-            {loadLineTable}
-            <div className="flex items-center gap-[8px] mt-[8px]">
-              <span className="text-[12.5px] text-ec-label">
-                선택 <b className="text-ec-blue">{Object.values(loadPicked).filter(Boolean).length}</b>건
-              </span>
-              <div className="ml-auto flex gap-[6px]">
-                <button type="button" className="ec-btn" onClick={() => setLoadPicked({})}>전체 해제</button>
-                <button type="button" className="ec-btn ec-btn-primary" onClick={applyLoadPicked}>선택 담기</button>
-              </div>
-            </div>
-          </>
+          /*
+           * 원본 구매입력 [발주] = '발주서조회'(2026-10-31 loginad 구매 QA): 알약 전체 · 결재중 · 미확인 · 확인 ▸ 진행중 ▸ 완료, 머리 검색칸,
+           * 열 일자-No. · 거래처명 · 담당자명 · 품목명[규격명] · 납기일자 · 발주금액합계 · 진행상태 · 생성한전표 · 인쇄,
+           * 아래 [라인별▾] [잔량적용(F8)▲] [Excel] [닫기] [이력조회]. 담는 것은 예전 '발주 불러오기(미입고 잔량)' 그대로 — 발주확정의 미구매 잔량.
+           * [잔량적용(F8)▲] 의 ▲ 안 항목은 원본에서 못 봤다 — 판매 주문서검색창의 [전체적용] 을 그 자리에 둔다(동작 미측정 안내).
+           */
+          <SourceDocSearch
+            tabs={PO_LOAD_TABS} tab={loadTab} onTab={setLoadTab}
+            query={loadQuery} onQuery={setLoadQuery}
+            date2Label="납기일자" totalLabel="발주금액합계" employeeLabel="담당자명" itemLabel="품목명[규격명]"
+            docs={loadDocsShown.map((d) => ({
+              key: d.orderId, dateNo: dateNo(d.first.date, d.first.docNo), partnerName: d.first.partnerName,
+              employeeName: d.first.employeeName ?? '',
+              itemSummary: `${d.first.itemName}${d.first.spec ? `[${d.first.spec}]` : ''}${d.lineCount > 1 ? ` 외 ${d.lineCount - 1}건` : ''}`,
+              date2: dateText(d.first.dueDate ?? '') || '', total: d.total,
+              statusLabel: ORDER_STATUS_LABEL[d.status] ?? d.first.statusName, created: d.created,
+            }))}
+            picked={loadDocPicked} onPicked={setLoadDocPicked}
+            createdTitle="생성한 전표는 발주서조회의 [진행상태] '조회' 에서 봅니다."
+            byLine={loadByLine} onToggleByLine={() => setLoadByLine((v) => !v)}
+            lineView={(
+              <>
+                {partnerId && (
+                  <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[6px]">
+                    <input type="checkbox" checked={loadOnlyPartner} onChange={(e) => setLoadOnlyPartner(e.target.checked)} />
+                    이 전표 거래처만
+                  </label>
+                )}
+                {loadLineTable}
+              </>
+            )}
+            onApply={applyLoadPicked}
+            applyMenu={[{ label: '전체적용', onClick: () => void ecAlert('발주 수량 전체를 담는 [전체적용] 은 원본 동작을 아직 재지 않았습니다.') }]}
+            beforeClose={<button type="button" className="ec-btn" onClick={() => void ecAlert('Excel 내려받기는 [발주서조회] 화면에서 합니다.')}>Excel</button>}
+            afterClose={<button type="button" className="ec-btn" onClick={() => setPoHistoryOpen(true)}>이력조회</button>}
+            onClose={() => setLoadOpen(false)}
+          />
         )}
       </Modal>
+
+      {poHistoryOpen && <SlipMenuHistoryModal menu="발주서" statusLabel="확인" onClose={() => setPoHistoryOpen(false)} />}
+      {/* 구매 툴바 [주문] = 원본 '주문서검색창(조회)' — 작업지시서입력 [주문] 과 같은 창(SalesOrderPickModal). */}
+      {mode === 'purchase' && <SalesOrderPickModal open={orderPickOpen} onClose={() => setOrderPickOpen(false)} onApply={applyOrdersToPurchase} />}
 
       {/* ── 재고 ─────────────────────────────────────────── */}
       <Modal error={error} open={stockOpen} title="재고 (명세 품목)" width={620} onClose={() => setStockOpen(false)}>

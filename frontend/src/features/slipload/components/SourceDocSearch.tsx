@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import EcIcon from '../../../components/ui/EcIcon'
+import { FooterButton } from '../../../components/EcListShell'
 
 /**
  * 원본 '…검색창(조회)' — 다른 전표를 불러오는 창의 전표 단위 꼴(2026-10-28 loginaa 실측).
@@ -8,6 +9,8 @@ import EcIcon from '../../../components/ui/EcIcon'
  * 진행상태 · 생성한전표 · 인쇄, 아래 라인별 ▾ · 잔량적용(F8) · 전체적용 · 신규(F2) · 리스트 · 닫기.
  * 출하지시서입력 [판매] 의 '판매검색창' 은 열이 다르다(일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 거래유형명 · 창고명 ·
  * 회계반영여부 · 인쇄 · 불러온전표, 단추 라인별 · 적용(F8) · 신규(F2) · 리스트 · 닫기) — `columns` + 줄의 `cells` 로 그린다.
+ * 구매입력 [발주] 의 '발주서조회' 는 열 이름이 담당자명 · 품목명[규격명] · 발주금액합계이고 단추가 라인별 ▾ · 잔량적용(F8)▲ · Excel · 닫기 · 이력조회다
+ * (2026-10-31 loginad 구매 QA) — `employeeLabel` · `itemLabel` · `applyMenu` · `beforeClose` · `afterClose` 로, [신규(F2)] · [리스트] 는 onNew · onList 를 안 주면 없다.
  * 자료를 모으고 담는 일은 부르는 화면이 한다 — 이 부품은 그리기만 한다.
  */
 export interface SourceDocColumn { label: string; className?: string }
@@ -52,9 +55,17 @@ interface Props<T extends string> {
   applyAllTitle?: string
   /** 기본 열 대신 그릴 열 — 줄은 `cells` 로. */
   columns?: SourceDocColumn[]
-  onNew: () => void
-  onList: () => void
+  onNew?: () => void
+  onList?: () => void
   onClose: () => void
+  /** 셋째 · 넷째 열 이름 — 기본 '사원(담당)명' · '품목명(요약)'. */
+  employeeLabel?: string
+  itemLabel?: string
+  /** [적용│▲] 의 ▲ 펼침(위로 열림). 없으면 한 단추. */
+  applyMenu?: { label: string; onClick: () => void }[]
+  /** [닫기] 앞 · 뒤에 더 그릴 단추. */
+  beforeClose?: ReactNode
+  afterClose?: ReactNode
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -84,8 +95,8 @@ export default function SourceDocSearch<T extends string>(p: Props<T>) {
                 {p.columns ? p.columns.map((c) => <th key={c.label} className={c.className}>{c.label}</th>) : (<>
                 <th>일자-No.</th>
                 <th>거래처명</th>
-                <th>사원(담당)명</th>
-                <th>품목명(요약)</th>
+                <th>{p.employeeLabel ?? '사원(담당)명'}</th>
+                <th>{p.itemLabel ?? '품목명(요약)'}</th>
                 <th>{p.date2Label}</th>
                 <th className="text-right">{p.totalLabel}</th>
                 <th className="text-center">진행상태</th>
@@ -126,11 +137,15 @@ export default function SourceDocSearch<T extends string>(p: Props<T>) {
       )}
       <div className="flex items-center gap-[4px] mt-[9px]">
         <button type="button" className={`ec-btn${p.byLine ? ' ec-btn-primary' : ''}`} onClick={p.onToggleByLine}>라인별 <EcIcon name="caret-down" size={10} glyph="▾" /></button>
-        <button type="button" className="ec-btn ec-btn-primary" onClick={p.onApply}>{p.applyLabel ?? '잔량적용(F8)'}</button>
+        {p.applyMenu
+          ? <FooterButton a={{ label: p.applyLabel ?? '잔량적용(F8)', primary: true, onClick: p.onApply, menu: p.applyMenu }} />
+          : <button type="button" className="ec-btn ec-btn-primary" onClick={p.onApply}>{p.applyLabel ?? '잔량적용(F8)'}</button>}
         {p.applyAllTitle != null && <button type="button" className="ec-btn" disabled title={p.applyAllTitle}>전체적용</button>}
-        <button type="button" className="ec-btn" onClick={p.onNew}>신규(F2)</button>
-        <button type="button" className="ec-btn" onClick={p.onList}>리스트</button>
+        {p.onNew && <button type="button" className="ec-btn" onClick={p.onNew}>신규(F2)</button>}
+        {p.onList && <button type="button" className="ec-btn" onClick={p.onList}>리스트</button>}
+        {p.beforeClose}
         <button type="button" className="ec-btn" onClick={p.onClose}>닫기</button>
+        {p.afterClose}
       </div>
     </>
   )
