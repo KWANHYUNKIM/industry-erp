@@ -6,10 +6,10 @@ import { api, extractErrorMessage } from '../../../api/client'
 import type { Department, EmployeeMaster } from '../../../types/api'
 import { ymd } from '../../../utils/periods'
 import { ASSIGNMENT_KINDS, type AssignmentKind, type AssignmentLine } from '../types'
-import GridFindButton from '../../../components/GridFindButton'
+import GridFindButton from '../../../components/codepicker/GridFindButton'
 import { ecConfirm } from '../../../components/EcDialog'
 import { EcHistoryModal } from '../../../components/EcHistory'
-import type { CodeColumn } from '../../../components/CodeSearchModal'
+import type { CodeColumn } from '../../../components/codepicker/CodeSearchModal'
 import EcDateInput from '../../../components/ui/EcDateInput'
 
 /** 사번 🔍 — 원본은 '사원검색' 창, 열 사원번호 · 성명 · 부서명(2026-10-14 실측) */

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import GridCode from '../../components/GridCode'
+import GridCode from '../../components/codepicker/GridCode'
 import EcNumInput from '../../components/EcNumInput'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'

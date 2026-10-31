@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import GridFindButton from '../../../components/GridFindButton'
+import GridFindButton from '../../../components/codepicker/GridFindButton'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { Item, QualityInspectionRequest } from '../../../types/api'
 import CodePickerField from '../../../components/CodePickerField'

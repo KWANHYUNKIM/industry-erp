@@ -6,7 +6,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { EmployeeMaster, PayGroup, PayGroupEmployee, PayItem, PayslipLineKind } from '../../types/api'
 import EditStateMenu from '../../components/EditStateMenu'
-import GridFindButton from '../../components/GridFindButton'
+import GridFindButton from '../../components/codepicker/GridFindButton'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 원본 그룹 폼은 수당 · 공제 격자마다 빈 줄 세 개로 시작한다. */

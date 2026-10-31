@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import GridFindButton from '../../../components/GridFindButton'
+import GridFindButton from '../../../components/codepicker/GridFindButton'
 import { api, extractErrorMessage } from '../../../api/client'
 import CodePickerField from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'

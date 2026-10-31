@@ -8,7 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem } from '../../types/api'
 import { ymd } from '../../utils/periods'
-import GridFindButton from '../../components/GridFindButton'
+import GridFindButton from '../../components/codepicker/GridFindButton'
 import EcDateInput from '../../components/ui/EcDateInput'
 
 interface Row { workDate: string; employeeId: string; payItemId: string; quantity: string }

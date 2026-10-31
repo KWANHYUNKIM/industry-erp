@@ -1,4 +1,4 @@
-import type { CodeColumn } from '../../components/CodeSearchModal'
+import type { CodeColumn } from '../../components/codepicker/CodeSearchModal'
 import type { EmployeeMaster } from '../../types/api'
 
 /**

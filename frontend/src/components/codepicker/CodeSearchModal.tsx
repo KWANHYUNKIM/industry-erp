@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import Modal from './Modal'
-import type { CodeItem } from './CodePickerField'
-import { api } from '../api/client'
-import { EcDateRange } from './ui/EcDateInput'
+import Modal from '../Modal'
+import type { CodeItem } from '../CodePickerField'
+import { api } from '../../api/client'
+import { EcDateRange } from '../ui/EcDateInput'
 
 /**
  * 코드도움 창 — 원본 '거래처검색' · '창고검색' · '사원검색' 의 꼴(2026-10-13 loginaa 구매입력에서 실측, plans/공용.md).

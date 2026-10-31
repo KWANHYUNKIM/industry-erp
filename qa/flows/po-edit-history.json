@@ -33,7 +33,7 @@
         "expect:(()=>{const t=[...document.querySelectorAll('table')].find((x)=>x.innerText.includes('작업일자'));if(!t)return false;const r=[...t.querySelectorAll('tbody tr')].find((x)=>x.cells[1]&&x.cells[1].innerText.trim()===sessionStorage.getItem('poeNo'));return !!r&&r.cells[2].innerText.trim()==='수정'&&r.cells[4].innerText.includes('QA매입처')})()",
         "js:(()=>{const t=[...document.querySelectorAll('table')].find((x)=>x.innerText.includes('작업일자'));const r=[...t.querySelectorAll('tbody tr')].find((x)=>x.cells[1].innerText.trim()===sessionStorage.getItem('poeNo'));r.querySelector('a').click();return true})()",
         "wait:1200",
-        "expect:(()=>{const ts=[...document.querySelectorAll('table')];const t=ts[ts.length-1];const acts=[...t.querySelectorAll('tbody tr')].map((x)=>x.innerText);return acts.some((s)=>s.includes('신규'))&&acts.some((s)=>s.includes('수정'))})()"
+        "expect:[...document.querySelectorAll('table')].some((t)=>{const h=t.querySelector('thead')?.innerText??'';if(h.includes('작업일자')||h.includes('발주금액합계'))return false;const acts=[...t.querySelectorAll('tbody tr')].map((x)=>x.innerText);return acts.length===2&&acts.some((s)=>s.includes('신규'))&&acts.some((s)=>s.includes('수정'))})"
       ]
     },
     {

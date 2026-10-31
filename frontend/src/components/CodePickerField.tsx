@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import CodeSearchModal, { type CodeColumn } from './CodeSearchModal'
+import CodeSearchModal, { type CodeColumn } from './codepicker/CodeSearchModal'
 import EcIcon from './ui/EcIcon'
 
 /**

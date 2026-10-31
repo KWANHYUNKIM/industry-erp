@@ -69,7 +69,7 @@
   "color": 0,
   "palette": 0
  },
- "components/SuggestInput.tsx": {
+ "components/codepicker/SuggestInput.tsx": {
   "inline": 2,
   "color": 0,
   "palette": 0

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import { ErrTip } from '../../components/GridCode'
+import { ErrTip } from '../../components/codepicker/GridCode'
 import { EcCond } from '../../components/EcStatusPanel'
 import { historyTime, type HistoryRow } from '../../components/EcHistory'
 import { api, extractErrorMessage } from '../../api/client'

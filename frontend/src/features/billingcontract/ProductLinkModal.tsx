@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Modal from '../../components/Modal'
-import GridCode from '../../components/GridCode'
+import GridCode from '../../components/codepicker/GridCode'
 import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/CodePickerField'
 import type { ProductLink } from './types'

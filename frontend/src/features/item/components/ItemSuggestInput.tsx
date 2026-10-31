@@ -1,5 +1,5 @@
 import { useCallback, type CSSProperties } from 'react'
-import SuggestInput from '../../../components/SuggestInput'
+import SuggestInput from '../../../components/codepicker/SuggestInput'
 import { fetchItemSuggest, type ItemSuggestField } from '../api/itemSuggest'
 
 /**

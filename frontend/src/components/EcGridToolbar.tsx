@@ -1,5 +1,5 @@
 import { useState, type ReactNode, type RefObject } from 'react'
-import GridFindButton from './GridFindButton'
+import GridFindButton from './codepicker/GridFindButton'
 import Modal from './Modal'
 import { DocPullButton, DocPullModal, PULLS, type PullKind, type PulledLine } from '../features/quality/DocPull'
 
