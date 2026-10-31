@@ -64,9 +64,24 @@ management:
     health:
       show-details: never
 
+# API 문서(/v3/api-docs) — 기본은 닫는다. dev 프로필만 연다(아래 문서). 열려도 로그인한 요청만 받는다(SecurityConfig anyRequest).
+springdoc:
+  api-docs:
+    enabled: false
+
 logging:
   # 줄마다 요청 id(RequestIdFilter → MDC requestId). 요청 밖(기동 · 스케줄러)은 빈 [].
   pattern:
     level: "%5p [%X{requestId:-}]"
   level:
     org.hibernate.SQL: info
+
+---
+# dev 프로필(./mvnw spring-boot:run · 공유 개발 서버) — API 문서를 연다. 운영(jar 실행)은 dev 가 아니라 닫힌 채다.
+spring:
+  config:
+    activate:
+      on-profile: dev
+springdoc:
+  api-docs:
+    enabled: true

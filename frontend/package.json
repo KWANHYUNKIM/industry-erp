@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:unit": "node --experimental-strip-types --test \"src/**/*.test.ts\""
+    "test:unit": "node --experimental-strip-types --test \"src/**/*.test.ts\"",
+    "gen:api": "node scripts/gen-api.mjs"
   },
   "dependencies": {
     "axios": "^1.18.1",
