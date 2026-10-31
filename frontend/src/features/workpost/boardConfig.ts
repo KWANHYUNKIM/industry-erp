@@ -5,7 +5,7 @@ import { dateText } from '../../utils/dateText'
 import { pad2, todayYmd } from '../../utils/periods'
 import type { KanbanTone } from '../../components/EcKanban'
 
-/* 게시판 목록 화면(pages/groupware/WorkPage)의 게시판별 설정 · 조건 · 입력 모양 — WorkPage 에서 몸통 그대로 옮겼다(단계 10). */
+/* 게시판 목록 화면(pages/groupware/workpost/WorkPage)의 게시판별 설정 · 조건 · 입력 모양 — WorkPage 에서 몸통 그대로 옮겼다(단계 10). */
 
 /**
  * 원본 목록 오른쪽 위의 조회 기간(= 조건 판 [게시일]의 기본값).

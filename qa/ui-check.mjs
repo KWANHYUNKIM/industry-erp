@@ -821,7 +821,7 @@ console.log('\n■ 코드로 고르는 칸을 드롭다운으로 두지 않았�
   /** 이름은 코드 마스터를 닮았지만 <b>고를 값이 정해져 있는</b> 칸 — 왜인지 적는다. */
   const NOT_MASTER = new Map([
     ['production/ResourcePage.tsx|자원명 *', '남의 자원을 고르는 칸이 아니라 <b>이 자원의 이름</b>이다'],
-    ['groupware/ApprovalListPage.tsx|부서', '마스터가 아니라 <b>올라온 기안서에 적힌 부서</b>를 모은 목록이다'],
+    ['groupware/approval/ApprovalListPage.tsx|부서', '마스터가 아니라 <b>올라온 기안서에 적힌 부서</b>를 모은 목록이다'],
     /*
      * 이름 안에 마스터 낱말이 <b>들어 있을 뿐</b>인 칸들. '품목공유여부'에 '품목'이,
      * '생산전표생성-창고이동'에 '창고'가 들어 있어 걸렸다 — 둘 다 고를 값이 둘뿐이다.
@@ -1315,14 +1315,14 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['수금현황', 'trade/arap/CollectionPage.tsx'],
     /* 메뉴 [지급현황]은 /sales/payment 로 간다 — 수금현황과 같은 파일이 아니다(2026-09-10 바로잡음). */
     ['지급현황', 'trade/arap/PaymentPage.tsx'],
-    ['업무일지', 'groupware/WorkLogPage.tsx'],
+    ['업무일지', 'groupware/workjournal/WorkLogPage.tsx'],
     ['작업지시서작업처리', 'production/WorkProcessPage.tsx'],
     ['품질검사요청조회', 'quality/QualityRequestPage.tsx'],
     ['오더관리진행단계', 'trade/ordertype/OrderStagePage.tsx'],
     ['Invoice / Packing List', 'trade/export/ExportPage.tsx'],
     ['거래처별채권', 'trade/arap/LedgerPage.tsx'],
     ['거래처별채무', 'trade/arap/LedgerPage.tsx'],
-    ['설문조사현황', 'groupware/SurveyStatusPage.tsx'],
+    ['설문조사현황', 'groupware/survey/SurveyStatusPage.tsx'],
     /*
      * 기타이동 다섯은 <b>한 파일</b>이 화면마다 kind 로 갈라 그린다. 파일이 하나라
      * 이 검사는 '그 파일이 그 기본값을 <b>쓰기는 하나</b>' 까지만 본다 — 어느 갈래가

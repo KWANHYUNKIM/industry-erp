@@ -464,72 +464,72 @@
   "color": 3,
   "palette": 0
  },
- "pages/groupware/ApprovalDraftPage.tsx": {
+ "pages/groupware/approval/ApprovalDraftPage.tsx": {
   "inline": 5,
   "color": 3,
   "palette": 0
  },
- "pages/groupware/ApprovalListPage.tsx": {
+ "pages/groupware/approval/ApprovalListPage.tsx": {
   "inline": 17,
   "color": 3,
   "palette": 0
  },
- "pages/groupware/ApprovalSettingPage.tsx": {
+ "pages/groupware/approval/ApprovalSettingPage.tsx": {
   "inline": 7,
   "color": 0,
   "palette": 0
  },
- "pages/groupware/BusinessCardPage.tsx": {
+ "pages/groupware/org/BusinessCardPage.tsx": {
   "inline": 18,
   "color": 3,
   "palette": 0
  },
- "pages/groupware/ConstructionSchedulePage.tsx": {
+ "pages/groupware/schedule/ConstructionSchedulePage.tsx": {
   "inline": 12,
   "color": 1,
   "palette": 0
  },
- "pages/groupware/CrmPage.tsx": {
+ "pages/groupware/crm/CrmPage.tsx": {
   "inline": 8,
   "color": 1,
   "palette": 0
  },
- "pages/groupware/KeyNoticePage.tsx": {
+ "pages/groupware/workpost/KeyNoticePage.tsx": {
   "inline": 5,
   "color": 0,
   "palette": 0
  },
- "pages/groupware/MailPage.tsx": {
+ "pages/groupware/mail/MailPage.tsx": {
   "inline": 30,
   "color": 8,
   "palette": 0
  },
- "pages/groupware/OrgChartPage.tsx": {
+ "pages/groupware/org/OrgChartPage.tsx": {
   "inline": 15,
   "color": 5,
   "palette": 0
  },
- "pages/groupware/ProjectPage.tsx": {
+ "pages/groupware/project/ProjectPage.tsx": {
   "inline": 17,
   "color": 4,
   "palette": 0
  },
- "pages/groupware/ShortMessagePage.tsx": {
+ "pages/groupware/mail/ShortMessagePage.tsx": {
   "inline": 9,
   "color": 3,
   "palette": 0
  },
- "pages/groupware/SurveyInputPage.tsx": {
+ "pages/groupware/survey/SurveyInputPage.tsx": {
   "inline": 4,
   "color": 0,
   "palette": 0
  },
- "pages/groupware/SurveyPage.tsx": {
+ "pages/groupware/survey/SurveyPage.tsx": {
   "inline": 11,
   "color": 0,
   "palette": 0
  },
- "pages/groupware/SwSchedulePage.tsx": {
+ "pages/groupware/schedule/SwSchedulePage.tsx": {
   "inline": 13,
   "color": 1,
   "palette": 0

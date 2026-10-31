@@ -65,7 +65,7 @@
  ],
  [
   "설문조사조회",
-  "groupware/SurveyPage.tsx"
+  "groupware/survey/SurveyPage.tsx"
  ],
  [
   "소요시간계산",
@@ -133,7 +133,7 @@
  ],
  [
   "공용품관리",
-  "groupware/SuppliesPage.tsx"
+  "groupware/supply/SuppliesPage.tsx"
  ],
  [
   "결제내역조회",
@@ -145,7 +145,7 @@
  ],
  [
   "SW개발일정관리",
-  "groupware/SwSchedulePage.tsx"
+  "groupware/schedule/SwSchedulePage.tsx"
  ],
  [
   "거래명세서인쇄",
@@ -157,7 +157,7 @@
  ],
  [
   "건설예정공정표",
-  "groupware/ConstructionSchedulePage.tsx"
+  "groupware/schedule/ConstructionSchedulePage.tsx"
  ],
  [
   "결제내역자료비교",
@@ -181,11 +181,11 @@
  ],
  [
   "설문조사입력",
-  "groupware/SurveyInputPage.tsx"
+  "groupware/survey/SurveyInputPage.tsx"
  ],
  [
   "설문조사현황",
-  "groupware/SurveyStatusPage.tsx"
+  "groupware/survey/SurveyStatusPage.tsx"
  ],
  [
   "실제원가현황",
@@ -201,7 +201,7 @@
  ],
  [
   "일정관리",
-  "groupware/SchedulePage.tsx"
+  "groupware/schedule/SchedulePage.tsx"
  ],
  [
   "작업지시서별진행현황",
@@ -285,7 +285,7 @@
  ],
  [
   "업무일지",
-  "groupware/WorkLogPage.tsx"
+  "groupware/workjournal/WorkLogPage.tsx"
  ],
  [
   "작업지시서입력",
@@ -329,19 +329,19 @@
  ],
  [
   "공지사항",
-  "groupware/NoticePage.tsx"
+  "groupware/workpost/NoticePage.tsx"
  ],
  [
   "기안서작성",
-  "groupware/ApprovalDraftPage.tsx"
+  "groupware/approval/ApprovalDraftPage.tsx"
  ],
  [
   "기안서통합관리",
-  "groupware/ApprovalAllPage.tsx"
+  "groupware/approval/ApprovalAllPage.tsx"
  ],
  [
   "내결재관리",
-  "groupware/MyApprovalPage.tsx"
+  "groupware/approval/MyApprovalPage.tsx"
  ],
  [
   "생산계획_MRP리스트",
@@ -357,7 +357,7 @@
  ],
  [
   "ECDrive",
-  "groupware/EcDrivePage.tsx"
+  "groupware/drive/EcDrivePage.tsx"
  ],
  [
   "발주서",
@@ -713,7 +713,7 @@
  ],
  [
   "주요전달사항",
-  "groupware/KeyNoticePage.tsx"
+  "groupware/workpost/KeyNoticePage.tsx"
  ],
  [
   "지각현황(ID)",
@@ -733,7 +733,7 @@
  ],
  [
   "출/퇴근기록부(ID)",
-  "groupware/AttendancePage.tsx"
+  "groupware/attendance/AttendancePage.tsx"
  ],
  [
   "출/퇴근현황(ID)",
@@ -753,7 +753,7 @@
  ],
  [
   "커뮤니케이션센터",
-  "groupware/ShortMessagePage.tsx"
+  "groupware/mail/ShortMessagePage.tsx"
  ],
  [
   "품질검사요청",
@@ -1137,26 +1137,26 @@
  ],
  [
   "🔸 칸반보드 활용 예시 🔸",
-  "groupware/WorkSampleBoardPage.tsx"
+  "groupware/workpost/WorkSampleBoardPage.tsx"
  ],
  [
   "📅 프로젝트 진행현황 칸반",
-  "groupware/ProjectKanbanPage.tsx"
+  "groupware/project/ProjectKanbanPage.tsx"
  ],
  [
   "다목적 게시판 입력항목은",
-  "groupware/MultiSlipPage.tsx"
+  "groupware/multislip/MultiSlipPage.tsx"
  ],
  [
   "영업자별 계약상황",
-  "groupware/MultiSlipPage.tsx"
+  "groupware/multislip/MultiSlipPage.tsx"
  ],
  [
   "채권회수 상황판",
-  "groupware/MultiSlipPage.tsx"
+  "groupware/multislip/MultiSlipPage.tsx"
  ],
  [
   "월근태",
-  "groupware/MultiSlipPage.tsx"
+  "groupware/multislip/MultiSlipPage.tsx"
  ]
 ]

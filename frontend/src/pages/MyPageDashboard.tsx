@@ -4,7 +4,7 @@ import PageWindow, { menuLabel } from '../features/mypage/PageWindow'
 import PopupHost from '../features/mypage/PopupHost'
 import ApprovalViewer from '../features/mypage/ApprovalViewer'
 import ChatWithWindow from '../features/mypage/ChatWithWindow'
-import type { PostBoardCode } from './groupware/WorkPage'
+import type { PostBoardCode } from './groupware/workpost/WorkPage'
 import { DEFAULT_LAYOUT, headTitle, REGISTRY } from '../features/mypage/widgets/catalog'
 import { loadAllSettings, saveAllSettings } from '../features/mypage/widgets/store'
 import TableWidget from '../features/mypage/widgets/TableWidget'
@@ -18,8 +18,8 @@ import { bottomRow, fitWidth, MIN_H, MIN_W, normalize, place, type GridItem } fr
 const STORAGE_KEY = 'mypage-grid-v1'
 
 /* 위젯 [펜] · 본문 클릭이 숨긴 채 빌려 쓰는 화면들(그 화면의 입력 · 조회 창만 보인다 — features/mypage/PopupHost) */
-const SchedulePage = lazy(() => import('./groupware/SchedulePage'))
-const WorkPage = lazy(() => import('./groupware/WorkPage'))
+const SchedulePage = lazy(() => import('./groupware/schedule/SchedulePage'))
+const WorkPage = lazy(() => import('./groupware/workpost/WorkPage'))
 const OrderStagePage = lazy(() => import('./trade/ordertype/OrderStagePage'))
 
 type GripDir = 'e' | 'se' | 's' | 'sw' | 'w'

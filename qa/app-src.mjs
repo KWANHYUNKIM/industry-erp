@@ -27,7 +27,7 @@ export const menuSource = () => [read('layout/menu.ts'), read('layout/EcountLayo
  */
 export const SPLIT_PARTS = {
   'pages/inventory/ItemsPage.tsx': ['features/item/itemForm.ts', 'features/item/components/ItemFormWindow.tsx'],
-  'pages/groupware/WorkPage.tsx': ['features/workpost/boardConfig.ts', 'features/workpost/components/NameChips.tsx',
+  'pages/groupware/workpost/WorkPage.tsx': ['features/workpost/boardConfig.ts', 'features/workpost/components/NameChips.tsx',
     'features/workpost/components/WorkCondPanel.tsx', 'features/workpost/components/WorkPostFormModal.tsx',
     'features/workpost/components/WorkPostViewModal.tsx', 'features/workpost/components/WorkPostSubModals.tsx'],
   'pages/trade/sales/TradeEntry.tsx': ['features/trade-entry/tradeEntryConfig.ts', 'features/trade-entry/useSlipLoad.tsx',
