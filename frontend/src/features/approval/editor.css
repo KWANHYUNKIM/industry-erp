@@ -1,0 +1,171 @@
+/*
+ * 서식 본문(.ec-rich) · 본문 편집 도구 모음(.ec-ed-*) — features/approval/components/RichBodyEditor 가 불러온다
+ * (index.css 에서 옮김, CSS 정리 6). index.css 가 층 순서를 먼저 정하므로 여기 @layer components 는 같은 층에 붙는다.
+ */
+@layer components {
+  /* 서식 본문(공통양식 [기안내용] · 기안서 본문) — 붙여 넣은 원본 표를 그 서식대로 그린다.
+     표에는 sanitizeHtml 이 no-ec 를 달아 전역 격자 규칙을 비켜 간다. preflight 가 border=1 속성을 0 으로
+     지우므로 테두리 속성이 있는 표만 검은 1px 선을 다시 준다(인라인 style 이 있으면 그쪽이 이긴다). */
+  .ec-rich {
+    font-family: Dotum, 돋움, sans-serif;   /* 원본 본문 기본 돋움 12px(2026-10-30 실측) */
+    font-size: 12px;
+    color: #000;
+    line-height: 1.5;
+    overflow-x: auto;
+  }
+  .ec-rich table { border-collapse: collapse; }
+  .ec-rich table[border]:not([border="0"]) td,
+  .ec-rich table[border]:not([border="0"]) th {
+    border: 1px solid #000;
+  }
+  .ec-rich td, .ec-rich th { padding: 3px 5px; vertical-align: middle; }
+  .ec-rich hr { border: 0; border-top: 1px solid #000; }
+  /* 편집 판 — 원본은 넓은 흰 판 가운데에 폭 700 본문을 놓는다. */
+  .ec-rich-canvas {
+    border: var(--ec-hair) solid var(--ec-line);
+    border-top: 0;
+    background: var(--ec-bg-panel);
+    padding: 18px 0;
+    overflow: auto;
+  }
+  .ec-rich-edit {
+    width: 700px;
+    max-width: 100%;
+    margin: 0 auto;
+    outline: none;
+    overflow: visible;
+  }
+  .ec-rich-edit.selecting { user-select: none; }
+  .ec-rich-edit td.ec-cell-sel,
+  .ec-rich-edit th.ec-cell-sel { box-shadow: inset 0 0 0 999px var(--ec-blue-tint); }
+  .ec-rich-edit .ec-obj-sel { outline: 1px dashed var(--ec-blue); outline-offset: 1px; }
+  .ec-rich-source {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--ec-border);
+    padding: 8px;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    resize: vertical;
+    outline: none;
+  }
+
+  /* 본문 편집 도구 모음 — 원본 기안서작성(2026-10-30 실측, 11-편집도구모음.png): 한 줄에 아이콘이 늘어서고
+     묶음 앞에 회색 이름표([글꼴][서식][삽입][레이아웃])가 붙는다. 아이콘 26 · ▾ 가 붙은 도구는 오른쪽에 작은 ▾. */
+  .ec-ed-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1px;
+    padding: 4px 6px;
+    border: var(--ec-hair) solid var(--ec-line);
+    background: var(--ec-bg-panel);
+  }
+  .ec-ed-label {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 7px;
+    margin: 0 2px 0 6px;
+    border-radius: 4px;
+    background: var(--ec-bg-bookbar);
+    color: var(--ec-text-hint);
+    font-size: 12px;
+  }
+  .ec-ed-sep {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    margin: 0 3px;
+    background: var(--ec-line);
+  }
+  .ec-ed-btn,
+  .ec-ed-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    min-width: 22px;
+    padding: 0 2px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ec-text);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .ec-ed-caret { min-width: 12px; padding: 0 1px; font-size: 10px; color: var(--ec-text-sub); }
+  .ec-ed-btn:hover:not(:disabled),
+  .ec-ed-caret:hover:not(:disabled) { background: var(--ec-bg-row-hover); }
+  .ec-ed-btn:disabled,
+  .ec-ed-caret:disabled { opacity: .4; cursor: default; }
+  .ec-ed-ch { font-family: "Times New Roman", serif; font-size: 13px; line-height: 1; }
+  b.ec-ed-ch { font-weight: 700; }
+  .ec-ed-boxed { border: 1px solid currentColor; padding: 0 2px; font-size: 11px; }
+  .ec-ed-svg { display: block; }
+  .ec-ed-svg-front { fill: var(--ec-warn); stroke: currentColor; }
+  .ec-ed-svg-back { fill: var(--ec-warn); stroke: currentColor; }
+  .ec-ed-colorbtn { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
+  .ec-ed-swatch { display: block; width: 14px; height: 14px; border: var(--ec-hair) solid var(--ec-line); }
+  .ec-ed-swatch.bar { width: 14px; height: 3px; border: 0; }
+  .ec-ed-select {
+    height: 26px;
+    padding: 0 2px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ec-text);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .ec-ed-select:hover:not(:disabled) { background: var(--ec-bg-row-hover); }
+  .ec-ed-drop { position: relative; display: inline-flex; align-items: center; }
+  .ec-ed-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 60;
+    margin-top: 2px;
+    min-width: 150px;
+    padding: 4px;
+    border: var(--ec-hair) solid var(--ec-line);
+    border-radius: 6px;
+    background: var(--ec-bg-panel);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+  }
+  .ec-ed-item {
+    display: block;
+    width: 100%;
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ec-text);
+    font-size: 12px;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .ec-ed-item:hover { background: var(--ec-bg-row-hover); }
+  .ec-ed-form { display: flex; align-items: center; gap: 4px; padding: 4px; font-size: 12px; white-space: nowrap; }
+  .ec-ed-radio { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; }
+  .ec-ed-palette .grid { display: grid; grid-template-columns: repeat(8, 18px); gap: 2px; padding: 4px; }
+  .ec-ed-color { display: block; width: 18px; height: 18px; padding: 1px; border: 0; background: transparent; cursor: pointer; }
+  .ec-ed-color:hover { outline: 1px solid var(--ec-text); }
+  .ec-ed-gridpick { padding: 4px; }
+  .ec-ed-gridpick .row { display: flex; gap: 2px; margin-bottom: 2px; }
+  .ec-ed-gridpick button {
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: var(--ec-hair) solid var(--ec-line);
+    background: var(--ec-bg-panel);
+    cursor: pointer;
+  }
+  .ec-ed-gridpick button.on { background: var(--ec-blue-tint); border-color: var(--ec-blue); }
+  .ec-ed-hint { padding-top: 2px; font-size: 12px; color: var(--ec-text-hint); text-align: center; }
+  .ec-ed-linesample { display: block; width: 110px; height: 0; border-top: 1px solid var(--ec-ink); margin: 6px 0; }
+  .ec-ed-linesample.dashed { border-top-style: dashed; }
+  .ec-ed-linesample.dotted { border-top-style: dotted; }
+  .ec-ed-linesample.double { border-top: 3px double var(--ec-ink); }
+}

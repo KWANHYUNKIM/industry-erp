@@ -11,6 +11,7 @@ import {
   newTableHtml, splitCell, type BorderKind,
 } from '../editor/tableGrid'
 import EcIcon from '../../../components/ui/EcIcon'
+import '../editor.css'
 
 type Cell = HTMLTableCellElement
 /** 끌어서 고른 칸 · 고른 글상자/그림 표시 — 저장할 때는 뺀다. */
