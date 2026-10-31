@@ -1,9 +1,9 @@
 package com.erp.accounting;
 
-import com.erp.accounting.account.AccountDebitCredit;
-import com.erp.accounting.account.AccountDivision;
-import com.erp.accounting.account.AccountEvalKind;
-import com.erp.accounting.account.AccountRelatedWork;
+import com.erp.accounting.ledger.account.AccountDebitCredit;
+import com.erp.accounting.ledger.account.AccountDivision;
+import com.erp.accounting.ledger.account.AccountEvalKind;
+import com.erp.accounting.ledger.account.AccountRelatedWork;
 
 import java.util.List;
 

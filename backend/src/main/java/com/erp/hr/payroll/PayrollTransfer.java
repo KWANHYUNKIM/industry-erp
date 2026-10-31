@@ -7,8 +7,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import com.erp.accounting.bankcard.BankAccount;
-import com.erp.accounting.journal.JournalEntry;
+import com.erp.accounting.fund.bankcard.BankAccount;
+import com.erp.accounting.ledger.journal.JournalEntry;
 import com.erp.common.BaseTimeEntity;
 
 /**

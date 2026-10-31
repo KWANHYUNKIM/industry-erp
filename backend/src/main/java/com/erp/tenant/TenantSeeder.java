@@ -1,8 +1,8 @@
 package com.erp.tenant;
 
 import com.erp.accounting.StandardAccounts;
-import com.erp.accounting.account.Account;
-import com.erp.accounting.account.AccountRepository;
+import com.erp.accounting.ledger.account.Account;
+import com.erp.accounting.ledger.account.AccountRepository;
 import com.erp.common.MenuPermissionCatalog;
 import com.erp.settings.companyinfo.CompanyInfo;
 import com.erp.settings.companyinfo.CompanyInfoRepository;

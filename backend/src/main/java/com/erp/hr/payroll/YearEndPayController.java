@@ -1,7 +1,7 @@
 package com.erp.hr.payroll;
 
-import com.erp.accounting.yearend.TaxSettlementKind;
-import com.erp.accounting.yearend.dto.TaxSettlementDtos.SettlementResponse;
+import com.erp.accounting.tax.yearend.TaxSettlementKind;
+import com.erp.accounting.tax.yearend.dto.TaxSettlementDtos.SettlementResponse;
 import com.erp.hr.payroll.dto.YearEndDtos.Candidate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

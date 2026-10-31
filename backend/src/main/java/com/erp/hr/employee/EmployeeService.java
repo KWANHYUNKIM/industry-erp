@@ -52,7 +52,7 @@ public class EmployeeService {
     private final com.erp.hr.payroll.EmployeePayItemRepository employeePayItemRepository;
     private final com.erp.hr.payroll.EmployeePayrollSettingRepository employeePayrollSettingRepository;
     /** 퇴사를 거두면 그 사원의 중도정산도 같이 지운다(원본 확인 창 '중도정산한 내역이 삭제 됩니다.') — hr → accounting 허용 간선. */
-    private final com.erp.accounting.yearend.TaxSettlementService taxSettlementService;
+    private final com.erp.accounting.tax.yearend.TaxSettlementService taxSettlementService;
 
     /** 재직 중인 사원 (급여·조직도용) */
     @Transactional(readOnly = true)
@@ -205,7 +205,7 @@ public class EmployeeService {
             e.setResignDate(null);
             e.setActive(true);
         }
-        taxSettlementService.deleteByEmployees(ids, com.erp.accounting.yearend.TaxSettlementKind.MID_TERM);
+        taxSettlementService.deleteByEmployees(ids, com.erp.accounting.tax.yearend.TaxSettlementKind.MID_TERM);
     }
 
     /**

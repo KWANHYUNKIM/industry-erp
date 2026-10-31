@@ -2,13 +2,13 @@ package com.erp.config;
 
 import com.erp.common.MenuPermissionCatalog;
 import com.erp.accounting.StandardAccounts;
-import com.erp.accounting.account.Account;
-import com.erp.accounting.account.AccountDivision;
+import com.erp.accounting.ledger.account.Account;
+import com.erp.accounting.ledger.account.AccountDivision;
 import com.erp.auth.role.Permission;
 import com.erp.auth.role.Role;
 import com.erp.auth.user.User;
 import com.erp.inventory.warehouse.Warehouse;
-import com.erp.accounting.account.AccountRepository;
+import com.erp.accounting.ledger.account.AccountRepository;
 import com.erp.auth.role.PermissionRepository;
 import com.erp.auth.role.RoleRepository;
 import com.erp.auth.user.UserRepository;

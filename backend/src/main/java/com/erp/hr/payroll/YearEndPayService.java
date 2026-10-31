@@ -1,10 +1,10 @@
 package com.erp.hr.payroll;
 
-import com.erp.accounting.withholding.WithholdingService;
-import com.erp.accounting.yearend.TaxSettlementService;
-import com.erp.accounting.yearend.dto.TaxSettlementDtos.CurrentPay;
-import com.erp.accounting.yearend.dto.TaxSettlementDtos.SettlementResponse;
-import com.erp.accounting.yearend.TaxSettlementKind;
+import com.erp.accounting.tax.withholding.WithholdingService;
+import com.erp.accounting.tax.yearend.TaxSettlementService;
+import com.erp.accounting.tax.yearend.dto.TaxSettlementDtos.CurrentPay;
+import com.erp.accounting.tax.yearend.dto.TaxSettlementDtos.SettlementResponse;
+import com.erp.accounting.tax.yearend.TaxSettlementKind;
 import com.erp.common.ApiException;
 import com.erp.hr.employee.EmployeeService;
 import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;

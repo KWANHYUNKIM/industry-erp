@@ -1,6 +1,6 @@
 package com.erp.accounting.contractitem;
 
-import com.erp.accounting.account.Account;
+import com.erp.accounting.ledger.account.Account;
 import com.erp.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;

@@ -2,11 +2,11 @@ package com.erp.hr.payroll;
 
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
-import com.erp.accounting.bankcard.BankAccount;
-import com.erp.accounting.journal.JournalEntry;
+import com.erp.accounting.fund.bankcard.BankAccount;
+import com.erp.accounting.ledger.journal.JournalEntry;
 import com.erp.hr.payroll.dto.PaySettingDtos.TransferRequest;
 import com.erp.hr.payroll.dto.PaySettingDtos.TransferResponse;
-import com.erp.accounting.bankcard.BankAccountRepository;
+import com.erp.accounting.fund.bankcard.BankAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +17,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
-import com.erp.accounting.bankcard.BankCardService;
-import com.erp.accounting.journal.JournalService;
+import com.erp.accounting.fund.bankcard.BankCardService;
+import com.erp.accounting.ledger.journal.JournalService;
 import com.erp.hr.payroll.dto.PaySettingDtos;
 
 /**

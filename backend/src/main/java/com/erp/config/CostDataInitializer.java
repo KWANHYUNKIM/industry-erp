@@ -1,8 +1,8 @@
 package com.erp.config;
 
 import com.erp.inventory.item.Item;
-import com.erp.accounting.cost.ItemCost;
-import com.erp.accounting.cost.ItemCostRepository;
+import com.erp.accounting.cost.cost.ItemCost;
+import com.erp.accounting.cost.cost.ItemCostRepository;
 import com.erp.inventory.item.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

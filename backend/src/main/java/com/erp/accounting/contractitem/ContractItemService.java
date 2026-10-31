@@ -1,6 +1,6 @@
 package com.erp.accounting.contractitem;
 
-import com.erp.accounting.account.AccountService;
+import com.erp.accounting.ledger.account.AccountService;
 import com.erp.accounting.contractitem.dto.ContractItemDtos;
 import com.erp.accounting.contractitem.dto.ContractItemDtos.ContractItemResponse;
 import com.erp.accounting.contractitem.dto.ContractItemDtos.SaveContractItemRequest;

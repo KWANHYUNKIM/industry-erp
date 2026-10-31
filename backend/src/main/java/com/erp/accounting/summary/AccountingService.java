@@ -35,8 +35,8 @@ public class AccountingService {
     private final PurchaseLineRepository purchaseLineRepository;
     private final ItemRepository itemRepository;
     private final BomRepository bomRepository;
-    private final com.erp.accounting.expense.ExpenseRepository expenseRepository;
-    private final com.erp.accounting.bankcard.CardUsageRepository cardUsageRepository;
+    private final com.erp.accounting.ledger.expense.ExpenseRepository expenseRepository;
+    private final com.erp.accounting.fund.bankcard.CardUsageRepository cardUsageRepository;
 
     /** 매입매출·부가세 요약 */
     @Transactional(readOnly = true)

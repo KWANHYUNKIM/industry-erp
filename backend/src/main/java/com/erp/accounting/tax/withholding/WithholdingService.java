@@ -1,0 +1,606 @@
+package com.erp.accounting.tax.withholding;
+
+import com.erp.common.ApiException;
+import com.erp.hr.payroll.Payslip;
+import com.erp.hr.payroll.PayslipLine;
+import com.erp.hr.payroll.PayslipLineKind;
+import com.erp.hr.payroll.PayslipStatus;
+import com.erp.accounting.tax.withholding.dto.WithholdingDtos.ReceiptMonth;
+import com.erp.accounting.tax.withholding.dto.WithholdingDtos.WithholdingReceipt;
+import com.erp.accounting.tax.withholding.dto.WithholdingDtos.WithholdingRow;
+import com.erp.accounting.tax.withholding.dto.WithholdingDtos.WithholdingStatement;
+import com.erp.hr.payroll.PayslipRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+import com.erp.accounting.tax.withholding.dto.WithholdingDtos;
+
+/**
+ * 원천징수: 급여에서 뗀 소득세·지방소득세를 신고 단위로 집계한다.
+ *
+ * 세액 자체는 급여명세를 만들 때 PayrollService 가 이미 공제해 뒀다. 여기서는 그 공제 항목을
+ * 신고서 모양(월별 이행상황 / 사원별 연간 영수증)으로 다시 묶기만 한다. 집계가 세액을 다시
+ * 계산하지 않으므로, 급여명세에서 소득세를 손으로 고친 경우에도 신고액과 실제 공제액이 어긋나지 않는다.
+ *
+ * 신고 대상은 확정(CONFIRMED)된 급여명세뿐이다. 작성 중인 명세는 건수만 알린다.
+ */
+@Service
+@RequiredArgsConstructor
+public class WithholdingService {
+
+    // hr(PayrollService)에서 원천징수 공제 항목명으로 참조 → 모듈 경계를 넘으므로 public.
+    public static final String INCOME_TAX = "소득세";
+    public static final String LOCAL_INCOME_TAX = "지방소득세";
+    /** 원천징수 대상이 아닌 공제(4대보험). 영수증의 사회보험료 칸에 따로 싣는다. */
+    private static final Set<String> SOCIAL_INSURANCE =
+            Set.of("국민연금", "건강보험", "장기요양보험", "고용보험");
+
+    private static final Pattern MONTH = Pattern.compile("\\d{4}-\\d{2}");
+
+    private final PayslipRepository payslipRepository;
+    private final WithholdingTaxCalculator taxCalculator;
+    private final WithholdingReturnRepository returnRepository;
+    private final com.erp.accounting.tax.retirementpay.RetirementPayRepository retirementPayRepository;
+    private final com.erp.hr.dailyworker.DailyPayService dailyPayService;
+    private final com.erp.hr.payroll.PayLedgerService payLedgerService;
+    private final com.erp.accounting.tax.otherwithholding.OtherWithholdingRepository otherWithholdingRepository;
+    private final com.erp.hr.payroll.PaySettingService paySettingService;
+    private final com.erp.accounting.tax.yearend.TaxSettlementRepository taxSettlementRepository;
+    private final com.erp.hr.employee.EmployeeService employeeService;
+
+    /** 원천징수이행상황신고서 (귀속월 기준) */
+    @Transactional(readOnly = true)
+    public WithholdingStatement statement(String month) {
+        return statement(month, null);
+    }
+
+    /**
+     * 신고서 한 장의 서식. 그 신고서가 [소득자료반영기준] ○직접지정이고 [급여대장] 을 골랐으면
+     * 근로소득(간이세액)은 귀속연월이 아니라 고른 대장의 급여명세로 센다(원본 '급여대장검색' 에서 고른 2026/10-1 → A01 20,469,000).
+     */
+    @Transactional(readOnly = true)
+    public WithholdingStatement statement(String month, Long returnId) {
+        if (month == null || !MONTH.matcher(month).matches()) {
+            throw ApiException.badRequest("귀속월 형식이 올바르지 않습니다(YYYY-MM): " + month);
+        }
+        List<Payslip> all = payslipRepository.findByPayMonth(month);
+        WithholdingReturn ret = returnId == null ? null : returnRepository.findById(returnId).orElse(null);
+        if (ret != null && ret.isDirectIncome() && !ret.ledgerIds().isEmpty()) {
+            java.util.Set<Long> ids = new java.util.HashSet<>(ret.ledgerIds());
+            all = payLedgerService.findAll().stream().filter(l -> ids.contains(l.id()))
+                    .map(com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse::payMonth).distinct()
+                    .flatMap(m -> payslipRepository.findByPayMonth(m).stream()).toList();
+        }
+
+        List<WithholdingRow> rows = new ArrayList<>();
+        BigDecimal totalGross = BigDecimal.ZERO;
+        BigDecimal totalIncomeTax = BigDecimal.ZERO;
+        BigDecimal totalLocal = BigDecimal.ZERO;
+        int draftCount = 0;
+
+        for (Payslip p : all) {
+            if (p.getStatus() != PayslipStatus.CONFIRMED) {
+                draftCount++;
+                continue;
+            }
+            BigDecimal incomeTax = deduction(p, INCOME_TAX);
+            BigDecimal local = deduction(p, LOCAL_INCOME_TAX);
+            BigDecimal gross = p.grossPay();
+
+            rows.add(new WithholdingRow(
+                    p.getId(), p.getEmployee().getId(), p.getEmployee().getCode(), p.getEmployee().getName(),
+                    gross, incomeTax, local, incomeTax.add(local)));
+
+            totalGross = totalGross.add(gross);
+            totalIncomeTax = totalIncomeTax.add(incomeTax);
+            totalLocal = totalLocal.add(local);
+        }
+
+        List<WithholdingDtos.IncomeSection> sections = new ArrayList<>();
+        // A01 총지급액은 <b>제출제외 비과세</b>만 뺀다 — 원본 2026/10 6명 20,469,000(급여대장 21,669,000 − 차량유지비 1,200,000).
+        // 식대 등 제출대상 비과세(800,000)는 총지급액에 남는다(원본 간이소득내역 2026-10-13 실측). 예전엔 비과세를 모두 뺐다.
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> excluded = taxFreeTypes();
+        BigDecimal nonTaxable = all.stream().filter(p -> p.getStatus() == PayslipStatus.CONFIRMED)
+                .map(p -> excludedNonTaxable(p, excluded)).reduce(BigDecimal.ZERO, BigDecimal::add);
+        sections.add(new WithholdingDtos.IncomeSection("A01", "근로소득(간이세액)", rows.size(), totalGross.subtract(nonTaxable),
+                totalIncomeTax, totalLocal));
+        java.time.YearMonth ym = java.time.YearMonth.parse(month);
+        // 일용근로 [A03] — 관리 › 일용근로 급여대장(hr.dailyworker) 의 귀속연월 줄. 신고서가 있으면 그 지급연월에 지급한 대장만
+        // (퇴직 A22 와 같은 규칙). 예전엔 옛 출역(hr.dailywork)에서 세고 세금을 다시 셈했다 — 지급명세서(일용직) 87b41584 와 같게 대장 값 그대로.
+        String dailyPaid = ret != null ? ret.getPayMonth() : null;
+        BigDecimal[] daily = dailyTotals(month, dailyPaid);
+        if (daily != null) {
+            sections.add(new WithholdingDtos.IncomeSection("A03", "일용근로", daily[0].intValue(), daily[1], daily[3], daily[4]));
+        }
+        // 퇴직소득 [A22 그 외] — 귀속연월(퇴직일자의 달)과 지급연월(퇴직금계산의 원천징수연월)이 둘 다 이 신고서와 맞는 것.
+        // 원본 2026-10-13: QA세무-퇴직(퇴사 2026/09/30 · 원천징수 2026/10)은 귀속 09 · 지급 10 신고서에만 A22 1 · 8,064,621 · 73,550,
+        // 귀속 10 · 지급 10 에는 안 실린다. 신고서 없이 부르면(비교표) 귀속연월로만 거른다. 연금계좌(A21) 이체는 우리에게 없다.
+        String retirePayMonth = ret != null ? ret.getPayMonth() : null;
+        List<com.erp.accounting.tax.retirementpay.RetirementPay> retires = retirementPayRepository.findAll().stream()
+                .filter(r -> month.equals(java.time.YearMonth.from(r.getRetireDate()).toString())
+                        && (retirePayMonth == null || retirePayMonth.equals(r.getWithholdingMonth()))).toList();
+        if (!retires.isEmpty()) {
+            sections.add(new WithholdingDtos.IncomeSection("A22", "퇴직소득(그 외)",
+                    (int) retires.stream().map(r -> r.getEmployee().getId()).distinct().count(),
+                    retires.stream().map(com.erp.accounting.tax.retirementpay.RetirementPay::getRetirementPay).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    retires.stream().map(com.erp.accounting.tax.retirementpay.RetirementPay::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    retires.stream().map(com.erp.accounting.tax.retirementpay.RetirementPay::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)));
+        }
+        // 기타원천세는 귀속연월로 싣고 인원은 소득자 수 — 원본 2025/07 사업소득 [A25] 2명(5줄) · 1,916,000.
+        // 법인에 준 이자 · 배당은 [A80 내·외국법인원천] — 원본 2025/07 김꽃 꽃꽃이 센터 이자 1,000,000 · 250,000(A50 은 0).
+        java.util.Map<String, List<com.erp.accounting.tax.otherwithholding.OtherWithholding>> byCode =
+                otherWithholdingRepository.findByAttributionBetween(month, month).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(WithholdingService::formCode,
+                                java.util.TreeMap::new, java.util.stream.Collectors.toList()));
+        byCode.forEach((code, list) -> sections.add(new WithholdingDtos.IncomeSection(
+                code, "A80".equals(code) ? "내·외국법인원천" : list.get(0).getIncomeType().getDisplayName(),
+                (int) list.stream().map(w -> w.getPayeeName() + "\u0000" + w.getPayeeRegNo()).distinct().count(),
+                list.stream().map(com.erp.accounting.tax.otherwithholding.OtherWithholding::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+                list.stream().map(com.erp.accounting.tax.otherwithholding.OtherWithholding::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                list.stream().map(com.erp.accounting.tax.otherwithholding.OtherWithholding::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add))));
+        BigDecimal grandTax = sections.stream().map(WithholdingDtos.IncomeSection::incomeTax).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal grandLocal = sections.stream().map(WithholdingDtos.IncomeSection::localIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new WithholdingStatement(
+                month, rows.size(), draftCount,
+                totalGross, totalIncomeTax, totalLocal, totalIncomeTax.add(totalLocal),
+                rows, sections, grandTax, grandLocal, grandTax.add(grandLocal));
+    }
+
+    /**
+     * 수당 이름 → 비과세유형(수당항목등록). 지급명세서 <b>제출제외 비과세</b>는 차량유지비(자가운전보조금)인 것,
+     * 식대 · 야간근로수당 · 보육수당은 제출대상 비과세라 신고서 총지급액에 남는다.
+     */
+    private Map<String, com.erp.hr.payroll.PayTaxFreeType> taxFreeTypes() {
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> m = new java.util.HashMap<>();
+        for (var i : paySettingService.findItems()) {
+            if (i.kind() == PayslipLineKind.ALLOWANCE && i.taxFreeType() != null) m.putIfAbsent(i.name(), i.taxFreeType());
+        }
+        return m;
+    }
+
+    /**
+     * 명세 한 장의 <b>한도 안의</b> 비과세 — 유형마다 월 한도(PayTaxFreeType#getMonthlyLimit)까지만 비과세, 넘는 몫은 과세다.
+     * 급여계산(PayrollService.taxableIncome)과 같은 규칙: 유형을 모르는 비과세 줄(전액과세 유형 · 수당항목에 없는 이름)은 한도 없이 비과세.
+     * 예전엔 비과세 줄 금액을 한도 없이 더해 A01 총지급액 · 원천징수부 과세급여에서 한도 넘는 몫까지 빠졌다(관리 1ecdf6c3 지적).
+     * wantExcluded: true 면 제출제외(차량유지비)만, false 면 그 밖의 비과세만, null 이면 전부.
+     */
+    private static BigDecimal nonTaxableOf(Payslip p, Map<String, com.erp.hr.payroll.PayTaxFreeType> types, Boolean wantExcluded) {
+        Map<com.erp.hr.payroll.PayTaxFreeType, BigDecimal> byType = new java.util.EnumMap<>(com.erp.hr.payroll.PayTaxFreeType.class);
+        for (PayslipLine l : p.getLines()) {
+            if (l.getKind() != PayslipLineKind.ALLOWANCE || l.isTaxable()) continue;
+            byType.merge(types.getOrDefault(l.getName(), com.erp.hr.payroll.PayTaxFreeType.NONE), l.getAmount(), BigDecimal::add);
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (var e : byType.entrySet()) {
+            boolean excluded = e.getKey() == com.erp.hr.payroll.PayTaxFreeType.VEHICLE;
+            if (wantExcluded != null && excluded != wantExcluded) continue;
+            BigDecimal limit = e.getKey().getMonthlyLimit();
+            sum = sum.add(limit == null ? e.getValue() : e.getValue().min(limit));
+        }
+        return sum;
+    }
+
+    private static BigDecimal excludedNonTaxable(Payslip p, Map<String, com.erp.hr.payroll.PayTaxFreeType> types) {
+        return nonTaxableOf(p, types, true);
+    }
+
+    /** 대장의 지급연월 — 지급일의 달(없으면 귀속연월). 원본 급여대장검색은 신고서 [지급연월] 과 같은 대장만 보인다. */
+    private static String ledgerPayMonth(com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse l) {
+        return l.payDate() != null ? l.payDate().toString().substring(0, 7) : l.payMonth();
+    }
+
+    /**
+     * 원본 '급여대장검색' — 신고서의 지급연월에 지급한 급여대장. 귀속연월 칸은 '2026/10-1'(같은 귀속월 대장의 차수).
+     * 2026-10-13 loginaa: 지급연월 2026/10 이면 2026/10-1 하나, 2026/09 로 바꾸면 2026/09-1 하나만 보인다.
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.LedgerPick> ledgerPicks(String payMonth) {
+        if (payMonth == null || !MONTH.matcher(payMonth).matches()) {
+            throw ApiException.badRequest("지급연월 형식이 올바르지 않습니다(YYYY-MM): " + payMonth);
+        }
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> excluded = taxFreeTypes();
+        var ledgers = payLedgerService.findAll().stream()
+                .sorted(java.util.Comparator.comparing(com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse::id)).toList();
+        Map<String, Integer> seq = new java.util.HashMap<>();
+        List<WithholdingDtos.LedgerPick> out = new ArrayList<>();
+        for (var l : ledgers) {
+            int n = seq.merge(l.payMonth(), 1, Integer::sum);
+            if (!payMonth.equals(ledgerPayMonth(l))) continue;
+            List<Payslip> slips = payslipRepository.findByPayMonth(l.payMonth());
+            BigDecimal gross = slips.stream().map(Payslip::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal ex = slips.stream().map(p -> excludedNonTaxable(p, excluded)).reduce(BigDecimal.ZERO, BigDecimal::add);
+            out.add(new WithholdingDtos.LedgerPick(l.id(), l.payMonth().replace('-', '/') + "-" + n, payMonth,
+                    "급여", l.name(), slips.size(), gross, gross.subtract(ex)));
+        }
+        out.sort(java.util.Comparator.comparing(WithholdingDtos.LedgerPick::code).reversed());
+        return out;
+    }
+
+    /** 원본 '간이소득내역' — 그 대장의 사원별 급여대장금액 · 제출제외/제출대상 비과세 · 제출대상 금액 · 소득세(사원번호 차례). */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.SimpleIncomeRow> ledgerIncome(Long ledgerId) {
+        var ledger = payLedgerService.findAll().stream().filter(l -> l.id().equals(ledgerId)).findFirst()
+                .orElseThrow(() -> ApiException.notFound("급여대장을 찾을 수 없습니다."));
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> excluded = taxFreeTypes();
+        return payslipRepository.findByPayMonth(ledger.payMonth()).stream()
+                .sorted(java.util.Comparator.comparing((Payslip p) -> p.getEmployee().getCode()))
+                .map(p -> {
+                    BigDecimal ex = nonTaxableOf(p, excluded, true);
+                    return new WithholdingDtos.SimpleIncomeRow(p.getEmployee().getCode(), p.getEmployee().getName(),
+                            p.getEmployee().getHireDate(), p.getEmployee().getResignDate(),
+                            p.grossPay(), ex, nonTaxableOf(p, excluded, false), p.grossPay().subtract(ex),
+                            deduction(p, INCOME_TAX));
+                }).toList();
+    }
+
+    /**
+     * 신고서 서식의 코드 — 원본 신고서는 기타원천세를 사업소득 [매월징수 A25] · 기타소득 [그 외 A42] ·
+     * 이자 [A50] · 배당 [A60] 줄에 싣는다. 예전엔 enum 이름(BUSINESS …)을 코드로 내보내 서식 줄과 이을 수 없었다.
+     */
+    static String formCode(com.erp.accounting.tax.otherwithholding.OtherWithholding w) {
+        boolean corporate = w.getPayee() != null && w.getPayee().getKind() == com.erp.accounting.tax.withholdingpayee.PayeeKind.CORPORATE;
+        if (corporate && (w.getIncomeType() == com.erp.accounting.ledger.income.IncomeType.INTEREST
+                || w.getIncomeType() == com.erp.accounting.ledger.income.IncomeType.DIVIDEND)) return "A80";
+        if (w.getIncomeType() == com.erp.accounting.ledger.income.IncomeType.NON_RESIDENT && w.getIncomeCode() != null
+                && w.getIncomeCode().startsWith("4")) return "A25";
+        return formCode(w.getIncomeType());
+    }
+
+    static String formCode(com.erp.accounting.ledger.income.IncomeType type) {
+        return switch (type) {
+            case BUSINESS -> "A25";
+            case OTHER -> "A42";
+            case INTEREST -> "A50";
+            case DIVIDEND -> "A60";
+            // 비거주자사업기타소득 — 신고서 사업 · 기타소득 줄이 '개인(거주자·비거주자)' 이다. 사업류(40 · 41 · 42)는 줄 단위에서 A25 로 돌린다.
+            case NON_RESIDENT -> "A42";
+        };
+    }
+
+    /**
+     * 원천징수부(E020116) — 기준연월의 연도 1월부터 기준연월까지, 사원마다 달별 총급여(과세) · 비과세 · 소득세 · 지방소득세.
+     * 확정 명세만 센다. 원본은 기준연월 2026/10 이면 2026.01 ~ 2026.10 을 찍고 11 · 12 칸은 비운다.
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.LedgerEmployee> ledger(String month) {
+        if (month == null || !MONTH.matcher(month).matches()) {
+            throw ApiException.badRequest("기준연월 형식이 올바르지 않습니다(YYYY-MM): " + month);
+        }
+        return ledger(month.substring(0, 4) + "-01", month);
+    }
+
+    /**
+     * 기간판 — 소득세확인서(E030103)의 [조회일자] 처럼 해를 넘길 수 있다. from ~ to (YYYY-MM, 양끝 포함).
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.LedgerEmployee> ledger(String from, String to) {
+        if (from == null || !MONTH.matcher(from).matches() || to == null || !MONTH.matcher(to).matches()) {
+            throw ApiException.badRequest("조회일자 형식이 올바르지 않습니다(YYYY-MM): " + from + " ~ " + to);
+        }
+        if (from.compareTo(to) > 0) {
+            throw ApiException.badRequest("조회일자의 시작이 끝보다 늦습니다: " + from + " ~ " + to);
+        }
+        java.util.Map<Long, List<Payslip>> byEmployee = new java.util.LinkedHashMap<>();
+        for (int y = Integer.parseInt(from.substring(0, 4)); y <= Integer.parseInt(to.substring(0, 4)); y++) {
+            for (Payslip p : payslipRepository.findByYear(String.valueOf(y))) {
+                if (p.getStatus() != PayslipStatus.CONFIRMED
+                        || p.getPayMonth().compareTo(from) < 0 || p.getPayMonth().compareTo(to) > 0) continue;
+                byEmployee.computeIfAbsent(p.getEmployee().getId(), k -> new ArrayList<>()).add(p);
+            }
+        }
+        List<WithholdingDtos.LedgerEmployee> out = new ArrayList<>();
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> types = taxFreeTypes();
+        for (List<Payslip> slips : byEmployee.values()) {
+            var e = slips.get(0).getEmployee();
+            List<WithholdingDtos.LedgerMonth> months = slips.stream()
+                    .sorted(java.util.Comparator.comparing(Payslip::getPayMonth))
+                    .map(p -> {
+                        BigDecimal nonTaxable = nonTaxableOf(p, types, null);
+                        BigDecimal taxable = p.grossPay().subtract(nonTaxable);
+                        long[] b = taxCalculator.bracketOf(taxable);
+                        String bracket = b == null ? null : String.format("%,d~%,d", b[0], b[1]);
+                        return new WithholdingDtos.LedgerMonth(p.getPayMonth(), taxable, nonTaxable,
+                                deduction(p, INCOME_TAX), deduction(p, LOCAL_INCOME_TAX), bracket);
+                    })
+                    .toList();
+            out.add(new WithholdingDtos.LedgerEmployee(e.getId(), e.getCode(), e.getName(),
+                    e.getHireDate(), e.getResignDate(), months));
+        }
+        out.sort(java.util.Comparator.comparing(WithholdingDtos.LedgerEmployee::employeeCode,
+                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
+        return out;
+    }
+
+    /** 근로소득 원천징수영수증 (연간, 사원별). 확정 명세만 집계한다. */
+    @Transactional(readOnly = true)
+    public List<WithholdingReceipt> receipts(int year) {
+        List<Payslip> all = payslipRepository.findByYear(String.valueOf(year));
+
+        List<WithholdingReceipt> receipts = new ArrayList<>();
+        Long currentEmployeeId = null;
+        List<Payslip> bucket = new ArrayList<>();
+
+        for (Payslip p : all) {
+            if (p.getStatus() != PayslipStatus.CONFIRMED) continue;
+            Long empId = p.getEmployee().getId();
+            if (currentEmployeeId != null && !currentEmployeeId.equals(empId)) {
+                receipts.add(toReceipt(year, bucket));
+                bucket = new ArrayList<>();
+            }
+            currentEmployeeId = empId;
+            bucket.add(p);
+        }
+        if (!bucket.isEmpty()) {
+            receipts.add(toReceipt(year, bucket));
+        }
+        return receipts;
+    }
+
+    private WithholdingReceipt toReceipt(int year, List<Payslip> slips) {
+        Payslip first = slips.get(0);
+        BigDecimal gross = BigDecimal.ZERO;
+        BigDecimal incomeTax = BigDecimal.ZERO;
+        BigDecimal local = BigDecimal.ZERO;
+        BigDecimal social = BigDecimal.ZERO;
+        List<ReceiptMonth> months = new ArrayList<>();
+
+        for (Payslip p : slips) {
+            BigDecimal g = p.grossPay();
+            BigDecimal it = deduction(p, INCOME_TAX);
+            BigDecimal lt = deduction(p, LOCAL_INCOME_TAX);
+
+            months.add(new ReceiptMonth(p.getPayMonth(), g, it, lt));
+            gross = gross.add(g);
+            incomeTax = incomeTax.add(it);
+            local = local.add(lt);
+            social = social.add(sumDeductions(p, SOCIAL_INSURANCE));
+        }
+
+        return new WithholdingReceipt(
+                year,
+                first.getEmployee().getId(), first.getEmployee().getCode(), first.getEmployee().getName(),
+                gross, incomeTax, local, incomeTax.add(local), social,
+                months);
+    }
+
+    /**
+     * 법인세Checklist(E030401) [3. 급여 및 원천세 내역] — 기준연도의 달마다 급여대장 합계와 원천세 신고금액.
+     * 급여대장은 작성 중인 명세까지 센다(원본 급여대장과 같다). 신고금액은 그 달을 귀속연월로 낸 신고서가 있을 때만
+     * 확정 명세의 총지급액이고, 없으면 0 — 원본 도움말 '신고서금액과 급여총액의 차이 … 미제출 비과세 금액이 표시될 수 있습니다'.
+     * 급여도 신고도 없는 달은 행을 만들지 않는다(원본 2026 은 급여가 있는 01~10월만).
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.PayrollTaxMonth> payrollTaxMonths(int year) {
+        String prefix = String.valueOf(year);
+        java.util.Set<String> reportedMonths = new java.util.TreeSet<>();
+        for (WithholdingReturn r : returnRepository.findAllByOrderByAttributionMonthDescIdDesc()) {
+            if (r.getAttributionMonth().startsWith(prefix + "-")) reportedMonths.add(r.getAttributionMonth());
+        }
+        java.util.Map<String, List<Payslip>> byMonth = new java.util.TreeMap<>();
+        for (Payslip p : payslipRepository.findByYear(prefix)) {
+            byMonth.computeIfAbsent(p.getPayMonth(), k -> new ArrayList<>()).add(p);
+        }
+        java.util.Set<String> months = new java.util.TreeSet<>(byMonth.keySet());
+        months.addAll(reportedMonths);
+        List<WithholdingDtos.PayrollTaxMonth> out = new ArrayList<>();
+        for (String m : months) {
+            List<Payslip> slips = byMonth.getOrDefault(m, List.of());
+            BigDecimal gross = BigDecimal.ZERO, bonus = BigDecimal.ZERO, tax = BigDecimal.ZERO, local = BigDecimal.ZERO,
+                    pension = BigDecimal.ZERO, health = BigDecimal.ZERO, employment = BigDecimal.ZERO;
+            for (Payslip p : slips) {
+                gross = gross.add(p.grossPay());
+                bonus = bonus.add(p.getLines().stream()
+                        .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.getName().contains("상여"))
+                        .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+                tax = tax.add(deduction(p, INCOME_TAX));
+                local = local.add(deduction(p, LOCAL_INCOME_TAX));
+                pension = pension.add(deduction(p, "국민연금"));
+                health = health.add(deduction(p, "건강보험"));
+                employment = employment.add(deduction(p, "고용보험"));
+            }
+            // 원천세 신고금액 = 그 달 신고서의 근로소득(간이세액) 총지급액(비과세 뺀 것) — 원본 2026/10 20,469,000,
+            // 급여총액 21,669,000 이라 차액 −1,200,000(2026-10-12 실측). 예전엔 비과세까지 든 급여총액을 내 차액이 늘 0 이었다.
+            BigDecimal reported = reportedMonths.contains(m)
+                    ? statement(m).sections().stream().filter(sec -> "A01".equals(sec.code()))
+                            .map(WithholdingDtos.IncomeSection::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add)
+                    : BigDecimal.ZERO;
+            out.add(new WithholdingDtos.PayrollTaxMonth(m, reported, gross.subtract(bonus), bonus, tax, local,
+                    pension, health, employment));
+        }
+        return out;
+    }
+
+    /**
+     * 원천징수영수증(일용직) · 지급명세서(일용직) — 그 지급연월의 일용근로 급여대장(관리 › 일용근로 급여계산/대장) 줄을 사원마다 더한다.
+     * 2026-10-14 원본: 일당 200,000 사원 근무기록확정 2 → 전체계산 → 대장 400,000 · 공제 0 이면 영수증 목록 400,000 · 세금 빈칸,
+     * 지급명세서 서식 '1 명 1 건 400,000 0 0 0'. 소득세 · 지방소득세는 대장 값 그대로다(일 15만 원 공제 · 6% 로 다시 셈하지 않는다).
+     * 예전엔 출역(hr.dailywork) 기록에서 셌는데, 관리의 일용근로 화면은 급여대장(hr.dailyworker)을 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.DailyReceipt> dailyReceipts(String month) {
+        if (month == null || !MONTH.matcher(month).matches()) {
+            throw ApiException.badRequest("지급연월 형식이 올바르지 않습니다(YYYY-MM): " + month);
+        }
+        Map<Long, List<com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine>> by = new java.util.LinkedHashMap<>();
+        for (com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine l : dailyPayService.reportLines("0000-01", "9999-12")) {
+            if (month.equals(l.paidMonth())) by.computeIfAbsent(l.workerId(), k -> new ArrayList<>()).add(l);
+        }
+        return by.values().stream().map(ls -> {
+            com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine f = ls.get(0);
+            return new WithholdingDtos.DailyReceipt(f.workerId(), f.workerCode(), f.workerName(),
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::days).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::lastWorkDate).filter(java.util.Objects::nonNull)
+                            .max(java.util.Comparator.naturalOrder()).orElse(null),
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    BigDecimal.ZERO,
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::incomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::localTax).reduce(BigDecimal.ZERO, BigDecimal::add));
+        }).sorted(java.util.Comparator.comparing(WithholdingDtos.DailyReceipt::employeeCode,
+                java.util.Comparator.nullsLast(String::compareTo))).toList();
+    }
+
+    /** 원천세신고자료비교표의 구분 — 원본 차례 그대로. 신고서 소득구분 코드가 있는 것만 신고내역과 견준다. */
+    private static final String[][] COMPARISON_KINDS = {
+            {"근로소득", "A01"}, {"중도퇴사", null}, {"일용근로", "A03"}, {"연말정산", null}, {"퇴직소득", null},
+            {"사업소득", "A25"}, {"기타소득", "A42"}, {"이자소득", "A50"}, {"배당소득", "A60"}, {"법인원천", null}};
+
+    /**
+     * 원천세신고자료비교표(E030104) — 기준연도 달마다 자료(급여대장 · 출역 · 퇴직금 · 기타원천세)와 그 달 신고서를 구분별로 견준다.
+     * 원본 2026: 근로소득 달마다 6 · 21,669,000 · 1,200,000 · 646,370 · 64,620, 자료가 하나도 없는 달은 줄을 만들지 않고
+     * 끝에 합계 열 줄. 급여대장은 작성 중인 명세까지 센다. 중도퇴사 · 연말정산은 자료가 없어 빈다.
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.ComparisonRow> comparison(int year) {
+        return comparison(year, false);
+    }
+
+    /** byPayMonth: [중도퇴사기준] ○지급연월 — 중도정산을 원천징수연월로 센다(◉귀속(퇴사일자) 이면 퇴사일). */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.ComparisonRow> comparison(int year, boolean byPayMonth) {
+        String prefix = String.valueOf(year);
+        java.util.Set<String> reported = new java.util.HashSet<>();
+        returnRepository.findAllByOrderByAttributionMonthDescIdDesc().forEach(r -> {
+            if (r.getAttributionMonth().startsWith(prefix + "-")) reported.add(r.getAttributionMonth());
+        });
+        Map<String, List<Payslip>> slips = new java.util.HashMap<>();
+        payslipRepository.findByYear(prefix).forEach(p -> slips.computeIfAbsent(p.getPayMonth(), k -> new ArrayList<>()).add(p));
+        // 퇴직소득은 퇴직금계산의 퇴직일자(귀속) 달로 센다 — [중도퇴사기준] 을 바꿔도 그대로(원본 2025 홍재혁 귀속 2025/01/21 · 원천징수 2025/02 가
+        // 01월 1). 인원은 그 달의 사원 수(고준희 2025/11/13 · 11/18 두 번이 11월 1), 합계 인원은 달 인원의 합(2025 7). 소득자료제출집계표와 같은 달 규칙.
+        Map<String, List<com.erp.accounting.tax.retirementpay.RetirementPay>> retire = new java.util.HashMap<>();
+        retirementPayRepository.findAll().forEach(r -> {
+            String rm = java.time.YearMonth.from(r.getRetireDate()).toString();
+            if (rm.startsWith(prefix + "-")) retire.computeIfAbsent(rm, k -> new ArrayList<>()).add(r);
+        });
+        // 연말정산 · 중도정산(accounting/yearend) — 계산한 정산내역만, 금액 = 총급여 + 비과세 · 세액 = 결정세액(소득자료제출집계표와 같은 값).
+        // 연말정산은 원천징수연월 달, 중도정산은 [중도퇴사기준] ◉귀속(퇴사일자) 이면 퇴사일 달 · ○지급연월 이면 원천징수연월 달.
+        Map<Long, java.time.LocalDate> resigned = new java.util.HashMap<>();
+        employeeService.findAllIncludingResigned().forEach(e -> { if (e.resignDate() != null) resigned.put(e.id(), e.resignDate()); });
+        Map<String, Map<String, List<com.erp.accounting.tax.yearend.TaxSettlement>>> settle = new java.util.HashMap<>();
+        for (var kind : List.of(com.erp.accounting.tax.yearend.TaxSettlementKind.YEAR_END, com.erp.accounting.tax.yearend.TaxSettlementKind.MID_TERM)) {
+            for (int y : new int[]{year - 1, year}) {
+                for (var t : taxSettlementRepository.findByAttributionYearAndKindOrderByIdAsc(y, kind)) {
+                    if (t.getCalculatedAt() == null) continue;
+                    boolean mid = kind == com.erp.accounting.tax.yearend.TaxSettlementKind.MID_TERM;
+                    String sm = mid && !byPayMonth && resigned.containsKey(t.getEmployeeId())
+                            ? java.time.YearMonth.from(resigned.get(t.getEmployeeId())).toString() : t.getWithholdingMonth();
+                    if (sm == null || !sm.startsWith(prefix + "-")) continue;
+                    settle.computeIfAbsent(mid ? "중도퇴사" : "연말정산", k -> new java.util.HashMap<>())
+                            .computeIfAbsent(sm, k -> new ArrayList<>()).add(t);
+                }
+            }
+        }
+        List<WithholdingDtos.ComparisonRow> out = new ArrayList<>();
+        Map<String, BigDecimal[]> total = new java.util.LinkedHashMap<>();
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> excludedNames = taxFreeTypes();
+        for (int m = 1; m <= 12; m++) {
+            String month = String.format("%s-%02d", prefix, m);
+            java.time.YearMonth ym = java.time.YearMonth.parse(month);
+            Map<String, BigDecimal[]> data = new java.util.HashMap<>();   // kind → [count, gross, nonTaxable, tax, local]
+            List<Payslip> ps = slips.getOrDefault(month, List.of());
+            if (!ps.isEmpty()) {
+                BigDecimal gross = BigDecimal.ZERO, nonTax = BigDecimal.ZERO, tax = BigDecimal.ZERO, local = BigDecimal.ZERO;
+                // 비과세 칸은 제출제외 비과세만 — 원본 2026 합계 60명 216,690,000 · 비과세 12,000,000(차량유지비 200,000 × 60, 식대는 안 셈)
+                for (Payslip p : ps) {
+                    gross = gross.add(p.grossPay());
+                    nonTax = nonTax.add(excludedNonTaxable(p, excludedNames));
+                    tax = tax.add(deduction(p, INCOME_TAX));
+                    local = local.add(deduction(p, LOCAL_INCOME_TAX));
+                }
+                data.put("근로소득", new BigDecimal[]{BigDecimal.valueOf(ps.size()), gross, nonTax, tax, local});
+            }
+            BigDecimal[] daily = dailyTotals(month, null);
+            if (daily != null) data.put("일용근로", daily);
+            settle.forEach((kind, byMonth) -> {
+                List<com.erp.accounting.tax.yearend.TaxSettlement> ts = byMonth.getOrDefault(month, List.of());
+                if (ts.isEmpty()) return;
+                data.put(kind, new BigDecimal[]{BigDecimal.valueOf(ts.stream().map(com.erp.accounting.tax.yearend.TaxSettlement::getEmployeeId).distinct().count()),
+                        BigDecimal.valueOf(ts.stream().mapToLong(t -> t.getTotalSalary() + t.getCurNonTaxable()).sum()), BigDecimal.ZERO,
+                        BigDecimal.valueOf(ts.stream().mapToLong(com.erp.accounting.tax.yearend.TaxSettlement::getDecidedIncomeTax).sum()),
+                        BigDecimal.valueOf(ts.stream().mapToLong(com.erp.accounting.tax.yearend.TaxSettlement::getDecidedLocalTax).sum())});
+            });
+            List<com.erp.accounting.tax.retirementpay.RetirementPay> rs = retire.getOrDefault(month, List.of());
+            if (!rs.isEmpty()) {
+                data.put("퇴직소득", new BigDecimal[]{BigDecimal.valueOf(rs.stream().map(r -> r.getEmployee().getId()).distinct().count()),
+                        rs.stream().map(com.erp.accounting.tax.retirementpay.RetirementPay::getRetirementPay).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        rs.stream().map(com.erp.accounting.tax.retirementpay.RetirementPay::getNonTaxable).filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        rs.stream().map(com.erp.accounting.tax.retirementpay.RetirementPay::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        rs.stream().map(com.erp.accounting.tax.retirementpay.RetirementPay::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)});
+            }
+            // 원본은 귀속연월로 센다. 법인에 준 이자 · 배당은 '법인원천' 줄 — 원본 2025 김꽃 꽃꽃이 센터(법인) 이자 3건이
+            // 이자소득이 아니라 법인원천 1,000,000 · 2,000,000 · 117,205 로 찍힌다(2026-10-04 실측).
+            Map<String, List<com.erp.accounting.tax.otherwithholding.OtherWithholding>> others =
+                    otherWithholdingRepository.findByAttributionBetween(month, month).stream()
+                            .collect(java.util.stream.Collectors.groupingBy(w ->
+                                    (w.getIncomeType() == com.erp.accounting.ledger.income.IncomeType.INTEREST
+                                            || w.getIncomeType() == com.erp.accounting.ledger.income.IncomeType.DIVIDEND)
+                                            && w.getPayee() != null
+                                            && w.getPayee().getKind() == com.erp.accounting.tax.withholdingpayee.PayeeKind.CORPORATE
+                                            ? "법인원천" : w.getIncomeType().getDisplayName()));
+            others.forEach((kind, list) -> data.put(kind, new BigDecimal[]{
+                    BigDecimal.valueOf(list.stream().map(w -> w.getPayeeName() + "\u0000" + w.getPayeeRegNo()).distinct().count()),
+                    list.stream().map(com.erp.accounting.tax.otherwithholding.OtherWithholding::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    BigDecimal.ZERO,
+                    list.stream().map(com.erp.accounting.tax.otherwithholding.OtherWithholding::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    list.stream().map(com.erp.accounting.tax.otherwithholding.OtherWithholding::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)}));
+            Map<String, WithholdingDtos.IncomeSection> sections = new java.util.HashMap<>();
+            if (reported.contains(month)) statement(month).sections().forEach(sec -> sections.put(sec.code(), sec));
+            boolean anyReported = sections.values().stream()
+                    .anyMatch(sec -> sec.grossPay().signum() != 0 || sec.incomeTax().signum() != 0);
+            if (data.isEmpty() && !anyReported) continue;
+            for (String[] k : COMPARISON_KINDS) {
+                BigDecimal[] d = data.get(k[0]);
+                WithholdingDtos.IncomeSection sec = k[1] == null ? null : sections.get(k[1]);
+                out.add(row(month, k[0], d, sec));
+                if (d != null) {
+                    BigDecimal[] t = total.computeIfAbsent(k[0], x -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+                    for (int i = 0; i < 5; i++) t[i] = t[i].add(d[i]);
+                }
+            }
+        }
+        for (String[] k : COMPARISON_KINDS) out.add(row(null, k[0], total.get(k[0]), null));
+        return out;
+    }
+
+    /**
+     * 일용근로 급여대장의 귀속연월(month) 줄 합 — [인원(사원 수), 지급총액, 0, 소득세, 지방소득세], 줄이 없으면 null.
+     * paidMonth 가 있으면 그 지급연월의 대장만. 세금은 대장 값 그대로다(지급명세서(일용직)와 같은 출처).
+     */
+    private BigDecimal[] dailyTotals(String month, String paidMonth) {
+        List<com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine> ls = dailyPayService.reportLines(month, month).stream()
+                .filter(l -> month.equals(l.payMonth()) && (paidMonth == null || paidMonth.equals(l.paidMonth()))).toList();
+        if (ls.isEmpty()) return null;
+        return new BigDecimal[]{BigDecimal.valueOf(ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::workerId).distinct().count()),
+                ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add), BigDecimal.ZERO,
+                ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::incomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                ls.stream().map(com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine::localTax).reduce(BigDecimal.ZERO, BigDecimal::add)};
+    }
+
+    private static WithholdingDtos.ComparisonRow row(String month, String kind, BigDecimal[] d, WithholdingDtos.IncomeSection sec) {
+        // 소득세는 견주지 않는다 — 원본 2026/10 근로소득 급여대장 소득세 625,010 · 신고내역 646,370 인데 금액(20,469,000)이 같아 차이여부가 빈칸(2026-10-12).
+        boolean differs = sec != null && (d == null ? sec.grossPay().signum() != 0
+                : d[1].subtract(d[2]).compareTo(sec.grossPay()) != 0);
+        return new WithholdingDtos.ComparisonRow(month, kind, d == null ? 0 : d[0].intValue(),
+                d == null ? null : d[1], d == null ? null : d[2], d == null ? null : d[3], d == null ? null : d[4],
+                sec == null ? null : sec.count(), sec == null ? null : sec.grossPay(), sec == null ? null : sec.incomeTax(), differs);
+    }
+
+    private BigDecimal deduction(Payslip p, String name) {
+        return sumDeductions(p, Set.of(name));
+    }
+
+    private BigDecimal sumDeductions(Payslip p, Set<String> names) {
+        return p.getLines().stream()
+                .filter(l -> l.getKind() == PayslipLineKind.DEDUCTION)
+                .filter(l -> names.contains(l.getName()))
+                .map(PayslipLine::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+}

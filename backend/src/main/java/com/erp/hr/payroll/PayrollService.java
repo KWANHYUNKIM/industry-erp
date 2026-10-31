@@ -14,8 +14,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.regex.Pattern;
-import com.erp.accounting.withholding.WithholdingService;
-import com.erp.accounting.withholding.WithholdingTaxCalculator;
+import com.erp.accounting.tax.withholding.WithholdingService;
+import com.erp.accounting.tax.withholding.WithholdingTaxCalculator;
 import com.erp.hr.payroll.dto.PayrollDtos;
 
 /**
