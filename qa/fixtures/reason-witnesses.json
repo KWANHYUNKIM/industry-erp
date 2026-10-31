@@ -67,21 +67,21 @@
   "present": [
    "발주서"
   ],
-  "file": "trade/PurchaseOrderPage.tsx"
+  "file": "trade/purchaseorder/PurchaseOrderPage.tsx"
  },
  "작업지시서효율현황|닫기": {
   "claim": "화면을 닫는 버튼을 두지 않는다 — 메뉴로 옮긴다",
   "absent": [
    "label: '닫기'"
   ],
-  "in": "frontend/src/pages/production/WoEfficiencyPage.tsx"
+  "in": "frontend/src/pages/production/workorder/WoEfficiencyPage.tsx"
  },
  "설문조사조회|저장": {
   "claim": "그 격자와 [저장]은 설문조사입력에 있다",
   "present": [
    "저장"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "판매조회|통화": {
   "claim": "판매·구매 전표에 통화 칸이 없다",
@@ -95,7 +95,7 @@
   "present": [
    "고시환율"
   ],
-  "file": "settings/CurrencyPage.tsx"
+  "file": "settings/commoncode/CurrencyPage.tsx"
  },
  "창고등록|창고계층그룹": {
   "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
@@ -110,7 +110,7 @@
   "present": [
    "대표거래처로 합산"
   ],
-  "file": "trade/LedgerPage.tsx"
+  "file": "trade/arap/LedgerPage.tsx"
  },
  "외화등록|금액소수점": {
   "claim": "통화별 소수점 자릿수를 우리 마스터가 안 든다",
@@ -126,14 +126,14 @@
    "AI",
    "업무지원"
   ],
-  "in": "frontend/src/pages/groupware/ConstructionSchedulePage.tsx"
+  "in": "frontend/src/pages/groupware/schedule/ConstructionSchedulePage.tsx"
  },
  "품목등록 리스트|파일관리": {
   "claim": "파일은 품목 팝업의 [이미지] 칸에서 붙이고 뗀다",
   "present": [
    "image"
   ],
-  "file": "inventory/ItemsPage.tsx"
+  "file": "inventory/item/ItemsPage.tsx"
  },
  "거래처리스트|이체정보": {
   "claim": "이체정보는 거래처 팝업 안에서 본다 — 따로 여는 화면이 없다",
@@ -141,7 +141,7 @@
    "accountNo",
    "bankName"
   ],
-  "file": "trade/PartnersPage.tsx"
+  "file": "trade/partner/PartnersPage.tsx"
  },
  "구매단가일괄변경|환율변경": {
   "claim": "전표 환율은 입력 때 정한다 — 일괄로 바꾸면 원화 금액이 소리 없이 달라져 우리 일괄변경은 단가만 바꾼다",
@@ -254,7 +254,7 @@
   "present": [
    "계획연도"
   ],
-  "file": "trade/SalesPlanPage.tsx"
+  "file": "trade/salesplan/SalesPlanPage.tsx"
  },
  "거래처그룹2": {
   "claim": "그룹 축이 하나뿐이다 — 번호가 붙은 그룹이 없다",
@@ -301,14 +301,14 @@
   "present": [
    "[누계]"
   ],
-  "file": "trade/MonthlyArApPage.tsx"
+  "file": "trade/arap/MonthlyArApPage.tsx"
  },
  "월별채무증감내역|정렬/소계기준": {
   "claim": "거래처마다 다섯 줄 + 끝 [누계] 로 고정이라 따로 묶을 것이 없다",
   "present": [
    "[누계]"
   ],
-  "file": "trade/MonthlyArApPage.tsx"
+  "file": "trade/arap/MonthlyArApPage.tsx"
  },
  "자가사용현황|진행상태": {
   "claim": "기타이동에는 상태 칸이 없다",
@@ -395,28 +395,28 @@
   "absent": [
    "partnerId"
   ],
-  "in": "frontend/src/pages/inventory/TransferPage.tsx"
+  "in": "frontend/src/pages/inventory/transfer/TransferPage.tsx"
  },
  "대체사용현황|거래처": {
   "claim": "불량처리 · 대체사용 · 폐기 · 재고조정 입력에는 거래처 칸이 없다",
   "absent": [
    "partnerId"
   ],
-  "in": "frontend/src/pages/inventory/TransferPage.tsx"
+  "in": "frontend/src/pages/inventory/transfer/TransferPage.tsx"
  },
  "폐기현황|거래처": {
   "claim": "불량처리 · 대체사용 · 폐기 · 재고조정 입력에는 거래처 칸이 없다",
   "absent": [
    "partnerId"
   ],
-  "in": "frontend/src/pages/inventory/TransferPage.tsx"
+  "in": "frontend/src/pages/inventory/transfer/TransferPage.tsx"
  },
  "재고조정현황|거래처": {
   "claim": "불량처리 · 대체사용 · 폐기 · 재고조정 입력에는 거래처 칸이 없다",
   "absent": [
    "partnerId"
   ],
-  "in": "frontend/src/pages/inventory/TransferPage.tsx"
+  "in": "frontend/src/pages/inventory/transfer/TransferPage.tsx"
  },
  "출/퇴근현황(ID)|내/외근구분": {
   "claim": "근태에 내/외근·업무일/휴일 칸이 없다",
@@ -465,7 +465,7 @@
  },
  "문자형추가항목1": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -474,7 +474,7 @@
  },
  "문자형추가항목2": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -483,7 +483,7 @@
  },
  "문자형추가항목3": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -492,7 +492,7 @@
  },
  "문자형추가항목4": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -501,7 +501,7 @@
  },
  "문자형추가항목5": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -510,7 +510,7 @@
  },
  "문자형추가항목6": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -519,7 +519,7 @@
  },
  "숫자형추가항목1": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -528,7 +528,7 @@
  },
  "숫자형추가항목2": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -537,7 +537,7 @@
  },
  "숫자형추가항목3": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -546,7 +546,7 @@
  },
  "숫자형추가항목4": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -555,7 +555,7 @@
  },
  "숫자형추가항목5": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -564,7 +564,7 @@
  },
  "숫자형추가항목6": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -573,7 +573,7 @@
  },
  "숫자형추가항목7": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -582,7 +582,7 @@
  },
  "숫자형추가항목8": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -591,7 +591,7 @@
  },
  "숫자형추가항목9": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -600,7 +600,7 @@
  },
  "숫자형추가항목10": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -609,7 +609,7 @@
  },
  "추가항목3": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -618,7 +618,7 @@
  },
  "추가항목4": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -627,7 +627,7 @@
  },
  "추가항목5": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -636,7 +636,7 @@
  },
  "추가항목6": {
   "claim": "추가항목은 사용자정의필드에서 이름을 지어 정의한다",
-  "file": "settings/CustomFieldPage.tsx",
+  "file": "settings/commoncode/CustomFieldPage.tsx",
   "present": [
    "ITEM",
    "PARTNER",
@@ -645,7 +645,7 @@
  },
  "단가A": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -653,7 +653,7 @@
  },
  "단가B": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -661,7 +661,7 @@
  },
  "단가C": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -669,7 +669,7 @@
  },
  "단가D": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -677,7 +677,7 @@
  },
  "단가E": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -685,7 +685,7 @@
  },
  "단가F": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -693,7 +693,7 @@
  },
  "단가G": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -701,7 +701,7 @@
  },
  "단가H": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -709,7 +709,7 @@
  },
  "단가I": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -717,7 +717,7 @@
  },
  "단가J": {
   "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
-  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
+  "in": "frontend/src/pages/inventory/item/ItemsPage.tsx",
   "absent": [
    "gradeFrom",
    "gradeTo"
@@ -917,7 +917,7 @@
  },
  "출퇴근/근태/일정현황(ID)|휴가항목": {
   "claim": "이 화면은 근태와 일정만 합친다",
-  "file": "hr/WorkIntegratedPage.tsx",
+  "file": "hr/attendance/WorkIntegratedPage.tsx",
   "present": [
    "/hr/attendance",
    "/schedule-events"
@@ -945,7 +945,7 @@
    "receivable",
    "payable"
   ],
-  "file": "trade/PartnersPage.tsx"
+  "file": "trade/partner/PartnersPage.tsx"
  },
  "거래처관리대장 II|개별거래처기준": {
   "claim": "거래처등록 화면이라 합칠 잔액 자체가 없다",
@@ -953,7 +953,7 @@
    "receivable",
    "payable"
   ],
-  "file": "trade/PartnersPage.tsx"
+  "file": "trade/partner/PartnersPage.tsx"
  },
  "출하조회|최종수정자": {
   "claim": "누가 고쳤는지는 안 남긴다 — 고친 때(updatedAt)만 남는다",
@@ -1901,35 +1901,35 @@
   "present": [
    "<EcCond label=\"구분\">"
   ],
-  "file": "inventory/TransferStatusPage.tsx"
+  "file": "inventory/transfer/TransferStatusPage.tsx"
  },
  "재고실사현황|정렬/소계기준": {
   "claim": "[구분]이 이미 그 축을 고른다",
   "present": [
    "<EcCond label=\"구분\">"
   ],
-  "file": "inventory/StocktakeStatusPage.tsx"
+  "file": "inventory/adjustment/StocktakeStatusPage.tsx"
  },
  "작업지시서현황|정렬/소계기준": {
   "claim": "[구분]이 이미 그 축을 고른다",
   "present": [
    "<EcCond label=\"구분\">"
   ],
-  "file": "production/WoStatusPage.tsx"
+  "file": "production/workorder/WoStatusPage.tsx"
  },
  "거래처관리대장 I|닫기": {
   "claim": "화면을 닫는 버튼을 두지 않는다 — 메뉴로 옮긴다",
   "absent": [
    "닫기"
   ],
-  "in": "frontend/src/pages/trade/LedgerPage.tsx"
+  "in": "frontend/src/pages/trade/arap/LedgerPage.tsx"
  },
  "거래처관리대장 I|적용(F8)": {
   "claim": "조건을 바꾸면 바로 반영된다 — 따로 적용하지 않는다",
   "absent": [
    "적용"
   ],
-  "in": "frontend/src/pages/trade/LedgerPage.tsx"
+  "in": "frontend/src/pages/trade/arap/LedgerPage.tsx"
  },
  "미삭제": {
   "claim": "지운 전표를 남겨 두지 않는다 — 지우면 없어진다",
@@ -1950,35 +1950,35 @@
   "present": [
    "setKeyword"
   ],
-  "file": "trade/PartnersPage.tsx"
+  "file": "trade/partner/PartnersPage.tsx"
  },
  "거래처관리대장 II|거래처": {
   "claim": "이 화면이 곧 거래처 목록이다 — 검색창으로 좁힌다",
   "present": [
    "setKeyword"
   ],
-  "file": "trade/PartnersPage.tsx"
+  "file": "trade/partner/PartnersPage.tsx"
  },
  "거래처관리대장 II|리스트": {
   "claim": "거래처등록 화면 자체가 그 리스트다",
   "present": [
    "setKeyword"
   ],
-  "file": "trade/PartnersPage.tsx"
+  "file": "trade/partner/PartnersPage.tsx"
  },
  "판매입력II|할인": {
   "claim": "툴바 [할인]을 눌러 같은 격자를 아래에 편다",
   "present": [
    "할인"
   ],
-  "file": "trade/TradeEntry.tsx"
+  "file": "trade/sales/TradeEntry.tsx"
  },
  "생산입고I-BOM기준소모": {
   "claim": "BOM대로 자동 소모라 사람이 줄을 넣지 않는다",
   "present": [
    "BOM"
   ],
-  "file": "production/ProductionResultPage.tsx"
+  "file": "production/production/ProductionResultPage.tsx"
  },
  "작업내역조회|작업품목:품목그룹2": {
   "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다",
@@ -2025,7 +2025,7 @@
    "subtotalBy(rows",
    "계</td>"
   ],
-  "file": "quality/DefectReportPage.tsx"
+  "file": "quality/inspection/DefectReportPage.tsx"
  },
  "근태조회|최초작성자": {
   "claim": "휴가 신청에 만든 사람을 따로 남기지 않는다",
@@ -2086,7 +2086,7 @@
    "setStatus",
    "STATUS_LABEL"
   ],
-  "file": "trade/PurchaseRequestStatusPage.tsx"
+  "file": "trade/purchaserequest/PurchaseRequestStatusPage.tsx"
  },
  "생산입고/소모현황 I|보내는창고계층그룹": {
   "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
@@ -2439,7 +2439,7 @@
   "present": [
    "<th>질문유형</th>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "매출계획입력|담당자": {
   "claim": "우리 열 이름은 목록 쪽 이름인 [담당자명] 이다",
@@ -2476,14 +2476,14 @@
   "present": [
    "label=\"구분\""
   ],
-  "file": "trade/SalesPlanStatusPage.tsx"
+  "file": "trade/salesplan/SalesPlanStatusPage.tsx"
  },
  "설문조사조회|사용": {
   "claim": "설문 머리말 사용여부는 등록 화면에서 정한다 — 조회 조건이 아니다",
   "present": [
    "<div className=\"title\">머리말</div>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "건설예정공정표|프로젝트": {
   "claim": "이 화면의 행 자체가 프로젝트다 — 프로젝트로 프로젝트를 거를 수 없다",
@@ -2555,7 +2555,7 @@
   "absent": [
    "spec"
   ],
-  "in": "frontend/src/pages/production/WoEfficiencyPage.tsx"
+  "in": "frontend/src/pages/production/workorder/WoEfficiencyPage.tsx"
  },
  "집계표|구분": {
   "claim": "우리 표는 행 축이 하나뿐이고, 그 축은 [거래처별]·[품목별] 알약이 고른다",
@@ -2570,14 +2570,14 @@
    "Currency",
    "외화"
   ],
-  "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
+  "in": "frontend/src/pages/trade/sales/AccountingReflectionPage.tsx"
  },
  "생산계획_MRP리스트|H": {
   "claim": "생성 팝업의 시간 단위(H) 토글 — 계획은 날짜 단위로만 센다",
   "absent": [
    "planHour"
   ],
-  "in": "frontend/src/pages/production/MrpPage.tsx"
+  "in": "frontend/src/pages/production/productionplan/MrpPage.tsx"
  },
  "의료기기공급내역보고|납품거래처": {
   "claim": "판매 전표에 납품처를 가리키는 칸이 없다 — 배송지는 주소 글자뿐이다",
@@ -2592,14 +2592,14 @@
   "absent": [
    "api.post"
   ],
-  "in": "frontend/src/pages/production/TimeCalcPage.tsx"
+  "in": "frontend/src/pages/production/bor/TimeCalcPage.tsx"
  },
  "직접입력": {
   "claim": "기준품목은 [전체/직접입력] 대신 코드도움 하나로 고른다",
   "absent": [
    "baseItemIds"
   ],
-  "in": "frontend/src/pages/production/MrpPage.tsx"
+  "in": "frontend/src/pages/production/productionplan/MrpPage.tsx"
  },
  "구매현황|진행상태": {
   "claim": "구매 전표에 확인상태 자체가 없다 — 확인은 판매전표에만 있다",
@@ -2834,21 +2834,21 @@
    "Currency",
    "외화"
   ],
-  "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
+  "in": "frontend/src/pages/trade/sales/AccountingReflectionPage.tsx"
  },
  "설문조사조회|질문내용": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다(위 [설문조사조회|질문유형] 과 같은 사실이다)",
   "present": [
    "<th>질문유형</th>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "설문조사조회|사용안함": {
   "claim": "설문 머리말 사용여부는 등록 화면에서 정한다 — 조회 조건이 아니다(위 [설문조사조회|사용] 과 같은 사실이다)",
   "present": [
    "<div className=\"title\">머리말</div>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "집계표|정렬/소계기준": {
   "claim": "우리 표는 행 축이 하나뿐이고, 그 축은 [거래처별]·[품목별] 알약이 고른다(위 [집계표|구분] 과 같은 사실이다)",
@@ -2892,14 +2892,14 @@
   "present": [
    "api.get<Project[]>('/projects')"
   ],
-  "file": "groupware/SwSchedulePage.tsx"
+  "file": "groupware/schedule/SwSchedulePage.tsx"
  },
  "SW개발일정관리|사용자": {
   "claim": "작성자만 남기고 조건으로 거르지는 않는다",
   "present": [
    "createdBy"
   ],
-  "file": "groupware/SwSchedulePage.tsx"
+  "file": "groupware/schedule/SwSchedulePage.tsx"
  },
  "창고이동조회|받는창고명": {
   "claim": "같은 자리를 창고이동현황은 [입고창고명] 이라 부른다 — 우리 화면 하나가 둘을 겸해 현황 쪽 이름을 따랐다",
@@ -2977,14 +2977,14 @@
    "Currency",
    "외화"
   ],
-  "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
+  "in": "frontend/src/pages/trade/sales/AccountingReflectionPage.tsx"
  },
  "설문조사조회|보기항목2": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다(위 [설문조사조회|질문내용] 과 같은 사실이다)",
   "present": [
    "<th>질문유형</th>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "생산입고조회|미발송": {
   "claim": "전표를 보냈는지(메일·팩스)를 기록하지 않는다(위 [생산불출조회|발송] 과 같은 사실이다)",
@@ -3006,7 +3006,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3032,7 +3032,7 @@
   "absent": [
    "적용"
   ],
-  "in": "frontend/src/pages/trade/LedgerPage.tsx"
+  "in": "frontend/src/pages/trade/arap/LedgerPage.tsx"
  },
  "구매일괄회계반영|외화금액": {
   "claim": "외화·조정 항목을 만들지 않는다(위 [구매일괄회계반영|거래가액] 과 같은 사실이다)",
@@ -3041,7 +3041,7 @@
    "Currency",
    "외화"
   ],
-  "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
+  "in": "frontend/src/pages/trade/sales/AccountingReflectionPage.tsx"
  },
  "생산입고조회|바코드(품목)": {
   "claim": "바코드를 찍지 않는다",
@@ -3056,7 +3056,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3066,7 +3066,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3076,7 +3076,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3086,7 +3086,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3096,7 +3096,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3106,7 +3106,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3116,7 +3116,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3126,7 +3126,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3136,7 +3136,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3146,7 +3146,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3156,7 +3156,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3166,7 +3166,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3176,7 +3176,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3186,7 +3186,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3196,7 +3196,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3206,7 +3206,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3216,7 +3216,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3226,7 +3226,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3236,7 +3236,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3246,7 +3246,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3256,7 +3256,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3266,7 +3266,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3276,7 +3276,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3286,7 +3286,7 @@
   "absent": [
    "추가문자형식"
   ],
-  "in": "frontend/src/pages/trade/PurchaseOrderPage.tsx",
+  "in": "frontend/src/pages/trade/purchaseorder/PurchaseOrderPage.tsx",
   "present": [
    "entityType: 'PURCHASE_ORDER_LINE'"
   ]
@@ -3463,35 +3463,35 @@
   "present": [
    "<th>질문유형</th>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "설문조사조회|보기항목3": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다",
   "present": [
    "<th>질문유형</th>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "설문조사조회|보기항목4": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다",
   "present": [
    "<th>질문유형</th>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "설문조사조회|보기항목5": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다",
   "present": [
    "<th>질문유형</th>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "설문조사조회|필수항목": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다",
   "present": [
    "<th>질문유형</th>"
   ],
-  "file": "groupware/SurveyInputPage.tsx"
+  "file": "groupware/survey/SurveyInputPage.tsx"
  },
  "작업내역조회|생산품목:품목계층그룹": {
   "claim": "품목그룹 마스터에 부모 칸이 없다 — 평면이다",
@@ -3533,14 +3533,14 @@
   "absent": [
    "departmentId"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매입(세금)계산서현황(재고)|프로젝트": {
   "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
   "absent": [
    "projectId"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "보유어음현황|정렬/소계기준": {
   "claim": "만기일자 오름차순 하나로 세운다",
@@ -3766,7 +3766,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/quality/AsRepairStatusPage.tsx"
+  "in": "frontend/src/pages/quality/asrepair/AsRepairStatusPage.tsx"
  },
  "A/S수리현황|정렬/소계기준": {
   "claim": "수리일 오름차순 하나로 세운다",
@@ -3830,7 +3830,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/inventory/AdjustListPage.tsx"
+  "in": "frontend/src/pages/inventory/adjustment/AdjustListPage.tsx"
  },
  "시리얼/로트No.내역조회|거래처그룹1": {
   "claim": "거래처그룹은 안 든다",
@@ -3854,21 +3854,21 @@
   "absent": [
    "departmentId"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서현황(재고)|프로젝트": {
   "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
   "absent": [
    "projectId"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서현황(재고)|부가세유형": {
   "claim": "이 화면이 회계전표의 부가세유형(V349 — 매출전표 I · 매입전표 I 만 든다)으로 거르지 않는다",
   "absent": [
    "vatType"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서현황(재고)|정렬/소계기준": {
   "claim": "달마다 소계를 고정으로 넣는다",
@@ -3887,21 +3887,21 @@
   "absent": [
    "departmentId"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서조회(재고)|프로젝트": {
   "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
   "absent": [
    "projectId"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서조회(재고)|부가세유형": {
   "claim": "이 화면이 회계전표의 부가세유형(V349 — 매출전표 I · 매입전표 I 만 든다)으로 거르지 않는다",
   "absent": [
    "vatType"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서조회(재고)|발송여부": {
   "claim": "발송 이력이 없다",
@@ -3917,21 +3917,21 @@
   "absent": [
    "departmentId"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매입(세금)계산서조회(재고)|프로젝트": {
   "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
   "absent": [
    "projectId"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "매입(세금)계산서조회(재고)|부가세유형": {
   "claim": "이 화면이 회계전표의 부가세유형(V349 — 매출전표 I · 매입전표 I 만 든다)으로 거르지 않는다",
   "absent": [
    "vatType"
   ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
+  "in": "frontend/src/pages/production/production/PurchaseTaxStockPage.tsx"
  },
  "A/S수리조회|발송여부": {
   "claim": "발송 이력이 없다",
@@ -3956,7 +3956,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/FixedAssetLedgerPage.tsx"
+  "in": "frontend/src/pages/accounting/fixedasset/FixedAssetLedgerPage.tsx"
  },
  "고정자산대장|정렬/소계기준": {
   "claim": "계정마다 소계를 고정으로 넣는다",
@@ -3984,7 +3984,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/FixedAssetFlowPage.tsx"
+  "in": "frontend/src/pages/accounting/fixedasset/FixedAssetFlowPage.tsx"
  },
  "고정자산증가내역|정렬/소계기준": {
   "claim": "계정마다 소계를 고정으로 넣는다",
@@ -4012,7 +4012,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/FixedAssetFlowPage.tsx"
+  "in": "frontend/src/pages/accounting/fixedasset/FixedAssetFlowPage.tsx"
  },
  "고정자산감소내역|정렬/소계기준": {
   "claim": "계정마다 소계를 고정으로 넣는다",
@@ -4040,7 +4040,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/FixedAssetMovementPage.tsx"
+  "in": "frontend/src/pages/accounting/fixedasset/FixedAssetMovementPage.tsx"
  },
  "고정자산증감대장|정렬/소계기준": {
   "claim": "계정마다 소계를 고정으로 넣는다",
@@ -4067,7 +4067,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/CashBookPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/CashBookPage.tsx"
  },
  "현금출납장|데이터 보기형식": {
   "claim": "분개 한 줄이 한 줄인 장부다",
@@ -4090,7 +4090,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/DayMonthSheetPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/DayMonthSheetPage.tsx"
  },
  "계정별거래처별원장|결재방표시": {
   "claim": "결재란을 그리지 않는다",
@@ -4098,7 +4098,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/AccountPartnerLedgerPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/AccountPartnerLedgerPage.tsx"
  },
  "계정별거래처별원장|데이터 보기형식": {
   "claim": "거래처마다 표 하나인 장부다",
@@ -4112,7 +4112,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/PartnerAccountLedgerPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/PartnerAccountLedgerPage.tsx"
  },
  "거래처별계정별원장|데이터 보기형식": {
   "claim": "계정마다 표 하나인 장부다",
@@ -4126,7 +4126,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/AccountRemarkLedgerPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/AccountRemarkLedgerPage.tsx"
  },
  "계정별적요별원장|정렬/소계기준": {
   "claim": "일자 · 전표번호 · 줄 차례로 세운다",
@@ -4146,7 +4146,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/AccountFlowPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/AccountFlowPage.tsx"
  },
  "매입/매출장|결재방표시": {
   "claim": "결재란을 그리지 않는다",
@@ -4154,7 +4154,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/VatBookPage.tsx"
+  "in": "frontend/src/pages/accounting/vat/VatBookPage.tsx"
  },
  "매입/매출장|데이터 보기형식": {
   "claim": "전표 한 장이 한 줄인 장부다",
@@ -4168,7 +4168,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/PartnerTxListPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/PartnerTxListPage.tsx"
  },
  "거래처거래내역조회|데이터 보기형식": {
   "claim": "거래처마다 표 하나인 장부다",
@@ -4182,7 +4182,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/AccountDetailPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/AccountDetailPage.tsx"
  },
  "계정명세서|데이터 보기형식": {
   "claim": "계정마다 표 하나인 명세서다",
@@ -4196,7 +4196,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/JournalStatusPage.tsx"
+  "in": "frontend/src/pages/accounting/journal/JournalStatusPage.tsx"
  },
  "회계거래현황|데이터 보기형식": {
   "claim": "전표 한 장이 한 줄인 현황이다",
@@ -4239,7 +4239,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/TransferListPage.tsx"
+  "in": "frontend/src/pages/accounting/journal/TransferListPage.tsx"
  },
  "지출결의서이체리스트|데이터 보기형식": {
   "claim": "이체 한 건이 한 줄인 목록이다",
@@ -4253,7 +4253,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
+  "in": "frontend/src/pages/accounting/cash/FundDailyPage.tsx"
  },
  "현금흐름(입출금내역)|기타": {
   "claim": "결재란을 그리지 않는다",
@@ -4261,7 +4261,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/CashFlowListPage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/CashFlowListPage.tsx"
  },
  "자금현황표|기타": {
   "claim": "결재 칸을 그리지 않는다",
@@ -4269,7 +4269,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/FundStatusPage.tsx"
+  "in": "frontend/src/pages/accounting/cash/FundStatusPage.tsx"
  },
  "자금증감내역|기타": {
   "claim": "결재 칸을 그리지 않는다",
@@ -4277,7 +4277,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
+  "in": "frontend/src/pages/accounting/cash/FundDailyPage.tsx"
  },
  "회계집계표|기타": {
   "claim": "결재 칸을 그리지 않는다",
@@ -4285,7 +4285,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/AccountAggregatePage.tsx"
+  "in": "frontend/src/pages/accounting/ledger/AccountAggregatePage.tsx"
  },
  "월별매출집계표|결재방표시": {
   "claim": "결재 칸을 그리지 않는다",
@@ -4293,7 +4293,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
+  "in": "frontend/src/pages/accounting/vat/MonthlyVatSummaryPage.tsx"
  },
  "월별매입집계표|결재방표시": {
   "claim": "결재 칸을 그리지 않는다",
@@ -4301,21 +4301,21 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/MonthlyVatSummaryPage.tsx"
+  "in": "frontend/src/pages/accounting/vat/MonthlyVatSummaryPage.tsx"
  },
  "지출결의서집계|부서": {
   "claim": "결의서 입력이 부서를 싣지 않는다",
   "absent": [
    "departmentId"
   ],
-  "in": "frontend/src/pages/accounting/CashReportEntryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/CashReportEntryPage.tsx"
  },
  "지출결의서집계|프로젝트": {
   "claim": "결의서 입력이 프로젝트를 싣지 않는다",
   "absent": [
    "projectId"
   ],
-  "in": "frontend/src/pages/accounting/CashReportEntryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/CashReportEntryPage.tsx"
  },
  "지출결의서집계|기 타": {
   "claim": "결재 칸을 그리지 않는다",
@@ -4323,7 +4323,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/ExpenseSlipSummaryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/ExpenseSlipSummaryPage.tsx"
  },
  "지출결의서집계|데이터 보기형식": {
   "claim": "지출 한 줄이 한 줄인 집계다",
@@ -4336,14 +4336,14 @@
   "absent": [
    "departmentId"
   ],
-  "in": "frontend/src/pages/accounting/CashReportEntryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/CashReportEntryPage.tsx"
  },
  "입금보고서집계|프로젝트": {
   "claim": "결의서 입력이 프로젝트를 싣지 않는다",
   "absent": [
    "projectId"
   ],
-  "in": "frontend/src/pages/accounting/CashReportEntryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/CashReportEntryPage.tsx"
  },
  "입금보고서집계|양식구분": {
   "claim": "결재 칸을 그리지 않는다",
@@ -4351,7 +4351,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/ExpenseSlipSummaryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/ExpenseSlipSummaryPage.tsx"
  },
  "입금보고서집계|데이터 보기형식": {
   "claim": "입금 한 줄이 한 줄인 집계다",
@@ -4364,14 +4364,14 @@
   "absent": [
    "departmentId"
   ],
-  "in": "frontend/src/pages/accounting/CashReportEntryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/CashReportEntryPage.tsx"
  },
  "가지급금정산서집계|프로젝트": {
   "claim": "결의서 입력이 프로젝트를 싣지 않는다",
   "absent": [
    "projectId"
   ],
-  "in": "frontend/src/pages/accounting/CashReportEntryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/CashReportEntryPage.tsx"
  },
  "가지급금정산서집계|데이터 보기형식": {
   "claim": "가지급금 정산 한 줄이 한 줄인 집계다",
@@ -4385,7 +4385,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/ExpenseSlipSummaryPage.tsx"
+  "in": "frontend/src/pages/accounting/fastvoucher/ExpenseSlipSummaryPage.tsx"
  },
  "퇴사자리스트|세무신고사업장": {
   "claim": "회사 정보에 사업장 목록이 없다",
@@ -4409,7 +4409,7 @@
    "approvalBox",
    "결재란"
   ],
-  "in": "frontend/src/pages/accounting/FixedAssetStockPage.tsx"
+  "in": "frontend/src/pages/accounting/fixedasset/FixedAssetStockPage.tsx"
  },
  "계정별원장|데이터 보기형식": {
   "claim": "계정마다 한 판인 장부다",
@@ -4423,7 +4423,7 @@
    "<div className=\"title\">정렬/소계기준</div>",
    "<div className=\"title\">설문종료일</div>"
   ],
-  "file": "groupware/SurveyStatusPage.tsx"
+  "file": "groupware/survey/SurveyStatusPage.tsx"
  },
  "설문조사현황|완료": {
   "claim": "원본 조건 판에 [진행]이 없다",
@@ -4431,7 +4431,7 @@
    "<div className=\"title\">정렬/소계기준</div>",
    "<div className=\"title\">설문종료일</div>"
   ],
-  "file": "groupware/SurveyStatusPage.tsx"
+  "file": "groupware/survey/SurveyStatusPage.tsx"
  },
  "A/S접수입력|적요": {
   "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",

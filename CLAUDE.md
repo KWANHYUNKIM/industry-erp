@@ -432,7 +432,8 @@ frontend/src/
 │  ├─ App.tsx               # BrowserRouter · AuthProvider 로 감싼다
 │  ├─ router.tsx            # routes/<모듈>.routes.tsx 의 라우트 조각(lazy import)을 차례대로 붙인다
 │  └─ layout/               # menu.ts(MENU · FLAT_MENU 단일 소스) · EcountLayout(상단 메뉴 틀) · Layout
-├─ pages/<모듈>/             # URL 하나 = 화면 하나
+├─ pages/<모듈>/<기능>/       # URL 하나 = 화면 하나. 기능 폴더는 백엔드 com/erp/<모듈>/<기능> 이름과 맞춘다
+│                           # (trade/sales · trade/purchaseorder · accounting/journal · accounting/vat · hr/payroll …)
 ├─ features/<기능>/          # 기능 전용: components/ · api/ · hooks/ · types.ts
 │  ├─ auth/                 # AuthContext, menuPermissions, components/ProtectedRoute
 │  └─ approval/components/  # 결재 상세·양식 필드
@@ -443,6 +444,11 @@ frontend/src/
 └─ styles/index.css
 ```
 
+- **새 화면은 `pages/<모듈>/<기능>/` 에 둡니다**(2026-10-31 이동, 메뉴 폴더가 아니라 기능 폴더). 기능 이름은 백엔드 기능 패키지를 따르고,
+  화면 한두 개뿐인 기능은 가까운 폴더에 묶었습니다(예: `accounting/vat` = taxvoucher · vatinvoice · vatreturn · vatmedia).
+  어디에도 안 맞는 화면만 모듈 바로 아래에 둡니다(`settings/DesignSystemPage` 등, `datacenter` · `mypage` 는 화면이 적어 평평하게).
+  화면 파일을 옮기면 `qa/style-baseline.json` · `qa/front-guard-baseline.json` · `qa/fixtures/*.json`(`.ordermap` · `reason-witnesses` …) ·
+  `qa/app-src.mjs` 의 `SPLIT_PARTS` 경로도 같이 고칩니다 — 경로가 없으면 조용히 빠지는 검사가 있습니다.
 - **한 화면만 쓰는 컴포넌트·API 호출은 아직 `pages/` 파일 안에 있습니다.** 한 번에 빼지 말고,
   그 화면을 고칠 일이 생겼을 때 `features/<기능>/` 로 옮깁니다(4.4 와 같은 방식).
 - 공통인데 UI 가 아닌 것(계산·포맷)은 `components/` 가 아니라 `utils/` 에 둡니다.
