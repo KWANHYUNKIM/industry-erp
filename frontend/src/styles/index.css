@@ -204,8 +204,7 @@ body {
 .ec-input.ec-pick-input:focus {
   background: var(--ec-blue-wash);
 }
-.ec-input:disabled,
-.ec-input[readonly].ec-input-locked {
+.ec-input:disabled {
   background: var(--ec-bg-disabled);
 }
 
@@ -478,35 +477,12 @@ main table,
 #root .rounded-lg {
   border-radius: var(--ec-radius) !important;
 }
-#root .rounded-2xl,
 #root .rounded-xl {
   border-radius: var(--ec-radius-panel) !important;
 }
-#root .shadow-sm {
-  box-shadow: var(--ec-shadow-sm) !important;
-}
-#root .shadow,
-#root .shadow-md {
-  box-shadow: var(--ec-shadow) !important;
-}
-#root .shadow-lg,
-#root .shadow-xl {
+#root .shadow-lg {
   box-shadow: var(--ec-shadow-lg) !important;
 }
-
-/* indigo(보라) → 이카운트 파랑 통일 */
-#root .bg-indigo-600 { background-color: var(--ec-blue) !important; }
-#root .hover\:bg-indigo-700:hover { background-color: var(--ec-blue-hover) !important; }
-#root .text-indigo-600 { color: var(--ec-blue) !important; }
-#root .text-indigo-700 { color: var(--ec-blue-dark) !important; }
-#root .border-indigo-500,
-#root .border-indigo-600,
-#root .border-indigo-200 { border-color: var(--ec-blue) !important; }
-#root .bg-indigo-50 { background-color: var(--ec-blue-light) !important; }
-#root .focus\:border-indigo-500:focus { border-color: var(--ec-blue) !important; }
-#root .focus\:ring-indigo-200:focus { --tw-ring-color: rgba(31, 72, 212, 0.22) !important; }
-/* 탭 활성 밑줄 */
-#root .border-indigo-600 { border-color: var(--ec-blue) !important; }
 
 /* ec56 실측: 입력칸 둥글기 10. 코드도움과 붙는 칸은 붙는 쪽만 각지므로 개별 규칙이 이길 수 있게 !important 를 뺀다. */
 #root input,
