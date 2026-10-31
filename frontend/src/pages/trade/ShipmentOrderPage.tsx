@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
@@ -14,6 +13,9 @@ import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../fe
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import EcIcon from '../../components/ui/EcIcon'
+import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import ShipmentOrderEntry from './ShipmentOrderEntry'
 
 /**
  * 재고 I › 영업관리 › 출하지시서조회(E040221) · 출하지시서입력(E040220) — 2026-10-20 loginaa 실측(plans/재고1/E040221.md).
@@ -22,9 +24,10 @@ import { EcDateRange } from '../../components/ui/EcDateInput'
  * `/api/shipment-orders` 를 본다 — 예전에는 출하(`/api/shipments`) 한 줄의 READY/SHIPPED 로 겸했다.
  * 단가 · 금액은 없다(수량만). 미출하 잔량은 출하지시서 줄 - 이어진 출하.
  *
- * <p>조회: 탭 전체 · 결재중 · 확인 · 진행중 · 완료, 열 일곱(☐ · 일자-No. · 창고명 · 품목명(요약) · 수량합계 · 진행상태 · 인쇄),
+ * <p>조회: 알약 전체 · 결재중 · 확인 ▸ · 진행중 · 완료 · 미확인(2026-10-31 loginad 차례 그대로), 열 일곱(☐ · 일자-No. · 창고명 · 품목명(요약) · 수량합계 · 진행상태 · 인쇄),
  * 합계줄 없음, 일자 내림차순, 조건 판은 접혀서 시작. 진행상태 링크 → 펼침 [진행중 · 완료] 로 확인 창 없이 바뀐다.
- * 입력 · 수정은 큰 화면 출하지시서입력(/sales/shipment-order-entry, ShipmentOrderEntry)이 한다 — [신규(F2)] · [일자-No.](?edit=) 가 그리로 간다.
+ * [신규(F2)] · [일자-No.] 는 목록 위에 떠 있는 '출하지시서입력' 창(ShipmentOrderEntry popup — 견적서 · 주문서조회와 같다).
+ * 메뉴 [출하지시서입력] 은 큰 화면(/sales/shipment-order-entry) 그대로다.
  */
 type Status = 'IN_PROGRESS' | 'COMPLETED'
 interface SoLine { id: number; itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; shippedQty: number; unshippedQty: number; remark: string | null }
@@ -39,8 +42,12 @@ interface ShipmentOrder {
   createdAt: string | null; updatedAt: string | null
   lines: SoLine[]
 }
-const TABS = ['전체', '결재중', '확인', '진행중', '완료'] as const
+/* 원본 알약 차례(2026-10-31 loginad): 전체 · 결재중 · 확인 ▸ – 진행중 – 완료 · 미확인. 결재 · 미확인은 우리 지시서에 그 단계가 없어 늘 빈다. */
+const TABS = ['전체', '결재중', '확인', '진행중', '완료', '미확인'] as const
 type Tab = typeof TABS[number]
+const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
+/** 원본 진행상태변경 › 미확인 — 우리 지시서는 진행중 · 완료 두 단계뿐이라 원본 막힘 알림과 같은 글을 낸다. */
+const NO_UNCONFIRMED = '전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.'
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /** 원본 기준일자 기본 — 2026/10/20 에 2026/09/20 ~ 2026/11/19(한 달 전 ~ 한 달 뒤 전날). */
 function defaultPeriod(): [string, string] {
@@ -73,7 +80,6 @@ async function printOne(s: ShipmentOrder, company: DocParty | null) {
 }
 
 export default function ShipmentOrderPage() {
-  const navigate = useNavigate()
   const [rows, setRows] = useState<ShipmentOrder[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -106,6 +112,10 @@ export default function ShipmentOrderPage() {
   const [edited, setEdited] = useState(['', ''])
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [statusMenu, setStatusMenu] = useState<number | null>(null)
+  /* 원본 조건 판은 7칸 + 발송여부 + 기타 뿐이다 — 나머지는 접힌 줄(⌄) 안에(견적서 · 주문서조회와 같다). */
+  const [moreConds, setMoreConds] = useState(false)
+  /** [신규(F2)] · [일자-No.] — 목록 위 '출하지시서입력' 창. id 가 null 이면 새 지시서. */
+  const [popup, setPopup] = useState<{ id: number | null; copied: boolean } | null>(null)
   const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects', 'employees'])
 
   const mgmt = useItemMgmt(items)
@@ -151,7 +161,8 @@ export default function ShipmentOrderPage() {
     .filter((s) => !edited[0] || (s.updatedAt ?? '').slice(0, 10) >= edited[0])
     .filter((s) => !edited[1] || ((s.updatedAt ?? '') !== '' && s.updatedAt!.slice(0, 10) <= edited[1]))
   /* 결재중 · 확인 탭은 전자결재 · 확인 기능이 붙어야 찬다(원본도 이번 자료로는 비어 있었다). */
-  const tabbed = filtered.filter((s) => tab === '전체' || (tab === '진행중' && s.status === 'IN_PROGRESS') || (tab === '완료' && s.status === 'COMPLETED'))
+  const tabbed = filtered.filter((s) => tab === '전체' || (tab === '확인' && (s.status === 'IN_PROGRESS' || s.status === 'COMPLETED'))
+    || (tab === '진행중' && s.status === 'IN_PROGRESS') || (tab === '완료' && s.status === 'COMPLETED'))
   const shown = byUpdated ? [...tabbed].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')) : tabbed
 
   async function removeChecked() {
@@ -159,6 +170,22 @@ export default function ShipmentOrderPage() {
     if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 출하지시서'))) return
     try { for (const t of targets) await api.delete(`/shipment-orders/${t.id}`); setChecked(new Set()); load() }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
+  }
+  /** 창의 [이전] · [다음] — 견적서 · 주문서조회 창과 같은 잣대(일자-No. 차례, 끝이면 알림 뒤 창 닫힘). */
+  async function movePopup(dir: 'prev' | 'next') {
+    const ordered = [...shown].sort((a, b) => a.orderDate.localeCompare(b.orderDate) || a.orderNo.localeCompare(b.orderNo))
+    const i = ordered.findIndex((o) => o.id === popup?.id)
+    const next = ordered[dir === 'prev' ? i - 1 : i + 1]
+    if (i < 0 || !next) {
+      await ecAlert(`${dir === 'prev' ? '이전' : '다음'} 자료가 없습니다.`)
+      setPopup(null)
+      return
+    }
+    setPopup({ id: next.id, copied: false })
+  }
+  function closePopup(changed: boolean) {
+    setPopup(null)
+    if (changed) void load()
   }
   async function setStatus(ids: number[], status: Status) {
     setStatusMenu(null)
@@ -173,23 +200,60 @@ export default function ShipmentOrderPage() {
       onSearchChange={setKeyword}
       onSearch={load}
       newLabel="신규(F2)"
-      onNew={() => navigate('/sales/shipment-order-entry')}
+      onNew={() => setPopup({ id: null, copied: false })}
+      formMenu={{ current: '기본(수정불가)' }}
+      /* 원본 Option(2026-10-31 loginad 출하지시서조회): 업무설정 · 검색항목설정 · 양식설정▶ · 조건양식설정 · 문서발송내역. */
+      optionMenu={[
+        { label: '업무설정', onClick: notHere('업무설정') },
+        { label: '검색항목설정', onClick: notHere('검색항목설정') },
+        { label: '양식설정', sub: [
+          { label: '기본(수정불가)', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+          { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+        ] },
+        { label: '조건양식설정', onClick: notHere('조건양식설정') },
+        { label: '문서발송내역', onClick: notHere('문서발송내역') },
+      ]}
       onReset={() => { setFrom(period0[0]); setTo(period0[1]); setNoCond(''); setWhCond(''); setPjCond(''); setPtCond(''); setItemCond(''); setByUpdated(false); setMgmtCond(''); setSendCond(''); setSpecCond(''); setPmgrCond(''); setRemarkCond(''); setAuthorCond(''); setDueCond(['', '']); setEmpCond(''); setContactCond(''); setAddrCond(''); setMade(['', '']); setEdited(['', '']) }}
-      /* 2026-10-30 클릭 대조: 원본 차례 신규 · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 전자결재 · 선택삭제 · Excel · 이력조회.
-         [진행상태변경] 글자도 메뉴를 연다(고른 줄 없음 알림은 고를 때), [이력조회] '출하지시서 이력조회' 창. */
+      /*
+       * 원본 하단(2026-10-31 loginad): 신규(F2) · [Email│▲](카카오톡) · [진행상태변경 ▲](▾미확인 › 미확인 / ▾확인 › 진행중 · 완료) ·
+       * [보내기 ▲](E Note · 대화방 · 사용자 · 북마크) · [인쇄│▲](프린트문제해결) · [바코드(품목)│▲](바코드(전표) · 바코드(시리얼/로트No.)) ·
+       * 전자결재 · 선택삭제 · Excel · 이력조회 · 웹자료올리기. 펼침의 묶음 머리(▾미확인 · ▾확인)는 공용 셸이 아직 못 그린다.
+       * [진행상태변경] 은 고른 줄 없이도 펼침이 뜨고(menuOnly), 항목을 고를 때 셸 · requireSelection 이 원본 알림을 낸다.
+       */
       actions={[
-        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
-        { label: '진행상태변경', menuOnly: true, menu: [
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE), menu: [{ label: '카카오톡', onClick: notHere('카카오톡') }] },
+        { label: '진행상태변경', menuOnly: true, selected: checked.size, menu: [
+          { label: '미확인', onClick: () => { if (requireSelection(checked.size)) void ecAlert(NO_UNCONFIRMED) } },
           { label: '진행중', onClick: () => { if (requireSelection(checked.size)) void setStatus([...checked], 'IN_PROGRESS') } },
           { label: '완료', onClick: () => { if (requireSelection(checked.size)) void setStatus([...checked], 'COMPLETED') } },
         ] },
-        { label: '인쇄', selected: checked.size, onClick: () => { shown.filter((s) => checked.has(s.id)).forEach((s) => void printOne(s, company)) } },
-        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size },
+        { label: '보내기', menuOnly: true, menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
+        { label: '인쇄', selected: checked.size, onClick: () => { shown.filter((s) => checked.has(s.id)).forEach((s) => void printOne(s, company)) },
+          menu: [{ label: '프린트문제해결', onClick: notHere('프린트문제해결') }] },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size, menu: [
+          { label: '바코드(전표)', onClick: notHere('바코드(전표)') },
+          { label: '바코드(시리얼/로트No.)', onClick: notHere('바코드(시리얼/로트No.)') },
+        ] },
+        { label: '전자결재', onClick: notHere('전자결재') },
         { label: '선택삭제', selected: checked.size, onClick: removeChecked },
         { label: 'Excel' },
         { label: '이력조회', onClick: () => setMenuHistory(true) },
+        { label: '웹자료올리기', onClick: notHere('웹자료올리기') },
       ]}
     >
+      {popup && (
+        <ProductionSlipWindow title={popup.id != null && !popup.copied ? '출하지시서입력(수정)' : '출하지시서입력'}
+                              popout={popup.id != null && !popup.copied ? `/sales/shipment-order-entry?edit=${popup.id}` : '/sales/shipment-order-entry'}
+                              onClose={() => closePopup(false)}>
+          <ShipmentOrderEntry key={popup.id ?? 'new'} popup={{
+            editId: popup.copied ? null : popup.id,
+            onClose: closePopup,
+            onMove: (dir) => void movePopup(dir),
+            onCopy: () => setPopup((p) => (p ? { ...p, copied: true } : p)),
+            onEdit: (id) => { void load(); setPopup({ id, copied: false }) },
+          }} />
+        </ProductionSlipWindow>
+      )}
       {menuHistory && <SlipMenuHistoryModal menu="출하지시서" statusLabel="확인" onClose={() => setMenuHistory(false)} />}
       <ul className="ec-cond">
         <EcCond label="기준일자">
@@ -210,7 +274,7 @@ export default function ShipmentOrderPage() {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체" value={ptCond} onChange={setPtCond} items={pickers.partners} />
         </EcCond>
-        <EcCond label="품목코드" pick>
+        <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체" value={itemCond} onChange={setItemCond} items={pickers.items} />
         </EcCond>
         <EcCond label="발송여부">
@@ -220,43 +284,59 @@ export default function ShipmentOrderPage() {
             ))}
           </div>
         </EcCond>
-        <EcCond label="출하예정일">
-          <EcDateRange from={{ className: "ec-input w-[140px]", value: dueCond[0], onChange: (e) => setDueCond([e.target.value, dueCond[1]]) }} to={{ className: "ec-input w-[140px]", value: dueCond[1], onChange: (e) => setDueCond([dueCond[0], e.target.value]) }} />
-        </EcCond>
-        <EcCond label="규격" pick>
-          <CodePickerField label="규격" hideLabel width={170} emptyLabel="전체" value={specCond} onChange={setSpecCond}
-                           items={[...new Set(rows.flatMap((s) => s.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        <EcCond label="담당자" pick>
-          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체" value={empCond} onChange={setEmpCond} items={pickers.employees} />
-        </EcCond>
-        <EcCond label="거래처관리담당자" pick>
-          <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체" value={pmgrCond} onChange={setPmgrCond} items={pmgr.options.map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        <EcCond label="연락처"><input className="ec-input w-[170px]" value={contactCond} onChange={(e) => setContactCond(e.target.value)} /></EcCond>
-        <EcCond label="주소"><input className="ec-input w-[170px]" value={addrCond} onChange={(e) => setAddrCond(e.target.value)} /></EcCond>
-        <EcCond label="적요"><input className="ec-input w-[170px]" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)} /></EcCond>
-        <EcCond label="작성자" pick>
-          <CodePickerField label="작성자" hideLabel width={170} emptyLabel="전체" value={authorCond} onChange={setAuthorCond}
-                           items={[...new Set(rows.map((s) => s.createdBy).filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        <EcCond label="최초작성일자">
-          <EcDateRange from={{ className: "ec-input w-[140px]", value: made[0], onChange: (e) => setMade([e.target.value, made[1]]) }} to={{ className: "ec-input w-[140px]", value: made[1], onChange: (e) => setMade([made[0], e.target.value]) }} />
-        </EcCond>
-        <EcCond label="최종작업일자">
-          <EcDateRange from={{ className: "ec-input w-[140px]", value: edited[0], onChange: (e) => setEdited([e.target.value, edited[1]]) }} to={{ className: "ec-input w-[140px]", value: edited[1], onChange: (e) => setEdited([edited[0], e.target.value]) }} />
-        </EcCond>
+        {/*
+          원본 접힌 줄(⌄) 안의 칸(ecount-form-fields 출하지시서조회): 출하예정일 · 오더관리번호 · 규격 · 담당자 · 거래처관리담당자 · 연락처 · 주소 · 적요 ·
+          작성자 · 최종수정자 · 최초작성일자 · 최종작업일자 …. 오더관리번호 · 최종수정자 · 입력경로 · 삭제구분 · 제목은 지시서에 그 값이 없어 칸을 두지 않는다.
+        */}
+        {moreConds && <>
+          <EcCond label="출하예정일">
+            <EcDateRange from={{ className: "ec-input w-[140px]", value: dueCond[0], onChange: (e) => setDueCond([e.target.value, dueCond[1]]) }} to={{ className: "ec-input w-[140px]", value: dueCond[1], onChange: (e) => setDueCond([dueCond[0], e.target.value]) }} />
+          </EcCond>
+          <EcCond label="규격" pick>
+            <CodePickerField label="규격" hideLabel width={170} emptyLabel="전체" value={specCond} onChange={setSpecCond}
+                             items={[...new Set(rows.flatMap((s) => s.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          <EcCond label="담당자" pick>
+            <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체" value={empCond} onChange={setEmpCond} items={pickers.employees} />
+          </EcCond>
+          <EcCond label="거래처관리담당자" pick>
+            <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체" value={pmgrCond} onChange={setPmgrCond} items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          <EcCond label="연락처"><input className="ec-input w-[170px]" value={contactCond} onChange={(e) => setContactCond(e.target.value)} /></EcCond>
+          <EcCond label="주소"><input className="ec-input w-[170px]" value={addrCond} onChange={(e) => setAddrCond(e.target.value)} /></EcCond>
+          <EcCond label="적요"><input className="ec-input w-[170px]" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)} /></EcCond>
+          <EcCond label="작성자" pick>
+            <CodePickerField label="작성자" hideLabel width={170} emptyLabel="전체" value={authorCond} onChange={setAuthorCond}
+                             items={[...new Set(rows.map((s) => s.createdBy).filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          <EcCond label="최초작성일자">
+            <EcDateRange from={{ className: "ec-input w-[140px]", value: made[0], onChange: (e) => setMade([e.target.value, made[1]]) }} to={{ className: "ec-input w-[140px]", value: made[1], onChange: (e) => setMade([made[0], e.target.value]) }} />
+          </EcCond>
+          <EcCond label="최종작업일자">
+            <EcDateRange from={{ className: "ec-input w-[140px]", value: edited[0], onChange: (e) => setEdited([e.target.value, edited[1]]) }} to={{ className: "ec-input w-[140px]", value: edited[1], onChange: (e) => setEdited([edited[0], e.target.value]) }} />
+          </EcCond>
+        </>}
+        {/* 원본 [기타] 는 접힌 줄을 펴도 맨 끝이다. */}
         <EcCond label="기타">
           <label className="flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
         </EcCond>
+        <li className="full justify-center">
+          <button type="button" className="ec-btn ec-btn-sm" aria-expanded={moreConds}
+                  title={moreConds ? '조건 접기' : '조건 더 보기'} aria-label={moreConds ? '조건 접기' : '조건 더 보기'} onClick={() => setMoreConds((v) => !v)}>
+            <EcIcon name={moreConds ? 'chevron-up' : 'chevron-down'} size={12} glyph={moreConds ? '▴' : '▾'} />
+          </button>
+        </li>
       </ul>
 
-      <ul className="ec-tabs">
-        {TABS.map((t) => <li key={t} className={`ec-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}{t === '전체' ? '*' : ''}</li>)}
-      </ul>
+      {/* 원본 제목 옆 알약(2026-10-31 loginad): 전체 · 결재중 · 확인 ▸ – 진행중 – 완료 · 미확인 */}
+      <div className="ec-pills mb-[8px]">
+        {TABS.map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t === '확인' ? '확인 ▸' : t}</button>
+        ))}
+      </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <p className="mb-[4px] text-ec-label">{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</p>
 
@@ -285,7 +365,7 @@ export default function ShipmentOrderPage() {
                   const next = new Set(prev); if (next.has(s.id)) next.delete(s.id); else next.add(s.id); return next
                 })} />
               </td>
-              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); navigate(`/sales/shipment-order-entry?edit=${s.id}`) }}>{dateNo(s.orderDate, s.orderNo)}</a></td>
+              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setPopup({ id: s.id, copied: false }) }}>{dateNo(s.orderDate, s.orderNo)}</a></td>
               <td>{s.warehouseName ?? ''}</td>
               <td>{summary(s)}</td>
               <td className="text-right">{qty2(s.totalQuantity)}</td>

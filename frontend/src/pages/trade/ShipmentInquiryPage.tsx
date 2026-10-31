@@ -5,8 +5,6 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { useTableSort } from '../../utils/useTableSort'
-import { useNavigate } from 'react-router-dom'
 import { dateNo } from '../../utils/dateNo'
 import { loadSupplierParty, type DocParty } from '../../utils/printDocument'
 import EcSlipPrintModal, { type SlipPrintDoc } from '../../components/EcSlipPrintModal'
@@ -15,9 +13,11 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 import Modal from '../../components/Modal'
 import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
-import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
-import { useShipmentEntry, type ShipmentRes } from '../../features/shipment/useShipmentEntry'
+import { type ShipmentRes } from '../../features/shipment/useShipmentEntry'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import EcIcon from '../../components/ui/EcIcon'
+import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import ShipmentEntryPage from './ShipmentEntryPage'
 
 /**
  * 영업 > 출하조회 (E040226) — 전표(출하) 단위 조회. 행 클릭 시 품목 상세 펼침.
@@ -44,10 +44,11 @@ type Shipment = ShipmentRes
 /*
  * 원본 출하조회 탭(2026-10-20 실측): 전체 · 결재중 · 미확인 · 확인. 2026-10-22 원본 실측 — 출하 아홉 건이 모두 [확인] 탭에 있고 결재중 · 미확인은 빈다
  * (이 회사는 전표상태관리유형이 꺼져 있어 [진행상태변경] ▴ › 미확인 · 확인 을 눌러도 '전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.' 알림만 뜬다).
- * 우리 출하도 같다: 전체 · 확인에 다 있고 결재중 · 미확인은 늘 빈다. 예전 [발송여부] 알약(미발송 · 발송 · 취소)은 원본에 없어 뺐다.
+ * 우리 출하도 같다: 전체 · 확인에 다 있고 결재중 · 미확인은 늘 빈다. 2026-10-31 loginad: 탭 줄이 아니라 제목 옆 알약 넷(전체 · 결재중 · 미확인 · 확인).
  */
 const TABS = ['전체', '결재중', '미확인', '확인'] as const
 type Tab = (typeof TABS)[number]
+const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
 
 /** 원본 수량합계는 소수 둘('3.00'). */
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -70,7 +71,6 @@ function shipmentSlip(r: Shipment, company: DocParty | null): SlipPrintDoc {
 }
 
 export default function ShipmentInquiryPage() {
-  const navigate = useNavigate()
   const [rows, setRows] = useState<Shipment[]>([])
   const [keyword, setKeyword] = useState('')
   /*
@@ -91,10 +91,12 @@ export default function ShipmentInquiryPage() {
   const [itemCond, setItemCond] = useState('')
   const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
   const [checked, setChecked] = useState<Set<number>>(new Set())
-  /* 출하입력(수정) 창 — 원본 일자-No. 링크. */
-  const [editing, setEditing] = useState<Shipment | null>(null)
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const entry = useShipmentEntry(editing)
+  /* 목록 위 '출하입력' 창 — [신규(F2)](editing null) · 일자-No. 링크(출하입력(수정)). 원본 2026-10-31 loginad. */
+  const [popup, setPopup] = useState<{ editing: Shipment | null } | null>(null)
+  /* 원본 조건 판은 7칸 + 발송여부 + 기타 뿐이다 — 나머지는 접힌 줄(⌄) 안에(견적서 · 주문서조회와 같다). */
+  const [moreConds, setMoreConds] = useState(false)
+  /* 원본 [발송여부] 전체 · 미발송 · 발송 — 우리는 출하를 밖으로 보내지 않아 모두 미발송이다. */
+  const [sentCond, setSentCond] = useState<'전체' | '미발송' | '발송'>('전체')
   /* 인쇄물 머리의 공급자 칸. 회사정보를 한 번만 받아 둔다. */
   const [company, setCompany] = useState<DocParty | null>(null)
   const [slipDocs, setSlipDocs] = useState<SlipPrintDoc[] | null>(null)
@@ -163,17 +165,10 @@ export default function ShipmentInquiryPage() {
   const [editedTo, setEditedTo] = useState('')
   /** 원본 [기타] — 이 화면에서는 <b>수정일자순(정렬)</b> 하나다. */
   const [byUpdated, setByUpdated] = useState(false)
-  /** 하단 [진행상태변경 ▴] 메뉴(▾ 미확인 › 미확인 / ▾ 확인 › 확인) · 누르면 나오는 '알림' 표(구분 · 메뉴 · 사유). */
-  const [statusMenu, setStatusMenu] = useState<{ left: number; bottom: number } | null>(null)
+  /** 하단 [진행상태변경 ▲] 펼침(미확인 · 확인)을 누르면 나오는 '알림' 표(구분 · 메뉴 · 사유). */
   const [menuHistory, setMenuHistory] = useState(false)
   const [blockedRows, setBlockedRows] = useState<string[][] | null>(null)
-  const openStatusMenu = () => {
-    const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === '진행상태변경')
-    const r = btn?.getBoundingClientRect()
-    setStatusMenu({ left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 })
-  }
   const blockStatusChange = () => {
-    setStatusMenu(null)
     /* 원본은 고른 줄이 없어도 메뉴를 먼저 띄운다 — 알림은 고를 때(2026-10-30 클릭 대조). */
     if (!requireSelection(checked.size)) return
     setBlockedRows(rows.filter((x) => checked.has(x.id)).map((x) => [
@@ -191,6 +186,7 @@ export default function ShipmentInquiryPage() {
     .filter((r) => !projectCond || String(r.projectId) === projectCond)
     .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
     .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
+    .filter(() => sentCond !== '발송')
     .filter((r) => !mgmtCond || r.lines.some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))
     /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
     .filter((r) => !orderNoCond || (r.salesOrderNo ?? '') === orderNoCond)
@@ -217,26 +213,19 @@ export default function ShipmentInquiryPage() {
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
   [rows, keyword, from, to, tab, shipNoCond, warehouseCond, projectCond, partnerCond, itemCond, mgmtCond, mgmt.options,
    orderNoCond, specCond, empCond, remarkCond, authorCond, pmgrCond, pmgr.options, contactCond, addressCond,
-   madeFrom, madeTo, editedFrom, editedTo, byUpdated])
+   madeFrom, madeTo, editedFrom, editedTo, byUpdated, sentCond])
 
-  /*
-   * 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. 머리를 안 누른 동안은 위의 기본 차례
-   * (출하일 내림차순)를 그대로 쓴다 — 열지 마자 최신 건이 위에 서는 것이 이 화면의 기본이다.
-   */
-  const sort = useTableSort(shownRows, {
-    출하번호: (r) => r.shipNo,
-    출하일: (r) => r.shipDate,
-    거래처: (r) => r.partnerName,
-  })
-  const shown = sort.sorted
+  /* 원본 표 머리는 글자만이다(정렬 ▼ 없음, 2026-10-31 loginad). 차례는 위의 기본(출하일 내림차순 · 수정일자순). */
+  const shown = shownRows
 
-  async function saveEdit() {
-    if (await entry.save()) { setEditing(null); load() }   // 원본: 말 없이 닫힌다
-  }
   async function remove(ids: number[]) {
     if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 출하'))) return
-    try { for (const id of ids) await api.delete(`/shipments/${id}`); setChecked(new Set()); setEditing(null); load() }
+    try { for (const id of ids) await api.delete(`/shipments/${id}`); setChecked(new Set()); load() }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
+  }
+  function closePopup(changed: boolean) {
+    setPopup(null)
+    if (changed) load()
   }
 
   return (
@@ -246,17 +235,47 @@ export default function ShipmentInquiryPage() {
         메뉴를 다시 뒤져야 했다. 우리 출하 등록은 출하지시서조회 화면이 겸한다.
       */
       newLabel="신규(F2)"
-      onNew={() => navigate('/sales/shipment-entry')}
+      onNew={() => setPopup({ editing: null })}
+      formMenu={{ current: '기본(수정불가)' }}
+      /* 원본 Option — 출하지시서조회 · 판매조회와 같은 꼴. */
+      optionMenu={[
+        { label: '업무설정', onClick: notHere('업무설정') },
+        { label: '검색항목설정', onClick: notHere('검색항목설정') },
+        { label: '양식설정', sub: [
+          { label: '기본(수정불가)', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+          { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+        ] },
+        { label: '조건양식설정', onClick: notHere('조건양식설정') },
+        { label: '문서발송내역', onClick: notHere('문서발송내역') },
+      ]}
+      /*
+       * 원본 하단(2026-10-31 loginad): 신규(F2) · [Email│▲] · [진행상태변경 ▲] · [보내기 ▲] · [인쇄│▲] · [바코드(품목)│▲] · 전자결재 · 선택삭제 ·
+       * [Excel(표시형식)│▲](Excel(데이터)) · 이력조회 · 웹자료올리기. [진행상태변경] 은 고른 줄 없이도 펼침이 뜨고 항목을 고를 때 원본 알림.
+       */
       actions={[
-        /* 2026-10-30 클릭 대조: [Email] · [바코드(품목)] 알림, [진행상태변경] 은 고른 줄 없어도 메뉴, [이력조회] '출하 이력조회' 창. */
-        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
-        { label: '진행상태변경', onClick: openStatusMenu },
-        { label: '인쇄', selected: checked.size, onClick: () => { const list = shown.filter((r) => checked.has(r.id)); if (list.length) setSlipDocs(list.map((r) => shipmentSlip(r, company))) } },
-        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size },
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE), menu: [{ label: '카카오톡', onClick: notHere('카카오톡') }] },
+        { label: '진행상태변경', menuOnly: true, selected: checked.size, menu: [
+          { label: '미확인', onClick: blockStatusChange },
+          { label: '확인', onClick: blockStatusChange },
+        ] },
+        { label: '보내기', menuOnly: true, menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
+        { label: '인쇄', selected: checked.size, onClick: () => { const list = shown.filter((r) => checked.has(r.id)); if (list.length) setSlipDocs(list.map((r) => shipmentSlip(r, company))) },
+          menu: [{ label: '프린트문제해결', onClick: notHere('프린트문제해결') }] },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size, menu: [
+          { label: '바코드(전표)', onClick: notHere('바코드(전표)') },
+          { label: '바코드(시리얼/로트No.)', onClick: notHere('바코드(시리얼/로트No.)') },
+        ] },
+        { label: '전자결재', onClick: notHere('전자결재') },
         { label: '선택삭제', selected: checked.size, onClick: () => void remove([...checked]) },
-        { label: 'Excel' },
+        { label: 'Excel(표시형식)', menu: [{ label: 'Excel(데이터)' }] },
         { label: '이력조회', onClick: () => setMenuHistory(true) },
+        { label: '웹자료올리기', onClick: notHere('웹자료올리기') },
       ]}>
+      {popup && (
+        <ProductionSlipWindow title={popup.editing ? '출하입력(수정)' : '출하입력'} popout="/sales/shipment-entry" onClose={() => closePopup(false)}>
+          <ShipmentEntryPage key={popup.editing?.id ?? 'new'} popup={{ editing: popup.editing, onClose: closePopup }} />
+        </ProductionSlipWindow>
+      )}
       {menuHistory && <SlipMenuHistoryModal menu="출하" statusLabel="확인" onClose={() => setMenuHistory(false)} />}
 
       {/* 원본 조건 차례: 기준일자 · 출하No. · 창고 · 프로젝트 · 거래처 · 품목 · 발송여부 */}
@@ -288,57 +307,69 @@ export default function ShipmentInquiryPage() {
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={pickers.items} />
         </EcCond>
-        {/* 원본 차례(실측): 품목 · 발송여부 · (오더관리번호) · 규격 · 담당자 · (거래처관리담당자
-            · 연락처 · 주소) · 적요 · 작성자 · … 괄호 안은 아직 못 만든 것이다. */}
-        {/* 원본 차례: 품목 · (발송여부는 탭) · <b>오더관리번호</b> · 규격 · 담당자 … */}
-        <EcCond label="오더관리번호" pick>
-          <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
-                           value={orderNoCond} onChange={setOrderNoCond}
-                           items={[...new Set(rows.map((r) => r.salesOrderNo).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+        {/* 원본 [발송여부] 전체 · 미발송 · 발송(2026-10-31 loginad — 라디오 꼴, 견적서 · 주문서조회와 같은 알약으로 그린다). */}
+        <EcCond label="발송여부">
+          <div className="ec-pills">
+            {(['전체', '미발송', '발송'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${sentCond === v ? ' active' : ''}`} onClick={() => setSentCond(v)}>{v}</button>
+            ))}
+          </div>
         </EcCond>
-        <EcCond label="규격" pick>
-          <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
-                           value={specCond} onChange={setSpecCond}
-                           items={[...new Set(rows.flatMap((r) => r.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        <EcCond label="담당자" pick>
-          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
-                           value={empCond} onChange={setEmpCond}
-                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        {/* 원본 [거래처관리담당자] — 그 거래처를 맡은 영업담당자. 위의 [담당자]와 다른 사람이다. */}
-        <EcCond label="거래처관리담당자" pick>
-          <CodePickerField label="거래처관리담당자" hideLabel width={140} emptyLabel="전체"
-                           value={pmgrCond} onChange={setPmgrCond}
-                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        {/* 원본 [연락처]·[주소] — 배송지다. 응답에 오는데 이 화면이 안 받아 두고 있었다. */}
-        <EcCond label="연락처">
-          <input className="ec-input" value={contactCond} onChange={(e) => setContactCond(e.target.value)} style={{ width: 140 }} />
-        </EcCond>
-        <EcCond label="주소">
-          <input className="ec-input" value={addressCond} onChange={(e) => setAddressCond(e.target.value)} style={{ width: 200 }} />
-        </EcCond>
-        <EcCond label="적요">
-          <input className="ec-input" placeholder="적요 일부" value={remarkCond}
-                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 160 }} />
-        </EcCond>
-        <EcCond label="작성자" pick>
-          <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
-                           value={authorCond} onChange={setAuthorCond}
-                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
-        </EcCond>
-        {/* 원본 [최초작성일자]·[최종수정일시] — 이번에 응답에 실어 물을 수 있게 됐다. */}
-        <EcCond label="최초작성일자">
-          <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
-        </EcCond>
-        <EcCond label="최종수정일시">
-          <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
-        </EcCond>
+        {/* 원본 접힌 줄(⌄) 안의 칸(ecount-form-fields 출하조회): 오더관리번호 · 규격 · 담당자 · 거래처관리담당자 · 연락처 · 주소 · 적요 · 작성자 · 최초작성일자 · 최종수정일시 …. */}
+        {moreConds && <>
+          {/* 원본 차례(실측): 품목 · 발송여부 · (오더관리번호) · 규격 · 담당자 · (거래처관리담당자
+              · 연락처 · 주소) · 적요 · 작성자 · … 괄호 안은 아직 못 만든 것이다. */}
+          {/* 원본 차례: 품목 · (발송여부는 탭) · <b>오더관리번호</b> · 규격 · 담당자 … */}
+          <EcCond label="오더관리번호" pick>
+            <CodePickerField label="오더관리번호" hideLabel width={140} emptyLabel="전체"
+                             value={orderNoCond} onChange={setOrderNoCond}
+                             items={[...new Set(rows.map((r) => r.salesOrderNo).filter(Boolean) as string[])].sort()
+                               .map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          <EcCond label="규격" pick>
+            <CodePickerField label="규격" hideLabel width={140} emptyLabel="전체"
+                             value={specCond} onChange={setSpecCond}
+                             items={[...new Set(rows.flatMap((r) => r.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
+                               .map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          <EcCond label="담당자" pick>
+            <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                             value={empCond} onChange={setEmpCond}
+                             items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                               .map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          {/* 원본 [거래처관리담당자] — 그 거래처를 맡은 영업담당자. 위의 [담당자]와 다른 사람이다. */}
+          <EcCond label="거래처관리담당자" pick>
+            <CodePickerField label="거래처관리담당자" hideLabel width={140} emptyLabel="전체"
+                             value={pmgrCond} onChange={setPmgrCond}
+                             items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          {/* 원본 [연락처]·[주소] — 배송지다. 응답에 오는데 이 화면이 안 받아 두고 있었다. */}
+          <EcCond label="연락처">
+            <input className="ec-input" value={contactCond} onChange={(e) => setContactCond(e.target.value)} style={{ width: 140 }} />
+          </EcCond>
+          <EcCond label="주소">
+            <input className="ec-input" value={addressCond} onChange={(e) => setAddressCond(e.target.value)} style={{ width: 200 }} />
+          </EcCond>
+          <EcCond label="적요">
+            <input className="ec-input" placeholder="적요 일부" value={remarkCond}
+                   onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 160 }} />
+          </EcCond>
+          <EcCond label="작성자" pick>
+            <CodePickerField label="작성자" hideLabel width={140} emptyLabel="전체"
+                             value={authorCond} onChange={setAuthorCond}
+                             items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                               .map((n) => ({ value: n, name: n }))} />
+          </EcCond>
+          {/* 원본 [최초작성일자]·[최종수정일시] — 이번에 응답에 실어 물을 수 있게 됐다. */}
+          <EcCond label="최초작성일자">
+            <EcDateRange from={{ className: "ec-input", value: madeFrom, onChange: (e) => setMadeFrom(e.target.value) }} to={{ className: "ec-input", value: madeTo, onChange: (e) => setMadeTo(e.target.value) }} />
+          </EcCond>
+          <EcCond label="최종수정일시">
+            <EcDateRange from={{ className: "ec-input", value: editedFrom, onChange: (e) => setEditedFrom(e.target.value) }} to={{ className: "ec-input", value: editedTo, onChange: (e) => setEditedTo(e.target.value) }} />
+          </EcCond>
+        </>}
+        {/* 원본 [기타] 는 접힌 줄을 펴도 맨 끝이다. */}
         {/* 원본 [기타] — 이 화면에서는 체크 하나뿐이다. 없는 것을 지어내지 않는다. */}
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">
@@ -346,15 +377,23 @@ export default function ShipmentInquiryPage() {
             수정일자순(정렬)
           </label>
         </EcCond>
+        <li className="full justify-center">
+          <button type="button" className="ec-btn ec-btn-sm" aria-expanded={moreConds}
+                  title={moreConds ? '조건 접기' : '조건 더 보기'} aria-label={moreConds ? '조건 접기' : '조건 더 보기'} onClick={() => setMoreConds((v) => !v)}>
+            <EcIcon name={moreConds ? 'chevron-up' : 'chevron-down'} size={12} glyph={moreConds ? '▴' : '▾'} />
+          </button>
+        </li>
       </EcStatusPanel>
-      <div className="mb-[8px] text-[12.5px] text-ec-hint text-right">총 {shown.length}건</div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {slipDocs && <EcSlipPrintModal title="출하" docs={slipDocs} forms={['기본(수정불가)']} width={782} onClose={() => setSlipDocs(null)} />}
 
-      <ul className="ec-tabs">
-        {TABS.map((t) => <li key={t} className={`ec-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}{t === '전체' ? '*' : ''}</li>)}
-      </ul>
+      {/* 원본 제목 옆 알약(2026-10-31 loginad): 전체 · 결재중 · 미확인 · 확인 */}
+      <div className="ec-pills mb-[8px]">
+        {TABS.map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
+        ))}
+      </div>
 
       <table className="w-full text-left">
         <thead>
@@ -379,10 +418,10 @@ export default function ShipmentInquiryPage() {
               수량합계 146('3.00') · 거래처명 127 · 인쇄 112 일곱뿐이고 <b>합계줄이 없다</b> — 우리가 더 두던
               [근거주문]·[출하금액]·[발송여부]·[담당] 열과 합계줄을 뺐다.
             */}
-            <th className="cursor-pointer w-[141px] text-center" onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th>
+            <th className="w-[141px] text-center">일자-No.</th>
             <th className="w-[127px]">창고명</th><th className="w-[380px]">품목명(요약)</th>
             <th className="w-[146px] text-right">수량합계</th>
-            <th className="cursor-pointer w-[127px]" onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
+            <th className="w-[127px]">거래처명</th>
             <th className="w-[112px] text-center">인쇄</th>
           </tr>
         </thead>
@@ -399,7 +438,7 @@ export default function ShipmentInquiryPage() {
                 })} />
               </td>
               {/* 원본은 일자와 번호를 한 칸에 적고, 누르면 '출하입력(수정)' 창이 뜬다. */}
-              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setEditing(r) }}>{dateNo(r.shipDate, r.shipNo)}</a></td>
+              <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setPopup({ editing: r }) }}>{dateNo(r.shipDate, r.shipNo)}</a></td>
               <td>{r.warehouseName ?? ''}</td>
               <td>{r.lines[0]?.itemName}{r.lines[0]?.spec ? ` [${r.lines[0].spec}]` : ''}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
               <td className="text-right">{qty2(r.totalQuantity)}</td>
@@ -410,27 +449,6 @@ export default function ShipmentInquiryPage() {
         </tbody>
       </table>
 
-      <Modal open={editing != null} width={900} title="출하입력(수정)" onClose={() => setEditing(null)} error={error}>
-        {entry.form}
-        <div className="mt-[8px] flex gap-[4px]">
-          <button type="button" className="ec-btn ec-btn-primary" disabled={entry.busy} onClick={() => void saveEdit()}>저장(F8)</button>
-          <button type="button" className="ec-btn" onClick={() => setEditing(null)}>닫기</button>
-          <button type="button" className="ec-btn" onClick={() => editing && void remove([editing.id])}>삭제</button>
-          <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>
-        </div>
-      </Modal>
-      {historyOpen && editing && <SlipHistoryModal target="SHIPMENT" id={editing.id} head={slipHeadLabel(editing.shipDate, editing.shipNo)} onClose={() => setHistoryOpen(false)} />}
-      {statusMenu && (
-        <>
-          <div className="ec-backdrop-clear" onClick={() => setStatusMenu(null)} />
-          <div className="ec-menu fixed" style={{ left: statusMenu.left, bottom: statusMenu.bottom }} role="menu" aria-label="진행상태변경">
-            <div className="px-[10px] pt-[4px] text-ec-label">▾ 미확인</div>
-            <button onClick={blockStatusChange}>미확인</button>
-            <div className="px-[10px] pt-[4px] text-ec-label">▾ 확인</div>
-            <button onClick={blockStatusChange}>확인</button>
-          </div>
-        </>
-      )}
       <Modal open={blockedRows != null} title="알림" width={630} onClose={() => setBlockedRows(null)}>{blockedRows && (
         <div>
           <p className="m-0 leading-[18px]">아래의 경우 처리가 불가능합니다.<br />자세한 내용은 아래의 사항을 참고하시기 바랍니다.<br />아래 사항을 수정 후 다시 진행하시기 바랍니다.</p>

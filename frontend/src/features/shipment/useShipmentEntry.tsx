@@ -11,6 +11,7 @@ import { dateNo } from '../../utils/dateNo'
 import { ecAlert } from '../../components/EcDialog'
 import { useSubmitting } from '../../utils/useSubmitting'
 import EcIcon from '../../components/ui/EcIcon'
+import { MenuButton } from '../../components/EcSlipShell'
 
 /**
  * 출하입력(E040225) · 출하입력(수정) 창이 같이 쓰는 머리 · 격자 · [출하지시] — 2026-10-21 재고1 출하 바퀴.
@@ -19,6 +20,9 @@ import EcIcon from '../../components/ui/EcIcon'
  * (<b>출하예정일 없음</b>), 격자 품목코드 · 품목명 · 규격 · 수량(<b>단가 · 금액 없음</b>, 합계줄 수량만).
  * [출하지시] → 출하지시서검색창 › 잔량적용(F8) 으로 지시서 잔량을 불러오고, 줄이 이어지면 [출하지시] 단추가 사라진다.
  * 저장한 출하는 출하완료(SHIPPED) — 원본 출하 전표는 '나간 것' 이다. 재고는 움직이지 않는다(판매가 움직인다).
+ *
+ * 2026-10-31 loginad 클릭 대조: 표 머리 '품목'(칸에는 코드) · 빈 줄 3 · 도구줄 찾기(F3) 정렬 My품목▲ 재고불러오기 바코드 전표 바코드 검증
+ * 전표불러오기 출하지시 미출하 · 우편번호 옆 [주소검색]. [프로젝트] 는 우리 저장 값이라 남긴다(qa/fixtures/our-own-conditions.json).
  */
 export interface ShipLineRes {
   itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
@@ -48,6 +52,8 @@ interface SoLite {
 
 interface LineInput { itemId: string; quantity: string; remark: string; soLineId: number | null; orderLineId: number | null; unitPrice: number | null; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */; name?: string | null /* 줄 품목명 — 없으면 품목 이름을 따라감 */ }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', remark: '', soLineId: null, orderLineId: null, unitPrice: null, spec: null })
+/** 원본은 빈 입력행 3줄로 뜬다(출하입력 2026-10-31 loginad). 줄이 적으면 빈 줄을 채워 3줄을 맞춘다. */
+const padLines = (ls: LineInput[]): LineInput[] => [...ls, ...Array.from({ length: Math.max(1, 3 - ls.length) }, emptyLine)]
 interface Head { shipDate: string; partnerId: string; employeeId: string; warehouseId: string; projectId: string; contact: string; postalCode: string; address: string }
 const emptyHead = (): Head => ({ shipDate: ymd(new Date()), partnerId: '', employeeId: '', warehouseId: '', projectId: '', contact: '', postalCode: '', address: '' })
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -65,7 +71,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
   const [employees, setEmployees] = useState<{ id: number; name: string; code?: string }[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [head, setHead] = useState<Head>(emptyHead)
-  const [lines, setLines] = useState<LineInput[]>([emptyLine()])
+  const [lines, setLines] = useState<LineInput[]>(() => padLines([]))
   const [pickOpen, setPickOpen] = useState(false)
   const [orders, setOrders] = useState<SoLite[]>([])
   const [picked, setPicked] = useState<number | null>(null)
@@ -86,17 +92,17 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
   }, [])
 
   useEffect(() => {
-    if (!editing) { setHead(emptyHead()); setLines([emptyLine()]); return }
+    if (!editing) { setHead(emptyHead()); setLines(padLines([])); return }
     setHead({
       shipDate: editing.shipDate, partnerId: String(editing.partnerId),
       employeeId: editing.employeeId ? String(editing.employeeId) : '', warehouseId: editing.warehouseId ? String(editing.warehouseId) : '',
       projectId: editing.projectId ? String(editing.projectId) : '', contact: editing.contact ?? '',
       postalCode: editing.postalCode ?? '', address: editing.address ?? '',
     })
-    setLines([...editing.lines.map((l) => ({
+    setLines(padLines(editing.lines.map((l) => ({
       itemId: String(l.itemId), quantity: String(l.quantity), remark: l.remark ?? '',
       soLineId: l.shipmentOrderLineId, orderLineId: l.orderLineId, unitPrice: l.unitPrice, spec: l.spec ?? null, name: l.itemName ?? null,
-    })), emptyLine()])
+    }))))
   }, [editing])
 
   const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
@@ -112,7 +118,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
       return next
     })
   }
-  function reset() { setHead(emptyHead()); setLines([emptyLine()]); setVerifyResult(null) }
+  function reset() { setHead(emptyHead()); setLines(padLines([])); setVerifyResult(null) }
   /* 사용중단 품목도 담는다 — 지시서에서 불러온 J001 · J002(사용중단)가 품목코드 칸에 보이고, [사용중단포함] 으로 고를 수 있다. */
   const codeItems = useMemo(
     () => items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword, stopped: it.active === false })),
@@ -204,7 +210,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
         projectId: so.projectId ? String(so.projectId) : '', contact: so.contact ?? '',
         postalCode: so.postalCode ?? '', address: so.address ?? '',
       }))
-      setLines([...rem.map((l) => ({ itemId: String(l.itemId), quantity: String(l.unshippedQty), remark: l.remark ?? '', soLineId: l.id, orderLineId: null, unitPrice: null, spec: l.spec ?? null, name: l.itemName ?? null })), emptyLine()])
+      setLines(padLines(rem.map((l) => ({ itemId: String(l.itemId), quantity: String(l.unshippedQty), remark: l.remark ?? '', soLineId: l.id, orderLineId: null, unitPrice: null, spec: l.spec ?? null, name: l.itemName ?? null }))))
       setPickOpen(false)
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
@@ -232,17 +238,20 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
                            items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="연락처"><input className="ec-input w-[200px]" value={head.contact} onChange={(e) => setH('contact', e.target.value)} /></EcCond>
-        <EcCond label="우편번호"><input className="ec-input w-[110px]" value={head.postalCode} onChange={(e) => setH('postalCode', e.target.value)} /></EcCond>
+        <EcCond label="우편번호">
+          <input className="ec-input w-[110px]" value={head.postalCode} onChange={(e) => setH('postalCode', e.target.value)} />
+          {/* 원본 우편번호 칸 옆 [주소검색] 링크 — 우편번호 찾기 서비스가 우리에게 없어 안내만 한다. */}
+          <a href="#" className="ml-[6px]" onClick={(e) => { e.preventDefault(); void ecAlert('이 기능은 이 ERP 에서 제공하지 않습니다.\n(주소검색)') }}>주소검색</a>
+        </EcCond>
         <EcCond label="주소"><input className="ec-input w-[360px]" value={head.address} onChange={(e) => setH('address', e.target.value)} /></EcCond>
       </ul>
 
-      {/* 원본 E040225 툴바 차례: 찾기 · 정렬 · My품목 · 출하지시 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기. [출하지시] 는 지시서 줄이 이어지면 빠진다. */}
+      {/* 원본 E040225 툴바 차례(2026-10-31 loginad): 찾기(F3) · 정렬 · My품목▲ · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기 · 출하지시 · 미출하. [출하지시] 는 지시서 줄이 이어지면 빠진다. */}
       <div className="ec-toolbar my-[6px] flex gap-[4px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFindOpen((v) => !v)}>찾기(F3)</button>
         {findOpen && <input className="ec-input w-[130px]" autoFocus value={findText} placeholder="품목명·적요" onChange={(e) => setFindText(e.target.value)} />}
         <button type="button" className="ec-btn ec-btn-sm" onClick={sortLines}>정렬</button>
-        <button type="button" className="ec-btn ec-btn-sm" {...todo('출하입력의 My품목은 아직 없습니다 — 판매입력에서 씁니다.')}>My품목</button>
-        {!linked && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openPicker()}>출하지시</button>}
+        <MenuButton className="ec-btn ec-btn-sm" label="My품목" disabled title="출하입력의 My품목은 아직 없습니다 — 판매입력에서 씁니다." items={[{ label: 'My품목설정' }]} />
         <button type="button" className="ec-btn ec-btn-sm" {...todo('출하입력에서 재고를 불러오는 기능은 아직 없습니다.')}>재고불러오기</button>
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setBarcodeOpen((v) => !v)}>바코드</button>
         {barcodeOpen && (
@@ -253,6 +262,8 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
         <button type="button" className="ec-btn ec-btn-sm" {...todo('전표 단위 바코드 출력은 아직 없습니다.')}>전표 바코드</button>
         <button type="button" className="ec-btn ec-btn-sm" onClick={verify}>검증</button>
         <button type="button" className="ec-btn ec-btn-sm" {...todo('다른 전표를 복사해 오는 기능은 아직 없습니다 — [출하지시] 로 지시서 잔량을 불러옵니다.')}>전표불러오기</button>
+        {!linked && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openPicker()}>출하지시</button>}
+        <button type="button" className="ec-btn ec-btn-sm" {...todo('원본 [미출하] 창은 아직 견주지 못했습니다 — 미출하 잔량은 [출하지시] 창 · 미출하현황에서 봅니다.')}>미출하</button>
       </div>
       {verifyResult && (
         <div className={`ec-alert my-[4px] mx-0 ${verifyResult.length ? 'ec-alert-danger' : 'ec-alert-info'}`}>
@@ -262,7 +273,7 @@ export function useShipmentEntry(editing: ShipmentRes | null) {
       )}
       <table className="w-full table-fixed text-left">
         <colgroup><col className="w-[35px]" /><col className="w-[100px]" /><col className="w-[229px]" /><col className="w-[88px]" /><col className="w-[93px]" /><col /></colgroup>
-        <thead><tr><th className="text-center"></th><th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th><th>적요</th></tr></thead>
+        <thead><tr><th className="text-center"></th><th>품목</th><th>품목명</th><th>규격</th><th className="text-right">수량</th><th>적요</th></tr></thead>
         <tbody>
           {lines.map((l, idx) => {
             const it = itemById.get(l.itemId)

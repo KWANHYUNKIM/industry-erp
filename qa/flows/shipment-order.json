@@ -1,5 +1,5 @@
 {
-  "about": "출하지시서(E040221 · E040220) · 출하(E040225 · E040226), 원본 흐름 plans/재고1/E040221.md · 재고1.md 출하 줄: 주문 7 → 출하지시서입력 [전표불러오기] 주문서 적용 → 4 로 저장(출하지시서입력 큰 화면 — 말 없이 빈 칸) → 5 로 수정 → 미출하 5 → 출하입력 [출하지시] 잔량적용 5 → 3 저장(말 없이 빈 폼) → 미출하 2 → 출하 수정 2 → 미출하 3 → 출하 삭제 → 미출하 5 → 출하 3(API) → 지시서 삭제(출하는 남는다). node qa/shot.mjs qa/flows/shipment-order.json — 만든 주문 · 출하는 끝에 지운다.",
+  "about": "출하지시서(E040221 · E040220) · 출하(E040225 · E040226), 원본 흐름 plans/재고1/E040221.md · 재고1.md 출하 줄: 주문 7 → 출하지시서입력 [전표불러오기] 주문서 적용 → 4 로 저장(출하지시서입력 메뉴 화면 — 말 없이 빈 칸, 조회의 [신규(F2)] · 일자-No. 는 목록 위 창) → 5 로 수정 → 미출하 5 → 출하입력 [출하지시] 잔량적용 5 → 3 저장(말 없이 빈 폼) → 미출하 2 → 출하 수정 2 → 미출하 3 → 출하 삭제 → 미출하 5 → 출하 3(API) → 지시서 삭제(출하는 남는다). node qa/shot.mjs qa/flows/shipment-order.json — 만든 주문 · 출하는 끝에 지운다.",
   "shots": [
     {
       "name": "주문 7 (API — 주문서입력은 주문서 묶음이 본다)",
@@ -11,13 +11,32 @@
       ]
     },
     {
-      "name": "출하지시서입력(큰 화면 /sales/shipment-order-entry) — [신규(F2)] 로 화면이 바뀌고, 줄 없이 저장하면 알림, [전표불러오기] 주문서 적용 → 7 · 품목코드 칸에 코드, 4 로 고쳐 저장하면 말 없이 빈 칸",
+      "name": "출하지시서조회 [신규(F2)] — 목록 위 '출하지시서입력' 창(원본 2026-10-31 loginad): 화면은 그대로, 머리 [기본(수정불가)▾] · Option, 탭 없음, 표 머리 '품목' · 빈 줄 3, 아래 줄 ✈ · 저장(F8)▲ · 저장/전표(F7) · 다시 작성 · 닫기 · 웹자료올리기, 줄 없이 저장하면 알림, [닫기] 로 닫힌다",
       "path": "/sales/shipment-order",
       "steps": [
+        "wait:1200",
         "click:신규(F2)",
         "wait:1500",
+        "expect:location.pathname === '/sales/shipment-order' && !!document.querySelector('[role=dialog]') && document.querySelector('[role=dialog]').innerText.includes('출하지시서입력') && document.querySelector('[role=dialog]').innerText.includes('출하예정일') && document.querySelector('[role=dialog]').innerText.includes('주소검색')",
+        "expect:(() => { const d = document.querySelector('[role=dialog]'); const ths = [...d.querySelectorAll('thead th')].map((t) => t.textContent.trim()).filter(Boolean).join(','); const btns = [...d.querySelectorAll('button')].map((b) => b.textContent.trim()); return ths === '품목,품목명,규격,수량,적요' && d.querySelectorAll('tbody tr').length === 3 && !d.querySelector('.ec-tabs') && ['저장(F8)', '저장/전표(F7)', '다시 작성', '닫기', '웹자료올리기', 'Option'].every((x) => btns.includes(x)) && btns.some((x) => x.startsWith('기본(수정불가)')) && !btns.includes('리스트') })()",
+        "expect:[...document.querySelector('[role=dialog]').querySelectorAll('.ec-toolbar button')].filter((b) => !(b.getAttribute('aria-label') || '').endsWith('부가기능')).map((b) => b.textContent.trim()).join(',').startsWith('찾기(F3),정렬,My품목,판매,재고불러오기,생성한 전표,바코드,전표 바코드,검증,전표불러오기')",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('출하지시서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
+        "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '확인').pop().click(); true",
+        "wait:300",
+        "js:[...document.querySelector('[role=dialog]').querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:500",
+        "expect:!document.querySelector('[role=dialog]') && location.pathname === '/sales/shipment-order'"
+      ]
+    },
+    {
+      "name": "출하지시서입력(메뉴 화면 /sales/shipment-order-entry) — 줄 없이 저장하면 알림, [전표불러오기] 주문서 적용 → 7 · 품목 칸에 코드, 4 로 고쳐 저장하면 말 없이 빈 칸",
+      "path": "/sales/shipment-order-entry",
+      "steps": [
+        "wait:500",
+        "wait:1500",
         "expect:location.pathname === '/sales/shipment-order-entry' && !document.querySelector('[role=dialog]') && document.body.innerText.includes('출하지시서입력') && document.body.innerText.includes('출하예정일') && ![...document.querySelectorAll('thead th')].some((th) => th.innerText.includes('단가'))",
-        "expect:[...document.querySelectorAll('.ec-toolbar button')].map((b) => b.textContent.trim()).join(',').startsWith('찾기(F3),정렬,My품목,판매,재고불러오기,생성한전표,바코드,전표 바코드,검증,전표불러오기')",
+        "expect:[...document.querySelectorAll('.ec-toolbar button')].filter((b) => !(b.getAttribute('aria-label') || '').endsWith('부가기능')).map((b) => b.textContent.trim()).join(',').startsWith('찾기(F3),정렬,My품목,판매,재고불러오기,생성한 전표,바코드,전표 바코드,검증,전표불러오기')",
         "click:저장(F8)",
         "expect:document.body.innerText.includes('출하지시서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
         "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '확인').pop().click(); true",
@@ -39,19 +58,21 @@
       ]
     },
     {
-      "name": "수정 — 출하지시서조회에 4.00 진행중, 일자-No. 링크 → 출하지시서입력(수정) 화면(일자 잠김), 5 로 수정저장 → 목록으로 돌아와 5.00 · 미출하 5",
+      "name": "수정 — 출하지시서조회에 4.00 진행중, 일자-No. 링크 → 목록 위 '출하지시서입력(수정)' 창(일자 잠김 · 이전 · 다음 · 닫기), 5 로 저장(F8) → 창이 닫히고 목록 5.00 · 미출하 5",
       "path": "/sales/shipment-order",
       "steps": [
         "wait:1000",
         "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soNo'))); return tr && tr.innerText.includes('4.00') && tr.innerText.includes('진행중') })()",
         "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soNo')).click(); true",
         "wait:1500",
-        "expect:location.pathname === '/sales/shipment-order-entry' && document.body.innerText.includes('출하지시서입력(수정)') && [...document.querySelectorAll('select')].some((s) => s.disabled)",
+        "expect:location.pathname === '/sales/shipment-order' && document.querySelector('[role=dialog]').innerText.includes('출하지시서입력(수정)')",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-form input')].some((s) => s.disabled)",
+        "expect:['이전', '다음', '닫기', '삭제', 'H'].every((x) => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent.trim() === x))",
         "expect:document.querySelector('tbody input.text-right').value === '4' && document.querySelector('tbody tr').cells[1].innerText.trim() === 'QA-PROD'",
         "set:tbody input.text-right#0|5",
-        "click:수정저장(F8)",
+        "click:저장(F8)",
         "wait:1500",
-        "expect:location.pathname === '/sales/shipment-order'",
+        "expect:location.pathname === '/sales/shipment-order' && !document.querySelector('[role=dialog]')",
         "wait:800",
         "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soNo'))); return tr && tr.innerText.includes('5.00') })()",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const u = (await (await fetch('/api/shipment-orders/unshipped', { headers: H })).json()).filter((x) => String(x.shipmentOrderId) === sessionStorage.getItem('soId')); return u.length === 1 && Number(u[0].unshippedQty) === 5 })()"
@@ -70,7 +91,7 @@
       "path": "/sales/shipment-entry",
       "steps": [
         "expect:document.body.innerText.includes('출하입력') && !document.body.innerText.includes('출하예정일')",
-        "expect:[...document.querySelectorAll('.ec-toolbar button')].map((b) => b.textContent.trim()).join(',') === '찾기(F3),정렬,My품목,출하지시,재고불러오기,바코드,전표 바코드,검증,전표불러오기'",
+        "expect:[...document.querySelectorAll('.ec-toolbar button')].filter((b) => !(b.getAttribute('aria-label') || '').endsWith('부가기능')).map((b) => b.textContent.trim()).join(',') === '찾기(F3),정렬,My품목,재고불러오기,바코드,전표 바코드,검증,전표불러오기,출하지시,미출하'",
         "click:저장(F8)",
         "expect:document.body.innerText.includes('출하입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
         "js:[...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '확인').pop().click(); true",
@@ -112,7 +133,7 @@
       "name": "출하조회(E040226) — 일자-No. 링크 → 출하입력(수정) 창, 2 로 저장하면 말 없이 닫히고 2.00 → 미출하 3",
       "path": "/sales/shipment-inquiry",
       "steps": [
-        "expect:[...document.querySelectorAll('.ec-tab')].map((t) => t.textContent.trim()).join(',') === '전체*,결재중,미확인,확인'",
+        "expect:[...[...document.querySelectorAll('.ec-pills')].find((p) => !p.closest('.ec-cond')).querySelectorAll('.ec-pill')].map((b) => b.textContent.trim()).join(',') === '전체,결재중,미확인,확인' && !document.querySelector('.ec-tabs')",
         "expect:[...document.querySelectorAll('tbody a')].some((a) => a.textContent.trim() === sessionStorage.getItem('soShipRow'))",
         "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soShipRow')).click(); true",
         "expect:document.querySelector('[role=dialog]').innerText.includes('출하입력(수정)')",
@@ -170,10 +191,10 @@
         "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('soNo'))); return tr && tr.innerText.includes('진행중') })()",
         "js:window.confirm = () => true; [...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soNo')).click(); true",
         "wait:1500",
-        "expect:location.pathname === '/sales/shipment-order-entry' && document.body.innerText.includes('출하지시서입력(수정)')",
+        "expect:location.pathname === '/sales/shipment-order' && document.querySelector('[role=dialog]').innerText.includes('출하지시서입력(수정)')",
         "click:삭제",
         "wait:1200",
-        "expect:location.pathname === '/sales/shipment-order'",
+        "expect:location.pathname === '/sales/shipment-order' && !document.querySelector('[role=dialog]')",
         "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('soNo')))",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; return (await (await fetch('/api/shipments', { headers: H })).json()).some((x) => x.shipNo === sessionStorage.getItem('soShip')) })()",
         "apidel:/shipments|@soShip|shipNo",

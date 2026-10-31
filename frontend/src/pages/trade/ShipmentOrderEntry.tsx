@@ -4,7 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, Item, MyItem, Partner, Project, SalesDoc, Warehouse } from '../../types/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
-import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
+import EcSlipShell, { MenuButton, type SlipAction } from '../../components/EcSlipShell'
 import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import Modal from '../../components/Modal'
@@ -30,8 +30,26 @@ import EcIcon from '../../components/ui/EcIcon'
  * 담당자 · 프로젝트(판매의 것) · 출하창고(판매 창고) · 연락처(거래처의 것) · 출하예정일 오늘 · 줄, 툴바에서 [판매] 가 빠진다.
  * 저장하면 그 줄이 판매에 걸려(shipment_order_lines.sales_id) 판매검색창에서 빠진다.
  *
- * 저장은 말 없이 빈 칸으로 돌아간다(창고는 남긴다). 출하지시서조회의 [신규(F2)] · [일자-No.](`?edit=`) 가 이 화면으로 온다.
+ * 저장은 말 없이 빈 칸으로 돌아간다(창고는 남긴다). 메뉴 [출하지시서입력] · `?edit=` 는 이 화면, 출하지시서조회의 [신규(F2)] · [일자-No.] 는
+ * 목록 위에 떠 있는 창(popup)으로 연다(원본 2026-10-31 loginad — 견적서 · 주문서조회와 같다).
+ *
+ * 원본 머리 차례는 일자-No. · 거래처 · 담당자 · 출하창고 · 연락처 · 출하예정일 · 우편번호[주소검색] · 주소다. [프로젝트] 는 우리 저장 값이라 남긴다
+ * (출하조회 · 출하현황의 프로젝트 조건이 이 값을 거른다).
  */
+
+/** 출하지시서조회 위에 떠 있는 창으로 열 때. editId 가 null 이면 새 지시서. */
+export interface ShipmentOrderEntryPopup {
+  editId: number | null
+  /** 창을 닫는다. changed 면 목록을 다시 읽는다(저장 · 삭제 뒤). */
+  onClose: (changed: boolean) => void
+  /** [이전] · [다음] — 목록에서 앞 · 뒤 지시서로 옮긴다. */
+  onMove: (dir: 'prev' | 'next') => void
+  /** [복사] — 창 제목을 '출하지시서입력' 으로 돌린다. */
+  onCopy?: () => void
+  /** [저장/내용유지] — 저장한 지시서의 수정 창으로 바꾼다. */
+  onEdit?: (id: number) => void
+}
+const NOT_HERE = '이 기능은 이 ERP 에서 제공하지 않습니다.'
 
 interface LineInput { id: number | null; itemId: string; quantity: string; remark: string; salesId?: number | null; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */; name?: string | null /* 줄 품목명 — 없으면 품목 이름을 따라감 */ }
 const emptyLine = (): LineInput => ({ id: null, itemId: '', quantity: '', remark: '', spec: null })
@@ -60,10 +78,14 @@ interface SalesOrderLite {
 }
 interface ShipLite { shipNo: string; shipDate: string; lines: { itemCode: string; itemName: string; spec: string | null; quantity: number; shipmentOrderLineId: number | null }[] }
 
-export default function ShipmentOrderEntry() {
+export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEntryPopup }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const editParam = params.get('edit')
+  const editParam = popup ? (popup.editId == null ? null : String(popup.editId)) : params.get('edit')
+  const formRef = useRef<HTMLFormElement>(null)
+  /** [저장/신규] · [저장/내용유지] — 저장하고 창을 닫지 않는다. 창에서 저장한 것이 있으면 닫을 때 목록을 다시 읽는다. */
+  const afterSaveModeRef = useRef<'new' | 'keep' | null>(null)
+  const savedRef = useRef(false)
 
   // ── 마스터 ─────────────────────────────────────────────
   const [partners, setPartners] = useState<Partner[]>([])
@@ -294,53 +316,95 @@ export default function ShipmentOrderEntry() {
       postalCode: postalCode || null, address: address || null, remark: remark || null,
       lines: filled.map((l) => ({ id: l.id, itemId: Number(l.itemId), quantity: num(l.quantity), remark: l.remark || null, salesId: l.salesId ?? null, spec: l.spec ?? undefined, itemName: l.name ?? undefined })),
     }
+    const mode = afterSaveModeRef.current
+    afterSaveModeRef.current = null
     try {
-      if (editing) {
-        await api.put(`/shipment-orders/${editing.id}`, body)
+      const res = editing ? await api.put<{ id: number }>(`/shipment-orders/${editing.id}`, body) : await api.post<{ id: number }>('/shipment-orders', body)
+      savedRef.current = true
+      const savedId = res.data?.id ?? editing?.id
+      /* [저장/내용유지] — 저장하고 그 지시서의 수정으로 바뀐다. */
+      if (mode === 'keep' && savedId != null) {
+        if (popup) popup.onEdit?.(savedId)
+        else setParams({ edit: String(savedId) }, { replace: true })
+        return
+      }
+      /* 조회 위의 창 — 원본은 저장하면 말 없이 창이 닫히고 목록이 다시 읽힌다. [저장/신규] 는 창을 남기고 빈 칸으로. */
+      if (popup && mode !== 'new') { popup.onClose(true); return }
+      if (editing && mode !== 'new') {
         navigate('/sales/shipment-order')   // 원본: 수정은 말 없이 닫히고 목록이 다시 읽힌다
         return
       }
-      await api.post('/shipment-orders', body)
+      if (editing) { setEditing(null); if (!popup) setParams({}, { replace: true }) }
       reset(true)                            // 원본: 말 없이 빈 칸
     } catch (err) { setError(extractErrorMessage(err)) }
   }
   async function removeEditing() {
     if (!editing) return
     if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 출하지시서'))) return
-    try { await api.delete(`/shipment-orders/${editing.id}`); navigate('/sales/shipment-order') }
+    try { await api.delete(`/shipment-orders/${editing.id}`); if (popup) popup.onClose(true); else navigate('/sales/shipment-order') }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   function copyEditing() {
     setEditing(null); setDate(today()); setDueDate(today()); setError('')
     setLines((ls) => ls.map((l) => ({ ...l, id: null })))
-    setParams({}, { replace: true })
+    if (popup) popup.onCopy?.()
+    else setParams({}, { replace: true })
   }
   async function toList() {
     if (!editing && lines.some((l) => l.itemId) && !(await ecConfirm('작성한 내용이 저장되지 않았습니다. 페이지를 벗어나겠습니까?'))) return
-    navigate('/sales/shipment-order')
+    if (popup) popup.onClose(savedRef.current)
+    else navigate('/sales/shipment-order')
   }
 
+  /*
+   * 원본 아래 줄(2026-10-31 loginad 출하지시서조회 [신규(F2)] 창): ✈ · 저장(F8)▲ · 저장/전표(F7) · 다시 작성 · 닫기 · 웹자료올리기.
+   * 수정은 견적서 · 주문서 수정 창과 같은 꼴(저장 · 저장/전표 · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기▲ · H).
+   * 메뉴 [출하지시서입력] 화면(창이 아님)은 [닫기] 자리에 [리스트], 이전 · 다음은 창에서만 선다.
+   * ✈ · 저장/전자결재 · 저장/전표 는 받쳐 줄 것이 없어 안내만 한다(출하지시서 인쇄 양식은 원본 자료가 없어 못 봤다).
+   */
+  const notHere = (what: string) => () => void ecAlert(`${NOT_HERE}\n(${what})`)
+  const sendAction: SlipAction = { label: '보내기', icon: 'send', onClick: notHere('전표 보내기') }
+  const saveMenu = [
+    { label: '저장/전자결재', onClick: notHere('저장/전자결재') },
+    { label: '저장/내용유지', onClick: () => { afterSaveModeRef.current = 'keep'; formRef.current?.requestSubmit() } },
+    { label: '저장/신규', onClick: () => { afterSaveModeRef.current = 'new'; formRef.current?.requestSubmit() } },
+  ]
+  const slipPrint: SlipAction = { label: '저장/전표(F7)', onClick: notHere('출하지시서 저장/전표 — 인쇄 양식 미확인') }
+  const closeAction: SlipAction = popup ? { label: '닫기', onClick: () => void toList() } : { label: '리스트', onClick: () => void toList() }
   const actions: SlipAction[] = editing ? [
-    { label: '수정저장(F8)', primary: true, submit: true },
+    sendAction,
+    { label: popup ? '저장(F8)' : '수정저장(F8)', primary: true, submit: true, menu: saveMenu },
+    slipPrint,
     { label: '복사', onClick: copyEditing },
+    ...(popup ? [{ label: '이전', onClick: () => popup.onMove('prev') }, { label: '다음', onClick: () => popup.onMove('next') }] : []),
+    ...(popup ? [closeAction] : []),
     { label: '삭제', onClick: () => void removeEditing() },
-    { label: '리스트', onClick: () => void toList() },
+    ...(popup ? [] : [closeAction]),
+    { label: '보내기', menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
     { label: 'H', onClick: () => setHistoryOpen(true) },
   ] : [
-    { label: '저장(F8)', primary: true, submit: true },
+    sendAction,
+    { label: '저장(F8)', primary: true, submit: true, menu: saveMenu },
+    slipPrint,
     { label: '다시 작성', onClick: () => reset(false) },
-    { label: '리스트', onClick: () => void toList() },
+    closeAction,
     { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
   ]
   const todo = (why: string) => ({ disabled: true, title: why })
 
   return (
-    <form onSubmit={submitting.wrap(submit)}>
+    <form ref={formRef} onSubmit={submitting.wrap(submit)}>
       <EcSlipShell
         title={editing ? '출하지시서입력(수정)' : '출하지시서입력'}
-        formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
-        activeFormTab="main"
-        onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
+        /* 원본 머리 [기본(수정불가)▾] · [Option] · [도움말](2026-10-31 loginad 출하지시서입력 창 — 견적서입력과 같은 꼴). */
+        layouts={{
+          label: '기본(수정불가)',
+          items: [
+            { label: '✓ 기본(수정불가)' },
+            { label: '신규양식추가', onClick: () => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.') },
+          ],
+        }}
+        plainOption
         options={[{ label: '입력값 초기화', onClick: () => reset(false) }]}
         actions={actions}
         busy={submitting.busy}
@@ -398,7 +462,11 @@ export default function ShipmentOrderEntry() {
           </li>
           <li>
             <div className="title">우편번호</div>
-            <div className="form"><input className="ec-input w-[110px]" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} aria-label="우편번호" /></div>
+            <div className="form flex items-center gap-[6px]">
+              <input className="ec-input w-[110px]" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} aria-label="우편번호" />
+              {/* 원본 우편번호 칸 옆 [주소검색] 링크 — 우편번호 찾기 서비스가 우리에게 없어 안내만 한다. */}
+              <a href="#" onClick={(e) => { e.preventDefault(); notHere('주소검색')() }}>주소검색</a>
+            </div>
           </li>
           <li className="wide">
             <div className="title">주소</div>
@@ -406,16 +474,18 @@ export default function ShipmentOrderEntry() {
           </li>
         </ul>
 
-        <ul className="ec-tabs mt-[10px]"><li className="ec-tab active">출하지시</li></ul>
-        <div className="ec-toolbar">
+        {/* 원본 도구줄 위에는 탭이 없다(2026-10-31 loginad — 예전 '출하지시' 탭을 뺐다). */}
+        <div className="ec-toolbar mt-[10px]">
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFindOpen((v) => !v)}>찾기(F3)</button>
           {findOpen && <input className="ec-input w-[130px] h-[23px]" autoFocus value={findText} placeholder="품목명·적요" onChange={(e) => setFindText(e.target.value)} />}
           <button type="button" className="ec-btn ec-btn-sm" onClick={sortLines}>정렬</button>
-          <button type="button" className="ec-btn ec-btn-sm" onClick={applyMyItems}>My품목{myItems.length > 0 ? ` (${myItems.length})` : ''}</button>
+          {/* 원본 [My품목▲] — 펼치면 My품목설정. */}
+          <MenuButton className="ec-btn ec-btn-sm" label={`My품목${myItems.length > 0 ? ` (${myItems.length})` : ''}`} onMain={applyMyItems}
+                      items={[{ label: 'My품목설정', onClick: () => flash('My품목은 판매입력 명세의 [★]로 담고 뺍니다.') }]} />
           {/* 원본: 판매를 담은 뒤에는 툴바에서 [판매] 가 빠진다 */}
           {!salesLoaded && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void openSales()}>판매</button>}
           <button type="button" className="ec-btn ec-btn-sm" {...todo('출하지시서입력에서 재고를 불러오는 기능은 아직 없습니다.')}>재고불러오기</button>
-          <button type="button" className="ec-btn ec-btn-sm" disabled={!editing} title={editing ? undefined : '저장한 출하지시서를 열었을 때만 쓸 수 있습니다.'} onClick={() => void openGenerated()}>생성한전표</button>
+          <button type="button" className="ec-btn ec-btn-sm" disabled={!editing} title={editing ? undefined : '저장한 출하지시서를 열었을 때만 쓸 수 있습니다.'} onClick={() => void openGenerated()}>생성한 전표</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setBarcodeOpen((v) => !v)}>바코드</button>
           {barcodeOpen && (
             <input className="ec-input w-[170px] h-[23px]" autoFocus value={barcode} placeholder="바코드/품목코드 후 Enter"
@@ -444,7 +514,8 @@ export default function ShipmentOrderEntry() {
             <thead>
               <tr>
                 <th />
-                <th className="text-left">품목코드</th><th className="text-left">품목명</th><th className="text-left">규격</th>
+                {/* 원본 머리 글자는 '품목'(칸에는 코드 J001). */}
+                <th className="text-left">품목</th><th className="text-left">품목명</th><th className="text-left">규격</th>
                 <th className="text-right">수량</th><th className="text-left">적요</th><th />
               </tr>
             </thead>
