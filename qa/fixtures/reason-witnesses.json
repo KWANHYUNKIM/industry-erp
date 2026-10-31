@@ -128,15 +128,6 @@
   ],
   "in": "backend/src/main/java/com/erp/settings/currency/Currency.java"
  },
- "발주서|발송여부": {
-  "claim": "전표를 거래처에 내보내는 기능이 없다",
-  "absent": [
-   "sentAt",
-   "sentDate",
-   "sendMail"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
- },
  "건설예정공정표|업무지원AI": {
   "claim": "업무지원 AI 를 붙이지 않았다",
   "absent": [
@@ -190,48 +181,6 @@
    "Warehouse"
   ],
   "in": "backend/src/main/java/com/erp/accounting/cost/ItemCost.java"
- },
- "발주서|결재중": {
-  "claim": "발주 전표에 결재·확인 상태가 없다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
- },
- "발주서|미확인": {
-  "claim": "발주 전표에 결재·확인 상태가 없다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
- },
- "발주서|확인": {
-  "claim": "발주 전표에 결재·확인 상태가 없다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
- },
- "발주서조회|결재중": {
-  "claim": "발주 전표에 결재·확인 상태가 없다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
- },
- "발주서조회|미확인": {
-  "claim": "발주 전표에 결재·확인 상태가 없다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
- },
- "발주서조회|확인": {
-  "claim": "발주 전표에 결재·확인 상태가 없다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "창고이동조회|전체": {
   "claim": "창고이동 전표에 결재·확인 상태가 없다",
@@ -2772,15 +2721,6 @@
    "backend/src/main/java/com/erp/hr/workrecord"
   ]
  },
- "발주서조회|발송여부": {
-  "claim": "전표를 거래처에 내보내는 기능이 없다(위 [발주서|발송여부] 과 같은 사실이다)",
-  "absent": [
-   "sentAt",
-   "sentDate",
-   "sendMail"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
- },
  "판매단가일괄변경|프로젝트": {
   "claim": "프로젝트는 전표의 열(projectName)로만 찍고 프로젝트로 거르는 요청 변수는 없다(PriceBulkDtos 의 projectName 은 표시용, 구매단가일괄변경과 같다)",
   "present": [
@@ -3915,23 +3855,6 @@
    "PartnerGroup"
   ],
   "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
- },
- "발주요청조회|관리항목": {
-  "claim": "발주서가 관리항목을 들지 않는다",
-  "absent": [
-   "manageItem",
-   "ManagementItem"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
- },
- "발주요청조회|발송여부": {
-  "claim": "발송 이력이 없다",
-  "absent": [
-   "mailed",
-   "sentAt",
-   "sendStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
  "단가요청조회|발송여부": {
   "claim": "발송 이력이 없다",

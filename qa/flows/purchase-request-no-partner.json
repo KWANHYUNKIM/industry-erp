@@ -9,6 +9,8 @@
         "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.code==='QA-PROD');const w=(await window.__api('GET','/warehouses')).body.find((x)=>x.code==='QA-WH');const r=await window.__api('POST','/purchase-orders',{partnerId:null,warehouseId:w.id,lines:[{itemId:it.id,quantity:3,unitPrice:50}]});sessionStorage.setItem('npId',r.body.id);sessionStorage.setItem('npNo',r.body.orderNo);const o=await window.__api('POST','/purchase-orders',{partnerId:null,order:true,warehouseId:w.id,lines:[{itemId:it.id,quantity:3,unitPrice:50}]});sessionStorage.setItem('npOrder',o.status);sessionStorage.setItem('npOrderId',o.body&&o.body.id);return r.status})()",
         "expect:sessionStorage.getItem('npOrder')==='201'||sessionStorage.getItem('npOrder')==='200'",
         "expect:(async()=>{const r=(await window.__api('GET','/purchase-orders')).body.find((x)=>String(x.id)===sessionStorage.getItem('npId'));return !!r&&r.partnerId==null&&r.status==='REQUESTED'&&Number(r.totalAmount)===165})()",
+        "click:Search(F3)",
+        "wait:400",
         "click:검색(F8)",
         "wait:1500",
         "js:(async()=>{await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('npId'));await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('npOrderId'));return 1})()",

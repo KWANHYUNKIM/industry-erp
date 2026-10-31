@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import Modal from '../../components/Modal'
-import EcSlipShell from '../../components/EcSlipShell'
+import EcSlipShell, { MenuButton, type SlipAction } from '../../components/EcSlipShell'
 import CodePickerField from '../../components/CodePickerField'
 import EcNumInput from '../../components/EcNumInput'
 import EcDateField from '../../components/EcDateField'
@@ -17,6 +17,8 @@ import { purchaseRequestDocument } from './purchaseRequestDocument'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import RequestPickModal from './RequestPickModal'
 import PriceRequestPickModal from './PriceRequestPickModal'
+import { PlanPickModal, RequirementCalcModal } from './OrderToolWindows'
+import SalesOrderPickModal, { type SalesOrderLite } from '../salesorder/components/SalesOrderPickModal'
 
 /** 서버 줄 응답은 줄 거래처도 싣는다(OrderLineResponse.partnerId · partnerName) — 공용 타입에 없어 여기서만 넓힌다. */
 type RequestLine = PurchaseOrderLine & {
@@ -86,11 +88,17 @@ const MIN_ROWS = 3
  * (저장/전표가 없다). 저장하면 안내 없이 비우되 <b>입고될창고는 남긴다</b>. 입고될창고가 비면 그 칸만 빨갛게 — 요청과 같다.
  * 서버에는 plan: true 로 보내 요청을 거치지 않고 바로 [발주계획] 단계가 된다.
  */
-export default function PurchaseRequestForm({ editing, page, plan, order, priceRequest, seed, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
+export default function PurchaseRequestForm({ editing, page, bare, plan, order, priceRequest, seed, onClose, onSaved, onDeleted, onCopy, onStep, onList }: {
   /** 고칠 발주요청. null 이면 신규. */
   editing: PurchaseOrder | null
   /** 창이 아니라 '발주요청입력' 화면으로 그린다. */
   page?: boolean
+  /**
+   * 목록 위 떠 있는 입력 창 안에 그린다 — 창 틀(제목줄 새창 · 고정 · 새로고침 · 최대화 · 닫기)은 부르는 화면이 ProductionSlipWindow 로 두른다
+   * (원본 2026-10-31 loginad 발주서조회 · 발주요청조회 [신규(F2)] · 일자-No. — 견적서 · 주문서 창과 같은 꼴). 머리 [양식▾] · Option · 도움말,
+   * 아래 줄 ✈ · 저장(F8)▲ · 저장/전표(F7) · 다시 작성 · 닫기 · 웹자료올리기(수정: … 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기▲ · H).
+   */
+  bare?: boolean
   /** 발주계획입력 — 바로 계획 단계로 저장한다. */
   plan?: boolean
   /**
@@ -130,6 +138,18 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
   const docName = priceRequest ? '단가요청' : order ? '발주서' : plan ? '발주계획' : '발주요청'
   /** 거래처가 머리에 하나인 전표(발주서 · 단가요청) — 줄 거래처 열 · [합계] 열이 없다. */
   const headParty = order || priceRequest
+  /** 발주요청(요청 · 계획 · 발주서 · 단가요청 아닌 것). */
+  const request = !plan && !order && !priceRequest
+  /** 원본 입력 창의 [참조] — 머리 remark(purchase_orders.remark, 인쇄 서식 '참조'). 발주서 · 발주요청에만 칸이 있다. */
+  const hasRef = order || request
+  /** 창(bare)에서 [저장/신규] · [저장/내용유지] 로 저장한 것이 있으면 닫을 때 목록을 다시 읽는다. */
+  const savedRef = useRef(false)
+  const closeWin = () => (savedRef.current ? onSaved?.() : onClose?.())
+  /** 도구줄 [소요] · [주문] · [계획] 창. */
+  const [toolWin, setToolWin] = useState<'req' | 'so' | 'plan' | null>(null)
+  /** 발주서입력 도구줄 끝 ⌄ — 원본에 없는 우리 단추(바코드 · 전표 바코드 · 검증)를 접어 둔다. */
+  const [moreTools, setMoreTools] = useState(false)
+  const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
   const [validUntil, setValidUntil] = useState(editing?.priceValidUntil ?? today())
   /** 줄 출처 열 이름 — 계획은 [발주요청] · [No], 발주서는 [발주계획] · [No.]. */
   /** 발주서입력 [단가요청] 으로 베꼈으면 줄 출처 열도 [단가요청] · [No.] 다. */
@@ -275,6 +295,15 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
     setBarcode('')
   }
   const notYet = (why: string) => ({ disabled: true, title: why })
+  /** [주문] 창에서 고른 주문서의 품목 · 수량을 줄로 — 단가는 품목 구매단가(외화 전표면 비움), 줄 거래처는 품목 구매처(구매입력 [주문] 과 같다). */
+  function applyOrders(orders: SalesOrderLite[]) {
+    setToolWin(null)
+    addLines(orders.flatMap((o) => o.lines.map((l) => {
+      const it = itemOf(String(l.itemId))
+      return { itemId: String(l.itemId), partnerId: !headParty && it?.supplierId ? String(it.supplierId) : '', quantity: String(Number(l.quantity)),
+        unitPrice: it?.purchasePrice && !fx ? String(it.purchasePrice) : '' }
+    })))
+  }
 
   /**
    * after — 'close': 창을 닫는다(창 모드) · 'new': 빈 화면(화면 [저장(F8)] · 저장/신규) · 'keep': 저장/내용유지 ·
@@ -304,7 +333,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
       projectId: projectId ? Number(projectId) : null,
       currency,
       exchangeRate: fx ? rate : null,
-      remark: order ? (headRemark.trim() || null) : (editing?.remark ?? null),
+      remark: hasRef ? (headRemark.trim() || null) : (editing?.remark ?? null),
       lines: filled.map((l) => ({
         itemId: Number(l.itemId),
         quantity: Number(l.quantity) || 0,
@@ -314,7 +343,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
         sourceLineId: l.sourceLineId ?? null,
         spec: l.spec ?? undefined,
         itemName: l.name ?? undefined,
-        remark: order ? (l.remark?.trim() || null) : undefined,
+        remark: hasRef ? (l.remark?.trim() || null) : undefined,
       })),
       plan: plan || undefined,
       order: order || undefined,
@@ -325,8 +354,11 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
       const saved = (isEdit
         ? await api.put<PurchaseOrder>(`/purchase-orders/${editing!.id}`, body)
         : await api.post<PurchaseOrder>('/purchase-orders', body)).data
-      if (after === 'print') await printDocuments([purchaseRequestDocument(saved)], win)
+      /* 서식 이름 — 발주서입력 [저장/전표(F7)] 은 '발주서'(발주서조회 줄 [인쇄] 와 같은 이름), 나머지는 '발주요청서'. */
+      if (after === 'print') await printDocuments([{ ...purchaseRequestDocument(saved), ...(order ? { title: '발주서' } : {}) }], win)
       if (page) { if (after !== 'keep') reset(plan) }
+      /* 창의 [저장/신규] · [저장/내용유지] — 창을 남긴다(닫을 때 목록을 다시 읽는다). */
+      else if (bare && (after === 'new' || after === 'keep')) { savedRef.current = true; if (after === 'new') reset() }
       else onSaved?.()
     } catch (e) {
       win?.close()
@@ -354,22 +386,25 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
     setApplied(false); setPriceSrc(false); setHeadPartnerId(''); setValidUntil(today()); setHeadRemark('')
   }
 
-  const body = (
-    <>
-      <div className="ec-form mb-[8px] grid grid-cols-2 gap-x-[24px] gap-y-[6px] mobile:grid-cols-1">
+  /** 머리 칸 하나 — 화면마다 차례가 달라 이름으로 꺼낸다(위 ec-form). */
+  function headField(k: string) {
+    switch (k) {
+      case 'date': return (
         <label className="flex items-center gap-[8px]">
-          <span className="w-[93px] shrink-0 text-ec-label">{plan ? '일자' : '일자-No.'}</span>
+          <span className="w-[93px] shrink-0 text-ec-label">{plan || order ? '일자' : '일자-No.'}</span>
           {/* 원본: 연 셀렉트 / 월 셀렉트 / 일 칸. 수정 창은 일자를 잠근다 — 번호가 일자에 묶여 있다. */}
           <EcDateField value={orderDate} onChange={setOrderDate} disabled={isEdit} />
           {isEdit && <span className="text-ec-hint">{dateNo(editing!.orderDate, editing!.orderNo)}</span>}
         </label>
-        {headParty && (
-          <div className="flex items-center gap-[8px]">
-            <span className="w-[93px] shrink-0 text-ec-label">거래처</span>
-            <div className="w-[240px]"><CodePickerField label="거래처" hideLabel pair fill emptyLabel="선택 안 함"
-              value={headPartnerId} onChange={setHeadPartnerId} items={partnerPicks} /></div>
-          </div>
-        )}
+      )
+      case 'partner': return headParty ? (
+        <div className="flex items-center gap-[8px]">
+          <span className="w-[93px] shrink-0 text-ec-label">거래처</span>
+          <div className="w-[240px]"><CodePickerField label="거래처" hideLabel pair fill emptyLabel="선택 안 함"
+            value={headPartnerId} onChange={setHeadPartnerId} items={partnerPicks} /></div>
+        </div>
+      ) : null
+      case 'emp': return (
         <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">담당자</span>
           {/* 머리 코드칸은 원본처럼 코드를 쳐서 Enter 로 고른다(P01 · 100) — 하나면 바로, 여럿이면 코드도움 창. */}
@@ -377,6 +412,8 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
             value={employeeId} onChange={setEmployeeId}
             items={pickers.employees.map((x) => ({ ...x, value: String(x.id) }))} /></div>
         </div>
+      )
+      case 'type': return (
         <label className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">거래유형</span>
           <select className="ec-input w-[240px]" value={taxable ? 'VAT' : 'FREE'} onChange={(e) => setTaxable(e.target.value === 'VAT')}>
@@ -384,19 +421,25 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
             <option value="FREE">부가세율 미적용</option>
           </select>
         </label>
-        {!priceRequest && <div className="flex items-center gap-[8px]">
+      )
+      case 'wh': return priceRequest ? null : (
+        <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">{plan ? '입고될창고' : order ? '입고창고' : '창고'}</span>
           <div className={`inline-block${whMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={whMissing || undefined}>
             <div className="w-[240px]"><CodePickerField label={plan ? '입고될창고' : '창고'} hideLabel pair fill emptyLabel="선택 안 함"
               value={warehouseId} onChange={(v) => { setWarehouseId(v); if (v) setWhMissing(false) }}
               items={pickers.warehouses} /></div>
           </div>
-        </div>}
+        </div>
+      )
+      case 'proj': return (
         <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">프로젝트</span>
           <div className="w-[240px]"><CodePickerField label="프로젝트" hideLabel pair fill emptyLabel="선택 안 함"
             value={projectId} onChange={setProjectId} items={pickers.projects} /></div>
         </div>
+      )
+      case 'cur': return (
         <div className="flex items-center gap-[8px]">
           <span className="w-[93px] shrink-0 text-ec-label">통화</span>
           <select className={`ec-input ${fx ? 'w-[146px]' : 'w-[240px]'}`} aria-label="통화" value={currency}
@@ -412,49 +455,100 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
           {fx && <EcNumInput className="ec-input w-[90px] text-right" aria-label="환율" placeholder="환율"
             value={exchangeRate} onValue={setExchangeRate} />}
         </div>
-        {priceRequest ? (
-          <label className="flex items-center gap-[8px]">
-            <span className="w-[93px] shrink-0 text-ec-label">유효기간</span>
-            <EcDateField value={validUntil} onChange={setValidUntil} />
-          </label>
-        ) : (
-          <label className="flex items-center gap-[8px]">
-            <span className="w-[93px] shrink-0 text-ec-label">납기일자</span>
-            <EcDateField value={dueDate} onChange={setDueDate} />
-          </label>
-        )}
-        {order && (
-          <label className="flex items-center gap-[8px]">
-            <span className="w-[93px] shrink-0 text-ec-label">적요</span>
-            <input className="ec-input w-[240px]" aria-label="머리 적요" placeholder="새로운 항목 추가" maxLength={500}
-              value={headRemark} onChange={(e) => setHeadRemark(e.target.value)} />
-          </label>
-        )}
+      )
+      case 'due': return priceRequest ? (
+        <label className="flex items-center gap-[8px]">
+          <span className="w-[93px] shrink-0 text-ec-label">유효기간</span>
+          <EcDateField value={validUntil} onChange={setValidUntil} />
+        </label>
+      ) : (
+        <label className="flex items-center gap-[8px]">
+          <span className="w-[93px] shrink-0 text-ec-label">납기일자</span>
+          <EcDateField value={dueDate} onChange={setDueDate} />
+        </label>
+      )
+      case 'ref': return (
+        /* 원본 [참조] — 머리 remark(인쇄 '참조', 발주서조회 조건 [참조] 가 거르는 값). 예전 발주서입력은 이 칸을 [적요] 라 불렀다. */
+        <label className="flex items-center gap-[8px]">
+          <span className="w-[93px] shrink-0 text-ec-label">참조</span>
+          <input className="ec-input w-[240px]" aria-label="참조" maxLength={500}
+            value={headRemark} onChange={(e) => setHeadRemark(e.target.value)} />
+        </label>
+      )
+      default: return null
+    }
+  }
+
+  const body = (
+    <>
+      <div className="ec-form mb-[8px] grid grid-cols-2 gap-x-[24px] gap-y-[6px] mobile:grid-cols-1">
+        {/*
+          머리 칸 차례 — 원본(2026-10-31 loginad):
+            발주서입력  일자 · (발주No.) · 거래처 · 담당자 · 입고창고 · 거래유형 · 통화 · 납기일자 · 참조 · (첨부) · 프로젝트
+            발주요청입력 일자-No. · 담당자 · 창고 · 거래유형 · 통화 · 납기일자 · 참조 (프로젝트는 우리 저장 값이라 맨 뒤에 남긴다)
+          발주No. 는 서버가 매기는 번호라 칸이 없다(수정 창은 일자 옆에 찍는다), 첨부는 자료 없음.
+          발주계획 · 단가요청은 예전 차례 그대로.
+        */}
+        {(hasRef
+          ? (order ? ['date', 'partner', 'emp', 'wh', 'type', 'cur', 'due', 'ref', 'proj'] : ['date', 'emp', 'wh', 'type', 'cur', 'due', 'ref', 'proj'])
+          : ['date', 'partner', 'emp', 'type', 'wh', 'proj', 'cur', 'due']
+        ).map((k) => <Fragment key={k}>{headField(k)}</Fragment>)}
       </div>
 
+      {/*
+        도구줄 — 원본(2026-10-31 loginad):
+          발주서입력  찾기(F3) · 정렬 · 거래내역보기(발주)▾ · My품목▾ · 소요 · 주문 · 계획 · 단가요청 · 전표불러오기 · 재고불러오기 · 품목별안전재고▾ · 생성한 전표 · ⌄
+          발주요청입력 찾기(F3) · 정렬 · My품목▲ · 소요 · 주문 · 재고불러오기 · 품목별안전재고▲ · 바코드 · 전표 바코드 · 검증 · 전표불러오기
+        발주서입력의 바코드 · 전표 바코드 · 검증은 원본에 없는 우리 단추라 끝 ⌄ 안에 접어 둔다. 발주계획 · 단가요청은 예전 차례 그대로.
+        [소요] = '소요량계산' 창 · [주문] = '주문서검색창(조회)' 창(둘 다 기능은 없어 모양 + 안내), [계획] = '발주계획조회' 창(줄을 베낀다).
+      */}
       <div className="ec-toolbar">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFindOpen((v) => !v)}>찾기(F3)</button>
         {findOpen && <input className="ec-input w-[130px]" autoFocus value={findText} placeholder="품목 · 거래처" onChange={(e) => setFindText(e.target.value)} />}
         <button type="button" className="ec-btn ec-btn-sm" onClick={sortLines}>정렬</button>
-        <button type="button" className="ec-btn ec-btn-sm" onClick={() => void applyMyItems()}>My품목</button>
-        <button type="button" className="ec-btn ec-btn-sm" {...notYet('소요량계산 창은 아직 없습니다.')}>소요</button>
-        <button type="button" className="ec-btn ec-btn-sm" {...notYet('주문서검색창은 아직 없습니다.')}>주문</button>
+        {order && <MenuButton className="ec-btn ec-btn-sm" label="거래내역보기(발주)" onMain={notHere('거래내역보기(발주)')}
+          items={[{ label: '거래내역보기(발주)', onClick: notHere('거래내역보기(발주)') }, { label: '거래내역보기(구매)', onClick: notHere('거래내역보기(구매)') }]} />}
+        {hasRef
+          ? <MenuButton className="ec-btn ec-btn-sm" label="My품목" onMain={() => void applyMyItems()} items={[{ label: 'My품목설정', onClick: notHere('My품목설정') }]} />
+          : <button type="button" className="ec-btn ec-btn-sm" onClick={() => void applyMyItems()}>My품목</button>}
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setToolWin('req')}>소요</button>
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setToolWin('so')}>주문</button>
         {plan && !applied && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setPickOpen(true)}>발주요청</button>}
+        {order && !applied && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setToolWin('plan')}>계획</button>}
         {/* 원본 발주서입력 툴바: … 주문 · 계획 · 단가요청 · 전표불러오기 — [단가요청] 은 확정단가를 실어 줄을 채운다(2026-10-21 실측). */}
         {order && !applied && <button type="button" className="ec-btn ec-btn-sm" onClick={() => setPricePickOpen(true)}>단가요청</button>}
-        {!applied && <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표불러오기 메뉴 창은 아직 없습니다.')}>전표불러오기</button>}
+        {!request && !applied && <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표불러오기 메뉴 창은 아직 없습니다.')}>전표불러오기</button>}
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadStocks()}>재고불러오기</button>
         {plan && <button type="button" className="ec-btn ec-btn-sm" {...notYet('품목별안전재고 불러오기는 아직 없습니다.')}>품목별안전재고</button>}
-        <button type="button" className={`ec-btn ec-btn-sm${barcodeOn ? ' bg-[var(--ec-bg-tag)] border-[var(--ec-bg-tag)] text-ec-panel' : ''}`}
-          onClick={() => setBarcodeOn((v) => !v)}>바코드</button>
-        {barcodeOn && (
-          <input className="ec-input w-[170px]" autoFocus value={barcode} placeholder="바코드/품목코드 후 Enter"
-            onChange={(e) => setBarcode(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scan() } }} />
-        )}
-        <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표 바코드 출력은 아직 없습니다.')}>전표 바코드</button>
-        <button type="button" className="ec-btn ec-btn-sm" {...notYet('원본 [검증] 결과 창을 아직 못 쟀습니다.')}>검증</button>
+        {hasRef && <MenuButton className="ec-btn ec-btn-sm" label="품목별안전재고" onMain={notHere('품목별안전재고')} items={[{ label: '품목별안전재고설정', onClick: notHere('품목별안전재고설정') }]} />}
+        {order && <button type="button" className="ec-btn ec-btn-sm" onClick={notHere('생성한 전표 — 발주서조회 [생성한 전표] [조회] 에서 봅니다')}>생성한 전표</button>}
+        {order && <button type="button" className="ec-btn ec-btn-sm" aria-expanded={moreTools} aria-label={moreTools ? '도구 접기' : '도구 더 보기'}
+          onClick={() => setMoreTools((v) => !v)}>{moreTools ? '⌃' : '⌄'}</button>}
+        {(!order || moreTools) && <>
+          <button type="button" className={`ec-btn ec-btn-sm${barcodeOn ? ' bg-[var(--ec-bg-tag)] border-[var(--ec-bg-tag)] text-ec-panel' : ''}`}
+            onClick={() => setBarcodeOn((v) => !v)}>바코드</button>
+          {barcodeOn && (
+            <input className="ec-input w-[170px]" autoFocus value={barcode} placeholder="바코드/품목코드 후 Enter"
+              onChange={(e) => setBarcode(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scan() } }} />
+          )}
+          <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표 바코드 출력은 아직 없습니다.')}>전표 바코드</button>
+          <button type="button" className="ec-btn ec-btn-sm" {...notYet('원본 [검증] 결과 창을 아직 못 쟀습니다.')}>검증</button>
+        </>}
+        {request && !applied && <button type="button" className="ec-btn ec-btn-sm" {...notYet('전표불러오기 메뉴 창은 아직 없습니다.')}>전표불러오기</button>}
       </div>
+      {toolWin === 'req' && <RequirementCalcModal onClose={() => setToolWin(null)} />}
+      {/* [주문] = 원본 '주문서검색창(조회)' — 구매입력 [주문] · 작업지시서입력 [주문] 과 같은 창(SalesOrderPickModal). 품목 · 수량을 구매단가로 담는다. */}
+      <SalesOrderPickModal open={toolWin === 'so'} onClose={() => setToolWin(null)} onApply={applyOrders} />
+      {toolWin === 'plan' && (
+        <PlanPickModal onClose={() => setToolWin(null)}
+          onApply={(picked) => {
+            setToolWin(null); setApplied(true)
+            addLines(picked.map((x) => copyLine(x.order, x.line)))
+            if (!headPartnerId && picked[0].order.partnerId) setHeadPartnerId(String(picked[0].order.partnerId))
+            if (!warehouseId) { const wh = picked.find((x) => x.order.warehouseId)?.order.warehouseId; if (wh) setWarehouseId(String(wh)) }
+          }} />
+      )}
 
       <table className="w-full text-left table-fixed">
         <thead>
@@ -473,7 +567,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
             <th className="w-[100px] text-right">{fx ? '원화금액' : '공급가액'}</th>
             {!fx && <th className="w-[80px] text-right">부가세</th>}
             {!plan && !headParty && !fx && <th className="w-[100px] text-right">합계</th>}
-            {order && <th className="w-[150px]">적요</th>}
+            {hasRef && <th className="w-[150px]">적요</th>}
             {srcHead && <th className="w-[90px] text-center">{srcHead[0]}</th>}
             {srcHead && <th className="w-[50px] text-center">{srcHead[1]}</th>}
           </tr>
@@ -505,7 +599,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
               <td className="text-right">{l.itemId ? won(calc[i].supply) : ''}</td>
               {!fx && <td className="text-right">{l.itemId ? won(calc[i].vat) : ''}</td>}
               {!plan && !headParty && !fx && <td className="text-right">{l.itemId ? won(calc[i].total) : ''}</td>}
-              {order && <td><input className="ec-input w-full" aria-label="줄 적요" placeholder="새로운 항목 추가" maxLength={200} disabled={!l.itemId}
+              {hasRef && <td><input className="ec-input w-full" aria-label="줄 적요" placeholder="새로운 항목 추가" maxLength={200} disabled={!l.itemId}
                 value={l.remark ?? ''} onChange={(e) => setLine(i, { remark: e.target.value })} /></td>}
               {srcHead && <td className="text-center">{srcDate(l.sourceDate)}</td>}
               {srcHead && <td className="text-center">{srcNo(l.sourceNo)}</td>}
@@ -521,7 +615,7 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
             <td className="text-right">{won(sum('supply'))}</td>
             {!fx && <td className="text-right">{won(sum('vat'))}</td>}
             {!plan && !headParty && !fx && <td className="text-right">{won(sum('total'))}</td>}
-            {order && <td></td>}
+            {hasRef && <td></td>}
             {srcHead && <td colSpan={2}></td>}
           </tr>
         </tfoot>
@@ -545,20 +639,65 @@ export default function PurchaseRequestForm({ editing, page, plan, order, priceR
     </>
   )
 
-  if (page) {
+  /*
+   * 발주서 · 발주요청 아래 줄 — 원본(2026-10-31 loginad 발주서조회 · 발주요청조회 창):
+   *   신규 ✈ · 저장(F8)▲(저장/전자결재 · 저장/내용유지 · 저장/신규) · 저장/전표(F7) · 다시 작성 · 닫기 · 웹자료올리기
+   *   수정 ✈ · 저장(F8)▲ · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기▲ · H (발주요청은 + 최종이력)
+   * 메뉴 화면(page)은 [닫기] 자리가 [리스트]. ✈ · 저장/전자결재 · 웹자료올리기 · 보내기 항목은 받쳐 줄 것이 없어 안내만.
+   * 원본 수정 창 [저장/전표(F7)▲] 의 펼침 항목은 기록이 없어 ▲ 없이 둔다.
+   */
+  const saveMenu = [
+    { label: '저장/전자결재', onClick: notHere('저장/전자결재') },
+    { label: '저장/내용유지', onClick: () => void save('keep') },
+    { label: '저장/신규', onClick: () => void save('new') },
+  ]
+  const sendIcon: SlipAction = { label: '전표 보내기', icon: 'send', onClick: notHere('전표 보내기') }
+  const slipActions: SlipAction[] = isEdit ? [
+    sendIcon,
+    { label: '저장(F8)', primary: true, submit: true, disabled: saving, menu: saveMenu },
+    { label: '저장/전표(F7)', disabled: saving, onClick: () => void save('print') },
+    { label: '복사', onClick: () => onCopy?.(editing!) },
+    { label: '이전', onClick: () => onStep?.(1) },
+    { label: '다음', onClick: () => onStep?.(-1) },
+    { label: '닫기', onClick: closeWin },
+    { label: '삭제', onClick: () => void remove() },
+    { label: '보내기', menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
+    { label: 'H', onClick: () => setHistoryOpen(true) },
+    ...(request ? [{ label: '최종이력', onClick: () => void ecAlert(`최종이력\n${(editing!.updatedAt ?? editing!.createdAt ?? '').replace('T', ' ').slice(0, 16)} [${editing!.updatedBy ?? editing!.createdBy ?? ''}]`) }] : []),
+  ] : [
+    sendIcon,
+    { label: '저장(F8)', primary: true, submit: true, disabled: saving, menu: saveMenu },
+    { label: '저장/전표(F7)', disabled: saving, onClick: () => void save('print') },
+    { label: '다시 작성', onClick: () => reset() },
+    page ? { label: '리스트', onClick: () => onList?.() } : { label: '닫기', onClick: closeWin },
+    { label: '웹자료올리기', onClick: notHere('웹자료올리기') },
+  ]
+  /* 머리 [발주서▾] · [적요▾] 양식 단추와 [Option](원본 입력 창 — 견적서 · 주문서 입력 창과 같은 꼴, 항목은 견적서입력 Option 기록을 따른다). */
+  const layoutName = order ? '발주서' : '적요'
+  const slipHead = {
+    layouts: { label: layoutName, items: [{ label: `✓ ${layoutName}` }, { label: '신규양식추가', onClick: notHere('신규양식추가') }] },
+    plainOption: true,
+    options: ['업무설정', '기능설정', '입력화면설정', '조건양식설정', 'My코드/문구설정'].map((l) => ({ label: l, onClick: notHere(l) })),
+  }
+  const winTitle = isEdit ? (order ? '발주서수정' : `${docName}입력(수정)`) : `${docName}입력`
+
+  if (page || bare) {
+    const oldPage = plan || priceRequest
     return (
-      <form onSubmit={(e) => { e.preventDefault(); void save('new') }}>
-        <EcSlipShell title={`${docName}입력`}
-          actions={[
+      <form onSubmit={(e) => { e.preventDefault(); void save(page ? 'new' : 'close') }}>
+        <EcSlipShell title={page ? `${docName}입력` : winTitle}
+          {...(oldPage ? {} : slipHead)}
+          actions={oldPage ? [
             { label: '저장(F8)', primary: true, submit: true, disabled: saving,
               menu: [{ label: '저장/내용유지', onClick: () => void save('keep') }, { label: '저장/신규', onClick: () => void save('new') }] },
             ...(plan ? [] : [{ label: '저장/전표(F7)', disabled: saving, onClick: () => void save('print') }]),
             { label: '다시 작성', onClick: () => reset() },
             { label: '리스트', onClick: () => onList?.() },
-          ]}>
+          ] : slipActions}>
           {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           {body}
         </EcSlipShell>
+        {historyOpen && isEdit && <SlipHistoryModal target="PURCHASE_ORDER" id={editing!.id} head={slipHeadLabel(editing!.orderDate, editing!.orderNo)} onClose={() => setHistoryOpen(false)} />}
       </form>
     )
   }

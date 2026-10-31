@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import EcListShell from '../../components/EcListShell'
+import EcListShell, { type OptionItem } from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SELF_USE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateNo, shortDateNo } from '../../utils/dateNo'
-import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
+import { dateNo } from '../../utils/dateNo'
+import type { Item, PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 import PurchaseRequestForm, { copyLines, type PurchaseLineSeed } from '../../features/purchaserequest/PurchaseRequestForm'
 import { purchaseRequestDocument } from '../../features/purchaserequest/purchaseRequestDocument'
 import Modal from '../../components/Modal'
 import { printDocuments } from '../../utils/printDocument'
-import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import ProductionSlipWindow from '../production/ProductionSlipWindow'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 날짜 모양 — 연도를 두 자리로 찍는다(26/10/12-2 · 25/07/12, 2026-10-03 실측). */
@@ -41,10 +44,9 @@ const TAB_MATCH: Record<Tab, (o: Req) => boolean> = {
 }
 /** 메뉴를 그 단추 · 링크 위(아래)에 띄울 자리. */
 type MenuAt = { left: number; top?: number; bottom?: number }
-const above = (el: Element | null | undefined): MenuAt => {
-  const r = el?.getBoundingClientRect()
-  return { left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 }
-}
+const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
+/** 생성한전표가 있으면 원본처럼 주황 꼬리표(QuotationPage GEN_TAG 와 같은 실측). */
+const GEN_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
 
 /**
  * 재고 I &gt; 구매관리 &gt; 발주요청 &gt; <b>발주요청조회</b>(E040315) — 2026-10-03 loginaa 실측(자료가 든 판).
@@ -64,9 +66,24 @@ const above = (el: Element | null | undefined): MenuAt => {
  *
  * <p>[신규(F2)] · [발주요청일자] 를 누르면 '발주요청입력' 창(features/purchaserequest)이 뜬다 — 2026-10-13 실측.
  * [선택삭제] 는 고른 줄을 한 번에 지운다('전표를 삭제하겠습니까?\n- 발주요청 n건').
+ *
+ * <p>2026-10-31 loginad 클릭 대조(5번): 머리 검색칸 · Search(F3) · Option · 도움말, 조건 판은 접혀 있다가 Search(F3) 로 열린다
+ * (기준일자 · 발주요청No. · 내.외자구분 · 창고 · 프로젝트 · 관리항목 · 거래처 · 품목 · 발송여부 · 기타 · 적용양식, 판 아래 [검색(F8)▾] … 다시 작성).
+ * 표 ☑ · 일자-No. · 거래처명 · 품목명(요약) · 납기일자 · 발주요청수량합계 · 발주요청금액합계 · 진행상태 · 생성한전표(주황 [조회]) · 인쇄 — 번호 열 없음.
+ * 옛 [종결여부](사람이 정한 진행) 가 원본 [진행상태] 자리, 옛 [진행상태] '조회'(발주계획번호확인) 가 [생성한전표] 자리다.
+ * [신규(F2)] · 일자-No. 창은 목록 위 떠 있는 창(제목줄 새창 · 고정 · 새로고침 · 최대화 · 닫기).
  */
 export default function PurchaseRequestListPage() {
   const pickers = useCondPickers(['warehouses', 'projects', 'partners', 'items'])
+  /** 원본 [관리항목] — 품목 마스터의 관리항목으로 거른다(견적서조회와 같은 잣대). */
+  const [items, setItems] = useState<Item[]>([])
+  useEffect(() => { api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {}) }, [])
+  const mgmt = useItemMgmt(items)
+  const [mgmtCond, setMgmtCond] = useState('')
+  /** 원본 [발송여부] — 우리는 발주요청서를 밖으로 보내지 않아 모두 미발송이다. */
+  const [sentCond, setSentCond] = useState<'전체' | '미발송' | '발송'>('전체')
+  const [keyword, setKeyword] = useState('')
+  const [historyWin, setHistoryWin] = useState(false)
   const init = periodOf('최근30일(+1개월)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -87,8 +104,6 @@ export default function PurchaseRequestListPage() {
   const openForm = (order: PurchaseOrder | null) => setForm({ order, key: Date.now() })
   /** 하단 [진행상태변경 ▴] · 줄의 [종결여부] 를 누르면 뜨는 상태 메뉴. ids = 바꿀 줄. */
   const [progressMenu, setProgressMenu] = useState<{ at: MenuAt; ids: number[] } | null>(null)
-  /** 하단 [다른전표생성 ▴] 메뉴. */
-  const [otherMenu, setOtherMenu] = useState<MenuAt | null>(null)
   /** 줄 [진행상태] '조회' 창 — 원본 '발주계획번호확인'. */
   const [planOf, setPlanOf] = useState<Req | null>(null)
   /** [다른전표생성 › 발주계획] — 고른 요청의 줄을 베낀 '발주계획입력' 창. */
@@ -118,8 +133,13 @@ export default function PurchaseRequestListPage() {
     .filter((o) => !warehouse || String(o.warehouseId) === warehouse)
     .filter((o) => !project || String(o.projectId) === project)
     .filter((o) => !partner || String(o.partnerId) === partner)
-    .filter((o) => !item || o.lines.some((l) => String(l.itemId) === item)),
-  [rows, from, to, reqNo, domestic, warehouse, project, partner, item])
+    .filter((o) => !item || o.lines.some((l) => String(l.itemId) === item))
+    .filter((o) => mgmt.hits(o.lines.map((l) => l.itemId), mgmtCond))
+    .filter(() => sentCond !== '발송')
+    .filter((o) => !keyword || (o.partnerName ?? '').includes(keyword) || o.orderNo.includes(keyword)
+      || o.lines.some((l) => (l.itemName ?? '').includes(keyword))),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [rows, from, to, reqNo, domestic, warehouse, project, partner, item, mgmtCond, mgmt.options, sentCond, keyword])
   const shown = useMemo(() => filtered
     .filter((o) => TAB_MATCH[tab](o))
     .sort(byUpdated
@@ -150,9 +170,8 @@ export default function PurchaseRequestListPage() {
    * 잔량이 없어 같은 요청을 몇 번이고 베낀다, 요청은 진행중 · 수량 그대로).
    */
   function makePlans() {
-    setOtherMenu(null)
     const targets = shown.filter((o) => checked.has(o.id))
-    if (targets.length === 0) return
+    if (!requireSelection(targets.length)) return
     setPlanSeed({ key: Date.now(), lines: copyLines(targets), warehouseId: targets.find((o) => o.warehouseId)?.warehouseId ?? null })
   }
   /** 이 요청의 줄을 베낀 발주계획들 — 원본 '발주계획번호확인'(여럿일 수 있다). */
@@ -163,7 +182,21 @@ export default function PurchaseRequestListPage() {
   }
   /** 줄 [인쇄] · 하단 [인쇄] — 원본 '발주요청서'. */
   const printRows = (list: Req[]) => { if (list.length > 0) void printDocuments(list.map(purchaseRequestDocument)) }
-  const footerBtn = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === label)
+  const resetConds = () => {
+    setFrom(init.from); setTo(init.to); setReqNo(''); setDomestic('전체'); setWarehouse(''); setProject(''); setPartner(''); setItem('')
+    setMgmtCond(''); setSentCond('전체'); setByUpdated(false)
+  }
+  /* 원본 [Option](2026-10-31 loginad 발주요청조회): 업무설정 · 검색항목설정 · 양식설정 ▶ · 조건양식설정 · 문서발송내역. */
+  const optionMenu: OptionItem[] = [
+    { label: '업무설정', onClick: notHere('업무설정') },
+    { label: '검색항목설정', onClick: notHere('검색항목설정') },
+    { label: '양식설정', sub: [
+      { label: '기본(수정불가)', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+      { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+    ] },
+    { label: '조건양식설정', onClick: notHere('조건양식설정') },
+    { label: '문서발송내역', onClick: notHere('문서발송내역') },
+  ]
 
   async function removeChecked() {
     const ids = shown.filter((o) => checked.has(o.id)).map((o) => o.id)
@@ -182,21 +215,42 @@ export default function PurchaseRequestListPage() {
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="발주요청조회"
-      searchable={false}
+      search={keyword}
+      onSearchChange={setKeyword}
+      onReset={resetConds}
       onNew={() => openForm(null)}
+      formMenu={{ current: '기본(수정불가)' }}
+      optionMenu={optionMenu}
+      /*
+       * 원본 하단(2026-10-31 loginad 발주요청조회): 신규(F2) · Email▲ · 진행상태변경▲ · 보내기▲ · 인쇄▲ · 바코드(품목)▲ · 다른전표생성▲ ·
+       * 전자결재 · 선택삭제 · Excel · 이력조회 · 웹자료올리기 — 견적서조회와 같은 꼴. [검색(F8)] · [다시작성] 은 조건 판 아래 줄로 갔다.
+       * 진행상태변경 펼침은 예전 메뉴의 '▾미확인 › 미확인 / ▾확인 › 진행중 · 완료' 에서 묶음 머리가 빠진다(셸 펼침 — 공용 부품).
+       */
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시작성', onClick: () => { setFrom(init.from); setTo(init.to); setReqNo(''); setDomestic('전체'); setWarehouse(''); setProject(''); setPartner(''); setItem(''); setByUpdated(false) } },
-        { label: '진행상태변경', selected: checked.size,
-          onClick: () => setProgressMenu({ at: above(footerBtn('진행상태변경')), ids: [...checked] }) },
-        { label: '인쇄', disabled: checked.size === 0, onClick: () => printRows(shown.filter((o) => checked.has(o.id))) },
-        { label: '다른전표생성', disabled: checked.size === 0, onClick: () => setOtherMenu(above(footerBtn('다른전표생성'))) },
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE), menu: [{ label: '카카오톡', onClick: notHere('카카오톡') }] },
+        { label: '진행상태변경', menuOnly: true, selected: checked.size, menu: [
+          { label: '미확인', onClick: () => { if (requireSelection(checked.size)) void changeProgress([...checked], 'UNCONFIRMED') } },
+          { label: '진행중', onClick: () => { if (requireSelection(checked.size)) void changeProgress([...checked], 'IN_PROGRESS') } },
+          { label: '완료', onClick: () => { if (requireSelection(checked.size)) void changeProgress([...checked], 'COMPLETED') } },
+        ] },
+        { label: '보내기', menuOnly: true, menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
+        { label: '인쇄', selected: checked.size, onClick: () => printRows(shown.filter((o) => checked.has(o.id))),
+          menu: [{ label: '프린트문제해결', onClick: notHere('프린트문제해결') }] },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: checked.size, menu: [
+          { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE) },
+          { label: '바코드(사업장/번호No.)', onClick: notHere('바코드(사업장/번호No.)') },
+        ] },
+        { label: '다른전표생성', menuOnly: true, menu: [{ label: '발주계획', onClick: makePlans }] },
+        { label: '전자결재', onClick: notHere('전자결재') },
         { label: '선택삭제', onClick: removeChecked, selected: checked.size },
         { label: 'Excel' },
+        { label: '이력조회', onClick: () => setHistoryWin(true) },
+        { label: '웹자료올리기', onClick: notHere('웹자료올리기') },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+      {historyWin && <SlipMenuHistoryModal menu="발주요청" statusLabel="확인" noLabel="전표번호" onClose={() => setHistoryWin(false)} />}
+      <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
           <EcDateRange from={{ className: "ec-input w-[145px]", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input w-[145px]", value: to, onChange: (e) => setTo(e.target.value) }} />
           <span className="ml-[6px]">
@@ -204,14 +258,14 @@ export default function PurchaseRequestListPage() {
           </span>
         </EcCond>
         <EcCond label="발주요청No.">
-          <input className="ec-input" value={reqNo} onChange={(e) => setReqNo(e.target.value)} style={{ width: 180 }} />
+          <input className="ec-input w-[180px]" value={reqNo} onChange={(e) => setReqNo(e.target.value)} />
         </EcCond>
         <EcCond label="내.외자구분">
-          {(['전체', '내자', '외자'] as const).map((v) => (
-            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
-              <input type="radio" name="pr-domestic" checked={domestic === v} onChange={() => setDomestic(v)} /> {v}
-            </label>
-          ))}
+          <div className="ec-pills">
+            {(['전체', '내자', '외자'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${domestic === v ? ' active' : ''}`} onClick={() => setDomestic(v)}>{v}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체" value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
@@ -219,11 +273,23 @@ export default function PurchaseRequestListPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={pickers.projects} />
         </EcCond>
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체" value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        {/* [거래처] · [품목] 이름은 ui-check 원본 조건표(loginaa 발주요청조회)대로 '…코드' 를 둔다(주문서조회와 같은 처리). */}
         <EcCond label="거래처코드" pick>
           <CodePickerField label="거래처코드" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={pickers.partners} />
         </EcCond>
         <EcCond label="품목코드" pick>
           <CodePickerField label="품목코드" hideLabel width={220} emptyLabel="전체" value={item} onChange={setItem} items={pickers.items} />
+        </EcCond>
+        <EcCond label="발송여부">
+          <div className="ec-pills">
+            {(['전체', '미발송', '발송'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${sentCond === v ? ' active' : ''}`} onClick={() => setSentCond(v)}>{v}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="기타">
           <label className="inline-flex items-center gap-[3px] text-[12.5px]">
@@ -241,14 +307,6 @@ export default function PurchaseRequestListPage() {
             <div className="px-[10px] pt-[4px] text-ec-label">▾ 확인</div>
             <button onClick={() => void changeProgress(progressMenu.ids, 'IN_PROGRESS')}>진행중</button>
             <button onClick={() => void changeProgress(progressMenu.ids, 'COMPLETED')}>완료</button>
-          </div>
-        </>
-      )}
-      {otherMenu && (
-        <>
-          <div className="ec-backdrop-clear" onClick={() => setOtherMenu(null)} />
-          <div className="ec-menu fixed" style={otherMenu} role="menu" aria-label="다른전표생성">
-            <button onClick={makePlans}>발주계획</button>
           </div>
         </>
       )}
@@ -276,39 +334,34 @@ export default function PurchaseRequestListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
             <th className="w-[28px] text-center">
               <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((o) => checked.has(o.id))}
                 onChange={(e) => setChecked(e.target.checked ? new Set(shown.map((o) => o.id)) : new Set())} />
             </th>
-            <th className="text-center">발주요청일자</th>
+            <th className="w-[150px]">일자-No.</th>
             <th>거래처명</th>
-            <th>품목</th>
+            <th>품목명(요약)</th>
             <th className="text-center">납기일자</th>
-            <th className="text-right">수량</th>
-            <th className="text-right">금액(합계)</th>
-            <th className="text-center">종결여부</th>
+            <th className="text-right">발주요청수량합계</th>
+            <th className="text-right">발주요청금액합계</th>
             <th className="text-center">진행상태</th>
+            <th className="text-center">생성한전표</th>
             <th className="text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((o, i) => (
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((o) => (
             <tr key={o.id}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              {/* 원본 '26/10/12-2' — 그날 일련번호만 붙인다. 우리 전표번호(PO-20261012-0002)를 통째로 찍고 있었다(2026-10-13 실측). */}
               <td className="text-center">
                 <input type="checkbox" aria-label="선택" checked={checked.has(o.id)}
                   onChange={(e) => setChecked((cur) => { const n = new Set(cur); if (e.target.checked) n.add(o.id); else n.delete(o.id); return n })} />
               </td>
-              <td className="text-center">
-                {/* 원본: 일자를 누르면 '발주요청입력(수정)' 창 */}
-                <a className="cursor-pointer" onClick={() => openForm(o)}>{shortDateNo(o.orderDate, o.orderNo)}</a>
-              </td>
+              {/* 원본 '2026/10/21 -1' — 누르면 목록 위 '발주요청입력(수정)' 창. */}
+              <td><a className="cursor-pointer" onClick={() => openForm(o)}>{dateNo(o.orderDate, o.orderNo)}</a></td>
               <td>{o.partnerName}</td>
               {/* 원본 '비밀의정원 [96페이지] 외 1건' — 첫 품목에 규격을 붙인다. */}
               <td>{o.lines[0]?.itemName ?? ''}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
@@ -322,19 +375,30 @@ export default function PurchaseRequestListPage() {
                   {progressLabel(o)}
                 </a>
               </td>
-              <td className="text-center"><a className="cursor-pointer" onClick={() => setPlanOf(o)}>조회</a></td>
+              {/* 원본 [생성한전표] — 발주계획을 만든 줄만 주황 [조회] → '발주계획번호확인'. */}
+              <td className="text-center">{plansOf(o).length > 0 ? <a className={`cursor-pointer ${GEN_TAG}`} onClick={() => setPlanOf(o)}>조회</a> : null}</td>
               <td className="text-center"><a className="cursor-pointer" onClick={() => printRows([o])}>인쇄</a></td>
             </tr>
           ))}
         </tbody>
       </table>
       {form && (
-        <PurchaseRequestForm key={form.key} editing={form.order}
-          onClose={() => setForm(null)}
-          onSaved={() => { setForm(null); void load() }}
-          onDeleted={() => { setForm(null); void load() }}
-          onCopy={(src) => openForm({ ...src, id: 0, orderDate: new Date().toLocaleDateString('sv-SE'), dueDate: new Date().toLocaleDateString('sv-SE') })}
-          onStep={step} />
+        <ProductionSlipWindow title={form.order && form.order.id > 0 ? '발주요청입력(수정)' : '발주요청입력'}
+                              popout="/sales/purchase-request-input" onClose={() => setForm(null)}>
+          {/* 원본 발주요청입력(수정) 머리 [확인취소] — 이 회사 설정으로는 알림만 뜬다(판매 · 주문 수정 창과 같다). */}
+          {form.order && form.order.id > 0 && (
+            <div className="flex justify-end mb-[6px]">
+              <button type="button" className="ec-btn ec-btn-sm"
+                      onClick={() => void ecAlert('전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.')}>확인취소</button>
+            </div>
+          )}
+          <PurchaseRequestForm key={form.key} bare editing={form.order}
+            onClose={() => setForm(null)}
+            onSaved={() => { setForm(null); void load() }}
+            onDeleted={() => { setForm(null); void load() }}
+            onCopy={(src) => openForm({ ...src, id: 0, orderDate: new Date().toLocaleDateString('sv-SE'), dueDate: new Date().toLocaleDateString('sv-SE') })}
+            onStep={step} />
+        </ProductionSlipWindow>
       )}
       {planSeed && (
         <PurchaseRequestForm key={planSeed.key} editing={null} plan seed={planSeed}

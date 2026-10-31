@@ -30,10 +30,10 @@
         "set:tbody input.text-right#1|8",
         "wait:300",
         "expect:(()=>{const t=[...document.querySelector('tbody tr').cells].map((c)=>c.innerText.trim());return t.includes('8,000')&&t.includes('8,416,000')})()",
-        "set:input[aria-label=\"머리 적요\"]|QA외화발주",
+        "set:input[aria-label=\"참조\"]|QA외화발주",
         "click:저장(F8)",
         "wait:2500",
-        "js:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body.filter((x)=>x.remark==='QA외화발주');if(o.length!==1)return 'n='+o.length;sessionStorage.setItem('pofxId',o[0].id);sessionStorage.setItem('pofxShort',o[0].orderDate.slice(2).replace(/-/g,'/')+'-'+Number(o[0].orderNo.split('-').pop()));return 'ok'})()",
+        "js:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body.filter((x)=>x.remark==='QA외화발주');if(o.length!==1)return 'n='+o.length;sessionStorage.setItem('pofxId',o[0].id);sessionStorage.setItem('pofxShort',o[0].orderDate.replace(/-/g,'/')+' -'+Number(o[0].orderNo.split('-').pop()));return 'ok'})()",
         "expect:(async()=>{const o=(await window.__api('GET','/purchase-orders')).body.find((x)=>String(x.id)===sessionStorage.getItem('pofxId'));const l=o.lines[0];return o.currency==='USD'&&Number(o.exchangeRate)===1052&&o.employeeName==='김철수'&&o.status==='ORDERED'&&Number(l.foreignPrice)===8&&Number(l.foreignAmount)===8000&&Number(l.supplyAmount)===8416000&&Number(l.vatAmount)===0&&Number(o.totalAmount)===8416000})()",
         "expect:document.querySelector('select[aria-label=\"통화\"]').value==='KRW'&&!document.querySelector('input[aria-label=\"환율\"]')",
         "expect:(async()=>{const u=(await window.__api('GET','/purchase-orders/unpurchased')).body.filter((x)=>String(x.orderId)===sessionStorage.getItem('pofxId'));return u.length===1&&u[0].currencyCode==='USD'&&Number(u[0].exchangeRate)===1052&&Number(u[0].foreignPrice)===8})()"
@@ -44,8 +44,8 @@
       "path": "/sales/purchase-orders",
       "steps": [
         "wait:2000",
-        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('pofxShort'))",
-        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('pofxShort')).cells[9].querySelector('a').click(); true",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('pofxShort'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('pofxShort')).cells[8].querySelector('a').click(); true",
         "wait:2000",
         "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='신규(F2)').click(); true",
         "wait:2500",

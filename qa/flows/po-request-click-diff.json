@@ -1,0 +1,90 @@
+{
+  "about": "클릭 대조 5번(발주서 · 발주요청 조회 · 입력, 2026-10-31 loginad 기록) — 발주서조회: 알약 전체 · 결재중 · 미확인 · 확인 ▸ · 진행중 · 완료(개수 없음), 표 첫 열 전체선택 · 번호 열 없음 · 일자-No. · 거래처명 · 담당자명 · 품목명[규격명] · 납기일자 · 발주금액합계 · 진행상태 · 생성한 전표 · 인쇄, 조건 판(Search(F3)) 내.외자구분 · 발송여부 알약 · 접힌 줄(⌄), Option 검색항목설정 · 양식설정 · 조건양식설정 · 리스트탭설정 · 문서발송내역, 하단 Email│▲ … 이력조회. [신규(F2)] 는 목록 위 '발주서입력' 창(제목줄 새창 · 고정 · 새로고침 · 머리 [발주서▾] · Option · 도움말 · 참조 칸 · 도구줄 계획 · 단가요청 · 소요 · 주문 창 · 아래 줄 ✈ · 저장(F8)▲ · 저장/전표(F7) · 다시 작성 · 닫기 · 웹자료올리기). 발주요청조회: 조건 판 접힘 · 하단 단추 · [신규(F2)] 창 머리 [적요▾] · 참조 · 표 적요 열. 저장하지 않는다. node qa/shot.mjs qa/flows/po-request-click-diff.json",
+  "shots": [
+    {
+      "name": "발주서조회 — 알약 · 표 머리 · 하단 단추 · Option · 조건 판",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "wait:1800",
+        "expect:[...document.querySelectorAll('.ec-pills')].find((p)=>p.innerText.includes('결재중')).innerText.replace(/\\s+/g,' ').trim()==='전체 결재중 미확인 확인 ▸ 진행중 완료'",
+        "expect:(()=>{const h=[...document.querySelector('table thead tr').cells].map((t)=>t.innerText.trim()).join('|');return h==='|일자-No.|거래처명|담당자명|품목명[규격명]|납기일자|발주금액합계|진행상태|생성한 전표|인쇄'&&!!document.querySelector('table thead input[aria-label=\"전체 선택\"]')})()",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-footer button')].map((b) => b.textContent.trim()); return ['신규(F2)', 'Email', '진행상태변경▴', '보내기▴', '인쇄', '바코드(품목)', '다른전표생성▴', '전자결재', '선택삭제', 'Excel', '이력조회'].every((x) => t.includes(x)) })()",
+        "click:Option",
+        "expect:(() => { const t = [...document.querySelectorAll('[role=menu] [role=menuitem]')].map((b) => b.textContent.trim()).join(','); return t.startsWith('검색항목설정,양식설정') && t.includes('조건양식설정,리스트탭설정,문서발송내역') })()",
+        "js:document.querySelector('.ec-backdrop-clear').click(); true",
+        "wait:200",
+        "click:Search(F3)",
+        "wait:400",
+        "expect:(() => { const c = document.querySelector('.ec-cond').innerText; return c.includes('내.외자구분') && c.includes('발송여부') && !c.includes('최종작업일자') })()",
+        "click:조건 더 보기",
+        "expect:document.querySelector('.ec-cond').innerText.includes('최종작업일자') && document.querySelector('.ec-cond').innerText.includes('최종수정자')",
+        "click:조건 접기",
+        "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
+        "wait:300"
+      ]
+    },
+    {
+      "name": "발주서조회 [신규(F2)] — 목록 위 '발주서입력' 창: 제목줄 단추 · 머리 [발주서▾] · Option · 참조 · 도구줄 · 계획/소요/주문 창 · 아래 줄",
+      "path": "/sales/purchase-orders",
+      "steps": [
+        "wait:1500",
+        "js:window.__alerts=[];window.alert=(m)=>window.__alerts.push(String(m));true",
+        "click:신규(F2)",
+        "wait:1200",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return d.getAttribute('aria-label')==='발주서입력'&&['새창','고정','새로고침','최대화','닫기'].every((l)=>d.querySelector('.ec-modal-bar button[aria-label=\"'+l+'\"]'))})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=[...d.querySelectorAll('.ec-slip-title button')].map((b)=>b.textContent.trim());return t.some((x)=>x.startsWith('발주서'))&&t.includes('Option')&&t.includes('도움말')})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return !!d.querySelector('input[aria-label=\"참조\"]')&&[...d.querySelectorAll('thead th')].some((t)=>t.innerText.trim()==='적요')})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=[...d.querySelectorAll('.ec-toolbar button:not(.ec-btn-arrow)')].map((b)=>b.textContent.trim()).join('|');return t==='찾기(F3)|정렬|거래내역보기(발주)|My품목|소요|주문|계획|단가요청|전표불러오기|재고불러오기|품목별안전재고|생성한 전표|⌄'})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=[...d.querySelectorAll('.ec-slip-footer button')].map((b)=>b.getAttribute('aria-label')||b.textContent.trim());return ['전표 보내기','저장(F8)','저장/전표(F7)','다시 작성','닫기','웹자료올리기'].every((x)=>t.includes(x))&&!t.includes('리스트')})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-toolbar button')].find((b)=>b.textContent.trim()==='계획').click(); true",
+        "wait:1200",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const h=[...d.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return d.getAttribute('aria-label')==='발주계획조회'&&h==='|일자-No.|거래처명|품목명|수량|단가|금액|부가세|합계|최종수정자|품절여부|진행상태'})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "wait:300",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-toolbar button')].find((b)=>b.textContent.trim()==='소요').click(); true",
+        "wait:600",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return d.getAttribute('aria-label')==='소요량계산'&&d.innerText.includes('BOM구분')&&d.innerText.includes('대표품목기준환산')})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='계산(F8)').click(); true",
+        "wait:300",
+        "expect:window.__alerts.some((m)=>m.includes('제공하지 않습니다'))",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "wait:300",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-toolbar button')].find((b)=>b.textContent.trim()==='주문').click(); true",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label').startsWith('주문서검색창')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label')==='발주서입력'",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-slip-footer button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "wait:400",
+        "expect:!document.querySelector('[role=dialog]')"
+      ]
+    },
+    {
+      "name": "발주요청조회 — 조건 판 접힘(Search(F3) 로 연다) · 하단 단추 · Option · [신규(F2)] 창 [적요▾] · 참조 · 적요 열 · 도구줄",
+      "path": "/sales/purchase-requests",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelector('table thead tr').cells].map((t)=>t.innerText.trim()).join('|');return h==='|일자-No.|거래처명|품목명(요약)|납기일자|발주요청수량합계|발주요청금액합계|진행상태|생성한전표|인쇄'})()",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-footer button')].map((b) => b.textContent.trim()); return ['신규(F2)', 'Email', '진행상태변경▴', '보내기▴', '인쇄', '바코드(품목)', '다른전표생성▴', '전자결재', '선택삭제', 'Excel', '이력조회', '웹자료올리기'].every((x) => t.includes(x)) && !t.includes('검색(F8)') })()",
+        "click:Option",
+        "expect:(() => { const t = [...document.querySelectorAll('[role=menu] [role=menuitem]')].map((b) => b.textContent.trim()).join(','); return t.startsWith('업무설정,검색항목설정,양식설정') && t.includes('조건양식설정,문서발송내역') })()",
+        "js:document.querySelector('.ec-backdrop-clear').click(); true",
+        "wait:200",
+        "click:Search(F3)",
+        "wait:400",
+        "expect:(() => { const c = document.querySelector('.ec-cond').innerText; return c.includes('발주요청No.') && c.includes('관리항목') && c.includes('발송여부') })()",
+        "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
+        "wait:300",
+        "click:신규(F2)",
+        "wait:1200",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();return d.getAttribute('aria-label')==='발주요청입력'&&['새창','고정','새로고침','최대화','닫기'].every((l)=>d.querySelector('.ec-modal-bar button[aria-label=\"'+l+'\"]'))})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=[...d.querySelectorAll('.ec-slip-title button')].map((b)=>b.textContent.trim());return t.some((x)=>x.startsWith('적요'))&&t.includes('Option')&&!!d.querySelector('input[aria-label=\"참조\"]')&&[...d.querySelectorAll('thead th')].some((x)=>x.innerText.trim()==='적요')})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=[...d.querySelectorAll('.ec-slip-footer button')].map((b)=>b.getAttribute('aria-label')||b.textContent.trim());return ['전표 보내기','저장(F8)','저장/전표(F7)','다시 작성','닫기','웹자료올리기'].every((x)=>t.includes(x))})()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-slip-footer button')].find((b)=>b.textContent.trim()==='닫기').click(); true",
+        "wait:400",
+        "expect:!document.querySelector('[role=dialog]')"
+      ]
+    }
+  ]
+}

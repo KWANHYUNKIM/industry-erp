@@ -83,16 +83,16 @@
         "pickrow:QA-WH",
         "click:저장(F8)",
         "wait:1500",
-        "js:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const pr=all.find((x)=>String(x.id)===sessionStorage.getItem('prId'));const po=all.find((x)=>x.status==='ORDERED'&&x.lines.some((l)=>l.sourceLineId===pr.lines[0].id));sessionStorage.setItem('prPoId',po?po.id:'');sessionStorage.setItem('prPoNo',po?po.orderDate.slice(2).replace(/-/g,'/')+'-'+Number(po.orderNo.split('-').pop()):'');return po&&po.orderNo})()",
+        "js:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const pr=all.find((x)=>String(x.id)===sessionStorage.getItem('prId'));const po=all.find((x)=>x.status==='ORDERED'&&x.lines.some((l)=>l.sourceLineId===pr.lines[0].id));sessionStorage.setItem('prPoId',po?po.id:'');sessionStorage.setItem('prPoNo',po?po.orderDate.replace(/-/g,'/')+' -'+Number(po.orderNo.split('-').pop()):'');return po&&po.orderNo})()",
         "expect:(async()=>{const all=(await window.__api('GET','/purchase-orders')).body;const po=all.find((x)=>String(x.id)===sessionStorage.getItem('prPoId'));const pr=all.find((x)=>String(x.id)===sessionStorage.getItem('prId'));return po&&Number(po.totalAmount)===1188&&Number(po.lines[0].unitPrice)===90&&po.orderNo.startsWith('PR-')&&pr.orderNo.startsWith('PQ-')&&pr.status==='PRICE_REQUESTED'})()"
       ]
     },
     {
-      "name": "발주서조회 — 발주번호 'YY/MM/DD-N' 꼴, [인쇄] 열은 '인쇄' 하나(옛 단가확정 · 발주확정 · 입고전환 · 취소 · 삭제 단추 없음). 단가요청조회 [생성한 전표] '조회'",
+      "name": "발주서조회 — 일자-No. 'YYYY/MM/DD -N' 꼴, [인쇄] 열은 '인쇄' 하나(옛 단가확정 · 발주확정 · 입고전환 · 취소 · 삭제 단추 없음). 단가요청조회 [생성한 전표] '조회'",
       "path": "/sales/purchase-orders",
       "steps": [
         "wait:1500",
-        "expect:(()=>{const t=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()===sessionStorage.getItem('prPoNo'));return !!t&&t.cells[10].innerText.trim()==='인쇄'&&t.cells[10].querySelectorAll('button').length===0})()"
+        "expect:(()=>{const t=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===sessionStorage.getItem('prPoNo'));return !!t&&t.cells[9].innerText.trim()==='인쇄'&&t.cells[9].querySelectorAll('button').length===0})()"
       ]
     },
     {

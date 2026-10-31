@@ -1,12 +1,12 @@
 {
-  "about": "발주요청입력 격자 툴바(원본 E040314 2026-10-13 실측 차례: 찾기(F3) · 정렬 · My품목 · 소요 · 주문 · 전표불러오기 · 재고불러오기 · 바코드 · 전표 바코드 · 검증). 재고불러오기 → 전체수량 · 창고수량 열, 바코드 → 켜지고 칸이 생겨 품목코드 Enter 로 한 줄, 같은 코드 한 번 더 → 수량 2. 저장하지 않는다.",
+  "about": "발주요청입력 격자 툴바(원본 2026-10-31 loginad 차례: 찾기(F3) · 정렬 · My품목▲ · 소요 · 주문 · 재고불러오기 · 품목별안전재고▲ · 바코드 · 전표 바코드 · 검증 · 전표불러오기). 재고불러오기 → 전체수량 · 창고수량 열, 바코드 → 켜지고 칸이 생겨 품목코드 Enter 로 한 줄, 같은 코드 한 번 더 → 수량 2. 저장하지 않는다.",
   "shots": [
     {
       "name": "툴바",
       "path": "/sales/purchase-request-input",
       "steps": [
         "wait:2500",
-        "expect:(()=>{const t=[...document.querySelectorAll('.ec-toolbar button')].map((b)=>b.textContent.trim());return t.join('|')==='찾기(F3)|정렬|My품목|소요|주문|전표불러오기|재고불러오기|바코드|전표 바코드|검증'})()",
+        "expect:(()=>{const t=[...document.querySelectorAll('.ec-toolbar button:not(.ec-btn-arrow)')].map((b)=>b.textContent.trim());return t.join('|')==='찾기(F3)|정렬|My품목|소요|주문|재고불러오기|품목별안전재고|바코드|전표 바코드|검증|전표불러오기'})()",
         "click:재고불러오기",
         "wait:1500",
         "expect:[...document.querySelectorAll('th')].some((t)=>t.textContent.trim()==='전체수량') && [...document.querySelectorAll('th')].some((t)=>t.textContent.trim()==='창고수량')",
