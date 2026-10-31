@@ -7280,6 +7280,8 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
   /* 표에 길이가 없는 칸 — 막을 근거가 없다. 까닭을 적어 둔다. */
   const 예외 = {
     'ReportRequest.residentNo': '4대보험 신고 주민등록번호 — 하이픈 넣은 14자(900101-1234567)도 받고 서비스가 숫자 13자만 남겨 저장한다(ca005276)',
+    'CreateEmployeeRequest.residentNo': '주민번호 — 표 100자는 AES-GCM 암호문 자리(c88464bd), 사람이 넣는 원문은 @Size 20 이 맞다',
+    'UpdateEmployeeRequest.residentNo': '주민번호 — 표 100자는 AES-GCM 암호문 자리(c88464bd), 사람이 넣는 원문은 @Size 20 이 맞다',
     'CreateApprovalRequest.content': '결재 본문은 TEXT 라 길이가 없다',
     'CreatePostRequest.content': '게시글 본문은 TEXT 라 길이가 없다',
     'CreateContractRequest.content': '계약 본문은 TEXT 라 길이가 없다',
