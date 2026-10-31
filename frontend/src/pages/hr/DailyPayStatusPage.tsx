@@ -5,9 +5,10 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { dedTotal, lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
+import { dedTotal, lastDay, monthRange, slashYm, type DailyReportLine } from '../../features/dailypay/report'
 import { SortTh, sortRows, type SortState } from '../../features/dailypay/components/SortTh'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
+import { fmtNumberOf } from '../../utils/format'
 
 type Mode = '라인별' | '급여대장별부서별' | '급여대장별부서별라인별' | '사용자지정집계'
 const MODES: Mode[] = ['라인별', '급여대장별부서별', '급여대장별부서별라인별', '사용자지정집계']
@@ -228,15 +229,15 @@ export default function DailyPayStatusPage() {
                           <td>{r.department}</td>
                           <td></td>
                           <td>{r.workerName}</td>
-                          <td className="text-right">{won(r.grossPay)}</td>
-                          <td className="text-right">{dedTotal(r) ? won(dedTotal(r)) : ''}</td>
+                          <td className="text-right">{fmtNumberOf(r.grossPay)}</td>
+                          <td className="text-right">{dedTotal(r) ? fmtNumberOf(dedTotal(r)) : ''}</td>
                           <td className="text-right">{net(r.netPay)}</td>
                         </tr>
                       ))}
                       <tr className="ec-total">
                         <td colSpan={6} className="text-center">{mode === '급여대장별부서별' ? `${ym} 계` : `${ym}-${ls[0].seq} 계`}</td>
-                        <td className="text-right">{won(s.gross)}</td>
-                        <td className="text-right">{s.ded ? won(s.ded) : ''}</td>
+                        <td className="text-right">{fmtNumberOf(s.gross)}</td>
+                        <td className="text-right">{s.ded ? fmtNumberOf(s.ded) : ''}</td>
                         <td className="text-right">{net(s.net)}</td>
                       </tr>
                     </Fragment>
@@ -244,8 +245,8 @@ export default function DailyPayStatusPage() {
                 })}
                 <tr className="ec-total">
                   <td colSpan={6} className="text-center">합계</td>
-                  <td className="text-right">{won(total.gross)}</td>
-                  <td className="text-right">{total.ded ? won(total.ded) : ''}</td>
+                  <td className="text-right">{fmtNumberOf(total.gross)}</td>
+                  <td className="text-right">{total.ded ? fmtNumberOf(total.ded) : ''}</td>
                   <td className="text-right">{won2(total.net)}</td>
                 </tr>
               </>

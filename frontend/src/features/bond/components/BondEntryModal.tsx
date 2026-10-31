@@ -8,8 +8,9 @@ import { ymd } from '../../../components/EcPeriodPicks'
 import { ecAlert } from '../../../components/EcDialog'
 import GridFindButton from '../../../components/GridFindButton'
 import type { BondMasters } from '../api'
-import { newBondNo, sideWord, won, type BondDirection, type BondEntry, type BondSide } from '../types'
+import { newBondNo, sideWord, type BondDirection, type BondEntry, type BondSide } from '../types'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { fmtAmount } from '../../../utils/format'
 
 interface Line {
   accountId: string
@@ -303,7 +304,7 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
             <tfoot>
               <tr>
                 <td colSpan={6} />
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtAmount(total)}</td>
                 <td colSpan={cols - 7} />
               </tr>
             </tfoot>

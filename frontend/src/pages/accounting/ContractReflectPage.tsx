@@ -13,8 +13,9 @@ import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
-import { VAT_TYPES, won, type BillLineView } from '../../features/billingcontract/types'
+import { VAT_TYPES, type BillLineView } from '../../features/billingcontract/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 /* 원본 버튼줄 글자 그대로(2026-10-13 실측). */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '말일', '전월+금월'] as const
@@ -240,14 +241,14 @@ export default function ContractReflectPage() {
                 <td className="text-center"><input type="checkbox" aria-label={`${g.partnerName} 선택`} checked={picked.has(g.partnerId)}
                   onChange={(e) => setPicked((s) => { const n = new Set(s); if (e.target.checked) n.add(g.partnerId); else n.delete(g.partnerId); return n })} /></td>
                 <td>{g.partnerName}</td>
-                <td className="text-right">{won(g.trade)}</td>
+                <td className="text-right">{fmtAmountOf(g.trade)}</td>
                 {kind === 'acct' ? <>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="조정" value={g.adjust} onValue={(v) => setGroup(i, { adjust: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="외화금액" value={g.foreign} onValue={(v) => setGroup(i, { foreign: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="환율" value={g.rate} onValue={(v) => setGroup(i, { rate: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="공급가액" value={g.supply} onValue={(v) => setGroup(i, { supply: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="부가세" value={g.vat} onValue={(v) => setGroup(i, { vat: v })} /></td>
-                  <td className="text-right">{won(num(g.supply) + num(g.vat))}</td>
+                  <td className="text-right">{fmtAmountOf(num(g.supply) + num(g.vat))}</td>
                   <td><CodePickerField label="매출계정" hideLabel fill emptyLabel="" value={g.accountId} onChange={(v) => setGroup(i, { accountId: v })} items={accountItems} /></td>
                   <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setLinePick(new Set()); setDetail(g) }}>상세</a></td>
                   <td><input className="ec-input w-full" aria-label="적요" maxLength={300} value={g.memo} onChange={(e) => setGroup(i, { memo: e.target.value })} /></td>
@@ -263,7 +264,7 @@ export default function ContractReflectPage() {
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="외화금액" value={g.foreign} onValue={(v) => setGroup(i, { foreign: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="공급가액" value={g.supply} onValue={(v) => setGroup(i, { supply: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="부가세" value={g.vat} onValue={(v) => setGroup(i, { vat: v })} /></td>
-                  <td className="text-right">{won(num(g.supply) + num(g.vat))}</td>
+                  <td className="text-right">{fmtAmountOf(num(g.supply) + num(g.vat))}</td>
                   <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setLinePick(new Set()); setDetail(g) }}>상세</a></td>
                 </>}
               </tr>
@@ -273,21 +274,21 @@ export default function ContractReflectPage() {
           {groups.length > 0 && (kind === 'acct' ? (
             <tr>
               <td /><td />
-              <td className="text-right">{won(sum('trade'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('trade'))}</td>
               <td /><td /><td />
-              <td className="text-right">{won(sum('supply'))}</td>
-              <td className="text-right">{won(sum('vat'))}</td>
-              <td className="text-right">{won(sum('supply') + sum('vat'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('supply'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('vat'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('supply') + sum('vat'))}</td>
               <td /><td /><td /><td />
             </tr>
           ) : (
             <tr>
               <td /><td />
-              <td className="text-right">{won(sum('trade'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('trade'))}</td>
               <td /><td /><td />
-              <td className="text-right">{won(sum('supply'))}</td>
-              <td className="text-right">{won(sum('vat'))}</td>
-              <td className="text-right">{won(sum('supply') + sum('vat'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('supply'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('vat'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('supply') + sum('vat'))}</td>
               <td />
             </tr>
           ))}
@@ -343,22 +344,22 @@ export default function ContractReflectPage() {
                   <td>{l.contractName ?? ''}</td>
                   <td>{l.itemName}</td>
                   <td>{l.salesAccountId != null ? acctName(String(l.salesAccountId)) : ''}</td>
-                  <td className="text-right">{won(l.quantity)}</td>
-                  <td className="text-right">{won(l.unitPrice)}</td>
-                  <td className="text-right">{won(l.supplyAmount)}</td>
-                  <td className="text-right">{won(l.vatAmount)}</td>
-                  <td className="text-right">{won(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
+                  <td className="text-right">{fmtAmountOf(l.quantity)}</td>
+                  <td className="text-right">{fmtAmountOf(l.unitPrice)}</td>
+                  <td className="text-right">{fmtAmountOf(l.supplyAmount)}</td>
+                  <td className="text-right">{fmtAmountOf(l.vatAmount)}</td>
+                  <td className="text-right">{fmtAmountOf(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
                   <td>{l.remark ?? ''}</td>
                 </tr>
               ))}
               <tr className="ec-total">
                 {(partial || kind === 'sales') && <td />}
                 <td colSpan={5} className="text-center">합계</td>
-                <td className="text-right">{won(detail.lines.reduce((s, l) => s + Number(l.quantity), 0))}</td>
-                <td className="text-right">{won(detail.lines.reduce((s, l) => s + Number(l.unitPrice), 0))}</td>
-                <td className="text-right">{won(detail.lines.reduce((s, l) => s + Number(l.supplyAmount), 0))}</td>
-                <td className="text-right">{won(detail.lines.reduce((s, l) => s + Number(l.vatAmount), 0))}</td>
-                <td className="text-right">{won(detail.lines.reduce((s, l) => s + Number(l.supplyAmount) + Number(l.vatAmount), 0))}</td>
+                <td className="text-right">{fmtAmountOf(detail.lines.reduce((s, l) => s + Number(l.quantity), 0))}</td>
+                <td className="text-right">{fmtAmountOf(detail.lines.reduce((s, l) => s + Number(l.unitPrice), 0))}</td>
+                <td className="text-right">{fmtAmountOf(detail.lines.reduce((s, l) => s + Number(l.supplyAmount), 0))}</td>
+                <td className="text-right">{fmtAmountOf(detail.lines.reduce((s, l) => s + Number(l.vatAmount), 0))}</td>
+                <td className="text-right">{fmtAmountOf(detail.lines.reduce((s, l) => s + Number(l.supplyAmount) + Number(l.vatAmount), 0))}</td>
                 <td />
               </tr>
             </tbody>
@@ -460,17 +461,17 @@ export default function ContractReflectPage() {
                 {items.map((x, i) => (
                   <tr key={i}>
                     <td className="text-center text-ec-hint">{i + 1}</td><td>{x.itemCode}</td><td>{x.itemName}</td><td>{x.spec ?? ''}</td>
-                    <td className="text-right">{won(x.quantity)}</td><td className="text-right">{won(Number(x.unitPrice))}</td>
-                    <td className="text-right">{won(x.supply)}</td><td className="text-right">{won(x.vat)}</td><td className="text-right">{won(x.supply + x.vat)}</td>
+                    <td className="text-right">{fmtAmountOf(x.quantity)}</td><td className="text-right">{fmtAmountOf(Number(x.unitPrice))}</td>
+                    <td className="text-right">{fmtAmountOf(x.supply)}</td><td className="text-right">{fmtAmountOf(x.vat)}</td><td className="text-right">{fmtAmountOf(x.supply + x.vat)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="ec-total">
                   <td /><td /><td /><td />
-                  <td className="text-right">{won(tot('quantity'))}</td><td />
-                  <td className="text-right">{won(tot('supply'))}</td><td className="text-right">{won(tot('vat'))}</td>
-                  <td className="text-right">{won(tot('supply') + tot('vat'))}</td>
+                  <td className="text-right">{fmtAmountOf(tot('quantity'))}</td><td />
+                  <td className="text-right">{fmtAmountOf(tot('supply'))}</td><td className="text-right">{fmtAmountOf(tot('vat'))}</td>
+                  <td className="text-right">{fmtAmountOf(tot('supply') + tot('vat'))}</td>
                 </tr>
               </tfoot>
             </table>

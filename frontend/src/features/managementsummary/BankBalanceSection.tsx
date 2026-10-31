@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../api/client'
 import { bankLabel } from '../../utils/bankLabel'
-import { SUB_ROW, SectionHead, useCount, won, type SectionProps } from './shared'
+import { SUB_ROW, SectionHead, useCount, type SectionProps } from './shared'
+import { fmtAmountBlank } from '../../utils/format'
 
 interface BankAccount { id: number; code: string; name: string | null; bankName: string; accountNo: string; glAccountName: string | null; active: boolean }
 interface BankTxn { id: number; txnDate: string; bankAccountId: number; deposit: boolean; amount: number }
@@ -46,13 +47,13 @@ export default function BankBalanceSection({ from, to, startNo, onCount }: Secti
           {rows.map((r) => (
             <tr key={r.a.id}>
               <td>{r.a.glAccountName ?? ''}</td><td>{bankLabel(r.a)}</td>
-              <td className="text-right">{won(r.carry)}</td><td className="text-right">{won(r.inc)}</td><td className="text-right">{won(r.dec)}</td><td className="text-right">{won(r.bal)}</td>
+              <td className="text-right">{fmtAmountBlank(r.carry)}</td><td className="text-right">{fmtAmountBlank(r.inc)}</td><td className="text-right">{fmtAmountBlank(r.dec)}</td><td className="text-right">{fmtAmountBlank(r.bal)}</td>
               <td className="text-right"></td><td className="text-right"></td><td className="text-center">No</td>
             </tr>
           ))}
           <tr className={SUB_ROW}>
             <td colSpan={2} className="text-center">합계</td>
-            <td className="text-right">{won(tot.carry)}</td><td className="text-right">{won(tot.inc)}</td><td className="text-right">{won(tot.dec)}</td><td className="text-right">{won(tot.bal)}</td>
+            <td className="text-right">{fmtAmountBlank(tot.carry)}</td><td className="text-right">{fmtAmountBlank(tot.inc)}</td><td className="text-right">{fmtAmountBlank(tot.dec)}</td><td className="text-right">{fmtAmountBlank(tot.bal)}</td>
             <td className="text-right"></td><td className="text-right"></td><td></td>
           </tr>
         </tbody>

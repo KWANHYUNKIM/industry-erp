@@ -6,13 +6,14 @@ import GridCode from '../../components/GridCode'
 import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { won, type BillingCycle, type ContractItemRow, type ProductLink, type QtyPrice } from '../../features/billingcontract/types'
+import type { BillingCycle, ContractItemRow, ProductLink, QtyPrice } from '../../features/billingcontract/types'
 import ProductLinkModal, { SetTag, type ProductOption } from '../../features/billingcontract/ProductLinkModal'
 import QtyPriceModal from '../../features/billingcontract/QtyPriceModal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { EcHistoryModal } from '../../components/EcHistory'
 import { ecConfirm, requireSelection } from '../../components/EcDialog'
+import { fmtAmountOf } from '../../utils/format'
 
 interface Form {
   id: number | null; code: string; name: string; unitPrice: string; vatIncluded: boolean; billingCycle: BillingCycle; salesAccountId: string
@@ -198,9 +199,9 @@ export default function ContractItemPage() {
               <td><a href="#" onClick={(e) => { e.preventDefault(); edit(r) }}>{r.code}</a></td>
               <td><a href="#" onClick={(e) => { e.preventDefault(); edit(r) }}>{r.name}</a></td>
               <td className="text-center">{r.billingCycleName}</td>
-              <td className="text-right">{Number(r.unitPrice) ? won(r.unitPrice) : ''}</td>
-              <td className="text-right">{r.productPrice != null ? won(r.productPrice) : ''}</td>
-              <td className="text-right">{r.qtyPrice != null ? won(r.qtyPrice) : ''}</td>
+              <td className="text-right">{Number(r.unitPrice) ? fmtAmountOf(r.unitPrice) : ''}</td>
+              <td className="text-right">{r.productPrice != null ? fmtAmountOf(r.productPrice) : ''}</td>
+              <td className="text-right">{r.qtyPrice != null ? fmtAmountOf(r.qtyPrice) : ''}</td>
               <td className="text-center">{r.active ? 'Yes' : 'No'}</td>
             </tr>
           ))}
@@ -234,7 +235,7 @@ export default function ContractItemPage() {
               <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">품목별단가</span>
                 {/* 원본: 막힌 칸(합계, 처음 0) · VAT포함(막힘) · [설정] 한 줄 */}
-                <input className="ec-input flex-1 text-right" aria-label="품목별단가" disabled value={won(productTotal(form.products))} />
+                <input className="ec-input flex-1 text-right" aria-label="품목별단가" disabled value={fmtAmountOf(productTotal(form.products))} />
                 <label className="inline-flex items-center gap-[3px]">
                   <input type="checkbox" disabled checked={false} readOnly /> VAT포함
                 </label>
@@ -243,7 +244,7 @@ export default function ContractItemPage() {
               <li className="flex items-center gap-[8px]">
                 <span className="w-[120px] text-ec-hint">수량별단가</span>
                 {/* 품목별단가 줄과 같은 꼴: 막힌 칸(첫 줄 단가) · VAT포함(막힘) · [설정] — 원본 [설정] 창 미실측 */}
-                <input className="ec-input flex-1 text-right" aria-label="수량별단가" disabled value={won(form.qtyPrices[0]?.unitPrice ?? 0)} />
+                <input className="ec-input flex-1 text-right" aria-label="수량별단가" disabled value={fmtAmountOf(form.qtyPrices[0]?.unitPrice ?? 0)} />
                 <label className="inline-flex items-center gap-[3px]">
                   <input type="checkbox" disabled checked={!!form.qtyPrices[0]?.vatIncluded} readOnly /> VAT포함
                 </label>

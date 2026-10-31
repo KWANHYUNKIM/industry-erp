@@ -8,8 +8,8 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingSlip, WithholdingSlipListRow } from '../../types/api'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
+import { fmtTrunc } from '../../utils/format'
 
-const won = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
 const ym = (s: string) => s.replace('-', '/')
 /** 오늘(이 기기 시각) — toISOString 은 UTC 라 한국 오전 9시 전에는 하루 전이 됐다(원본 기본 2026/10/14, 우리 10/13). */
 const TYPES = ['사업소득', '이자배당소득', '기타소득', '비거주자사업기타소득']
@@ -180,9 +180,9 @@ export default function OtherWithholdingPage() {
               <td className="text-center">{ym(r.payMonth)}</td>
               <td className="text-center">{r.payeeSummary}</td>
               <td className="text-center">{r.incomeTypeName}</td>
-              <td className="text-right">{won(r.grossAmount)}</td>
-              <td className="text-right">{won(r.taxTotal)}</td>
-              <td className="text-right">{won(r.netAmount)}</td>
+              <td className="text-right">{fmtTrunc(r.grossAmount)}</td>
+              <td className="text-right">{fmtTrunc(r.taxTotal)}</td>
+              <td className="text-right">{fmtTrunc(r.netAmount)}</td>
               <td className="text-center">{company?.bizRegNo ?? ''}</td>
             </tr>
           ))}
@@ -237,7 +237,7 @@ function JournalModal({ draft, onClose }: { draft: JournalDraft; onClose: () => 
   async function save() {
     setError('')
     if (rows.some((r) => (Number(r.debit) || Number(r.credit)) && !r.accountId)) return setError('계정을 입력하세요.')
-    if (debit !== credit) return setError(`차변합(${won(debit)})과 대변합(${won(credit)})이 일치해야 합니다.`)
+    if (debit !== credit) return setError(`차변합(${fmtTrunc(debit)})과 대변합(${fmtTrunc(credit)})이 일치해야 합니다.`)
     try {
       await api.post('/journals', {
         entryDate, description,
@@ -283,8 +283,8 @@ function JournalModal({ draft, onClose }: { draft: JournalDraft; onClose: () => 
           ))}
           <tr className="ec-total">
             <td colSpan={2} className="text-center">합계</td>
-            <td className="text-right">{won(debit)}</td>
-            <td className="text-right">{won(credit)}</td>
+            <td className="text-right">{fmtTrunc(debit)}</td>
+            <td className="text-right">{fmtTrunc(credit)}</td>
             <td />
           </tr>
         </tbody>

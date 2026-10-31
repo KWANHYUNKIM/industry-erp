@@ -86,4 +86,3 @@ export interface ContractInvoiceRow {
 export const VAT_TYPES = ['세금계산서', '영세율', '계산서', '소매매출', '수출', '카드매출', '계산서(고정자산)', '세.계(고정자산)',
   '소매(면세)', '카드매출(면세)', '현금영수증(면세)']
 
-export const won = (n: number) => Math.round(Number(n)).toLocaleString('ko-KR')

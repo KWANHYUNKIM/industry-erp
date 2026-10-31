@@ -73,7 +73,6 @@ export const bondKey = (r: Pick<BondRow, 'accountId' | 'partnerId' | 'bondNo'>) 
 /** 증가는 +, 감소는 −. */
 export const signed = (r: BondRow) => (r.direction === 'INCREASE' ? Number(r.amount) : -Number(r.amount))
 
-export const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 원본 [일자-No.] — '2026/10/12 -1'. */
 export const dateNo = (r: { entryDate: string; entryNo: number }) => `${r.entryDate.replaceAll('-', '/')} -${r.entryNo}`

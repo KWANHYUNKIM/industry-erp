@@ -15,7 +15,7 @@ export const fmtNumber = (n: number) => n.toLocaleString('ko-KR')
 export const fmtNumberOf = (n: number) => Number(n).toLocaleString('ko-KR')
 
 /** Number 로 바꿔서 · 0 · 빈 값은 빈칸 */
-export const fmtNumberBlank = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
+export const fmtNumberBlank = (n: number | null | undefined) => (n ? Number(n).toLocaleString('ko-KR') : '')
 
 /** Number 로 바꿔서 · null/undefined 만 빈칸(0 은 '0') */
 export const fmtNumberOrBlank = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
@@ -28,3 +28,18 @@ export const fmtAmountOf = (n: number) => Math.round(Number(n)).toLocaleString('
 
 /** 원 단위 반올림 · 0 은 빈칸 */
 export const fmtAmountBlank = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
+
+/** 원 단위 반올림 · 0 · 빈 값(null · undefined · NaN)은 빈칸 — `n ? Math.round(n)… : ''` (전표 인쇄 · 집계표) */
+export const fmtAmountNz = (n: number | null | undefined) => (n ? Math.round(n).toLocaleString('ko-KR') : '')
+
+/** 원 단위 반올림 · null 은 '-' · 0 은 '0' (원가 · 생산출고 현황의 단가 없음) */
+export const fmtAmountOrDash = (n: number | null) => (n == null ? '-' : Math.round(n).toLocaleString('ko-KR'))
+
+/** 원 미만 버림 · 0 은 '0' (원천징수 — 세액은 버린다) */
+export const fmtTrunc = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
+
+/** Number 로 바꿔서 원 미만 버림 · 0 · 빈 값은 빈칸 (원천징수 서식) */
+export const fmtTruncBlankOf = (n: number | null | undefined) => (Number(n) ? Math.trunc(Number(n)).toLocaleString('ko-KR') : '')
+
+/** 소수 넷째 자리까지 · 숫자가 아니면(NaN · Infinity) 빈칸 (생산 수량) */
+export const fmtDecimal4 = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : '')

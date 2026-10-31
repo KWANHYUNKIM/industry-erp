@@ -10,6 +10,7 @@ import type { Company } from './SimplePaymentPage'
 import { ymd } from '../../utils/periods'
 import InterestDividendSheet from '../../features/otherwithholding/components/InterestDividendSheet'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtTruncBlankOf } from '../../utils/format'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 const KINDS: { value: Kind; label: string }[] = [
@@ -29,7 +30,6 @@ const NR_CODES = [['40', '사업소득'], ['41', '선박등 임대소득'], ['42
 /** 원본 영수증은 지급 줄 칸이 늘 14줄이다(쓴 줄 + 빈 줄). */
 const SHEET_ROWS = 14
 
-const won = (n: number) => (Number(n) ? Math.trunc(Number(n)).toLocaleString('ko-KR') : '')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
 const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + 'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid gray;padding:3px}'
@@ -178,8 +178,8 @@ export default function OtherWithholdingReceiptPage() {
               <td>{r.regNo ?? ''}</td>
               <td>{r.name}</td>
               {shownPerLine && <><td className="text-center">{r.lines[0].attributionMonth.replace('-', '/')}</td><td className="text-center">{r.lines[0].payDate.replace(/-/g, '/')}</td></>}
-              <td className="text-right">{won(r.grossAmount)}</td>
-              <td className="text-right">{won(r.taxTotal)}</td>
+              <td className="text-right">{fmtTruncBlankOf(r.grossAmount)}</td>
+              <td className="text-right">{fmtTruncBlankOf(r.taxTotal)}</td>
               <td className="text-center">{company?.name ?? ''}</td>
               <td className="text-center"><button className="ec-link" onClick={() => setViewing(r)}>조회</button></td>
             </tr>
@@ -293,13 +293,13 @@ function ReceiptSheet({ kind, payee: p, company, year, submitDate, forIssuer }: 
               <td className="text-center">{l.payDate.slice(8, 10)}</td>
               <td className="text-center">{l.attributionMonth.slice(0, 4)}</td>
               <td className="text-center">{l.attributionMonth.slice(5, 7)}</td>
-              <td className="text-right">{won(l.grossAmount)}</td>
-              {other && <><td className="text-right"></td><td className="text-right">{won(l.expenseAmount)}</td><td className="text-right">{won(l.taxableAmount)}</td></>}
+              <td className="text-right">{fmtTruncBlankOf(l.grossAmount)}</td>
+              {other && <><td className="text-right"></td><td className="text-right">{fmtTruncBlankOf(l.expenseAmount)}</td><td className="text-right">{fmtTruncBlankOf(l.taxableAmount)}</td></>}
               <td className="text-right">{Number(l.taxRate)}</td>
-              <td className="text-right">{won(l.incomeTax)}</td>
-              <td className="text-right">{won(l.localIncomeTax)}</td>
+              <td className="text-right">{fmtTruncBlankOf(l.incomeTax)}</td>
+              <td className="text-right">{fmtTruncBlankOf(l.localIncomeTax)}</td>
               {other && <td className="text-right"></td>}
-              <td className="text-right">{won(l.taxTotal)}</td>
+              <td className="text-right">{fmtTruncBlankOf(l.taxTotal)}</td>
             </tr>
           ))}
           {Array.from({ length: blanks }, (_, i) => (

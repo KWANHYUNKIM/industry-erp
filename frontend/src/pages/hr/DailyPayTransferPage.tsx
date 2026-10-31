@@ -6,8 +6,9 @@ import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcRep
 import { BANK_CODES } from '../../utils/bankCodes'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { lastDay, monthRange, won, type DailyReportLine } from '../../features/dailypay/report'
+import { lastDay, monthRange, type DailyReportLine } from '../../features/dailypay/report'
 import { ymd } from '../../utils/periods'
+import { fmtNumberOf } from '../../utils/format'
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 급여작업 &gt; <b>일용근로 급여이체현황</b> (원본 E020133).
@@ -101,7 +102,7 @@ export default function DailyPayTransferPage() {
               <td>{r.bankName ?? ''}</td>
               <td>{r.accountNo ?? ''}</td>
               <td>{r.accountHolder ?? ''}</td>
-              <td className="text-right">{won(r.netPay)}</td>
+              <td className="text-right">{fmtNumberOf(r.netPay)}</td>
             </tr>
           ))}
         </tbody>

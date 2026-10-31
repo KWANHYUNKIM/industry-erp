@@ -2,6 +2,7 @@ import { api } from '../../api/client'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { signLineHtml, type PrintSignLine } from '../../utils/print'
 import type { FastVoucher, JournalEntry } from '../../types/api'
+import { fmtAmountNz } from '../../utils/format'
 
 /**
  * 회계 I › 회계거래관리 의 출력물 — <b>전표</b>(회계거래조회 [전표] 인쇄 · 전표인쇄 E010702) 와
@@ -35,7 +36,6 @@ const CSS = `
   @media print { body { margin: 0; } }
 `
 
-const won = (n: number) => (n ? Math.round(n).toLocaleString('ko-KR') : '')
 /** GL-20261020-0001 → 2026/10/20-1 (원본 전표 [전표번호]). */
 export function slipNoLong(docNo: string, entryDate: string) {
   const m = /-0*(\d+)$/.exec(docNo)
@@ -52,7 +52,7 @@ export function journalSlipHtml(entries: JournalEntry[], company: string, sign: 
     const rows = e.lines.map((l) => {
       const who = l.partnerName ?? e.partnerName ?? ''
       return `<tr><td rowspan="2">${escapeHtml(l.accountName)}</td><td>${escapeHtml(who)}</td>`
-        + `<td class="num" rowspan="2">${won(l.debit)}</td><td class="num" rowspan="2">${won(l.credit)}</td></tr>`
+        + `<td class="num" rowspan="2">${fmtAmountNz(l.debit)}</td><td class="num" rowspan="2">${fmtAmountNz(l.credit)}</td></tr>`
         + `<tr><td>${escapeHtml(l.description ?? e.description ?? '')}</td></tr>`
     }).join('')
     return `<div class="slip">
@@ -63,7 +63,7 @@ export function journalSlipHtml(entries: JournalEntry[], company: string, sign: 
     <thead><tr><th rowspan="2" style="width:22%">계정명</th><th rowspan="2">적요</th><th colspan="2">금액</th></tr>
       <tr><th style="width:17%">차변</th><th style="width:17%">대변</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td class="c" colspan="2">합계</td><td class="num">${won(e.totalDebit)}</td><td class="num">${won(e.totalCredit)}</td></tr></tfoot>
+    <tfoot><tr><td class="c" colspan="2">합계</td><td class="num">${fmtAmountNz(e.totalDebit)}</td><td class="num">${fmtAmountNz(e.totalCredit)}</td></tr></tfoot>
   </table>
 </div>`
   }
@@ -75,7 +75,7 @@ export function voucherSlipHtml(vouchers: FastVoucher[], company: string): strin
   const one = (v: FastVoucher) => {
     /* 수수료는 결의서 머리 하나(영수증으로 등) — 첫 줄에 찍는다. */
     const rows = v.lines.map((l, i) => `<tr><td>${escapeHtml(l.description ?? v.description ?? '')}</td>`
-      + `<td class="num">${won(l.amount)}</td><td class="num">${i === 0 ? won(v.fee) : ''}</td>`
+      + `<td class="num">${fmtAmountNz(l.amount)}</td><td class="num">${i === 0 ? fmtAmountNz(v.fee) : ''}</td>`
       + `<td>${escapeHtml(l.accountName)}</td><td>${escapeHtml(l.partnerName ?? l.employeeName ?? v.partnerName ?? '')}</td></tr>`).join('')
     const total = v.lines.reduce((a, l) => a + l.amount, 0)
     return `<div class="slip">
@@ -85,7 +85,7 @@ export function voucherSlipHtml(vouchers: FastVoucher[], company: string): strin
   <table>
     <thead><tr><th>적 요</th><th style="width:15%">금 액</th><th style="width:12%">수수료</th><th style="width:20%">계정과목</th><th style="width:20%">거래처</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td class="c">총합계</td><td class="num">${won(total)}</td><td></td><td></td><td></td></tr></tfoot>
+    <tfoot><tr><td class="c">총합계</td><td class="num">${fmtAmountNz(total)}</td><td></td><td></td><td></td></tr></tfoot>
   </table>
 </div>`
   }

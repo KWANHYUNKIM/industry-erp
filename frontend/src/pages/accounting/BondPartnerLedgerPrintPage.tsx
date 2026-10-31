@@ -7,10 +7,11 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_STATUS_PICKS } from '../../features/bond/ledger'
-import { flatten, signed, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import { flatten, signed, sideWord, type BondRow, type BondSide } from '../../features/bond/types'
 import { ecAlert } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서리스트 · 거래처리스트와 같은 글). */
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
@@ -87,7 +88,7 @@ export default function BondPartnerLedgerPrintPage({ side }: { side: BondSide })
       .sort((a, b) => a.code.localeCompare(b.code))
   }, [rows, from, to, account, bondNo, partner])
 
-  const cell = (n: number) => (Math.round(n) ? won(n) : '')
+  const cell = (n: number) => (Math.round(n) ? fmtAmount(n) : '')
   const day = (d: string) => d.replaceAll('-', '/')
   const open = (ids: string[]) =>
     navigate(`${side === 'RECEIVABLE' ? '/accounting/bonds/ar/partner-summary' : '/accounting/bonds/ap/partner-summary'}?from=${from}&to=${to}&partners=${ids.join(',')}`)
@@ -154,7 +155,7 @@ export default function BondPartnerLedgerPrintPage({ side }: { side: BondSide })
               <td className="text-right">{cell(g.opening)}</td>
               <td className="text-right">{cell(g.inc)}</td>
               <td className="text-right">{cell(g.dec)}</td>
-              <td className="text-right">{won(g.closing)}</td>
+              <td className="text-right">{fmtAmount(g.closing)}</td>
             </tr>
           ))}
         </tbody>

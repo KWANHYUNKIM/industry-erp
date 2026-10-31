@@ -9,9 +9,10 @@ import type { CodeItem } from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
 import type { BankAccountRow } from '../../../types/api'
 import type { BondMasters } from '../api'
-import { won, type BondSide } from '../types'
+import type { BondSide } from '../types'
 import EcDateInput from '../../../components/ui/EcDateInput'
 import { bankPickLabel } from '../../../utils/bankLabel'
+import { fmtAmount } from '../../../utils/format'
 
 /** 채권감소등록에서 고른 채권 한 줄 — 감소금액 · 채권번호 · 증가 줄의 적요를 들고 온다. */
 export interface DepositPick {
@@ -298,7 +299,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
                 <td>{accName(l.accountId)?.name ?? ''}</td>
                 <td>{l.departmentId != null ? masters.departments?.find((d) => d.value === String(l.departmentId))?.name ?? '' : ''}</td>
                 <td>{l.projectId != null ? masters.projects?.find((p) => p.value === String(l.projectId))?.name ?? '' : ''}</td>
-                <td className="text-right">{won(Number(l.amount))}</td>
+                <td className="text-right">{fmtAmount(Number(l.amount))}</td>
                 <td>
                   <input className={`ec-input w-full${checkErr.has(i) ? ' outline outline-1 outline-ec-danger' : ''}`} aria-label={`${i + 1}줄 ${collect === 'NOTE' ? '어음번호' : '수표번호'}`}
                          maxLength={30} value={checkNos?.[i] ?? ''}
@@ -355,7 +356,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
                   <td>{ptn(l.partnerId)?.name ?? ''}</td>
                   <td>
                     {count > 1
-                      ? <span className="block text-right">{won(amount)}</span>
+                      ? <span className="block text-right">{fmtAmount(amount)}</span>
                       : <EcNumInput className="ec-input w-full text-right" aria-label={`${n + 1}줄 금액`} value={l.amount}
                                     onValue={(v) => setLines((ls) => ls!.map((x, j) => (j === i ? { ...x, amount: v } : x)))} />}
                   </td>
@@ -371,7 +372,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
             <tfoot>
               <tr>
                 <td colSpan={7} />
-                <td className="text-right">{won(total)}</td>
+                <td className="text-right">{fmtAmount(total)}</td>
                 <td colSpan={2} />
               </tr>
             </tfoot>

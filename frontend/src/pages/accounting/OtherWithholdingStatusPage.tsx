@@ -6,8 +6,8 @@ import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcRep
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingLineReportRow } from '../../types/api'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtTrunc } from '../../utils/format'
 
-const won = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
 const ym = (s: string) => s.replace('-', '/')
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const TYPES = ['사업소득', '이자배당소득', '기타소득', '비거주자사업기타소득']
@@ -153,24 +153,24 @@ export default function OtherWithholdingStatusPage() {
                         <td>{r.payeeName ?? ''}</td>
                         <td>{r.incomeTypeName}</td>
                         <td>{r.incomeCode ?? ''}</td>
-                        <td className="text-right">{won(r.grossAmount)}</td>
-                        <td className="text-right">{won(r.taxTotal)}</td>
+                        <td className="text-right">{fmtTrunc(r.grossAmount)}</td>
+                        <td className="text-right">{fmtTrunc(r.taxTotal)}</td>
                         <td>{(company?.bizRegNo ?? '').replace(/-/g, '')}</td>
                         <td>{company?.name ?? ''}</td>
                       </tr>
                     ))}
                     <tr className="ec-total">
                       <td colSpan={6} className="text-center">{ym(g.month)} 계</td>
-                      <td className="text-right">{won(sum(g.rows, 'grossAmount'))}</td>
-                      <td className="text-right">{won(sum(g.rows, 'taxTotal'))}</td>
+                      <td className="text-right">{fmtTrunc(sum(g.rows, 'grossAmount'))}</td>
+                      <td className="text-right">{fmtTrunc(sum(g.rows, 'taxTotal'))}</td>
                       <td colSpan={2} />
                     </tr>
                   </Fragment>
                 ))}
                 <tr className="ec-total">
                   <td colSpan={6} className="text-center">합계</td>
-                  <td className="text-right">{won(sum(rows, 'grossAmount'))}</td>
-                  <td className="text-right">{won(sum(rows, 'taxTotal'))}</td>
+                  <td className="text-right">{fmtTrunc(sum(rows, 'grossAmount'))}</td>
+                  <td className="text-right">{fmtTrunc(sum(rows, 'taxTotal'))}</td>
                   <td colSpan={2} />
                 </tr>
               </>}

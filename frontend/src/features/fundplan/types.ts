@@ -53,4 +53,3 @@ export const methodCell = (_m: FundPlanMethod) => '자금'
 export const calendarLabel = (d: FundPlanDirection, m: FundPlanMethod) =>
   m === 'NOTE' ? (d === 'IN' ? '받을어음증가' : '지급어음증가') : (d === 'IN' ? '예금(현금)증가' : '예금(현금)감소')
 export const CALENDAR_LABEL_ORDER = ['예금(현금)증가', '예금(현금)감소', '받을어음증가', '지급어음증가']
-export const won = (n: number) => Math.round(n).toLocaleString('ko-KR')

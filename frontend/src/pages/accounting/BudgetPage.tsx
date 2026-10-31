@@ -10,7 +10,8 @@ import { useBondMasters } from '../../features/bond/api'
 import NumCheck from '../../components/NumCheck'
 import { deleteBudgetAccounts, fetchBudgetReport } from '../../features/budget/api'
 import BudgetInputModal from '../../features/budget/components/BudgetInputModal'
-import { won, type BudgetReportPlan } from '../../features/budget/types'
+import type { BudgetReportPlan } from '../../features/budget/types'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 회계 II › 예산관리 › <b>월별예산조회</b>(E020201) — 2026-10-14 loginaa 실측(plans/회계2/E020201.md).
@@ -149,7 +150,7 @@ export default function BudgetPage() {
               </td>
               <td><button type="button" className="ec-link" onClick={() => setInput(r.accountId)}>{r.code}</button></td>
               <td><button type="button" className="ec-link" onClick={() => setInput(r.accountId)}>{r.name}</button></td>
-              <td className="text-right">{won(r.total)}</td>
+              <td className="text-right">{fmtAmount(r.total)}</td>
               <td>월</td>
               <td>잔액</td>
             </tr>
@@ -159,7 +160,7 @@ export default function BudgetPage() {
           <tfoot>
             <tr className="ec-total">
               <td colSpan={3} className="text-center">계</td>
-              <td className="text-right">{won(sum)}</td>
+              <td className="text-right">{fmtAmount(sum)}</td>
               <td colSpan={2} />
             </tr>
           </tfoot>

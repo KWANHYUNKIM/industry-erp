@@ -3,7 +3,8 @@ import Modal from '../../components/Modal'
 import GridCode from '../../components/GridCode'
 import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/CodePickerField'
-import { won, type ProductLink } from './types'
+import type { ProductLink } from './types'
+import { fmtAmountOf } from '../../utils/format'
 
 /**
  * 원본 [설정] · [상세] 글자 — 정해졌으면 주황 바탕 흰 글자(.text-warning-inverse: 12px · 여백 0.9px 1.8px · 둥글기 6 · h 19.8),
@@ -118,8 +119,8 @@ export default function ProductLinkModal({ open, value, products, onApply, onClo
               <td /><td /><td /><td />
               <td className="text-right">{qty(sum('quantity'))}</td>
               <td />
-              <td className="text-right">{won(sum('supply'))}</td>
-              <td className="text-right">{won(sum('vat'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('supply'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('vat'))}</td>
             </tr>
           </tfoot>
         </table>

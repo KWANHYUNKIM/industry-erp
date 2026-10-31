@@ -7,8 +7,9 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_FLOW_PICKS } from '../../features/bond/ledger'
-import { bondKey, dateNo, flatten, signed, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import { bondKey, dateNo, flatten, signed, sideWord, type BondRow, type BondSide } from '../../features/bond/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 interface Group {
   key: string
@@ -84,7 +85,7 @@ export default function BondLedgerPage({ side }: { side: BondSide }) {
   const sum = groups.reduce((a, g) => ({ inc: a.inc + g.inc, dec: a.dec + g.dec, bal: a.bal + g.closing }), { inc: 0, dec: 0, bal: 0 })
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [groups.length])
-  const cell = (n: number) => (n ? won(n) : '')
+  const cell = (n: number) => (n ? fmtAmount(n) : '')
 
   return (
     <EcListShell
@@ -144,7 +145,7 @@ export default function BondLedgerPage({ side }: { side: BondSide }) {
               <tr key={`${g.key}-o`} className="ec-total">
                 <td colSpan={9} className="text-center">{g.head.bondNo} 이월잔액</td>
                 <td /><td />
-                <td className="text-right">{won(g.opening)}</td>
+                <td className="text-right">{fmtAmount(g.opening)}</td>
               </tr>,
             ] : []),
             ...g.lines.map(({ r, balance }) => (
@@ -158,9 +159,9 @@ export default function BondLedgerPage({ side }: { side: BondSide }) {
                 <td>{r.projectName ?? ''}</td>
                 <td>{r.memo ?? ''}</td>
                 <td />
-                <td className="text-right">{r.direction === 'INCREASE' ? won(Number(r.amount)) : ''}</td>
-                <td className="text-right">{r.direction === 'DECREASE' ? won(Number(r.amount)) : ''}</td>
-                <td className="text-right">{won(balance)}</td>
+                <td className="text-right">{r.direction === 'INCREASE' ? fmtAmount(Number(r.amount)) : ''}</td>
+                <td className="text-right">{r.direction === 'DECREASE' ? fmtAmount(Number(r.amount)) : ''}</td>
+                <td className="text-right">{fmtAmount(balance)}</td>
               </tr>
             )),
             <tr key={`${g.key}-s`} className="ec-total">
@@ -169,7 +170,7 @@ export default function BondLedgerPage({ side }: { side: BondSide }) {
               </td>
               <td className="text-right">{cell(g.inc)}</td>
               <td className="text-right">{cell(g.dec)}</td>
-              <td className="text-right">{won(g.closing)}</td>
+              <td className="text-right">{fmtAmount(g.closing)}</td>
             </tr>,
           ])}
         </tbody>
@@ -179,7 +180,7 @@ export default function BondLedgerPage({ side }: { side: BondSide }) {
               <td colSpan={9}>총합계</td>
               <td className="text-right">{cell(sum.inc)}</td>
               <td className="text-right">{cell(sum.dec)}</td>
-              <td className="text-right">{won(sum.bal)}</td>
+              <td className="text-right">{fmtAmount(sum.bal)}</td>
             </tr>
           </tfoot>
         )}

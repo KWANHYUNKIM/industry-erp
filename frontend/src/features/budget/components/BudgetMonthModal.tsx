@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Modal from '../../../components/Modal'
-import { distribute, won } from '../types'
+import { distribute } from '../types'
+import { fmtAmount } from '../../../utils/format'
 
 /**
  * 월별예산입력 창 — 원본 E020201 [예산] 칸 링크(2026-10-14 loginaa 실측).
@@ -23,7 +24,7 @@ export default function BudgetMonthModal({ open, year, accountLabel, deptLabel, 
   const [annual, setAnnual] = useState('0')
   const [mode, setMode] = useState<'AMT' | 'PCT'>('AMT')
   const reset = () => {
-    setCells(months.map((m) => (m ? won(m) : '')))
+    setCells(months.map((m) => (m ? fmtAmount(m) : '')))
     setMemo(remark)
     setAnnual('0')
     setMode('AMT')
@@ -42,7 +43,7 @@ export default function BudgetMonthModal({ open, year, accountLabel, deptLabel, 
       <td>
         <input className="ec-input w-full text-right" aria-label={`${i + 1}월`} value={cells[i] ?? ''}
                onChange={(e) => setCells((c) => c.map((v, j) => (j === i ? e.target.value.replace(/[^0-9,]/g, '') : v)))}
-               onBlur={() => setCells((c) => c.map((v, j) => (j === i ? (num(v) ? won(num(v)) : '') : v)))} />
+               onBlur={() => setCells((c) => c.map((v, j) => (j === i ? (num(v) ? fmtAmount(num(v)) : '') : v)))} />
       </td>
     </>
   )
@@ -69,7 +70,7 @@ export default function BudgetMonthModal({ open, year, accountLabel, deptLabel, 
             <option value="PCT">%</option>
           </select>
           <button type="button" className="ec-btn" disabled={mode === 'PCT'}
-                  onClick={() => setCells(distribute(num(annual)).map((v) => (v ? won(v) : '')))}>배분</button>
+                  onClick={() => setCells(distribute(num(annual)).map((v) => (v ? fmtAmount(v) : '')))}>배분</button>
         </div>
         <table className="w-full text-left">
           <tbody>
@@ -79,18 +80,18 @@ export default function BudgetMonthModal({ open, year, accountLabel, deptLabel, 
                 {monthCell(q * 3 + 1)}
                 {monthCell(q * 3 + 2)}
                 <th className="text-center">{q + 1}/4분기기준</th>
-                <td className="text-right w-[110px]">{won(sum(q * 3, 3))}</td>
+                <td className="text-right w-[110px]">{fmtAmount(sum(q * 3, 3))}</td>
                 {q % 2 === 0 && (
                   <>
                     <th rowSpan={2} className="text-center">{q === 0 ? '상반기' : '하반기'}</th>
-                    <td rowSpan={2} className="text-right w-[110px]">{won(sum(q * 3, 6))}</td>
+                    <td rowSpan={2} className="text-right w-[110px]">{fmtAmount(sum(q * 3, 6))}</td>
                   </>
                 )}
               </tr>
             ))}
             <tr className="ec-total">
               <td colSpan={8} className="text-center">예산총액</td>
-              <td colSpan={2} className="text-right">{won(sum(0, 12))}</td>
+              <td colSpan={2} className="text-right">{fmtAmount(sum(0, 12))}</td>
             </tr>
           </tbody>
         </table>

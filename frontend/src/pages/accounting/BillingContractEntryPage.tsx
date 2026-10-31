@@ -10,8 +10,9 @@ import type { CodeItem } from '../../components/CodePickerField'
 import { useAuth } from '../../features/auth/AuthContext'
 import { ymd, pad2 } from '../../utils/periods'
 import type { Partner } from '../../types/api'
-import { VAT_TYPES, won, type BillingContractRow, type BillingUnitRow, type ContractItemRow, type ProductLink } from '../../features/billingcontract/types'
+import { VAT_TYPES, type BillingContractRow, type BillingUnitRow, type ContractItemRow, type ProductLink } from '../../features/billingcontract/types'
 import ProductLinkModal, { SetTag, type ProductOption } from '../../features/billingcontract/ProductLinkModal'
+import { fmtAmountOf } from '../../utils/format'
 
 interface Line {
   itemId: string; billMonths: string; quantity: string; unitPrice: string; supplyAmount: string; vatAmount: string; billingUnitId: string; remark: string
@@ -258,10 +259,10 @@ export default function BillingContractEntryPage() {
             <tfoot>
               <tr>
                 <td colSpan={4} />
-                <td className="text-right">{won(sum('quantity'))}</td>
+                <td className="text-right">{fmtAmountOf(sum('quantity'))}</td>
                 <td />
-                <td className="text-right">{won(sum('supplyAmount'))}</td>
-                <td className="text-right">{won(sum('vatAmount'))}</td>
+                <td className="text-right">{fmtAmountOf(sum('supplyAmount'))}</td>
+                <td className="text-right">{fmtAmountOf(sum('vatAmount'))}</td>
                 <td colSpan={3} />
               </tr>
             </tfoot>

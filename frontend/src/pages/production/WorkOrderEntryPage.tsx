@@ -17,6 +17,7 @@ import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/Slip
 import { shrinkImage } from '../../utils/imageResize'
 import { ecAlert } from '../../components/EcDialog'
 import { todayYmd } from '../../utils/periods'
+import { fmtDecimal4 } from '../../utils/format'
 
 /**
  * 재고 I &gt; 생산/외주 &gt; <b>작업지시서입력</b>.
@@ -30,7 +31,6 @@ import { todayYmd } from '../../utils/periods'
  * 이미 생산한 줄은 품목을 바꾸거나 기생산 밑으로 줄일 수 없다(서버가 막는다).
  */
 
-const won = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : '')
 const num = (s: string) => { const n = Number(s); return Number.isFinite(n) ? n : 0 }
 
 interface Line { key: number; productId: string; qty: string; warehouseId: string; produced: number }
@@ -426,8 +426,8 @@ export default function WorkOrderEntryPage({ popup }: { popup?: WorkOrderEntryPo
                                        value={l.warehouseId} onChange={(v) => setLine(l.key, { warehouseId: v })} items={factoryPicks} />
                     </td>
                     {stocks != null && <>
-                      <td className="pad text-right text-ec-label">{stockAll(l.productId) == null ? '' : won(stockAll(l.productId)!)}</td>
-                      <td className="pad text-right text-ec-label">{stockAt(l.productId, l.warehouseId) == null ? '' : won(stockAt(l.productId, l.warehouseId)!)}</td>
+                      <td className="pad text-right text-ec-label">{stockAll(l.productId) == null ? '' : fmtDecimal4(stockAll(l.productId)!)}</td>
+                      <td className="pad text-right text-ec-label">{stockAt(l.productId, l.warehouseId) == null ? '' : fmtDecimal4(stockAt(l.productId, l.warehouseId)!)}</td>
                     </>}
                   </tr>
                 )
@@ -436,7 +436,7 @@ export default function WorkOrderEntryPage({ popup }: { popup?: WorkOrderEntryPo
             <tfoot>
               <tr>
                 <td colSpan={4} />
-                <td className="text-right font-bold">{won(filled.reduce((n, l) => n + num(l.qty), 0))}</td>
+                <td className="text-right font-bold">{fmtDecimal4(filled.reduce((n, l) => n + num(l.qty), 0))}</td>
                 <td colSpan={stocks != null ? 3 : 1} />
               </tr>
             </tfoot>

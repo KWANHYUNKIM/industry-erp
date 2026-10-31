@@ -10,8 +10,8 @@ import { periodOf, INQUIRY_PICKS } from '../../utils/periods'
 import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
-import { won } from '../../features/billingcontract/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 interface StatusLine {
   lineId: number; contractId: number; contractDate: string; docNo: number; contractCode: string; contractName: string | null
@@ -164,20 +164,20 @@ export default function ContractStatusReportPage() {
                       <td>{r.partnerName}</td>
                       <td>{r.itemName}</td>
                       <td className="text-right">{qty(r.quantity)}</td>
-                      <td className="text-right">{won(r.unitPrice)}</td>
-                      <td className="text-right">{won(r.supplyAmount)}</td>
-                      <td className="text-right">{won(r.vatAmount)}</td>
-                      <td className="text-right">{won(Number(r.supplyAmount) + Number(r.vatAmount))}</td>
+                      <td className="text-right">{fmtAmountOf(r.unitPrice)}</td>
+                      <td className="text-right">{fmtAmountOf(r.supplyAmount)}</td>
+                      <td className="text-right">{fmtAmountOf(r.vatAmount)}</td>
+                      <td className="text-right">{fmtAmountOf(Number(r.supplyAmount) + Number(r.vatAmount))}</td>
                       <td className="text-center">{monthsText(r.billMonths)}</td>
                     </tr>
                   ))}
                   <tr className="ec-total">
                     <td colSpan={4} className="text-center">{m.replace('-', '/')} 계</td>
                     <td className="text-right">{qty(sum(rs, 'quantity'))}</td>
-                    <td className="text-right">{won(sum(rs, 'unitPrice'))}</td>
-                    <td className="text-right">{won(sum(rs, 'supplyAmount'))}</td>
-                    <td className="text-right">{won(sum(rs, 'vatAmount'))}</td>
-                    <td className="text-right">{won(sum(rs, 'supplyAmount') + sum(rs, 'vatAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(rs, 'unitPrice'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(rs, 'supplyAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(rs, 'vatAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(rs, 'supplyAmount') + sum(rs, 'vatAmount'))}</td>
                     <td />
                   </tr>
                 </Fragment>
@@ -187,10 +187,10 @@ export default function ContractStatusReportPage() {
             <tr className="ec-total">
               <td colSpan={4} className="text-center">합계</td>
               <td className="text-right">{qty(sum(shown, 'quantity'))}</td>
-                    <td className="text-right">{won(sum(shown, 'unitPrice'))}</td>
-                    <td className="text-right">{won(sum(shown, 'supplyAmount'))}</td>
-                    <td className="text-right">{won(sum(shown, 'vatAmount'))}</td>
-                    <td className="text-right">{won(sum(shown, 'supplyAmount') + sum(shown, 'vatAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(shown, 'unitPrice'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(shown, 'supplyAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(shown, 'vatAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(shown, 'supplyAmount') + sum(shown, 'vatAmount'))}</td>
                     <td />
             </tr>
           )}

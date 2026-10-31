@@ -11,6 +11,7 @@ import EcHistoryButton from '../../components/EcHistory'
 import { activeMenuAction, type ExpenseControlType, type ExpenseItem } from '../../features/expensemaster/api'
 import type { Account, EmployeeMaster } from '../../types/api'
 import { ymd } from '../../utils/periods'
+import { fmtNumberOrBlank } from '../../utils/format'
 
 /**
  * 회계 II › 비용관리 › 기본사항등록 › <b>비용등록</b>(원본 E060809, 제목 '비용리스트') — 2026-10-20 loginaa 실측(plans/회계2/비용관리.md 1.2).
@@ -38,7 +39,6 @@ interface Form {
 }
 
 const BLANK: Form = { id: null, code: '', name: '', accountId: '', controlTypeId: '', limitAmount: '0', employeeIds: [], controlFrom: '', controlTo: '', alertEmployeeIds: [], remark: '', active: true }
-const won = (n: number | null) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 
 export default function ExpenseItemPage() {
   const [rows, setRows] = useState<ExpenseItem[]>([])
@@ -151,7 +151,7 @@ export default function ExpenseItemPage() {
               <td>{i.controlFrom ? `${i.controlFrom.replaceAll('-', '/')} ~${(i.controlTo ?? i.controlFrom).replaceAll('-', '/')}` : i.periodTypeName}</td>
               <td>{i.personControlName}</td>
               <td>{i.limitTypeName}</td>
-              <td className="text-right">{won(i.limitAmount)}</td>
+              <td className="text-right">{fmtNumberOrBlank(i.limitAmount)}</td>
               <td>{i.active ? 'Yes' : 'No'}</td>
             </tr>
           ))}

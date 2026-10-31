@@ -7,8 +7,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { RetirementPay, RetirementPayCalculation } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtNumberBlank } from '../../utils/format'
 
-const won = (n: number | null | undefined) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const slash = (d?: string | null) => (d ? d.replace(/-/g, '/') : '')
 type Emp = { id: number; code: string; name: string; hireDate?: string | null; resignDate?: string | null; resignReason?: string | null }
 type Dept = { id: number; code?: string; name: string }
@@ -97,7 +97,7 @@ export default function RetirementPayPage() {
     try {
       const c = (await api.post<RetirementPayCalculation>('/retirement-pays/calculate', body(f, withPay))).data
       setCalc(c)
-      setForm({ ...f, retirementPay: won(c.retirementPay) })
+      setForm({ ...f, retirementPay: fmtNumberBlank(c.retirementPay) })
     } catch (e) {
       setCalc(null); setFormError(extractErrorMessage(e))
     }
@@ -120,7 +120,7 @@ export default function RetirementPayPage() {
     const f: Form = {
       id: r.id, employeeId: String(r.employeeId), withholdingMonth: r.withholdingMonth, payDate: r.payDate,
       startDate: r.startDate, retireDate: r.retireDate, retireReason: r.retireReason ?? '', executive: r.executive,
-      extraPay: won(r.extraPay), retirementPay: won(r.retirementPay), nonTaxable: won(r.nonTaxable),
+      extraPay: fmtNumberBlank(r.extraPay), retirementPay: fmtNumberBlank(r.retirementPay), nonTaxable: fmtNumberBlank(r.nonTaxable),
     }
     setFormError(''); setForm(f); recalc(f, true)
   }
@@ -135,7 +135,7 @@ export default function RetirementPayPage() {
         ? (await api.put<RetirementPay>(`/retirement-pays/${form.id}`, body(form, true))).data
         : (await api.post<RetirementPay>('/retirement-pays', body(form, true))).data
       // 원본은 안내 없이 목록 줄이 바뀌고, 창은 저장한 값으로 다시 그려져 열린 채 남는다
-      setForm({ ...form, id: saved.id, retirementPay: won(saved.retirementPay) })
+      setForm({ ...form, id: saved.id, retirementPay: fmtNumberBlank(saved.retirementPay) })
       load()
     } catch (e) {
       setFormError(extractErrorMessage(e))
@@ -239,12 +239,12 @@ export default function RetirementPayPage() {
               <td>{slash(r.startDate)}</td>
               <td>{slash(r.retireDate)}</td>
               <td>{slash(r.payDate)}</td>
-              <td className="text-right">{won(r.retirementPay)}</td>
-              <td className="text-right">{won(r.incomeTax)}</td>
-              <td className="text-right">{won(r.localIncomeTax)}</td>
+              <td className="text-right">{fmtNumberBlank(r.retirementPay)}</td>
+              <td className="text-right">{fmtNumberBlank(r.incomeTax)}</td>
+              <td className="text-right">{fmtNumberBlank(r.localIncomeTax)}</td>
               <td className="text-right"></td>
-              <td className="text-right">{won(r.deductionTotal)}</td>
-              <td className="text-right">{won(r.netPay)}</td>
+              <td className="text-right">{fmtNumberBlank(r.deductionTotal)}</td>
+              <td className="text-right">{fmtNumberBlank(r.netPay)}</td>
               <td><a href="#" onClick={(e) => { e.preventDefault(); openEdit(r) }}>인쇄</a></td>
             </tr>
           ))}
@@ -347,7 +347,7 @@ export default function RetirementPayPage() {
                     <td><input className="ec-input w-[160px] text-right" aria-label="최종 비과세 퇴직급여" value={form.nonTaxable}
                                onChange={(e) => set({ nonTaxable: e.target.value })} onBlur={() => recalc(form, true)} /></td><td></td></tr>
                   <tr><th className="text-left">(17)과세대상 퇴직급여((15)-(16))</th><td></td>
-                    <td className="text-right">{won(calc.tax.income)}</td><td className="text-right">{won(calc.tax.income)}</td></tr>
+                    <td className="text-right">{fmtNumberBlank(calc.tax.income)}</td><td className="text-right">{fmtNumberBlank(calc.tax.income)}</td></tr>
                   <tr><th className="text-left">(18)과세이연 여부</th><td colSpan={3}>
                     <select className="ec-input w-[200px]" aria-label="과세이연 여부" defaultValue="미해당"><option>미해당</option><option>해당</option></select></td></tr>
                 </tbody>
@@ -373,16 +373,16 @@ export default function RetirementPayPage() {
               <table className="w-full ec-report receipt-table mb-[6px]">
                 <thead><tr><th colSpan={2}>계 산 내 용</th><th>금 액</th></tr></thead>
                 <tbody>
-                  <tr><th rowSpan={5} className="w-[28px]">과세표준계산</th><td>(28)퇴직소득 ((17))</td><td className="text-right">{won(calc.tax.income)}</td></tr>
-                  <tr><td>(29)근속연수공제</td><td className="text-right">{won(calc.tax.serviceDeduction)}</td></tr>
-                  <tr><td>(30)환산급여 [((28)-(29))×12배/정산근속연수]</td><td className="text-right">{won(calc.tax.converted)}</td></tr>
-                  <tr><td>(31)환산급여별공제</td><td className="text-right">{won(calc.tax.convertedDeduction)}</td></tr>
-                  <tr><td>(32)퇴직소득과세표준 ((30)-(31))</td><td className="text-right">{won(calc.tax.taxBase)}</td></tr>
-                  <tr><th rowSpan={5} className="w-[28px]">퇴직소득세액계산</th><td>(33)환산산출세액 ((32)×세율)</td><td className="text-right">{won(calc.tax.convertedTax)}</td></tr>
-                  <tr><td>(34)퇴직소득 산출세액 ((33)×정산근속연수/12배)</td><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
+                  <tr><th rowSpan={5} className="w-[28px]">과세표준계산</th><td>(28)퇴직소득 ((17))</td><td className="text-right">{fmtNumberBlank(calc.tax.income)}</td></tr>
+                  <tr><td>(29)근속연수공제</td><td className="text-right">{fmtNumberBlank(calc.tax.serviceDeduction)}</td></tr>
+                  <tr><td>(30)환산급여 [((28)-(29))×12배/정산근속연수]</td><td className="text-right">{fmtNumberBlank(calc.tax.converted)}</td></tr>
+                  <tr><td>(31)환산급여별공제</td><td className="text-right">{fmtNumberBlank(calc.tax.convertedDeduction)}</td></tr>
+                  <tr><td>(32)퇴직소득과세표준 ((30)-(31))</td><td className="text-right">{fmtNumberBlank(calc.tax.taxBase)}</td></tr>
+                  <tr><th rowSpan={5} className="w-[28px]">퇴직소득세액계산</th><td>(33)환산산출세액 ((32)×세율)</td><td className="text-right">{fmtNumberBlank(calc.tax.convertedTax)}</td></tr>
+                  <tr><td>(34)퇴직소득 산출세액 ((33)×정산근속연수/12배)</td><td className="text-right">{fmtNumberBlank(calc.tax.computedTax)}</td></tr>
                   <tr><td>(35)세액공제</td><td><input className="ec-input w-full text-right" aria-label="세액공제" /></td></tr>
                   <tr><td>(36)기납부(또는 기과세이연) 세액</td><td><input className="ec-input w-full text-right" aria-label="기납부 세액" /></td></tr>
-                  <tr><td>(37)신고대상세액 ((34)-(35)-(36))</td><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
+                  <tr><td>(37)신고대상세액 ((34)-(35)-(36))</td><td className="text-right">{fmtNumberBlank(calc.tax.computedTax)}</td></tr>
                 </tbody>
               </table>
 
@@ -392,7 +392,7 @@ export default function RetirementPayPage() {
                   <tr><th>연금계좌취급자</th><th>사업자등록번호</th><th>계좌번호</th><th>입금일</th><th>(39)계좌입금금액</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td rowSpan={2} className="text-right">{won(calc.tax.computedTax)}</td>
+                  <tr><td rowSpan={2} className="text-right">{fmtNumberBlank(calc.tax.computedTax)}</td>
                     {['취급자', '사업자번호', '계좌번호', '입금일', '입금금액'].map((l) => <td key={l}><input className="ec-input w-full" aria-label={`연금계좌 1 ${l}`} /></td>)}
                     <td rowSpan={2}></td><td rowSpan={2}><input className="ec-input w-full text-right" aria-label="이연퇴직소득세" /></td></tr>
                   <tr>{['취급자', '사업자번호', '계좌번호', '입금일', '입금금액'].map((l) => <td key={l}><input className="ec-input w-full" aria-label={`연금계좌 2 ${l}`} /></td>)}</tr>
@@ -403,12 +403,12 @@ export default function RetirementPayPage() {
                 <thead><tr><th colSpan={2}>구 분</th><th>소득세</th><th>지방소득세</th><th>농어촌특별세</th><th>계</th><th rowSpan={5} className="w-[110px] text-[11px]">부표 작성 여부<br />※ (위톱) 작성방법 제 13호에 해당하는 경우 "○" 표시합니다.</th></tr></thead>
                 <tbody>
                   <tr><th rowSpan={4} className="w-[28px]">납부명세</th><td>(43)신고대상세액 ((37))</td>
-                    <td className="text-right">{won(calc.tax.computedTax)}</td><td className="text-right">{won(Math.floor(Number(calc.tax.computedTax) / 10))}</td><td></td>
-                    <td className="text-right">{won(Number(calc.tax.computedTax) + Math.floor(Number(calc.tax.computedTax) / 10))}</td></tr>
+                    <td className="text-right">{fmtNumberBlank(calc.tax.computedTax)}</td><td className="text-right">{fmtNumberBlank(Math.floor(Number(calc.tax.computedTax) / 10))}</td><td></td>
+                    <td className="text-right">{fmtNumberBlank(Number(calc.tax.computedTax) + Math.floor(Number(calc.tax.computedTax) / 10))}</td></tr>
                   <tr><td>(44)이연퇴직소득세 ((41))</td><td><input className="ec-input w-full text-right" aria-label="이연 소득세" /></td><td className="text-right">0</td><td></td><td className="text-right">0</td></tr>
                   <tr><td>(45)기납부원천징수세액</td><td><input className="ec-input w-full text-right" aria-label="기납부 소득세" /></td><td className="text-right">0</td><td></td><td className="text-right">0</td></tr>
-                  <tr><td>(46)차감원천징수세액 ((43)-(44))</td><td className="text-right">{won(calc.tax.incomeTax)}</td><td className="text-right">{won(calc.tax.localIncomeTax)}</td><td className="text-right">0</td>
-                    <td className="text-right">{won(Number(calc.tax.incomeTax) + Number(calc.tax.localIncomeTax))}</td></tr>
+                  <tr><td>(46)차감원천징수세액 ((43)-(44))</td><td className="text-right">{fmtNumberBlank(calc.tax.incomeTax)}</td><td className="text-right">{fmtNumberBlank(calc.tax.localIncomeTax)}</td><td className="text-right">0</td>
+                    <td className="text-right">{fmtNumberBlank(Number(calc.tax.incomeTax) + Number(calc.tax.localIncomeTax))}</td></tr>
                 </tbody>
               </table>
             </>

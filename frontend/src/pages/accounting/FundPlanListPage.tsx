@@ -8,9 +8,10 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf, QUOTATION_PICKS } from '../../components/EcPeriodPicks'
 import { fetchFundPlans, useFundPlanMasters } from '../../features/fundplan/api'
 import FundPlanModal from '../../features/fundplan/components/FundPlanModal'
-import { methodCell, won, type FundPlan } from '../../features/fundplan/types'
+import { methodCell, type FundPlan } from '../../features/fundplan/types'
 import NumCheck from '../../components/NumCheck'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 회계 II › 자금계획 › <b>계획전표조회</b>(E020511) — 2026-10-12 loginaa 실측.
@@ -233,7 +234,7 @@ export default function FundPlanListPage() {
               </td>
               <td>{r.directionName}</td>
               <td>{methodCell(r.method)}</td>
-              <td className="text-right">{Number(r.amount) ? won(Number(r.amount)) : ''}</td>
+              <td className="text-right">{Number(r.amount) ? fmtAmount(Number(r.amount)) : ''}</td>
               <td>{r.counterAccountName ?? ''}</td>
               <td>{r.partnerName ?? ''}</td>
               <td>{r.noteNo ?? ''}</td>

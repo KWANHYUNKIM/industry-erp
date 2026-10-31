@@ -19,6 +19,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { shrinkImage } from '../../utils/imageResize'
 import { todayYmd } from '../../utils/periods'
+import { fmtDecimal4 } from '../../utils/format'
 
 /**
  * 원본(이카운트) <b>생산입고 I · II · III</b> 입력 화면. 셋은 뼈대가 같고 소모를 정하는 법만 다르다.
@@ -42,7 +43,6 @@ import { todayYmd } from '../../utils/periods'
  * <code>pages/</code> 의 파일로 대조하므로 features/ 로 빼지 않고 여기 둔다.
  */
 
-const won = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : '')
 const num = (s: string) => { const n = Number(s); return Number.isFinite(n) ? n : 0 }
 
 const NOT_HERE = '이 기능은 이 ERP 에서 제공하지 않습니다.'
@@ -608,7 +608,7 @@ export default function ProductionResultPage({ type = 'I', popup }: { type?: Pro
                   </td>
                 )}
                 <td className="pad" style={{ color: 'var(--ec-label)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                    title={wo ? `잔량 ${won(Number(wo.remainingQty))}` : undefined}>
+                    title={wo ? `잔량 ${fmtDecimal4(Number(wo.remainingQty))}` : undefined}>
                   {wo ? `${dateText(wo.orderDate)} ${wo.orderNo}` : ''}
                   {wo && (
                     <button type="button" className="no-ec" title="작업지시서 연결 끊기"
@@ -623,10 +623,10 @@ export default function ProductionResultPage({ type = 'I', popup }: { type?: Pro
         <tfoot>
           <tr>
             <td colSpan={type === 'III' ? 9 : 6} />
-            <td className="text-right font-bold">{won(totalQty)}</td>
+            <td className="text-right font-bold">{fmtDecimal4(totalQty)}</td>
             {type !== 'III' && <td />}
-            {type !== 'III' && <td className="text-right font-bold">{won(totalAmt)}</td>}
-            {type !== 'III' && <td className="text-right font-bold">{won(totalVat)}</td>}
+            {type !== 'III' && <td className="text-right font-bold">{fmtDecimal4(totalAmt)}</td>}
+            {type !== 'III' && <td className="text-right font-bold">{fmtDecimal4(totalVat)}</td>}
             <td colSpan={type !== 'III' ? 3 : 2} />
           </tr>
         </tfoot>
@@ -698,7 +698,7 @@ export default function ProductionResultPage({ type = 'I', popup }: { type?: Pro
                   <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!m.componentId}
                          value={m.qty} onChange={(e) => setMat(m.key, { qty: e.target.value })} />
                 </td>
-                {type === 'III' && <td className="pad text-right text-ec-hint">{m.bomQty !== '' ? won(num(m.bomQty)) : ''}</td>}
+                {type === 'III' && <td className="pad text-right text-ec-hint">{m.bomQty !== '' ? fmtDecimal4(num(m.bomQty)) : ''}</td>}
                 <td>
                   <input className="cell" disabled={!m.componentId} value={m.note} onChange={(e) => setMat(m.key, { note: e.target.value })} />
                 </td>
@@ -713,9 +713,9 @@ export default function ProductionResultPage({ type = 'I', popup }: { type?: Pro
           <tr>
             <td colSpan={type === 'III' ? 5 : 4} />
             {type === 'II' && <td />}
-            {type === 'III' && <td className="text-right font-bold">{won(matsFilled.reduce((n, m) => n + num(m.extraQty), 0))}</td>}
-            <td className="text-right font-bold">{won(matsFilled.reduce((n, m) => n + num(m.qty), 0))}</td>
-            {type === 'III' && <td className="text-right font-bold">{won(matsFilled.reduce((n, m) => n + num(m.bomQty), 0))}</td>}
+            {type === 'III' && <td className="text-right font-bold">{fmtDecimal4(matsFilled.reduce((n, m) => n + num(m.extraQty), 0))}</td>}
+            <td className="text-right font-bold">{fmtDecimal4(matsFilled.reduce((n, m) => n + num(m.qty), 0))}</td>
+            {type === 'III' && <td className="text-right font-bold">{fmtDecimal4(matsFilled.reduce((n, m) => n + num(m.bomQty), 0))}</td>}
             <td colSpan={2} />
           </tr>
         </tfoot>
@@ -903,8 +903,8 @@ export default function ProductionResultPage({ type = 'I', popup }: { type?: Pro
                   <td>{o.partnerName ?? ''}</td>
                   <td>{o.productCode}</td>
                   <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
-                  <td className="text-right">{won(Number(o.plannedQty))}</td>
-                  <td className="text-right font-bold">{won(Number(o.remainingQty))}</td>
+                  <td className="text-right">{fmtDecimal4(Number(o.plannedQty))}</td>
+                  <td className="text-right font-bold">{fmtDecimal4(Number(o.remainingQty))}</td>
                 </tr>
               ))}
             </tbody>

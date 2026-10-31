@@ -14,6 +14,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCostPeriods, costPeriodText, inCostPeriod } from '../../utils/costPeriods'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { fmtAmountOrDash } from '../../utils/format'
 
 /** 원본 [Option] (이익관리 현황 3화면 2026-10-22 실측) — 검색항목설정 · 양식설정 ▸(✓ 기본(수정불가) · ✓ 현재 양식 · 신규양식추가). 양식 · 검색항목 디자이너는 두지 않는다. */
 const OPTION_MENU = [
@@ -127,7 +128,6 @@ interface CostLedgerRow {
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
-const won = (n: number | null) => (n == null ? '-' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 원가집계표는 0 을 찍지 않는다(증가 · 감소가 없는 달은 빈칸). */
 const nz = (n: number | null) => (n == null || n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [누계] 줄의 수량은 소수 둘째 자리까지 찍힌다('546,009.00'). */
@@ -358,7 +358,7 @@ export default function ActualCostPage() {
   const groupLabel = (r: SumRow, key: string) => {
     if (key.startsWith('품목구분')) return r.categoryName || '(미지정)'
     const v = sortValue(r, key)
-    return typeof v === 'number' ? won(v) : (v ?? '')
+    return typeof v === 'number' ? fmtAmountOrDash(v) : (v ?? '')
   }
   const out = withSubtotals(summary, sortCfg, sortValue, groupLabel)
   /* 소계 줄 칸은 표시항목을 map 으로 찍는다 — 개발 중에는 그린 표의 열 수를 잰다. */
@@ -759,8 +759,8 @@ export default function ActualCostPage() {
                     <td>{r.itemName}</td>
                     <td>{r.warehouseName}</td>
                     <td className="text-right">{num(qty)} <span className="text-[11px] text-ec-hint">{r.unit}</span></td>
-                    <td style={{ textAlign: 'right', color: price == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{won(price)}</td>
-                    <td className="text-right font-bold">{won(price == null ? null : qty * price)}</td>
+                    <td style={{ textAlign: 'right', color: price == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{fmtAmountOrDash(price)}</td>
+                    <td className="text-right font-bold">{fmtAmountOrDash(price == null ? null : qty * price)}</td>
                     <td className="text-ec-label">{r.note ?? ''}</td>
                   </tr>
                 )
@@ -775,7 +775,7 @@ export default function ActualCostPage() {
                   </td>
                   <td></td>
                   <td className="text-right text-ec-navy">
-                    {won(detail.reduce((n, r) => {
+                    {fmtAmountOrDash(detail.reduce((n, r) => {
                       const price = r.unitPrice != null && r.unitPrice > 0 ? r.unitPrice : (priceOf.get(r.itemId) ?? null)
                       return n + (price == null ? 0 : Math.abs(r.quantityChange) * price)
                     }, 0))}

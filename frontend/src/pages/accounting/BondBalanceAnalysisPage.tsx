@@ -8,9 +8,10 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { ymd } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { openBonds } from '../../features/bond/ledger'
-import { flatten, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import { flatten, sideWord, type BondRow, type BondSide } from '../../features/bond/types'
 import type { Partner } from '../../types/api'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '직전기수'] as const
 
@@ -145,7 +146,7 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
     due: Array.from({ length: 7 }, (_, i) => rs.reduce((a, r) => a + r.due[i], 0)),
   })
   const total = sum(groups.flatMap((g) => g.rows))
-  const cell = (n: number) => (Math.round(n) ? won(n) : '')
+  const cell = (n: number) => (Math.round(n) ? fmtAmount(n) : '')
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [groups.length])
   const monthText = (ym: string) => ym.replace('-', '/')
@@ -156,7 +157,7 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
       {ar
         ? <><td colSpan={4} className="text-center">{label}</td><td className="text-center" /><td className="text-center" /></>
         : <td colSpan={5} className="text-center">{label}</td>}
-      <td className="text-right">{won(s.balance)}</td>
+      <td className="text-right">{fmtAmount(s.balance)}</td>
       <td className="text-center" />
       {s.aging.map((n, i) => <td key={`a${i}`} className="text-right">{cell(n)}</td>)}
       {s.due.map((n, i) => <td key={`d${i}`} className="text-right">{cell(n)}</td>)}
@@ -244,9 +245,9 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
                     </button>
                   </td>
                   <td>{r.partnerName}</td>
-                  {ar && <td className="text-right">{r.creditLimit ? won(r.creditLimit) : ''}</td>}
+                  {ar && <td className="text-right">{r.creditLimit ? fmtAmount(r.creditLimit) : ''}</td>}
                   <td>{r.accountName}</td>
-                  <td className="text-right">{won(r.balance)}</td>
+                  <td className="text-right">{fmtAmount(r.balance)}</td>
                   <td className="text-right">{r.months > 12 ? '12 개월초과' : String(r.months)}</td>
                   {r.aging.map((n, i) => <td key={`a${i}`} className="text-right">{cell(n)}</td>)}
                   {r.due.map((n, i) => <td key={`d${i}`} className="text-right">{cell(n)}</td>)}

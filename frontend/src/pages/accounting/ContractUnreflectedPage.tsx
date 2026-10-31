@@ -8,8 +8,9 @@ import { periodOf } from '../../utils/periods'
 import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
-import { won, type BillLineView } from '../../features/billingcontract/types'
+import type { BillLineView } from '../../features/billingcontract/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 /* 원본 버튼줄 글자 그대로(2026-10-13 실측). '이번기수' · '직전기수' 는 회계연도 시작월을 몰라 1월 기준이다. */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '이번기수', '직전기수', '종료일'] as const
@@ -83,20 +84,20 @@ export default function ContractUnreflectedPage() {
                 <td>{r.itemName}</td>
                 <td>{r.contractName ?? ''}</td>
                 <td>{r.partnerName}</td>
-                <td className="text-right">{won(r.quantity)}</td>
-                <td className="text-right">{won(r.unitPrice)}</td>
-                <td className="text-right">{won(r.supplyAmount)}</td>
-                <td className="text-right">{won(r.vatAmount)}</td>
+                <td className="text-right">{fmtAmountOf(r.quantity)}</td>
+                <td className="text-right">{fmtAmountOf(r.unitPrice)}</td>
+                <td className="text-right">{fmtAmountOf(r.supplyAmount)}</td>
+                <td className="text-right">{fmtAmountOf(r.vatAmount)}</td>
                 <td>{r.remark ?? ''}</td>
               </tr>
             ))}
           {shown.length > 0 && (
             <tr className="ec-total">
               <td colSpan={5} className="text-center">합계</td>
-              <td className="text-right">{won(sum('quantity'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('quantity'))}</td>
               <td />
-              <td className="text-right">{won(sum('supplyAmount'))}</td>
-              <td className="text-right">{won(sum('vatAmount'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('supplyAmount'))}</td>
+              <td className="text-right">{fmtAmountOf(sum('vatAmount'))}</td>
               <td />
             </tr>
           )}

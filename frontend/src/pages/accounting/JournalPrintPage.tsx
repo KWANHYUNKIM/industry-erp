@@ -11,8 +11,8 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { lineInDeptProject } from '../../utils/deptProject'
 import SlipPrintModal from '../../features/journalprint/SlipPrintModal'
 import { journalSlipHtml, loadSlipHeader, slipNoLong } from '../../features/journalprint/slipPrint'
+import { fmtAmountNz } from '../../utils/format'
 
-const won = (n: number) => (n ? Math.round(n).toLocaleString('ko-KR') : '')
 const dot = (d: string) => d.replaceAll('-', '/')
 
 /**
@@ -188,8 +188,8 @@ export default function JournalPrintPage() {
                     )}
                     <td>{l.accountName}</td>
                     <td>{l.partnerName ?? e.partnerName ?? ''}</td>
-                    <td className="text-right">{won(l.debit)}</td>
-                    <td className="text-right">{won(l.credit)}</td>
+                    <td className="text-right">{fmtAmountNz(l.debit)}</td>
+                    <td className="text-right">{fmtAmountNz(l.credit)}</td>
                   </tr>
                 ))}
                 <tr><td colSpan={4}>{e.description ?? ''}</td></tr>

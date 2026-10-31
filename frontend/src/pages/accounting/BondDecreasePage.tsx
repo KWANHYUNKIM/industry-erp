@@ -9,7 +9,8 @@ import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import BondEntryModal, { type BondPrefillLine } from '../../features/bond/components/BondEntryModal'
 import DepositReportModal, { type DepositPick } from '../../features/bond/components/DepositReportModal'
 import { openBonds, type OpenBond } from '../../features/bond/ledger'
-import { flatten, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import { flatten, sideWord, type BondRow, type BondSide } from '../../features/bond/types'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 회계 II › 채권관리 › <b>채권감소등록</b>(E060402) · 채무관리 › 채무감소등록 — 2026-10-12 loginaa 실측.
@@ -140,7 +141,7 @@ export default function BondDecreasePage({ side }: { side: BondSide }) {
               <td>{b.accountName}</td>
               <td>{b.partnerCode ?? ''}</td>
               <td>{b.partnerName ?? ''}</td>
-              <td className="text-right">{won(b.balance)}</td>
+              <td className="text-right">{fmtAmount(b.balance)}</td>
               <td className="text-right" />
               <td className="text-right" />
               <td className="text-right">
@@ -162,12 +163,12 @@ export default function BondDecreasePage({ side }: { side: BondSide }) {
           <tfoot>
             <tr>
               <td colSpan={8} />
-              <td className="text-right">{won(total)}</td>
+              <td className="text-right">{fmtAmount(total)}</td>
               <td />
               <td className="text-right">0</td>
               {/* 원본 합계줄은 할인 · 감소 칸이 두 줄 — 위 '외화 0', 아래 원화 합(2026-10-13 실측). */}
-              <td className="text-right"><span className="flex justify-between"><span className="text-ec-label">외화</span>0</span>{won(sumOf('dc'))}</td>
-              <td className="text-right"><span className="flex justify-between"><span className="text-ec-label">외화</span>0</span>{won(sumOf('amt'))}</td>
+              <td className="text-right"><span className="flex justify-between"><span className="text-ec-label">외화</span>0</span>{fmtAmount(sumOf('dc'))}</td>
+              <td className="text-right"><span className="flex justify-between"><span className="text-ec-label">외화</span>0</span>{fmtAmount(sumOf('amt'))}</td>
               <td colSpan={3} />
             </tr>
           </tfoot>

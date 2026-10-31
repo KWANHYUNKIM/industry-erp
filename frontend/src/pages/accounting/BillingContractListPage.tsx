@@ -8,8 +8,9 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { VAT_TYPES, won, type BillingContractRow } from '../../features/billingcontract/types'
+import { VAT_TYPES, type BillingContractRow } from '../../features/billingcontract/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 /**
  * 회계 II › 계약관리 › 계약 › <b>계약조회</b>(E060903) — 2026-10-13 loginaa 실측.
@@ -153,7 +154,7 @@ export default function BillingContractListPage() {
                 <td className="text-center">{dateText(r.billEnd)}</td>
                 <td>{r.partnerName}</td>
                 <td>{r.lines[0]?.itemName ?? ''}</td>
-                <td className="text-right">{won(r.totalAmount)}</td>
+                <td className="text-right">{fmtAmountOf(r.totalAmount)}</td>
                 <td className="text-center">{r.vatType}</td>
               </tr>
             ))}

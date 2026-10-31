@@ -3,7 +3,8 @@ import { api } from '../../api/client'
 import type { Item, PurchaseDoc, SalesDoc, TradeLine } from '../../types/api'
 import { qty2 } from '../../utils/qtyText'
 import { dateNo, shortDateNo } from '../../utils/dateNo'
-import { SUB_ROW, SectionHead, monthEnd, monthStart, plain, slash, useCount, won, type SectionProps } from './shared'
+import { SUB_ROW, SectionHead, monthEnd, monthStart, plain, slash, useCount, type SectionProps } from './shared'
+import { fmtAmountBlank } from '../../utils/format'
 
 const itemText = (l: TradeLine) => (l.spec ? `${l.itemName} [${l.spec}]` : l.itemName)
 
@@ -227,9 +228,9 @@ export function CumulativeSection({ from, to, startNo, onCount }: SectionProps) 
               <td>{spans[i].name}</td>
               <td>{spans[i].label}</td>
               <td className="text-right">{qty2(l.q)}</td>
-              <td className="text-right">{k.amount ? won(l.s) : ''}</td>
-              <td className="text-right">{k.amount ? won(l.v) : ''}</td>
-              <td className="text-right">{k.amount ? won(l.s + l.v) : won(l.t)}</td>
+              <td className="text-right">{k.amount ? fmtAmountBlank(l.s) : ''}</td>
+              <td className="text-right">{k.amount ? fmtAmountBlank(l.v) : ''}</td>
+              <td className="text-right">{k.amount ? fmtAmountBlank(l.s + l.v) : fmtAmountBlank(l.t)}</td>
             </tr>
           )))}
         </tbody>

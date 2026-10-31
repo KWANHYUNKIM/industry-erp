@@ -53,7 +53,6 @@ export interface BudgetReport {
 }
 
 /** 원본 숫자 칸 — 쉼표, 0 은 '0'. */
-export const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
  * 월별예산입력 [배분] — 원본 기존 자료 50,000,000 → 4,166,666 · 4,166,666 · 4,166,668(분기 끝 달에 나머지).

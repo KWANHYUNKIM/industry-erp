@@ -5,11 +5,12 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import { dedTotal, deductionColumns, lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
+import { dedTotal, deductionColumns, lastDay, monthRange, slashYm, type DailyReportLine } from '../../features/dailypay/report'
 import { ecConfirm } from '../../components/EcDialog'
 import Modal from '../../components/Modal'
 import DailyPayBulkEdit from '../../features/dailypay/components/DailyPayBulkEdit'
 import NumCheck from '../../components/NumCheck'
+import { fmtNumberOf } from '../../utils/format'
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 급여작업 &gt; <b>일용근로 사원별급여조회</b> (원본 E020135).
@@ -155,14 +156,14 @@ export default function DailyPayByWorkerPage() {
                 </td>
                 <td>{r.workerCode}</td>
                 <td>{r.workerName}</td>
-                <td className="text-right">{won(r.grossPay)}</td>
-                {taxCol && <td className="text-right">{tax ? `소득세 ${won(r.incomeTax)} · 지방소득세 ${won(r.localTax)}` : ''}</td>}
+                <td className="text-right">{fmtNumberOf(r.grossPay)}</td>
+                {taxCol && <td className="text-right">{tax ? `소득세 ${fmtNumberOf(r.incomeTax)} · 지방소득세 ${fmtNumberOf(r.localTax)}` : ''}</td>}
                 {dedCols.map((c) => {
                   const it = (r.items ?? []).find((x) => x.itemId === c.itemId)
-                  return <td key={c.itemId} className="text-right">{it ? won(it.amount) : ''}</td>
+                  return <td key={c.itemId} className="text-right">{it ? fmtNumberOf(it.amount) : ''}</td>
                 })}
-                <td className="text-right">{ded ? won(ded) : ''}</td>
-                <td className="text-right">{won(r.netPay)}</td>
+                <td className="text-right">{ded ? fmtNumberOf(ded) : ''}</td>
+                <td className="text-right">{fmtNumberOf(r.netPay)}</td>
                 <td className="text-center">
                   <a href="#" onClick={(e) => { e.preventDefault(); setSlip(r) }}>인쇄</a>
                 </td>
@@ -184,7 +185,7 @@ export default function DailyPayByWorkerPage() {
             </div>
             <table className="ec-report w-full mb-[6px]">
               <tbody>
-                <tr><th>과세총액</th><td className="text-right">{won(slip.grossPay)}</td><th>비과세총액</th><td className="text-right">0</td></tr>
+                <tr><th>과세총액</th><td className="text-right">{fmtNumberOf(slip.grossPay)}</td><th>비과세총액</th><td className="text-right">0</td></tr>
               </tbody>
             </table>
             <table className="ec-report w-full mb-[6px]">
@@ -198,7 +199,7 @@ export default function DailyPayByWorkerPage() {
                 <tr className="font-bold"><td>지급총액</td><td colSpan={4} className="text-right">{Number(slip.grossPay).toLocaleString('ko-KR', { minimumFractionDigits: 1 })}</td></tr>
               </tbody>
             </table>
-            <div className="text-right font-bold">지급총액 - 공제총액 = 실지급액 : {won(slip.netPay)}</div>
+            <div className="text-right font-bold">지급총액 - 공제총액 = 실지급액 : {fmtNumberOf(slip.netPay)}</div>
             <div className="flex gap-[6px] mt-[12px]">
               <button type="button" className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
               <button type="button" className="ec-btn" onClick={() => setSlip(null)}>닫기</button>

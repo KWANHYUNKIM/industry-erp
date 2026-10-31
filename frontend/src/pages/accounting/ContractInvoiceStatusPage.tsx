@@ -11,8 +11,9 @@ import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
-import { VAT_TYPES, won, type ContractInvoiceRow } from '../../features/billingcontract/types'
+import { VAT_TYPES, type ContractInvoiceRow } from '../../features/billingcontract/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 /* 원본 [상태] — 결재중 · 미확인 · 확인(기본). 우리 회계전표 확인상태 값. */
 const STATUS: [string, string][] = [['', '전체'], ['IN_APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인']]
@@ -114,9 +115,9 @@ export default function ContractInvoiceStatusPage() {
                     <tr key={r.journalEntryId}>
                       <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); nav(`/accounting/journals?entryId=${r.journalEntryId}`) }}>{no(r)}</a></td>
                       <td>{r.partnerName ?? ''}</td>
-                      <td className="text-right">{won(r.supplyAmount)}</td>
-                      <td className="text-right">{won(r.vatAmount)}</td>
-                      <td className="text-right">{won(r.totalAmount)}</td>
+                      <td className="text-right">{fmtAmountOf(r.supplyAmount)}</td>
+                      <td className="text-right">{fmtAmountOf(r.vatAmount)}</td>
+                      <td className="text-right">{fmtAmountOf(r.totalAmount)}</td>
                       <td className="text-center">
                         <a href="#" className="mr-[4px]" onClick={(e) => { e.preventDefault(); nav(`/accounting/journals?entryId=${r.journalEntryId}`) }}>내역보기</a>
                         <a href="#" onClick={(e) => { e.preventDefault(); nav('/accounting/contract-bills') }}>청구예정자료</a>
@@ -125,9 +126,9 @@ export default function ContractInvoiceStatusPage() {
                   ))}
                   <tr className="ec-total">
                     <td colSpan={2} className="text-center">{m.replace('-', '/')} 계</td>
-                    <td className="text-right">{won(sum(rs, 'supplyAmount'))}</td>
-                    <td className="text-right">{won(sum(rs, 'vatAmount'))}</td>
-                    <td className="text-right">{won(sum(rs, 'totalAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(rs, 'supplyAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(rs, 'vatAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(sum(rs, 'totalAmount'))}</td>
                     <td />
                   </tr>
                 </Fragment>
@@ -136,9 +137,9 @@ export default function ContractInvoiceStatusPage() {
           {shown.length > 0 && (
             <tr className="ec-total">
               <td colSpan={2} className="text-center">합계</td>
-              <td className="text-right">{won(sum(shown, 'supplyAmount'))}</td>
-              <td className="text-right">{won(sum(shown, 'vatAmount'))}</td>
-              <td className="text-right">{won(sum(shown, 'totalAmount'))}</td>
+              <td className="text-right">{fmtAmountOf(sum(shown, 'supplyAmount'))}</td>
+              <td className="text-right">{fmtAmountOf(sum(shown, 'vatAmount'))}</td>
+              <td className="text-right">{fmtAmountOf(sum(shown, 'totalAmount'))}</td>
               <td />
             </tr>
           )}

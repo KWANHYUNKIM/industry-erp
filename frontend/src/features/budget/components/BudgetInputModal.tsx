@@ -4,8 +4,8 @@ import CodePickerField, { type CodeItem } from '../../../components/CodePickerFi
 import { extractErrorMessage } from '../../../api/client'
 import NumCheck from '../../../components/NumCheck'
 import { fetchBudgetAccount, saveBudgetAccount } from '../api'
-import { won } from '../types'
 import BudgetMonthModal from './BudgetMonthModal'
+import { fmtAmount } from '../../../utils/format'
 
 interface Row { key: number; id: number | null; dept: string; project: string; remark: string; months: number[] }
 
@@ -115,7 +115,7 @@ export default function BudgetInputModal({ open, year, accountId, departments, p
                 <td className="text-right">
                   <button type="button" className={r.id != null || total(r.months) > 0 ? `ec-link ${SET_TAG}` : 'ec-link'}
                           onClick={() => setEditing(r.key)}>
-                    {r.id != null || total(r.months) > 0 ? won(total(r.months)) : '입력'}
+                    {r.id != null || total(r.months) > 0 ? fmtAmount(total(r.months)) : '입력'}
                   </button>
                 </td>
               </tr>
@@ -124,7 +124,7 @@ export default function BudgetInputModal({ open, year, accountId, departments, p
           <tfoot>
             <tr className="ec-total">
               <td colSpan={3} className="text-center">합계</td>
-              <td className="text-right">{won(sum)}</td>
+              <td className="text-right">{fmtAmount(sum)}</td>
             </tr>
           </tfoot>
         </table>

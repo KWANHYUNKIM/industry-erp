@@ -8,8 +8,9 @@ import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import BondEntryModal from '../../features/bond/components/BondEntryModal'
 import { BOND_STATUS_PICKS } from '../../features/bond/ledger'
-import { bondKey, flatten, signed, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import { bondKey, flatten, signed, sideWord, type BondRow, type BondSide } from '../../features/bond/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 interface Bond {
   key: string
@@ -104,7 +105,7 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
       .sort((a, b) => a[1].code.localeCompare(b[1].code))
       .map(([k, p]) => ({ key: k, bonds: p.bonds.sort((a, b) => a.head.bondNo.localeCompare(b.head.bondNo)) }))
   }, [rows, from, to, account, bondNo, partner, only])
-  const cell = (n: number) => (n ? won(n) : '')
+  const cell = (n: number) => (n ? fmtAmount(n) : '')
   const day = (d: string | null | undefined) => (d ? d.replaceAll('-', '/') : '')
 
   return (
@@ -167,7 +168,7 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
                     <td className="text-right">{cell(g.opening)}</td>
                     <td className="text-right">{cell(g.inc)}</td>
                     <td className="text-right">{cell(g.dec)}</td>
-                    <td className="text-right">{won(g.closing)}</td>
+                    <td className="text-right">{fmtAmount(g.closing)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -177,7 +178,7 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
                   <td className="text-center" />
                   <td className="text-right">{cell(inc)}</td>
                   <td className="text-right">{cell(dec)}</td>
-                  <td className="text-right">{won(bal)}</td>
+                  <td className="text-right">{fmtAmount(bal)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -200,7 +201,7 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
                     <tr key={`${g.key}-o`} className="ec-list-total [&_td]:!font-bold">
                       <td colSpan={4} className="text-center !bg-[var(--ec-report-stripe)]">{g.head.bondNo} 이월잔액</td>
                       <td /><td />
-                      <td className="text-right">{won(g.opening)}</td>
+                      <td className="text-right">{fmtAmount(g.opening)}</td>
                     </tr>,
                   ] : []),
                   ...g.lines.map(({ r, balance }) => (
@@ -214,9 +215,9 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
                       <td>{r.bondNo}</td>
                       <td>{r.memo ?? ''}</td>
                       <td className="text-center">{day(r.dueDate)}</td>
-                      <td className="text-right">{r.direction === 'INCREASE' ? won(Number(r.amount)) : ''}</td>
-                      <td className="text-right">{r.direction === 'DECREASE' ? won(Number(r.amount)) : ''}</td>
-                      <td className="text-right">{won(balance)}</td>
+                      <td className="text-right">{r.direction === 'INCREASE' ? fmtAmount(Number(r.amount)) : ''}</td>
+                      <td className="text-right">{r.direction === 'DECREASE' ? fmtAmount(Number(r.amount)) : ''}</td>
+                      <td className="text-right">{fmtAmount(balance)}</td>
                     </tr>
                   )),
                 ])}
@@ -226,7 +227,7 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
                   <td colSpan={4} className="text-center">총합계</td>
                   <td className="text-right">{cell(inc)}</td>
                   <td className="text-right">{cell(dec)}</td>
-                  <td className="text-right">{won(bal)}</td>
+                  <td className="text-right">{fmtAmount(bal)}</td>
                 </tr>
               </tfoot>
             </table>

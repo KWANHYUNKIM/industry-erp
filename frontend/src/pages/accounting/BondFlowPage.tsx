@@ -8,8 +8,9 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_FLOW_PICKS, byPartnerName } from '../../features/bond/ledger'
-import { dateNo, flatten, sideWord, won, type BondDirection, type BondRow, type BondSide } from '../../features/bond/types'
+import { dateNo, flatten, sideWord, type BondDirection, type BondRow, type BondSide } from '../../features/bond/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 회계 II › 채권관리 › <b>채권증가현황</b>(E060406) · <b>채권감소현황</b> · 채무관리의 같은 둘 — 2026-10-12 loginaa 실측.
@@ -233,12 +234,12 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
                 {agg2 && <td>{it.k2}</td>}
                 <td>{it.row.memo ?? ''}</td>
                 {inc && <td>{it.row.dueDate ? it.row.dueDate.replaceAll('-', '/') : ''}</td>}
-                <td className="text-right">{won(it.amount)}</td>
+                <td className="text-right">{fmtAmount(it.amount)}</td>
               </tr>
             )),
             <tr key={`${g.k1}-s`} className="ec-list-total">
               <td colSpan={aggCols - 1} className="text-center !font-bold">{g.k1} 계</td>
-              <td className="text-right !font-bold">{won(g.total)}</td>
+              <td className="text-right !font-bold">{fmtAmount(g.total)}</td>
             </tr>,
           ])}
         </tbody>
@@ -246,7 +247,7 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
           <tfoot>
             <tr className="ec-list-total">
               <td colSpan={aggCols - 1} className="text-center !font-bold">총합계</td>
-              <td className="text-right !font-bold">{won(total)}</td>
+              <td className="text-right !font-bold">{fmtAmount(total)}</td>
             </tr>
           </tfoot>
         )}
@@ -276,12 +277,12 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
                 <td>{r.accountName}</td>
                 <td>{r.memo ?? ''}</td>
                 {inc && <td>{r.dueDate ? r.dueDate.replaceAll('-', '/') : ''}</td>}
-                <td className="text-right">{won(Number(r.amount))}</td>
+                <td className="text-right">{fmtAmount(Number(r.amount))}</td>
               </tr>
             )),
             <tr key={`${k}-s`} className="ec-list-total">
               <td colSpan={cols - 1} className="text-center !font-bold">{g.name} 계</td>
-              <td className="text-right !font-bold">{won(g.total)}</td>
+              <td className="text-right !font-bold">{fmtAmount(g.total)}</td>
             </tr>,
           ])}
         </tbody>
@@ -289,7 +290,7 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
           <tfoot>
             <tr className="ec-list-total">
               <td colSpan={cols - 1} className="text-center !font-bold">총합계</td>
-              <td className="text-right !font-bold">{won(total)}</td>
+              <td className="text-right !font-bold">{fmtAmount(total)}</td>
             </tr>
           </tfoot>
         )}

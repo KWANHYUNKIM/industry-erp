@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
 import type { WithholdingReceiptPayee } from '../../../types/api'
+import { fmtTruncBlankOf } from '../../../utils/format'
 
 /** 서식에 그릴 회사 칸 — 원천징수영수증(보관용) · 지급명세서(보고용) 둘 다 /company 응답을 넘긴다. */
 export interface SheetCompany {
@@ -16,7 +17,6 @@ export interface SheetCompany {
 /** 원본 지급 내역 칸은 쓴 줄 + 빈 줄로 12줄(2026-10-20 배당 한 줄 + 빈 11줄). */
 const SHEET_ROWS = 12
 
-const won = (n: number | null | undefined) => (Number(n) ? Math.trunc(Number(n)).toLocaleString('ko-KR') : '')
 const mark = (on: boolean) => (on ? '[ V ]' : '[ ]')
 const dot = (d: string | null) => (d ? d.replace(/-/g, '.') : '')
 
@@ -125,13 +125,13 @@ export default function InterestDividendSheet({ payee: p, company, use, date }: 
               <td className="text-center">{l.bondInterestCode ?? ''}</td>
               <td className="text-center">{l.periodFrom || l.periodTo ? `${dot(l.periodFrom)}~${dot(l.periodTo)}` : ''}</td>
               <td className="text-right">{Number(l.interestRate ?? 0).toFixed(5)}</td>
-              <td className="text-right">{won(l.grossAmount)}</td>
+              <td className="text-right">{fmtTruncBlankOf(l.grossAmount)}</td>
               <td className="text-right">{Number(l.taxRate).toFixed(4)}</td>
-              <td className="text-right">{won(l.incomeTax)}</td>
+              <td className="text-right">{fmtTruncBlankOf(l.incomeTax)}</td>
               <td className="text-right"></td>
-              <td className="text-right">{won(l.localIncomeTax)}</td>
+              <td className="text-right">{fmtTruncBlankOf(l.localIncomeTax)}</td>
               <td className="text-right"></td>
-              <td className="text-right">{won(l.taxTotal)}</td>
+              <td className="text-right">{fmtTruncBlankOf(l.taxTotal)}</td>
             </tr>
           ))}
           {Array.from({ length: blanks }, (_, i) => (

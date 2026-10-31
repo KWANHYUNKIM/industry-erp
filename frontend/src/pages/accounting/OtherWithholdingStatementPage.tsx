@@ -8,6 +8,7 @@ import type { WithholdingPaymentStatement, WithholdingReceiptPayee } from '../..
 import type { Company } from './SimplePaymentPage'
 import InterestDividendSheet from '../../features/otherwithholding/components/InterestDividendSheet'
 import { ymd } from '../../utils/periods'
+import { fmtTruncBlankOf } from '../../utils/format'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 const KINDS: { value: Kind; label: string }[] = [
@@ -16,7 +17,6 @@ const KINDS: { value: Kind; label: string }[] = [
 ]
 /** 원본 2. 소득자 줄 칸은 쓴 줄 뒤로 빈 줄을 채워 적어도 이만큼 그린다. */
 const SHEET_ROWS = 10
-const won = (n: number) => (Number(n) ? Math.trunc(Number(n)).toLocaleString('ko-KR') : '')
 const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + 'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid gray;padding:3px}'
   + '.text-right{text-align:right}.text-center{text-align:center}.ec-report-title{font-size:16px;font-weight:bold;text-align:center}'
@@ -154,10 +154,10 @@ function StatementSheet({ kind, s, company }: { kind: Kind; s: WithholdingPaymen
           </tr>
           <tr>
             <td>{company?.name ?? ''}</td><td>{company?.bizRegNo ?? ''}</td><td>{address}</td>
-            <td className="text-right">{s.payeeCount || ''}</td><td className="text-right">{s.lineCount || ''}</td><td className="text-right">{won(s.grossAmount)}</td>
-            {other && <><td className="text-right"></td><td className="text-right">{won(s.taxableAmount)}</td></>}
-            <td className="text-right">{won(s.incomeTax)}</td><td className="text-right">{won(s.localIncomeTax)}</td>{other && <td className="text-right"></td>}
-            <td className="text-right">{won(s.taxTotal)}</td>
+            <td className="text-right">{s.payeeCount || ''}</td><td className="text-right">{s.lineCount || ''}</td><td className="text-right">{fmtTruncBlankOf(s.grossAmount)}</td>
+            {other && <><td className="text-right"></td><td className="text-right">{fmtTruncBlankOf(s.taxableAmount)}</td></>}
+            <td className="text-right">{fmtTruncBlankOf(s.incomeTax)}</td><td className="text-right">{fmtTruncBlankOf(s.localIncomeTax)}</td>{other && <td className="text-right"></td>}
+            <td className="text-right">{fmtTruncBlankOf(s.taxTotal)}</td>
           </tr>
         </tbody>
       </table>
@@ -179,12 +179,12 @@ function StatementSheet({ kind, s, company }: { kind: Kind; s: WithholdingPaymen
           {business && <>
             <tr>
               <td /><td colSpan={5} className="text-center">소득자별 연간소득 내용 합계</td>
-              <td className="text-right">{s.lineCount || ''}</td><td className="text-right">{won(s.grossAmount)}</td>
-              <td /><td className="text-right">{won(s.incomeTax)}</td><td className="text-right">{won(s.localIncomeTax)}</td><td className="text-right">{won(s.taxTotal)}</td>
+              <td className="text-right">{s.lineCount || ''}</td><td className="text-right">{fmtTruncBlankOf(s.grossAmount)}</td>
+              <td /><td className="text-right">{fmtTruncBlankOf(s.incomeTax)}</td><td className="text-right">{fmtTruncBlankOf(s.localIncomeTax)}</td><td className="text-right">{fmtTruncBlankOf(s.taxTotal)}</td>
             </tr>
             <tr>
               <td /><td colSpan={5} className="text-center">소액부징수 연간 합계</td>
-              <td className="text-right">{s.smallCount || ''}</td><td className="text-right">{won(s.smallGross)}</td>
+              <td className="text-right">{s.smallCount || ''}</td><td className="text-right">{fmtTruncBlankOf(s.smallGross)}</td>
               <td /><td /><td /><td />
             </tr>
           </>}
@@ -193,12 +193,12 @@ function StatementSheet({ kind, s, company }: { kind: Kind; s: WithholdingPaymen
               <td className="text-center">{i + 1}</td>
               <td>{r.code ?? ''}</td><td>{r.name}</td><td>{r.regNo ?? ''}</td>
               <td className="text-center">{r.foreigner ? 9 : 1}</td><td className="text-center">{r.payYear}</td>
-              <td className="text-right">{r.count}</td><td className="text-right">{won(r.grossAmount)}</td>
-              {other && <><td className="text-right"></td><td className="text-right">{won(r.expenseAmount)}</td><td className="text-right">{won(r.taxableAmount)}</td></>}
+              <td className="text-right">{r.count}</td><td className="text-right">{fmtTruncBlankOf(r.grossAmount)}</td>
+              {other && <><td className="text-right"></td><td className="text-right">{fmtTruncBlankOf(r.expenseAmount)}</td><td className="text-right">{fmtTruncBlankOf(r.taxableAmount)}</td></>}
               <td className="text-right">{Number(r.taxRate)}</td>
-              <td className="text-right">{won(r.incomeTax)}</td><td className="text-right">{won(r.localIncomeTax)}</td>
+              <td className="text-right">{fmtTruncBlankOf(r.incomeTax)}</td><td className="text-right">{fmtTruncBlankOf(r.localIncomeTax)}</td>
               {other && <td className="text-right"></td>}
-              <td className="text-right">{won(r.taxTotal)}</td>
+              <td className="text-right">{fmtTruncBlankOf(r.taxTotal)}</td>
             </tr>
           ))}
           {Array.from({ length: blanks }, (_, i) => (

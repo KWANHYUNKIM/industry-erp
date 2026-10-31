@@ -9,8 +9,9 @@ import { periodOf } from '../../utils/periods'
 import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
-import { won, type BillLineView } from '../../features/billingcontract/types'
+import type { BillLineView } from '../../features/billingcontract/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 /* 원본 버튼줄 글자 그대로(2026-10-13 실측). '이번기수' · '직전기수' 는 회계연도 시작월을 몰라 1월 기준이다. */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '이번기수', '직전기수', '종료일'] as const
@@ -142,9 +143,9 @@ export default function ContractBillPrintPage() {
                 <td>{r.contractName}</td>
                 <td>{r.itemName}</td>
                 <td className="text-right">{qty(r.quantity)}</td>
-                <td className="text-right">{won(r.supplyAmount)}</td>
-                <td className="text-right">{won(r.vatAmount)}</td>
-                <td className="text-right">{won(r.supplyAmount + r.vatAmount)}</td>
+                <td className="text-right">{fmtAmountOf(r.supplyAmount)}</td>
+                <td className="text-right">{fmtAmountOf(r.vatAmount)}</td>
+                <td className="text-right">{fmtAmountOf(r.supplyAmount + r.vatAmount)}</td>
                 <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setDetail(r) }}>상세</a></td>
               </tr>
             ))}
@@ -153,9 +154,9 @@ export default function ContractBillPrintPage() {
               <td />
               <td colSpan={3} className="text-center">합계</td>
               <td className="text-right">{qty(sum(printRows, 'quantity'))}</td>
-              <td className="text-right">{won(sum(printRows, 'supplyAmount'))}</td>
-              <td className="text-right">{won(sum(printRows, 'vatAmount'))}</td>
-              <td className="text-right">{won(sum(printRows, 'supplyAmount') + sum(printRows, 'vatAmount'))}</td>
+              <td className="text-right">{fmtAmountOf(sum(printRows, 'supplyAmount'))}</td>
+              <td className="text-right">{fmtAmountOf(sum(printRows, 'vatAmount'))}</td>
+              <td className="text-right">{fmtAmountOf(sum(printRows, 'supplyAmount') + sum(printRows, 'vatAmount'))}</td>
               <td />
             </tr>
           )}
@@ -182,18 +183,18 @@ export default function ContractBillPrintPage() {
                     <td className="text-center">{dateText(l.billDate)} -{l.billDocNo}</td>
                     <td>{l.itemName}</td>
                     <td className="text-right">{qty(l.quantity)}</td>
-                    <td className="text-right">{won(l.supplyAmount)}</td>
-                    <td className="text-right">{won(l.vatAmount)}</td>
-                    <td className="text-right">{won(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
+                    <td className="text-right">{fmtAmountOf(l.supplyAmount)}</td>
+                    <td className="text-right">{fmtAmountOf(l.vatAmount)}</td>
+                    <td className="text-right">{fmtAmountOf(Number(l.supplyAmount) + Number(l.vatAmount))}</td>
                     <td>{l.remark ?? ''}</td>
                   </tr>
                 ))}
                 <tr className="ec-total">
                   <td colSpan={4} className="text-center">합계</td>
                   <td className="text-right">{qty(sum(detailLines, 'quantity'))}</td>
-                  <td className="text-right">{won(sum(detailLines, 'supplyAmount'))}</td>
-                  <td className="text-right">{won(sum(detailLines, 'vatAmount'))}</td>
-                  <td className="text-right">{won(sum(detailLines, 'supplyAmount') + sum(detailLines, 'vatAmount'))}</td>
+                  <td className="text-right">{fmtAmountOf(sum(detailLines, 'supplyAmount'))}</td>
+                  <td className="text-right">{fmtAmountOf(sum(detailLines, 'vatAmount'))}</td>
+                  <td className="text-right">{fmtAmountOf(sum(detailLines, 'supplyAmount') + sum(detailLines, 'vatAmount'))}</td>
                   <td />
                 </tr>
               </tbody>

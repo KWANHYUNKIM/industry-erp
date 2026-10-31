@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { fmtAmount } from '../../utils/format'
 
 export type CostLedgerMode = 'edit' | 'recalc'
 
@@ -28,7 +29,6 @@ const unit = (amount: number | null | undefined, qty: number) =>
   amount == null || amount === 0 || qty === 0 ? '' : Math.trunc(amount / qty).toLocaleString('ko-KR')
 /* 원가수정 창 숫자: 수량 12,155.00 · 단가 338,089 · 금액 4,109,476,075 — 0 도 찍는다. */
 const q2 = (v: number) => v.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const won = (v: number) => Math.round(v).toLocaleString('ko-KR')
 const unitOf = (amount: number, qty: number) => (qty === 0 ? 0 : Math.trunc(amount / qty))
 const ymText = (m: string) => m.replace('-', '/')
 const nameSpec = (name: string, spec: string | null) => (spec ? `${name} [${spec}]` : name)
@@ -268,20 +268,20 @@ function CostLedgerEdit({ periodId, detail, onClose, onSaved }: { periodId: numb
               <td colSpan={2}>기초</td>
               <td className="text-right">{cell('openingQty', '기초 수량')}</td>
               <td className="text-right">{cell('openingPrice', '기초 단가')}</td>
-              <td className="text-right">{won(openAmt)}</td>
+              <td className="text-right">{fmtAmount(openAmt)}</td>
             </tr>
             <tr>
               <td rowSpan={6}>증가</td>
               <td>구매</td>
               <td className="text-right">{q2(d.purchaseQty)}</td>
-              <td className="text-right">{won(unitOf(d.purchaseAmount, d.purchaseQty))}</td>
-              <td className="text-right">{won(d.purchaseAmount)}</td>
+              <td className="text-right">{fmtAmount(unitOf(d.purchaseAmount, d.purchaseQty))}</td>
+              <td className="text-right">{fmtAmount(d.purchaseAmount)}</td>
             </tr>
             <tr>
               <td>생산입고</td>
               <td className="text-right">{q2(d.productionQty)}</td>
               <td className="text-right">{cell('productionPrice', '생산입고 단가')}</td>
-              <td className="text-right">{won(prodAmt)}</td>
+              <td className="text-right">{fmtAmount(prodAmt)}</td>
             </tr>
             <tr>
               <td>노무비</td><td></td><td></td>
@@ -295,25 +295,25 @@ function CostLedgerEdit({ periodId, detail, onClose, onSaved }: { periodId: numb
               <td>외주비</td>
               <td className="text-right">{q2(d.outsourcingQty)}</td>
               <td className="text-right">{cell('outsourcingPrice', '외주비 단가')}</td>
-              <td className="text-right">{won(outAmt)}</td>
+              <td className="text-right">{fmtAmount(outAmt)}</td>
             </tr>
             <tr>
               <td>조정/대체/반품</td>
               <td className="text-right">{q2(d.adjustQty)}</td>
               <td className="text-right">{cell('adjustPrice', '조정/대체/반품 단가')}</td>
-              <td className="text-right">{won(adjAmt)}</td>
+              <td className="text-right">{fmtAmount(adjAmt)}</td>
             </tr>
             <tr>
               <td colSpan={2}>감소</td>
               <td className="text-right">{q2(d.decreaseQty)}</td>
-              <td className="text-right">{dirty || d.decreaseAmount == null ? AUTO : won(unitOf(d.decreaseAmount, d.decreaseQty))}</td>
-              <td className="text-right">{dirty || d.decreaseAmount == null ? AUTO : won(d.decreaseAmount)}</td>
+              <td className="text-right">{dirty || d.decreaseAmount == null ? AUTO : fmtAmount(unitOf(d.decreaseAmount, d.decreaseQty))}</td>
+              <td className="text-right">{dirty || d.decreaseAmount == null ? AUTO : fmtAmount(d.decreaseAmount)}</td>
             </tr>
             <tr>
               <td colSpan={2}>기말</td>
               <td className="text-right">{q2(openingQty + d.purchaseQty + d.productionQty + d.outsourcingQty + d.adjustQty - d.decreaseQty)}</td>
-              <td className="text-right">{dirty || d.closingAmount == null ? AUTO : won(unitOf(d.closingAmount, d.closingQty))}</td>
-              <td className="text-right">{dirty || d.closingAmount == null ? AUTO : won(d.closingAmount)}</td>
+              <td className="text-right">{dirty || d.closingAmount == null ? AUTO : fmtAmount(unitOf(d.closingAmount, d.closingQty))}</td>
+              <td className="text-right">{dirty || d.closingAmount == null ? AUTO : fmtAmount(d.closingAmount)}</td>
             </tr>
           </tbody>
         </table>

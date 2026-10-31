@@ -8,7 +8,8 @@ import EcBadge from '../../components/ui/EcBadge'
 import { ymd } from '../../utils/periods'
 import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { VAT_TYPES, won, type BillableLine, type BillingUnitRow, type ContractBillRow } from '../../features/billingcontract/types'
+import { VAT_TYPES, type BillableLine, type BillingUnitRow, type ContractBillRow } from '../../features/billingcontract/types'
+import { fmtAmountOf } from '../../utils/format'
 
 /** 생성 · 수정 창의 한 줄. */
 interface Line {
@@ -173,7 +174,7 @@ export default function ContractBillPage() {
                 <td>{firstLine(b)?.itemName ?? ''}</td>
                 <td>{firstLine(b)?.contractName ?? ''}</td>
                 <td>{firstLine(b)?.partnerName ?? ''}</td>
-                <td className="text-right">{won(b.totalAmount)}</td>
+                <td className="text-right">{fmtAmountOf(b.totalAmount)}</td>
                 <td className="text-center">{b.accountingReflected ? <EcBadge tone="warn">✓</EcBadge> : ''}</td>
                 <td className="text-center">{b.salesCreated ? 'Y' : ''}</td>
               </tr>
@@ -220,7 +221,7 @@ export default function ContractBillPage() {
                     <td className="pad"><EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 단가`} value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
                     <td className="pad"><EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 공급가액`} value={l.supplyAmount} onValue={(v) => setLine(i, { supplyAmount: v })} /></td>
                     <td className="pad"><EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 부가세`} value={l.vatAmount} onValue={(v) => setLine(i, { vatAmount: v })} /></td>
-                    <td className="pad text-right">{won((Number(l.supplyAmount) || 0) + (Number(l.vatAmount) || 0))}</td>
+                    <td className="pad text-right">{fmtAmountOf((Number(l.supplyAmount) || 0) + (Number(l.vatAmount) || 0))}</td>
                     <td className="pad">{l.billingUnitCode ?? ''}</td><td className="pad">{l.billingUnitName ?? ''}</td>
                     <td className="pad"><input className="ec-input w-full" aria-label={`${i + 1}줄 적요`} maxLength={200} value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} /></td>
                   </tr>
@@ -228,9 +229,9 @@ export default function ContractBillPage() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={7} /><td className="text-right">{won(total('quantity'))}</td><td />
-                <td className="text-right">{won(total('supplyAmount'))}</td><td className="text-right">{won(total('vatAmount'))}</td>
-                <td className="text-right">{won(total('supplyAmount') + total('vatAmount'))}</td><td colSpan={3} />
+                <td colSpan={7} /><td className="text-right">{fmtAmountOf(total('quantity'))}</td><td />
+                <td className="text-right">{fmtAmountOf(total('supplyAmount'))}</td><td className="text-right">{fmtAmountOf(total('vatAmount'))}</td>
+                <td className="text-right">{fmtAmountOf(total('supplyAmount') + total('vatAmount'))}</td><td colSpan={3} />
               </tr>
             </tfoot>
           </table>
@@ -278,19 +279,19 @@ export default function ContractBillPage() {
                     <td className="text-center"><input type="checkbox" aria-label={`${f.contractCode} ${m} 선택`} checked={foundPick.has(i)}
                       onChange={(e) => setFoundPick((s) => { const n = new Set(s); if (e.target.checked) n.add(i); else n.delete(i); return n })} /></td>
                     <td className="text-center">{dateText(f.contractDate)} -{f.docNo}</td><td>{f.contractName ?? ''}</td><td>{f.partnerName}</td><td>{f.itemName}</td>
-                    <td className="text-right">{Number(f.quantity).toFixed(2)}</td><td className="text-right">{won(f.unitPrice)}</td>
-                    <td className="text-right">{won(f.supplyAmount)}</td><td className="text-right">{won(f.vatAmount)}</td>
-                    <td className="text-right">{won(Number(f.supplyAmount) + Number(f.vatAmount))}</td>
+                    <td className="text-right">{Number(f.quantity).toFixed(2)}</td><td className="text-right">{fmtAmountOf(f.unitPrice)}</td>
+                    <td className="text-right">{fmtAmountOf(f.supplyAmount)}</td><td className="text-right">{fmtAmountOf(f.vatAmount)}</td>
+                    <td className="text-right">{fmtAmountOf(Number(f.supplyAmount) + Number(f.vatAmount))}</td>
                     <td className="text-center">{f.billMonths.split(',').join(' . ')}</td>
                   </tr>
                 )), (
                   <tr key={`sub-${m}`} className="font-bold bg-ec-stripe">
                     <td colSpan={5} className="text-center">{m.replace('-', '/')} 계</td>
                     <td className="text-right">{foundSum(cs.map((c) => c.f), 'quantity').toFixed(2)}</td>
-                    <td className="text-right">{won(foundSum(cs.map((c) => c.f), 'unitPrice'))}</td>
-                    <td className="text-right">{won(foundSum(cs.map((c) => c.f), 'supplyAmount'))}</td>
-                    <td className="text-right">{won(foundSum(cs.map((c) => c.f), 'vatAmount'))}</td>
-                    <td className="text-right">{won(foundSum(cs.map((c) => c.f), 'supplyAmount') + foundSum(cs.map((c) => c.f), 'vatAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(foundSum(cs.map((c) => c.f), 'unitPrice'))}</td>
+                    <td className="text-right">{fmtAmountOf(foundSum(cs.map((c) => c.f), 'supplyAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(foundSum(cs.map((c) => c.f), 'vatAmount'))}</td>
+                    <td className="text-right">{fmtAmountOf(foundSum(cs.map((c) => c.f), 'supplyAmount') + foundSum(cs.map((c) => c.f), 'vatAmount'))}</td>
                     <td />
                   </tr>
                 )]

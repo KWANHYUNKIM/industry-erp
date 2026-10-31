@@ -2,7 +2,6 @@ import { useEffect, type ReactNode } from 'react'
 
 export const slash = (d: string) => d.replace(/-/g, '/')
 /** 0 은 빈칸(원본 출력물). */
-export const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 0 도 그대로 찍는 수량 · 단가(원본 구매현황 '0 | 0'). */
 export const plain = (n: number) => Math.round(n).toLocaleString('ko-KR')
 

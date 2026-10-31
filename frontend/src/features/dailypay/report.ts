@@ -19,7 +19,6 @@ export function deductionColumns(rows: DailyReportLine[]) {
   return [...seen.values()].sort((a, b) => a.sortOrder - b.sortOrder || (a.code < b.code ? -1 : 1))
 }
 
-export const won = (n: number) => Number(n).toLocaleString('ko-KR')
 export const slashYm = (ym: string) => ym.replace('-', '/')
 const ymOf = (d: Date) => ymd(d).slice(0, 7)
 

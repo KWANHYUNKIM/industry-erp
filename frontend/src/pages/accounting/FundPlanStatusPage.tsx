@@ -7,8 +7,9 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf, ymd, QUOTATION_PICKS } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import { fetchFundPlans, useFundPlanMasters } from '../../features/fundplan/api'
-import { CALENDAR_LABEL_ORDER, calendarLabel, methodCell, won, type FundPlan } from '../../features/fundplan/types'
+import { CALENDAR_LABEL_ORDER, calendarLabel, methodCell, type FundPlan } from '../../features/fundplan/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 회계 II › 자금계획 › <b>계획전표현황</b>(E020523) — 2026-10-12 loginaa 실측.
@@ -249,7 +250,7 @@ export default function FundPlanStatusPage() {
                     <td className="text-center text-ec-navy">{r.planDate.replaceAll('-', '/')}</td>
                     <td>{r.directionName}</td>
                     <td>{methodCell(r.method)}</td>
-                    <td className="text-right">{Number(r.amount) ? won(Number(r.amount)) : ''}</td>
+                    <td className="text-right">{Number(r.amount) ? fmtAmount(Number(r.amount)) : ''}</td>
                     <td>{r.counterAccountName ?? ''}</td>
                     <td>{r.partnerName ?? ''}</td>
                     <td>{r.noteNo ?? ''}</td>
@@ -262,7 +263,7 @@ export default function FundPlanStatusPage() {
                 <tfoot>
                   <tr>
                     <td colSpan={3} className="text-center">계</td>
-                    <td className="text-right">{won(total)}</td>
+                    <td className="text-right">{fmtAmount(total)}</td>
                     <td colSpan={5} />
                   </tr>
                 </tfoot>
@@ -303,7 +304,7 @@ function FundPlanCalendar({ month, rows, thousand, companyName, onPrev, onNext, 
   const cells: (number | null)[] = [...Array(first.getDay()).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)]
   while (cells.length % 7) cells.push(null)
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7))
-  const show = (n: number) => won(thousand ? Math.round(n / 1000) : n)
+  const show = (n: number) => fmtAmount(thousand ? Math.round(n / 1000) : n)
 
   return (
     <>

@@ -12,8 +12,9 @@ import { dateNo as journalDateNo } from '../../utils/dateNo'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import NumCheck from '../../components/NumCheck'
 import BondEntryModal from '../../features/bond/components/BondEntryModal'
-import { dateNo, flatten, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import { dateNo, flatten, sideWord, type BondRow, type BondSide } from '../../features/bond/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 회계 II › 채권관리 › <b>채권조회</b>(E060403) · 채무관리 › <b>채무조회</b> — 2026-10-12 loginaa 실측.
@@ -228,7 +229,7 @@ export default function BondListPage({ side }: { side: BondSide }) {
               <td>{r.bondNo}</td>
               <td>{r.direction === 'INCREASE' ? '증가' : '감소'}</td>
               <td>{r.partnerName ?? ''}</td>
-              <td className="text-right">{won(Number(r.amount))}</td>
+              <td className="text-right">{fmtAmount(Number(r.amount))}</td>
               <td className="text-center">{r.dueDate ? r.dueDate.replaceAll('-', '/') : ''}</td>
               <td>{r.memo ?? ''}</td>
               <td>{r.sourceName}</td>

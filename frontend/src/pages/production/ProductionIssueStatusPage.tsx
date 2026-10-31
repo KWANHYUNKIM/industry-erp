@@ -12,6 +12,7 @@ import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { fmtAmountOrDash } from '../../utils/format'
 
 /**
  * 생산 > 생산입고/소모현황 I (이카운트 E040415)
@@ -108,7 +109,6 @@ interface Production {
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
-const won = (n: number | null) => (n == null ? '-' : Math.round(n).toLocaleString('ko-KR'))
 
 /** 원본 [단가표시] — 생산품목단가 · 소모품목단가 를 따로 이 셋 중에서 고른다. */
 const PRICE_BASES = ['입고단가', '입고단가(VAT포함)', '월별원가'] as const
@@ -628,7 +628,7 @@ export default function ProductionIssueStatusPage() {
                       <td className="text-right font-semibold">{num(p.producedQty)}</td>
                       <td className="text-right"></td>
                       <td className="text-right"></td>
-                      <td style={{ textAlign: 'right', color: pp == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{pp == null ? '' : won(pp)}</td>
+                      <td style={{ textAlign: 'right', color: pp == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{pp == null ? '' : fmtAmountOrDash(pp)}</td>
                       <td className="text-right"></td>
                       <td className="text-right"></td>
                       <td className="text-right"></td>
@@ -649,13 +649,13 @@ export default function ProductionIssueStatusPage() {
                           <td className="text-right">{r.actualQty ? num(r.actualQty) : ''}</td>
                           <td className="text-right"></td>
                           <td style={{ textAlign: 'right', color: r.materialPrice == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>
-                            {won(r.materialPrice)}
+                            {fmtAmountOrDash(r.materialPrice)}
                           </td>
                           <td style={{ textAlign: 'right', fontWeight: 700, color: over ? 'var(--ec-danger)' : r.gap > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                             {num(r.gap)}
                           </td>
                           <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount == null ? 'var(--ec-text-off)' : over ? 'var(--ec-danger)' : undefined }}>
-                            {won(r.amount)}
+                            {fmtAmountOrDash(r.amount)}
                           </td>
                         </tr>
                       )
@@ -676,7 +676,7 @@ export default function ProductionIssueStatusPage() {
                   <td className="text-right">{num(flatRows.reduce((n, r) => n + r.gap, 0))}</td>
                   {/* 단가를 모르는 줄은 빼고 센다 — 0 으로 채우면 차이가 없는 것처럼 보인다 */}
                   <td className="text-right text-ec-navy">
-                    {won(flatRows.reduce((n, r) => n + (r.amount ?? 0), 0))}
+                    {fmtAmountOrDash(flatRows.reduce((n, r) => n + (r.amount ?? 0), 0))}
                     {flatRows.some((r) => r.amount == null) && (
                       <span title="단가를 모르는 줄은 빼고 셌습니다." className="text-ec-warn"> *</span>
                     )}
@@ -720,7 +720,7 @@ export default function ProductionIssueStatusPage() {
                         <td className="text-right">{num(g.sums.std)}</td>
                         <td className="text-right">{num(g.sums.act)}</td>
                         <td className="text-right">{num(g.sums.gap)}</td>
-                        <td className="text-right">{won(g.sums.amount)}</td>
+                        <td className="text-right">{fmtAmountOrDash(g.sums.amount)}</td>
                       </tr>
                     ))}
                   </tbody>

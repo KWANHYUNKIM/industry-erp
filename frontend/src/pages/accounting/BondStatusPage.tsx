@@ -9,8 +9,9 @@ import { ecAlert } from '../../components/EcDialog'
 import EcPeriodPicks, { ymd } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
 import { BOND_STATUS_PICKS, byPartnerName, openBonds, type OpenBond } from '../../features/bond/ledger'
-import { flatten, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
+import { flatten, sideWord, type BondRow, type BondSide } from '../../features/bond/types'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { fmtAmount } from '../../utils/format'
 
 /**
  * 회계 II › 채권관리 › <b>채권현황</b>(E060404) · 채무관리 › 채무현황 — 2026-10-12 loginaa 실측.
@@ -138,12 +139,12 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
                 <td>{b.accountName}</td>
                 <td>{b.memo ?? ''}</td>
                 <td>{b.dueDate ? b.dueDate.replaceAll('-', '/') : ''}</td>
-                <td className="text-right">{won(b.balance)}</td>
+                <td className="text-right">{fmtAmount(b.balance)}</td>
               </tr>
             )),
             <tr key={`${k}-s`} className="ec-list-total [&_td]:!font-bold">
               <td colSpan={6} className="text-center">{g.name} 계</td>
-              <td className="text-right">{won(g.total)}</td>
+              <td className="text-right">{fmtAmount(g.total)}</td>
             </tr>,
           ])}
         </tbody>
@@ -151,7 +152,7 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
           <tfoot>
             <tr className="ec-list-total [&_td]:!font-bold">
               <td colSpan={6} className="text-center">총합계</td>
-              <td className="text-right">{won(total)}</td>
+              <td className="text-right">{fmtAmount(total)}</td>
             </tr>
           </tfoot>
         )}

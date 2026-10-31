@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { isDateKey, percentOf, type AggCond, type AggNode, type Target } from '../../utils/journalAggregate'
+import { fmtAmountNz } from '../../utils/format'
 
-const won = (n: number | undefined) => (!n ? '' : Math.round(n).toLocaleString('ko-KR'))
 
 interface Props {
   tree: AggNode
@@ -47,7 +47,7 @@ export default function AggregateTable({ tree, conds, targets, periodLabels, hor
     const out: ReactNode[] = []
     for (let p = 0; p < pCount; p++) {
       for (const t of targets) {
-        out.push(<td key={`${keyPrefix}${p}${t}`} className="text-right">{won(get(t, p))}</td>)
+        out.push(<td key={`${keyPrefix}${p}${t}`} className="text-right">{fmtAmountNz(get(t, p))}</td>)
         if (showRatio && p === 0) out.push(<td key={`${keyPrefix}r${p}${t}`} className="text-right">{leaf ? percentOf(get(t, p) ?? 0, tree.sums[0][t] ?? 0) : ''}</td>)
       }
     }

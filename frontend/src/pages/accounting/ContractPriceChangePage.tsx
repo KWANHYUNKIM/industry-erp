@@ -11,8 +11,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../features/billingcontract/BillLineConds'
-import { won } from '../../features/billingcontract/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { fmtAmountOf } from '../../utils/format'
 
 /* 원본 버튼줄 글자 그대로(2026-10-13 실측). */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일'] as const
@@ -148,8 +148,8 @@ export default function ContractPriceChangePage() {
                       <td>{r.billingUnitName ?? ''}</td>
                       <td><EcNumInput className="ec-input w-full text-right" aria-label="수량" value={value(r, 'quantity')} onValue={(v) => setEdit(r, { quantity: v })} /></td>
                       <td><EcNumInput className="ec-input w-full text-right" aria-label="단가" value={value(r, 'unitPrice')} onValue={(v) => setEdit(r, { unitPrice: v })} /></td>
-                      <td className="text-right">{won(supply)}</td>
-                      <td className="text-right">{won(Math.floor(supply * 0.1))}</td>
+                      <td className="text-right">{fmtAmountOf(supply)}</td>
+                      <td className="text-right">{fmtAmountOf(Math.floor(supply * 0.1))}</td>
                       <td>{r.remark ?? ''}</td>
                     </tr>
                   )
