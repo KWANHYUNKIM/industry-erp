@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
 import type { Warehouse } from '../../../types/api'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNum } from '../../../utils/format'
 
 /**
  * 원가생성/수정(E040802) 사전작업 [노무비/경비등록] · 지나간 줄 [사전작업 › 노무비/경비조회] — 2026-10-20 loginaa 실측.
@@ -28,7 +28,6 @@ interface Line {
   expenseId: number | null; labor: string; overhead: string
 }
 
-const num = (s: string) => Number(String(s).replace(/,/g, '')) || 0
 const ymText = (m: string) => m.replace('-', '/')
 
 export default function ProcessExpenseModal({ period, endMonth, readOnly = false, onClose }: {
@@ -87,7 +86,7 @@ export default function ProcessExpenseModal({ period, endMonth, readOnly = false
     setError('')
     try {
       for (const l of lines) {
-        const body = { period, processId: l.processId, warehouseId: l.warehouseId, laborCost: num(l.labor), overheadCost: num(l.overhead), remark: null }
+        const body = { period, processId: l.processId, warehouseId: l.warehouseId, laborCost: parseNum(l.labor), overheadCost: parseNum(l.overhead), remark: null }
         if (l.expenseId != null) await api.put(`/process-expenses/${l.expenseId}`, body)
         else if (body.laborCost !== 0 || body.overheadCost !== 0) await api.post('/process-expenses', body)
       }
@@ -100,7 +99,7 @@ export default function ProcessExpenseModal({ period, endMonth, readOnly = false
     const g = groups.find((x) => x.name === l.processName && x.rows[0].processId === l.processId)
     if (g) g.rows.push(l); else groups.push({ name: l.processName, rows: [l] })
   }
-  const sum = (rows: Line[]) => rows.reduce((a, l) => ({ lab: a.lab + num(l.labor), oh: a.oh + num(l.overhead) }), { lab: 0, oh: 0 })
+  const sum = (rows: Line[]) => rows.reduce((a, l) => ({ lab: a.lab + parseNum(l.labor), oh: a.oh + parseNum(l.overhead) }), { lab: 0, oh: 0 })
   const total = sum(lines)
 
   return (
@@ -129,12 +128,12 @@ export default function ProcessExpenseModal({ period, endMonth, readOnly = false
                       <td className="text-right">{readOnly ? l.labor : (
                         <input className="ec-input w-full text-right h-[17.55px] py-0" aria-label={`${l.processName} ${l.warehouseCode} 노무비`} value={l.labor}
                                onChange={(e) => setLine(l.key, 'labor', e.target.value)} onFocus={(e) => e.target.select()}
-                               onBlur={(e) => setLine(l.key, 'labor', fmtNumber(num(e.target.value)))} />
+                               onBlur={(e) => setLine(l.key, 'labor', fmtNumber(parseNum(e.target.value)))} />
                       )}</td>
                       <td className="text-right">{readOnly ? l.overhead : (
                         <input className="ec-input w-full text-right h-[17.55px] py-0" aria-label={`${l.processName} ${l.warehouseCode} 경비`} value={l.overhead}
                                onChange={(e) => setLine(l.key, 'overhead', e.target.value)} onFocus={(e) => e.target.select()}
-                               onBlur={(e) => setLine(l.key, 'overhead', fmtNumber(num(e.target.value)))} />
+                               onBlur={(e) => setLine(l.key, 'overhead', fmtNumber(parseNum(e.target.value)))} />
                       )}</td>
                     </tr>
                   ))}

@@ -25,7 +25,7 @@ import { SlipHistoryModal } from '../../../features/sliphistory/SlipHistoryModal
 import SourceDocSearch from '../../../features/slipload/components/SourceDocSearch'
 import EcIcon from '../../../components/ui/EcIcon'
 import { todayYmd } from '../../../utils/periods'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNumPlain } from '../../../utils/format'
 
 /**
  * 주문서입력 — 원본 영업관리 &gt; 주문서 &gt; <b>주문서입력</b>(2026-10-28 진행자 실측). 판매입력(TradeEntry)과 같은 큰 입력 화면이다.
@@ -58,7 +58,6 @@ interface LineInput { itemId: string; quantity: string; unitPrice: string; remar
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '', spec: null, name: null })
 /** 원본은 빈 입력행 3줄로 뜬다. */
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
-const num = (s: string) => Number(s) || 0
 const MEM_KEY = 'sales-order-head'
 /** 서버(SalesOrderService.delete)가 막을 때 첫 줄 — 원본 '알림' 창의 첫 줄 그대로. */
 const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.'
@@ -358,7 +357,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
       const at = ls.findIndex((l) => l.itemId === itemId)
       if (at >= 0) {
         const next = [...ls]
-        next[at] = { ...next[at], quantity: String(num(next[at].quantity) + qty) }
+        next[at] = { ...next[at], quantity: String(parseNumPlain(next[at].quantity) + qty) }
         return next
       }
       const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice), remark: '', spec: null, name: null }
@@ -370,13 +369,13 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
   }
 
   const computed = lines.map((l) => {
-    const supply = lineSupply(num(l.quantity), num(l.unitPrice))
+    const supply = lineSupply(parseNumPlain(l.quantity), parseNumPlain(l.unitPrice))
     const vat = taxable ? roundWon(supply * 0.1) : 0
     return { supply, vat, total: supply + vat }
   })
   const lineCount = lines.filter((l) => l.itemId).length
   const totals = computed.reduce<{ qty: number; supply: number; vat: number; total: number }>((a, c, i) => (lines[i].itemId
-    ? { qty: a.qty + num(lines[i].quantity), supply: a.supply + c.supply, vat: a.vat + c.vat, total: a.total + c.total } : a),
+    ? { qty: a.qty + parseNumPlain(lines[i].quantity), supply: a.supply + c.supply, vat: a.vat + c.vat, total: a.total + c.total } : a),
   { qty: 0, supply: 0, vat: 0, total: 0 })
 
   // ── 툴바 동작 ─────────────────────────────────────────
@@ -404,8 +403,8 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
     if (!partnerId) msgs.push('거래처를 선택하세요.')
     lines.forEach((l, i) => {
       if (!l.itemId) return
-      if (num(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
-      if (num(l.unitPrice) <= 0) msgs.push(`${i + 1}행: 단가가 0입니다.`)
+      if (parseNumPlain(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
+      if (parseNumPlain(l.unitPrice) <= 0) msgs.push(`${i + 1}행: 단가가 0입니다.`)
     })
     if (lineCount === 0) msgs.push('품목을 1줄 이상 입력하세요.')
     setVerifyResult(msgs)
@@ -440,7 +439,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
         rows: lines.filter((l) => l.itemId).map((l) => {
           const it = itemById.get(l.itemId)
           const q = qs.find((x) => x.lines.some((ql) => String(ql.itemId) === l.itemId))
-          return { code: it?.code ?? '', name: l.name ?? it?.name ?? '', spec: l.spec ?? it?.spec ?? null, qty: num(l.quantity), slip: q ? '견적서' : '', slipNo: q ? dateNo(q.quoteDate, q.quoteNo) : '' }
+          return { code: it?.code ?? '', name: l.name ?? it?.name ?? '', spec: l.spec ?? it?.spec ?? null, qty: parseNumPlain(l.quantity), slip: q ? '견적서' : '', slipNo: q ? dateNo(q.quoteDate, q.quoteNo) : '' }
         }),
       })
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
@@ -495,10 +494,10 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
 주문서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       return
     }
-    const noQty = lines.findIndex((l) => l.itemId && num(l.quantity) <= 0)
+    const noQty = lines.findIndex((l) => l.itemId && parseNumPlain(l.quantity) <= 0)
     if (noQty >= 0) { setQtyErr(noQty); return }
     if (!partnerId) return setError('거래처를 선택하세요.')
-    const noPrice = kept.find((l) => num(l.unitPrice) <= 0)
+    const noPrice = kept.find((l) => parseNumPlain(l.unitPrice) <= 0)
     if (noPrice) return setError('단가를 입력하세요.')
     if (!warehouseId) { setWhMissing(true); return }
     const body = {
@@ -507,7 +506,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
       taxable, remark: remark || undefined,
-      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice), remark: l.remark || undefined, spec: l.spec ?? undefined, itemName: l.name ?? undefined })),
+      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: parseNumPlain(l.quantity), unitPrice: parseNumPlain(l.unitPrice), remark: l.remark || undefined, spec: l.spec ?? undefined, itemName: l.name ?? undefined })),
     }
     try {
       let saved: OrderDoc
@@ -786,7 +785,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
                     <td className="text-center">
                       {l.itemId && (
                         <button type="button" className={`no-ec border-0 bg-transparent cursor-pointer p-0 text-[13px] leading-none ${mine ? 'text-ec-star' : 'text-ec-hint'}`}
-                                title={mine ? 'My품목에서 빼기' : 'My품목에 담기'} onClick={() => void toggleMyItem(l.itemId, num(l.quantity))}>★</button>
+                                title={mine ? 'My품목에서 빼기' : 'My품목에 담기'} onClick={() => void toggleMyItem(l.itemId, parseNumPlain(l.quantity))}>★</button>
                       )}
                     </td>
                     <td className="pad text-ec-label overflow-hidden whitespace-nowrap">{it?.code ?? ''}</td>

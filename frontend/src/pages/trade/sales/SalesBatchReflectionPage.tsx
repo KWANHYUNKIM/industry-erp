@@ -12,7 +12,7 @@ import { useCondPickers } from '../../../utils/useCondPickers'
 import { dateText } from '../../../utils/dateText'
 import AccountingReflectionPage from './AccountingReflectionPage'
 import EcDateInput from '../../../components/ui/EcDateInput'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNum } from '../../../utils/format'
 
 /**
  * 판매일괄회계반영 (원본 E040215, 2026-10-22 loginaa 실측 — plans/재고1.md 97행).
@@ -79,7 +79,6 @@ interface Row {
 const SALES_VAT_TYPES = ['세금계산서', '영세율', '계산서', '소매매출', '수출', '카드매출', '계산서(고정자산)', '세.계(고정자산)',
   '소매(면세)', '카드매출(면세)', '현금영수증(면세)', '현금영수증', '매입자발행세금계산서', '영세율(기타)', '기타매출']
 const vatOptions = SALES_VAT_TYPES.map((v) => <option key={v} value={v}>{v}</option>)
-const num = (v: string | undefined) => Number(String(v ?? '').replace(/,/g, '')) || 0
 const initP = periodOf('전월')!
 /** 원본 [거래유형] 선택상자 — 판매입력의 거래유형과 같은 이름(부가세율 적용 = 과세 · 미적용 = 면세). */
 const TRADE_TYPES = [['', '전체'], ['과세', '부가세율 적용'], ['면세', '부가세율 미적용']] as const
@@ -182,7 +181,7 @@ function SalesBatch() {
   const vatOf = (r: Row) => rowVat[r.key] ?? (r.vatTypes.size === 1 && r.vatTypes.has('면세') ? '계산서' : '세금계산서')
   /** 원본 [조정]: 공급가액 = 거래가액 − 조정, 부가세 = 공급가액의 10%(부가세가 없던 줄은 0), 합계 = 둘의 합. */
   const amountsOf = (r: Row) => {
-    const adj = num(adjust[r.key])
+    const adj = parseNum(adjust[r.key])
     if (!adj) return { adj, supply: r.supply, vat: r.vat }
     const supply = r.supply - adj
     return { adj, supply, vat: r.vat ? Math.round(supply / 10) : 0 }
@@ -450,7 +449,7 @@ function SalesBatch() {
             {/* 원본 공급가액은 입력 칸 — 바꾸면 부가세가 10% 로 다시 매겨진다(5,000 → 4,000 · 부가세 400). 우리는 그 차이를 [조정]으로 넘긴다. */}
             <EcCond label="공급가액">
               <input className="ec-input w-full text-right" aria-label="매출전표 공급가액" inputMode="numeric" value={fmtNumber(curAmt.supply)}
-                     onChange={(e) => setAdjust((m) => ({ ...m, [cur.key]: String(cur.supply - num(e.target.value)) }))} />
+                     onChange={(e) => setAdjust((m) => ({ ...m, [cur.key]: String(cur.supply - parseNum(e.target.value)) }))} />
             </EcCond>
             <EcCond label="부가세"><span aria-label="매출전표 부가세">{fmtNumber(curAmt.vat)}</span></EcCond>
             <EcCond label="적요" span={2}>

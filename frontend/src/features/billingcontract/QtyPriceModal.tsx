@@ -3,12 +3,12 @@ import Modal from '../../components/Modal'
 import EcNumInput from '../../components/EcNumInput'
 import { requireSelection } from '../../components/EcDialog'
 import type { QtyPrice } from './types'
+import { parseNum } from '../../utils/format'
 
 interface Row { minQuantity: string; unitPrice: string; vatIncluded: boolean; checked: boolean }
 /** 원본 '수량별단가등록' 창은 빈 줄까지 일곱 줄(2026-10-29 데이터이관 QA C4 실측). */
 const MIN_ROWS = 7
 const empty = (): Row => ({ minQuantity: '', unitPrice: '', vatIncluded: false, checked: false })
-const num = (s: string) => Number(String(s).replace(/,/g, '')) || 0
 /** 줄에 무엇이든 들어 있는가 — 수량이 비어도 단가를 친 줄은 '처음부터' 줄이다. */
 const used = (r: Row) => r.minQuantity.trim() !== '' || r.unitPrice.trim() !== ''
 
@@ -53,7 +53,7 @@ export default function QtyPriceModal({ open, value, onApply, onClose }: {
   }
   function apply() {
     onApply(rows.filter(used)
-      .map((r) => ({ minQuantity: num(r.minQuantity), unitPrice: num(r.unitPrice), vatIncluded: r.vatIncluded }))
+      .map((r) => ({ minQuantity: parseNum(r.minQuantity), unitPrice: parseNum(r.unitPrice), vatIncluded: r.vatIncluded }))
       .sort((a, b) => a.minQuantity - b.minQuantity))
   }
 

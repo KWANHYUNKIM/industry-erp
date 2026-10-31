@@ -1,5 +1,5 @@
 import { roundWon, lineSupply } from '../../utils/lineSupply'
-import { fmtNumber } from '../../utils/format'
+import { fmtNumber, parseNumPlain } from '../../utils/format'
 import { todayYmd } from '../../utils/periods'
 import { useRef, useEffect, type FormEvent, type RefObject, type Dispatch, type SetStateAction } from 'react'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
@@ -11,7 +11,7 @@ import { printTable, openPrintWindow } from '../../utils/print'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { salesSlipDocument, purchaseSlipDocument } from '../../utils/tradeSlipDocument'
 import type { SlipAction } from '../../components/EcSlipShell'
-import { type LineInput, num, overriddenSupply, splitDiscount, emptyLine, emptyLines, SLIP_PRINT_AFTER_SAVE, KEEP_AFTER_SAVE, type Mode, type TradeEntryPopup, type TradeEntryCfg } from './tradeEntryConfig'
+import { type LineInput, overriddenSupply, splitDiscount, emptyLine, emptyLines, SLIP_PRINT_AFTER_SAVE, KEEP_AFTER_SAVE, type Mode, type TradeEntryPopup, type TradeEntryCfg } from './tradeEntryConfig'
 import type { NavigateFunction, SetURLSearchParams } from 'react-router-dom'
 
 /** 합계 · 이익계산 · 반올림 · 임시저장 · 저장 · 인쇄 · 아래 줄 단추 — TradeEntry 에서 몸통 그대로 옮겼다(같은 자리에서 부른다). */
@@ -107,15 +107,15 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
   whKey: string
 }) {
   const fx = mode === 'purchase' && foreign
-  const lineRateOf = (l: LineInput) => (num(l.lineRate) > 0 ? num(l.lineRate) : num(exchangeRate))
-  const fxAmountOf = (l: LineInput) => num(l.quantity) * num(l.unitPrice)
+  const lineRateOf = (l: LineInput) => (parseNumPlain(l.lineRate) > 0 ? parseNumPlain(l.lineRate) : parseNumPlain(exchangeRate))
+  const fxAmountOf = (l: LineInput) => parseNumPlain(l.quantity) * parseNumPlain(l.unitPrice)
   const computed = (() => {
     const supplies = lines.map((l) => (fx
       ? roundWon(fxAmountOf(l) * lineRateOf(l))
-      : overriddenSupply(l) ?? lineSupply(num(l.quantity), num(l.unitPrice))))
+      : overriddenSupply(l) ?? lineSupply(parseNumPlain(l.quantity), parseNumPlain(l.unitPrice))))
     const vats = supplies.map((sup) => (taxable && !fx ? roundWon(sup * 0.1) : 0))
     // 손으로 고친 부가세는 거래별 배분보다 먼저다 — 서버도 배분한 뒤 그 줄만 덮어쓴다.
-    const typedVat = lines.map((l, i) => (taxable && !fx && l.vatOverride !== '' && l.vatBase === String(supplies[i]) ? roundWon(num(l.vatOverride)) : null))
+    const typedVat = lines.map((l, i) => (taxable && !fx && l.vatOverride !== '' && l.vatBase === String(supplies[i]) ? roundWon(parseNumPlain(l.vatOverride)) : null))
     if (taxable && !fx && vatBySlip && supplies.length > 0) {
       const slipVat = roundWon(supplies.reduce((a, b) => a + b, 0) * 0.1)
       const residual = slipVat - vats.reduce((a, b) => a + b, 0)
@@ -130,10 +130,10 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
     return supplies.map((supply, i) => ({ supply, vat: vats[i], total: supply + vats[i], typedVat: typedVat[i] }))
   })()
   const totals = {
-    qty: lines.reduce((s, l) => s + num(l.quantity), 0),
+    qty: lines.reduce((s, l) => s + parseNumPlain(l.quantity), 0),
     supply: computed.reduce((s, c) => s + c.supply, 0),
     vat: computed.reduce((s, c) => s + c.vat, 0),
-    extra: lines.reduce((s, l) => s + num(l.extraCost), 0),
+    extra: lines.reduce((s, l) => s + parseNumPlain(l.extraCost), 0),
     foreign: lines.reduce((s, l) => s + (l.itemId ? fxAmountOf(l) : 0), 0),
     total: computed.reduce((s, c) => s + c.total, 0),
   }
@@ -148,14 +148,14 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
     .filter(({ l }) => l.itemId)
     .map(({ l, idx }) => {
       const unitCost = unitCostOf(l.itemId)
-      const qty = num(l.quantity)
+      const qty = parseNumPlain(l.quantity)
       const revenue = computed[idx].supply
       const cost = unitCost === null ? null : unitCost * qty
       return {
         name: l.name ?? itemById.get(l.itemId)?.name ?? '',
         code: itemById.get(l.itemId)?.code ?? '',
         qty,
-        unitPrice: num(l.unitPrice),
+        unitPrice: parseNumPlain(l.unitPrice),
         revenue,
         unitCost,
         cost,
@@ -170,26 +170,26 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
   )
 
   const lineCount = lines.filter((l) => l.itemId).length
-  const rate = num(exchangeRate)
+  const rate = parseNumPlain(exchangeRate)
 
   // ── 툴바 동작 ─────────────────────────────────────────
   const rounder = (n: number) =>
     adjustRound === 'floor' ? Math.floor(n) : adjustRound === 'ceil' ? Math.ceil(n) : Math.round(n)
 
   function applyAdjust() {
-    const v = num(adjustRate)
+    const v = parseNumPlain(adjustRate)
     if (!v) return flash('조정 값을 입력하세요.')
     const idxs = targetIdx()
     setLines((ls) => ls.map((l, i) => {
       if (!idxs.includes(i)) return l
       if (adjustTarget === 'price') {
-        const base = num(l.unitPrice)
+        const base = parseNumPlain(l.unitPrice)
         const next = adjustUnit === 'pct' ? base * (1 + v / 100) : base + v
         return { ...l, unitPrice: String(rounder(next)) }
       }
       // 금액 조정 — 수량을 고정하고 단가를 역산한다(금액 컬럼은 계산값이라 직접 못 고친다)
-      const qty = num(l.quantity) || 1
-      const base = qty * num(l.unitPrice)
+      const qty = parseNumPlain(l.quantity) || 1
+      const base = qty * parseNumPlain(l.unitPrice)
       const nextAmt = adjustUnit === 'pct' ? base * (1 + v / 100) : base + v
       return { ...l, unitPrice: String(rounder(nextAmt / qty)) }
     }))
@@ -197,7 +197,7 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
   }
 
   function applyPriceChange() {
-    const v = num(priceChangeTo)
+    const v = parseNumPlain(priceChangeTo)
     if (!v) return flash('변경할 단가를 입력하세요.')
     const idxs = targetIdx()
     setLines((ls) => ls.map((l, i) => (idxs.includes(i) ? { ...l, unitPrice: String(v) } : l)))
@@ -206,7 +206,7 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
 
   /** 부대비용 총액을 공급가액 비율로 라인에 배분한다 — 원본 [부대비용] 적용과 같은 방식. */
   function applyExtraCost() {
-    const amt = num(extraCostAmt)
+    const amt = parseNumPlain(extraCostAmt)
     const idxs = targetIdx()
     if (idxs.length === 0) return flash('품목을 먼저 입력하세요.')
     const base = idxs.reduce((s, i) => s + computed[i].supply, 0)
@@ -219,10 +219,10 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
   }
 
   function applyQtyStep() {
-    const v = num(qtyStep)
+    const v = parseNumPlain(qtyStep)
     if (!v) return flash('증감할 수량을 입력하세요.')
     const idxs = targetIdx()
-    setLines((ls) => ls.map((l, i) => (idxs.includes(i) ? { ...l, quantity: String(Math.max(0, num(l.quantity) + v)) } : l)))
+    setLines((ls) => ls.map((l, i) => (idxs.includes(i) ? { ...l, quantity: String(Math.max(0, parseNumPlain(l.quantity) + v)) } : l)))
     flash(`${idxs.length}개 행 수량을 ${v > 0 ? '+' : ''}${v} 했습니다.`)
   }
 
@@ -264,12 +264,12 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
     if (fx && !currencyCode) msgs.push('외자 전표는 외화(통화)를 선택해야 합니다.')
     lines.forEach((l, i) => {
       if (!l.itemId) return
-      if (num(l.quantity) === 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
-      if (num(l.unitPrice) <= 0) msgs.push(`${i + 1}행: 단가가 0입니다.`)
-      if (mode === 'sales' && stocks.length > 0 && num(l.quantity) > 0) {
+      if (parseNumPlain(l.quantity) === 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
+      if (parseNumPlain(l.unitPrice) <= 0) msgs.push(`${i + 1}행: 단가가 0입니다.`)
+      if (mode === 'sales' && stocks.length > 0 && parseNumPlain(l.quantity) > 0) {
         const have = stockWhOf(l.itemId)
-        if (have < num(l.quantity)) {
-          msgs.push(`${i + 1}행: ${itemById.get(l.itemId)?.name} 창고재고 ${fmtNumber(have)} < 출고 ${fmtNumber(num(l.quantity))}`)
+        if (have < parseNumPlain(l.quantity)) {
+          msgs.push(`${i + 1}행: ${itemById.get(l.itemId)?.name} 창고재고 ${fmtNumber(have)} < 출고 ${fmtNumber(parseNumPlain(l.quantity))}`)
         }
       }
     })
@@ -344,18 +344,18 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
     // 요청에 실을 줄과 그 줄의 원본(추가항목 값이 붙어 있다)을 같은 순서로 들고 간다.
     // 원본 판매입력 · 구매입력은 단가 0 인 줄도 저장한다(2026-10-21 실측, 합계 0 / 칸은 빈칸).
     // 음수 수량은 반품 줄이다(원본 [반품처리] 가 -30 으로 연다) — 0 만 뺀다.
-    const keptLines = lines.filter((l) => l.itemId && num(l.quantity) !== 0 && num(l.unitPrice) >= 0)
+    const keptLines = lines.filter((l) => l.itemId && parseNumPlain(l.quantity) !== 0 && parseNumPlain(l.unitPrice) >= 0)
     const validLines = keptLines
       .map((l) => ({
         itemId: Number(l.itemId),
-        quantity: num(l.quantity),
-        unitPrice: fx ? roundWon(fxAmountOf(l) * lineRateOf(l) / (num(l.quantity) || 1e-9)) : num(l.unitPrice),
-        ...(fx ? { foreignPrice: num(l.unitPrice), foreignAmount: fxAmountOf(l), lineRate: num(l.lineRate) > 0 ? num(l.lineRate) : undefined } : {}),
+        quantity: parseNumPlain(l.quantity),
+        unitPrice: fx ? roundWon(fxAmountOf(l) * lineRateOf(l) / (parseNumPlain(l.quantity) || 1e-9)) : parseNumPlain(l.unitPrice),
+        ...(fx ? { foreignPrice: parseNumPlain(l.unitPrice), foreignAmount: fxAmountOf(l), lineRate: parseNumPlain(l.lineRate) > 0 ? parseNumPlain(l.lineRate) : undefined } : {}),
         remark: l.remark.trim() || undefined,
         spec: l.spec ?? undefined,
         itemName: l.name ?? undefined,
         lotNo: l.lotNo.trim() || undefined,
-        extraCost: l.extraCost ? num(l.extraCost) : undefined,
+        extraCost: l.extraCost ? parseNumPlain(l.extraCost) : undefined,
         sourceOrderId: l.sourceOrderId ? Number(l.sourceOrderId) : undefined,
         supplyAmount: overriddenSupply(l) ?? undefined,
         vatAmount: computed[lines.indexOf(l)]?.typedVat ?? undefined,
@@ -364,7 +364,7 @@ export function useTradeSave({ addItemLine, adjustRate, adjustRound, adjustTarge
      * 원본 차례(2026-10-21 E040205 실측): 빈 격자 → '알림' 창, 품목만 고른 줄 → 그 [수량] 칸 말풍선.
      * 원본은 거래처가 비어도 저장된다 — 우리 전표는 거래처가 필수라(스키마) 그 검사는 뒤에 남긴다.
      */
-    const noQty = lines.findIndex((l) => l.itemId && num(l.quantity) === 0)
+    const noQty = lines.findIndex((l) => l.itemId && parseNumPlain(l.quantity) === 0)
     if (noQty >= 0) return setQtyErr(noQty)
     if (validLines.length === 0) {
       void ecAlert(`아래의 경우 처리가 불가능합니다.
@@ -390,7 +390,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       [dateKey]: date,
       // 외자도 고른 거래유형 그대로 보낸다 — 부가세 0 은 서버가 통화코드로 정한다(원본 수입 구매도 '부가세율 적용')
       taxable,
-      ...(fx ? { currencyCode, exchangeRate: num(exchangeRate) } : {}),
+      ...(fx ? { currencyCode, exchangeRate: parseNumPlain(exchangeRate) } : {}),
       remark: remark || undefined,
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
@@ -471,7 +471,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         const made = await Promise.all(qcLines.map((l) => api.post('/quality-inspection-requests', {
           type: 'INCOMING',
           itemId: Number(l.itemId),
-          requestQty: num(l.quantity),
+          requestQty: parseNumPlain(l.quantity),
           lotNo: l.lotNo.trim() || undefined,
           requestDate: date,
           remark: `구매 ${res.data.docNo}`,
@@ -553,7 +553,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
    */
   async function saveCash() {
     if (!partnerId) return setCashMsg('거래처를 먼저 고르세요.')
-    if (num(cashForm.amount) === 0) return setCashMsg('금액을 입력하세요.')
+    if (parseNumPlain(cashForm.amount) === 0) return setCashMsg('금액을 입력하세요.')
     /* 원본 '매입처로'는 출금계좌를 비우고 저장하면 그 칸을 빨갛게 막는다(2026-10-06 실측). */
     if (mode === 'purchase' && !cashForm.method) return setCashMsg('출금계좌를 고르세요.')
     try {
@@ -561,8 +561,8 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         type: mode === 'sales' ? 'RECEIPT' : 'PAYMENT', partnerId: Number(partnerId),
         // 원본은 [금액](받은 돈)과 [수수료]를 따로 적고 채권은 둘을 더한 만큼 준다 — 서버 amount 는 그 총액이다.
         // 지급은 다르다 — 원본 '매입처로': 금액 1,000 · 수수료 100 → 채무 1,000 감소, 현금 1,100 지출. amount 는 금액 그대로.
-        amount: num(cashForm.amount) + (mode === 'sales' ? num(cashForm.fee) : 0),
-        fee: num(cashForm.fee) > 0 ? num(cashForm.fee) : undefined,
+        amount: parseNumPlain(cashForm.amount) + (mode === 'sales' ? parseNumPlain(cashForm.fee) : 0),
+        fee: parseNumPlain(cashForm.fee) > 0 ? parseNumPlain(cashForm.fee) : undefined,
         ...(cashForm.method.startsWith('bank:')
           ? { method: '계좌이체', bankAccountId: Number(cashForm.method.slice(5)) }
           : { method: cashForm.method || undefined }),
@@ -571,7 +571,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
         settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
       })
       setCashOpen(false)
-      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${fmtNumber(num(cashForm.amount))}원${num(cashForm.fee) > 0 ? ` · 수수료 ${fmtNumber(num(cashForm.fee))}원` : ''})`)
+      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${fmtNumber(parseNumPlain(cashForm.amount))}원${parseNumPlain(cashForm.fee) > 0 ? ` · 수수료 ${fmtNumber(parseNumPlain(cashForm.fee))}원` : ''})`)
     } catch (err) {
       setCashMsg(extractErrorMessage(err))
     }

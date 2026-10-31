@@ -5,6 +5,7 @@ import {
   fmtAmount, fmtAmountBlank, fmtAmountNz, fmtAmountOf, fmtAmountOrDash, fmtDecimal4, fmtNumber, fmtNumberBlank, fmtNumberOf, fmtNumberOrBlank,
   fmtTrunc, fmtTruncBlankOf,
   fmtNumberNz, fmtNumberBlankOf, fmtNumberOrZero, fmtNumberNullZeroBlank, fmtNumberText, fmtAmountOrBlank, fmtAmountHalfAway, fmtTruncNz,
+  parseNum, parseNumPlain,
 } from './format.ts'
 
 // 서버 값이 타입과 달리 문자열 · null 로 오는 경우까지 — 지역 won 이 그때 찍던 그대로여야 한다.
@@ -179,4 +180,32 @@ test('fmtTruncNz — 버림, 0 · 빈 값은 빈칸', () => {
   assert.equal(fmtTruncNz(1234.9), '1,234')
   assert.equal(fmtTruncNz(0.4), '0')
   assert.equal(fmtTruncNz(odd('')), '')
+})
+
+test('parseNum — 콤마를 지우고, 숫자가 아니면 0', () => {
+  assert.equal(parseNum('1,234,567'), 1234567)
+  assert.equal(parseNum('-1,234.5'), -1234.5)
+  assert.equal(parseNum('0.25'), 0.25)
+  assert.equal(parseNum('0'), 0)
+  assert.equal(parseNum(''), 0)
+  assert.equal(parseNum('abc'), 0)
+  assert.equal(parseNum(null), 0)
+  assert.equal(parseNum(undefined), 0)
+  assert.equal(parseNum(' 12 '), 12)
+  assert.equal(parseNum(1234.5), 1234.5)
+  assert.ok(Object.is(parseNum('-0'), 0))
+  // 옛 지역 num 과 모든 입력에서 같다
+  const old = (s: unknown) => Number(String(s).replace(/,/g, '')) || 0
+  for (const v of ['1,000', '', ' ', 'x', '-0', '1e3', 'Infinity', null, undefined, 0, -3.5]) assert.equal(parseNum(v as string), old(v))
+})
+
+test('parseNumPlain — 콤마를 안 지운다, 숫자가 아니면 0', () => {
+  assert.equal(parseNumPlain('1234.5'), 1234.5)
+  assert.equal(parseNumPlain('-12'), -12)
+  assert.equal(parseNumPlain('1,000'), 0)
+  assert.equal(parseNumPlain('0'), 0)
+  assert.equal(parseNumPlain(''), 0)
+  assert.equal(parseNumPlain('abc'), 0)
+  assert.equal(parseNumPlain(null), 0)
+  assert.equal(parseNumPlain(undefined), 0)
 })

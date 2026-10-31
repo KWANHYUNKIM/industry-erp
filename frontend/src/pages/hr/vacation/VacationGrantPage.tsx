@@ -7,13 +7,13 @@ import { api, extractErrorMessage } from '../../../api/client'
 import type { EmployeeMaster } from '../../../types/api'
 import { annualLeaveDays } from '../../../utils/annualLeave'
 import { ecConfirm } from '../../../components/EcDialog'
+import { parseNumPlain } from '../../../utils/format'
 
 interface Summary { vacationKindId: number; code: string; name: string; periodFrom: string; periodTo: string; headcount: number }
 interface GrantRow { employeeId: number; carryOverDays: number; currentDays: number }
 interface Row { employeeId: string; carryOverDays: string; currentDays: string }
 const blank = (): Row => ({ employeeId: '', carryOverDays: '', currentDays: '' })
 const slash = (s: string) => s.replace(/-/g, '/')
-const num = (s: string) => Number(s) || 0
 
 /**
  * 관리 &gt; 근태관리 &gt; 기본사항등록 &gt; <b>사원별휴가일수조회</b> (원본 E020703).
@@ -90,7 +90,7 @@ export default function VacationGrantPage() {
     const filled = lines.filter((l) => l.employeeId)
     try {
       await api.put(`/hr/vacation-kinds/${open.vacationKindId}/grants`,
-        filled.map((l) => ({ employeeId: Number(l.employeeId), carryOverDays: num(l.carryOverDays), currentDays: num(l.currentDays) })))
+        filled.map((l) => ({ employeeId: Number(l.employeeId), carryOverDays: parseNumPlain(l.carryOverDays), currentDays: parseNumPlain(l.currentDays) })))
       setOpen(null)
       load()
     } catch (e) {
@@ -110,7 +110,7 @@ export default function VacationGrantPage() {
   }
 
   const allChecked = rows.length > 0 && rows.every((r) => checked.has(r.vacationKindId))
-  const sum = (k: 'carryOverDays' | 'currentDays') => lines.reduce((s, l) => s + (l.employeeId ? num(l[k]) : 0), 0)
+  const sum = (k: 'carryOverDays' | 'currentDays') => lines.reduce((s, l) => s + (l.employeeId ? parseNumPlain(l[k]) : 0), 0)
 
   return (
     <EcListShell title="사원별휴가일수조회"
@@ -200,7 +200,7 @@ export default function VacationGrantPage() {
                           <input className="ec-input w-full text-right" inputMode="decimal" value={l.currentDays}
                                  onChange={(ev) => edit(i, { currentDays: ev.target.value.replace(/[^0-9.]/g, '') })} />
                         </td>
-                        <td className="text-right">{l.employeeId ? num(l.carryOverDays) + num(l.currentDays) : ''}</td>
+                        <td className="text-right">{l.employeeId ? parseNumPlain(l.carryOverDays) + parseNumPlain(l.currentDays) : ''}</td>
                       </tr>
                     )
                   })}

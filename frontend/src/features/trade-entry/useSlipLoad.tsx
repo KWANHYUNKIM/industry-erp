@@ -1,9 +1,9 @@
 import { api, extractErrorMessage } from '../../api/client'
 import type { SalesDoc, PurchaseDoc } from '../../types/api'
 import { dateText } from '../../utils/dateText'
-import { fmtNumber } from '../../utils/format'
+import { fmtNumber, parseNumPlain } from '../../utils/format'
 import type { SalesOrderLite } from '../salesorder/components/SalesOrderPickModal'
-import { type LoadableLine, type UnsoldLite, emptyLine, ORDER_TAB_MATCH, num, type LineInput, type OrderLoadTab, type Mode } from './tradeEntryConfig'
+import { type LoadableLine, type UnsoldLite, emptyLine, ORDER_TAB_MATCH, type LineInput, type OrderLoadTab, type Mode } from './tradeEntryConfig'
 import type { Dispatch, SetStateAction } from 'react'
 
 /** 근거전표 · 지난 전표 불러오기 — TradeEntry 에서 몸통 그대로 옮겼다(같은 자리에서 부른다). */
@@ -347,7 +347,7 @@ export function useSlipLoad({ addItemLine, adjDraft, currencyCode, date, discoun
     setAdjOpen(true)
   }
   function applyAmountAdjust() {
-    setDiscountTotal(Math.max(0, Math.round(num(adjDraft))))
+    setDiscountTotal(Math.max(0, Math.round(parseNumPlain(adjDraft))))
     setAdjOpen(false)
   }
   return { applyAmountAdjust, applyLoadPicked, applyOrdersToPurchase, checkedIdx, copyFromDoc, loadDocsShown, loadLineTable, openAdjust, openLoadSource, targetIdx, vatBySlipButton }

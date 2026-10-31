@@ -1,10 +1,10 @@
 import EcIcon from '../../../components/ui/EcIcon'
 import CodePickerField from '../../../components/codepicker/CodePickerField'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNumPlain } from '../../../utils/format'
 import EcNumInput from '../../../components/EcNumInput'
 import { ErrTip } from '../../../components/codepicker/GridCode'
 import { dateText } from '../../../utils/dateText'
-import { num, overriddenSupply, type LineInput } from '../tradeEntryConfig'
+import { overriddenSupply, type LineInput } from '../tradeEntryConfig'
 import type { RefObject, ReactElement, Dispatch, SetStateAction, ReactNode } from 'react'
 import type { Item, CustomFieldDef, MyItem } from '../../../types/api'
 
@@ -213,7 +213,7 @@ export default function TradeEntryGrid({
                             fontSize: 13, lineHeight: 1,
                             color: myItems.some((m) => String(m.itemId) === l.itemId) ? '#f0a500' : 'var(--ec-text-off)',
                           }}
-                          onClick={() => void toggleMyItem(l.itemId, num(l.quantity))}
+                          onClick={() => void toggleMyItem(l.itemId, parseNumPlain(l.quantity))}
                         >
                           ★
                         </button>
@@ -263,7 +263,7 @@ export default function TradeEntryGrid({
                     </td>
                     {cols.priceVat && !fx && (
                       <td className="pad text-right text-ec-hint">
-                        {l.itemId ? fmtNumber(Math.round(num(l.unitPrice) * (taxable ? 1.1 : 1))) : ''}
+                        {l.itemId ? fmtNumber(Math.round(parseNumPlain(l.unitPrice) * (taxable ? 1.1 : 1))) : ''}
                       </td>
                     )}
                     {fx && (
@@ -284,7 +284,7 @@ export default function TradeEntryGrid({
                              aria-label="공급가액"
                              value={l.itemId ? (overriddenSupply(l) != null ? l.supplyOverride : String(computed[idx].supply)) : ''}
                              onValue={(v) => setLines((ls) => ls.map((x, i) => (i === idx
-                               ? { ...x, supplyOverride: v, supplyBase: `${num(x.quantity)}|${num(x.unitPrice)}` } : x)))} />
+                               ? { ...x, supplyOverride: v, supplyBase: `${parseNumPlain(x.quantity)}|${parseNumPlain(x.unitPrice)}` } : x)))} />
                       )}
                     </td>
                     {!fx && (

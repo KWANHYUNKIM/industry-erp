@@ -1,7 +1,7 @@
 import Modal from '../../../components/Modal'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNumPlain } from '../../../utils/format'
 import EcNumInput from '../../../components/EcNumInput'
-import { num, splitDiscount, type LineInput, type Mode } from '../tradeEntryConfig'
+import { splitDiscount, type LineInput, type Mode } from '../tradeEntryConfig'
 import type { ItemCost, Item, Warehouse } from '../../../types/api'
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -74,7 +74,7 @@ export default function TradeCalcModals({
               <tr><td colSpan={4} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
             ) : lines.filter((l) => l.itemId).map((l, i) => {
               const have = stockWhOf(l.itemId)
-              const need = num(l.quantity)
+              const need = parseNumPlain(l.quantity)
               return (
                 <tr key={i}>
                   <td>{itemById.get(l.itemId)?.name}</td>
@@ -95,7 +95,7 @@ export default function TradeCalcModals({
       */}
       <Modal error={null} open={adjOpen} title="금액조정" width={780} onClose={() => setAdjOpen(false)}>
         {(() => {
-          const d = splitDiscount(num(adjDraft), taxable)
+          const d = splitDiscount(parseNumPlain(adjDraft), taxable)
           const after = { supply: totals.supply - d.supply, vat: totals.vat - d.vat, total: totals.total - d.total }
           return (
             <>

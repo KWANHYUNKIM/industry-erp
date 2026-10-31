@@ -20,7 +20,8 @@ import TradeLoadModals from '../../../features/trade-entry/components/TradeLoadM
 import TradeCalcModals from '../../../features/trade-entry/components/TradeCalcModals'
 import { useSlipLoad } from '../../../features/trade-entry/useSlipLoad'
 import { useTradeSave } from '../../../features/trade-entry/useTradeSave'
-import { CFG, emptyLine, emptyLines, type LineInput, type LoadableLine, type Mode, num, type OptionalColId, type OrderLoadTab, type ReleaseDetail, type TradeEntryPopup } from '../../../features/trade-entry/tradeEntryConfig'
+import { CFG, emptyLine, emptyLines, type LineInput, type LoadableLine, type Mode, type OptionalColId, type OrderLoadTab, type ReleaseDetail, type TradeEntryPopup } from '../../../features/trade-entry/tradeEntryConfig'
+import { parseNumPlain } from '../../../utils/format'
 export type { TradeEntryPopup, TradeEntryPrefill } from '../../../features/trade-entry/tradeEntryConfig'
 
 /**
@@ -716,7 +717,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
       const at = ls.findIndex((l) => l.itemId === itemId)
       if (at >= 0) {
         const next = [...ls]
-        next[at] = { ...next[at], quantity: String(num(next[at].quantity) + qty) }
+        next[at] = { ...next[at], quantity: String(parseNumPlain(next[at].quantity) + qty) }
         return next
       }
       const blank = ls.findIndex((l) => !l.itemId)

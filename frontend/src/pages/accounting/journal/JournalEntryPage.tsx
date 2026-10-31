@@ -15,7 +15,7 @@ import { useCondPickers } from '../../../utils/useCondPickers'
 import { useDeptProjectItems } from '../../../features/cashquick/useDeptProject'
 import { journalNeighbors } from '../../../utils/journalNav'
 import { todayYmd } from '../../../utils/periods'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNum } from '../../../utils/format'
 
 interface Account { id: number; code: string; name: string }
 /**
@@ -28,7 +28,6 @@ type Side = '1' | '2' | '3' | '4'
 const isDebitIn = (s: Side) => s === '1' || s === '3'
 interface Row { side: Side; accountId: string; partnerId: string; debit: string; credit: string; description: string; departmentId: string; currencyCode: string; foreignAmount: string }
 
-const num = (v: string) => Number(String(v).replace(/,/g, '')) || 0
 const emptyRow = (side: Side = '3'): Row => ({ side, accountId: '', partnerId: '', debit: '', credit: '', description: '', departmentId: '', currencyCode: '', foreignAmount: '' })
 const blankRows = () => [emptyRow(), emptyRow(), emptyRow()]
 const TEMP_KEY = 'temp-journal-entry'
@@ -123,7 +122,7 @@ export default function JournalEntryPage() {
   }, [editId])
 
   const accountItems: CodeItem[] = useMemo(() => accounts.map((a) => ({ value: String(a.id), code: a.code, name: a.name })), [accounts])
-  const amountOf = (r: Row) => num(isDebitIn(r.side) ? r.debit : r.credit)
+  const amountOf = (r: Row) => parseNum(isDebitIn(r.side) ? r.debit : r.credit)
   const totalDebit = rows.reduce((a, r) => a + (r.side === '4' ? 0 : amountOf(r)), 0)
   const totalCredit = rows.reduce((a, r) => a + (r.side === '3' ? 0 : amountOf(r)), 0)
   /** 1출 · 2입의 상대 줄 계정 — 우리 표준계정 101 현금(원본 1019). */
@@ -148,7 +147,7 @@ export default function JournalEntryPage() {
 
   /* ── 임시저장: 칸을 떠날 때마다(원본 '오후 11:35 임시저장되었습니다.') ── */
   function tempSave() {
-    if (editId || !rows.some((r) => r.accountId || num(r.debit) || num(r.credit))) return
+    if (editId || !rows.some((r) => r.accountId || parseNum(r.debit) || parseNum(r.credit))) return
     try {
       localStorage.setItem(TEMP_KEY, JSON.stringify({ entryDate, memo, rows }))
       setSavedAt(`${new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} 임시저장되었습니다.`)

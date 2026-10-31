@@ -15,7 +15,7 @@ import { useDeptProjectItems } from '../../../features/cashquick/useDeptProject'
 import { BillLineConds, applyFilter, useBillLineFilter } from '../../../features/billingcontract/BillLineConds'
 import { VAT_TYPES, type BillLineView } from '../../../features/billingcontract/types'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
-import { fmtAmountOf } from '../../../utils/format'
+import { fmtAmountOf, parseNumPlain } from '../../../utils/format'
 
 /* 원본 버튼줄 글자 그대로(2026-10-13 실측). */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '말일', '전월+금월'] as const
@@ -31,7 +31,6 @@ interface Group {
   adjust: string; foreign: string; rate: string; supply: string; vat: string; accountId: string; memo: string
 }
 
-const num = (s: string) => Number(s) || 0
 /** 원본 적요 — 줄이 둘 이상이면 첫 줄 항목명 뒤에 ' 외 N건'(같은 항목이어도 줄 수로 센다, 2026-10-13 실측 '이카운트 사용료 외 1건'). */
 const more = (name: string, n: number) => (n > 1 ? `${name} 외 ${n - 1}건` : name)
 
@@ -133,8 +132,8 @@ export default function ContractReflectPage() {
   const setGroup = (i: number, patch: Partial<Group>) => setGroups((gs) => gs.map((g, j) => {
     if (j !== i) return g
     const n = { ...g, ...patch }
-    if ('adjust' in patch) n.supply = String(n.trade + num(n.adjust))
-    if ('adjust' in patch || 'supply' in patch) n.vat = String(TAXED.has(filter.vatType) ? Math.floor(num(n.supply) / 10) : 0)
+    if ('adjust' in patch) n.supply = String(n.trade + parseNumPlain(n.adjust))
+    if ('adjust' in patch || 'supply' in patch) n.vat = String(TAXED.has(filter.vatType) ? Math.floor(parseNumPlain(n.supply) / 10) : 0)
     return n
   }))
 
@@ -153,12 +152,12 @@ export default function ContractReflectPage() {
   async function saveSlip() {
     if (!slip) return
     setSlipError('')
-    if (!(num(slip.supply) > 0)) { setSlipError('공급가액: 자료를 입력 바랍니다.'); return }
+    if (!(parseNumPlain(slip.supply) > 0)) { setSlipError('공급가액: 자료를 입력 바랍니다.'); return }
     try {
       await api.post('/contract-bills/reflect', {
         lineIds: slip.group.lines.map((l) => l.lineId), entryDate: slip.date,
         departmentId: slip.departmentId ? Number(slip.departmentId) : null, projectId: slip.projectId ? Number(slip.projectId) : null,
-        vatType: slip.vatType, partnerId: slip.group.partnerId, supplyAmount: num(slip.supply), vatAmount: num(slip.vat),
+        vatType: slip.vatType, partnerId: slip.group.partnerId, supplyAmount: parseNumPlain(slip.supply), vatAmount: parseNumPlain(slip.vat),
         description: slip.memo.trim() || null, accountId: Number(slip.accountId), settleAccountId: Number(slip.settleId),
         eInvoiceKind: slip.vatType === '세금계산서' ? '전자(세금)계산서-신규' : null, vatOmitted: false,
       })
@@ -190,7 +189,7 @@ export default function ContractReflectPage() {
     } catch (e) { setSlipError(extractErrorMessage(e)) }
   }
 
-  const sum = (k: 'trade' | 'adjust' | 'foreign' | 'supply' | 'vat') => groups.reduce((s, g) => s + (k === 'trade' ? g.trade : num(g[k])), 0)
+  const sum = (k: 'trade' | 'adjust' | 'foreign' | 'supply' | 'vat') => groups.reduce((s, g) => s + (k === 'trade' ? g.trade : parseNumPlain(g[k])), 0)
   const acctName = (id: string) => accounts.find((a) => String(a.id) === id)?.name ?? ''
   const pickedGroups = groups.filter((g) => picked.has(g.partnerId))
   const cols = kind === 'acct' ? 13 : 10
@@ -248,7 +247,7 @@ export default function ContractReflectPage() {
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="환율" value={g.rate} onValue={(v) => setGroup(i, { rate: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="공급가액" value={g.supply} onValue={(v) => setGroup(i, { supply: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="부가세" value={g.vat} onValue={(v) => setGroup(i, { vat: v })} /></td>
-                  <td className="text-right">{fmtAmountOf(num(g.supply) + num(g.vat))}</td>
+                  <td className="text-right">{fmtAmountOf(parseNumPlain(g.supply) + parseNumPlain(g.vat))}</td>
                   <td><CodePickerField label="매출계정" hideLabel fill emptyLabel="" value={g.accountId} onChange={(v) => setGroup(i, { accountId: v })} items={accountItems} /></td>
                   <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setLinePick(new Set()); setDetail(g) }}>상세</a></td>
                   <td><input className="ec-input w-full" aria-label="적요" maxLength={300} value={g.memo} onChange={(e) => setGroup(i, { memo: e.target.value })} /></td>
@@ -264,7 +263,7 @@ export default function ContractReflectPage() {
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="외화금액" value={g.foreign} onValue={(v) => setGroup(i, { foreign: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="공급가액" value={g.supply} onValue={(v) => setGroup(i, { supply: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" aria-label="부가세" value={g.vat} onValue={(v) => setGroup(i, { vat: v })} /></td>
-                  <td className="text-right">{fmtAmountOf(num(g.supply) + num(g.vat))}</td>
+                  <td className="text-right">{fmtAmountOf(parseNumPlain(g.supply) + parseNumPlain(g.vat))}</td>
                   <td className="text-center"><a href="#" onClick={(e) => { e.preventDefault(); setLinePick(new Set()); setDetail(g) }}>상세</a></td>
                 </>}
               </tr>
@@ -398,7 +397,7 @@ export default function ContractReflectPage() {
             </EcCond>
             <EcCond label="부가세유형" span={2}>
               <select className="ec-input w-full" aria-label="부가세유형" value={slip.vatType}
-                onChange={(e) => setSlip({ ...slip, vatType: e.target.value, vat: String(TAXED.has(e.target.value) ? Math.floor(num(slip.supply) / 10) : 0) })}>
+                onChange={(e) => setSlip({ ...slip, vatType: e.target.value, vat: String(TAXED.has(e.target.value) ? Math.floor(parseNumPlain(slip.supply) / 10) : 0) })}>
                 {VAT_TYPES.map((v) => <option key={v}>{v}</option>)}
               </select>
               {slip.vatType === '세금계산서' && <div className="ec-pills mt-[4px]"><span className="ec-pill">전자(세금)계산서-신규</span><span className="ec-pill">예정누락아님</span></div>}
@@ -410,7 +409,7 @@ export default function ContractReflectPage() {
             </EcCond>
             <EcCond label="공급가액" span={2}>
               <EcNumInput className="ec-input w-full text-right" aria-label="공급가액" value={slip.supply}
-                onValue={(v) => setSlip({ ...slip, supply: v, vat: String(TAXED.has(slip.vatType) ? Math.floor(num(v) / 10) : 0) })} />
+                onValue={(v) => setSlip({ ...slip, supply: v, vat: String(TAXED.has(slip.vatType) ? Math.floor(parseNumPlain(v) / 10) : 0) })} />
             </EcCond>
             <EcCond label="부가세" span={2}><EcNumInput className="ec-input w-full text-right" aria-label="부가세" value={slip.vat} onValue={(v) => setSlip({ ...slip, vat: v })} /></EcCond>
             <EcCond label="적요" span={2}><input className="ec-input w-full" aria-label="적요" maxLength={300} value={slip.memo} onChange={(e) => setSlip({ ...slip, memo: e.target.value })} /></EcCond>

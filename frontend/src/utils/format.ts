@@ -67,3 +67,18 @@ export const fmtAmountHalfAway = (n: number) => (n < 0 ? -Math.round(-n) : Math.
 
 /** 원 미만 버림 · 0 · 빈 값은 빈칸 — Number 로 바꾸지 않는다 (기타원천세 입력) */
 export const fmtTruncNz = (n: number) => (n ? Math.trunc(n).toLocaleString('ko-KR') : '')
+
+/**
+ * 입력 글자 → 숫자 — 지역 `num` 의 파서 쪽을 모았다(같은 이름이 화면마다 '표시'와 '읽기' 두 일을 하던 것).
+ *
+ * <p><b>parseNum</b>: 콤마를 지우고 Number 로 바꾼다. 숫자가 아니면(NaN) · 빈 글자 · null · undefined 는 0, -0 도 0.
+ * 'Infinity' 는 Infinity, ' 12 ' 처럼 앞뒤 빈칸은 Number 가 하듯 12. 숫자를 넣어도 그대로 숫자.
+ * `Number(String(s).replace(/,/g, '')) || 0` 와 모든 입력에서 같다.
+ */
+export const parseNum = (s: string | number | null | undefined) => Number(String(s ?? '').replace(/,/g, '')) || 0
+
+/**
+ * <b>parseNumPlain</b>: 콤마를 <b>지우지 않는</b> `Number(s) || 0` — '1,000' 은 0 이 된다. NaN · 빈 글자 · null · undefined 는 0.
+ * 입력칸이 type=number 라 콤마가 올 일이 없던 화면들의 몸통이다. parseNum 과 결과가 달라서 이름을 나눴다.
+ */
+export const parseNumPlain = (s: string | number | null | undefined) => Number(s) || 0

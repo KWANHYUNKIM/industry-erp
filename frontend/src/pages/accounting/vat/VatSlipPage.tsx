@@ -13,7 +13,7 @@ import { useDeptProjectItems } from '../../../features/cashquick/useDeptProject'
 import { journalNeighbors } from '../../../utils/journalNav'
 import { hasEKind } from '../../../utils/vatSlip'
 import EcDateInput from '../../../components/ui/EcDateInput'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNumPlain } from '../../../utils/format'
 
 /* 원본 [부가세유형] 목록 글자 그대로(2026-10-13 loginaa 매출전표 I 실측 — 세무 (세금)계산서발행/수령과 같은 목록). */
 const SALES_TYPES = [
@@ -72,7 +72,6 @@ const blankDetail = (date: string): DetailState => ({
   serialNo: '', receipt: '청구', note: '', cash: '', check: '', bill: '', credit: '',
   items: [blankItem(date), blankItem(), blankItem(), blankItem()],
 })
-const num = (v: string) => Number(v) || 0
 const str = (v: number | null | undefined) => (v == null || v === 0 ? '' : String(v))
 
 /**
@@ -192,11 +191,11 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
   const vatOf = (t: string, s: number) => (TAXED.has(t) ? Math.round(s / 10) : 0)
   function onSupply(v: string) {
     setSupply(v)
-    setVat(String(vatOf(vatType, num(v))))
+    setVat(String(vatOf(vatType, parseNumPlain(v))))
   }
   function onType(t: string) {
     setVatType(t)
-    setVat(String(vatOf(t, num(supply))))
+    setVat(String(vatOf(t, parseNumPlain(supply))))
   }
 
   /* ── [세부내역] 창 ── */
@@ -206,8 +205,8 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
   }
   /** 외상매출금 = 합계 − 현금 − 수표 − 어음(원본은 줄을 넣자 외상매출금이 110,000 으로 따라왔다). */
   function withCredit(d: DetailState): DetailState {
-    const total = d.items.reduce((a, it) => a + num(it.supply) + num(it.vat), 0)
-    return { ...d, credit: String(Math.max(0, total - num(d.cash) - num(d.check) - num(d.bill))) }
+    const total = d.items.reduce((a, it) => a + parseNumPlain(it.supply) + parseNumPlain(it.vat), 0)
+    return { ...d, credit: String(Math.max(0, total - parseNumPlain(d.cash) - parseNumPlain(d.check) - parseNumPlain(d.bill))) }
   }
   function setItem(i: number, patch: Partial<DetailItem>) {
     setDraft((d) => {
@@ -215,16 +214,16 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
         if (k !== i) return it
         const next = { ...it, ...patch }
         if ('qty' in patch || 'unitPrice' in patch) {
-          if (next.qty !== '' && next.unitPrice !== '') next.supply = String(Math.round(num(next.qty) * num(next.unitPrice)))
+          if (next.qty !== '' && next.unitPrice !== '') next.supply = String(Math.round(parseNumPlain(next.qty) * parseNumPlain(next.unitPrice)))
         }
-        if ('qty' in patch || 'unitPrice' in patch || 'supply' in patch) next.vat = String(vatOf(vatType, num(next.supply)))
+        if ('qty' in patch || 'unitPrice' in patch || 'supply' in patch) next.vat = String(vatOf(vatType, parseNumPlain(next.supply)))
         return next
       })
       return withCredit({ ...d, items })
     })
   }
-  const draftSupply = draft.items.reduce((a, it) => a + num(it.supply), 0)
-  const draftVat = draft.items.reduce((a, it) => a + num(it.vat), 0)
+  const draftSupply = draft.items.reduce((a, it) => a + parseNumPlain(it.supply), 0)
+  const draftVat = draft.items.reduce((a, it) => a + parseNumPlain(it.vat), 0)
   function applyDetail() {
     /* 창에서 친 값을 전표가 든다 — 일련번호 · 비고는 앞뒤 빈칸을 떼고, 현금 · 수표 · 어음 · 외상매출금은 그대로. */
     setDetail({ ...draft, serialNo: draft.serialNo.trim(), note: draft.note.trim(),
@@ -243,26 +242,26 @@ export default function VatSlipPage({ sales }: { sales: boolean }) {
 
   function detailBody() {
     if (!sales || !detail) return undefined
-    const items = detail.items.filter((it) => it.name.trim() || num(it.supply) || num(it.vat))
+    const items = detail.items.filter((it) => it.name.trim() || parseNumPlain(it.supply) || parseNumPlain(it.vat))
     return {
       serialNo: detail.serialNo.trim() || undefined, receipt: detail.receipt, note: detail.note.trim() || undefined,
-      cash: num(detail.cash), check: num(detail.check), bill: num(detail.bill), credit: num(detail.credit),
+      cash: parseNumPlain(detail.cash), check: parseNumPlain(detail.check), bill: parseNumPlain(detail.bill), credit: parseNumPlain(detail.credit),
       items: items.map((it) => ({ itemDate: it.itemDate || undefined, name: it.name.trim() || undefined, spec: it.spec.trim() || undefined,
-        qty: num(it.qty), unitPrice: num(it.unitPrice), supplyAmount: num(it.supply), vatAmount: num(it.vat), note: it.note.trim() || undefined })),
+        qty: parseNumPlain(it.qty), unitPrice: parseNumPlain(it.unitPrice), supplyAmount: parseNumPlain(it.supply), vatAmount: parseNumPlain(it.vat), note: it.note.trim() || undefined })),
     }
   }
 
   async function save() {
     setError('')
     if (!partnerId) { setPartnerInvalid(true); return }
-    if (!(num(supply) > 0)) { setError('공급가액: 자료를 입력 바랍니다.'); return }
+    if (!(parseNumPlain(supply) > 0)) { setError('공급가액: 자료를 입력 바랍니다.'); return }
     setSaving(true)
     try {
       const body = {
         sales, entryDate: date, departmentId: departmentId ? Number(departmentId) : undefined,
         projectId: projectId ? Number(projectId) : undefined, vatType, partnerId: Number(partnerId),
-        supplyAmount: num(supply), vatAmount: num(vat), description: memo.trim() || undefined,
-        accountId: Number(accountId), settleAccountId: Number(settleId), feeAmount: num(fee),
+        supplyAmount: parseNumPlain(supply), vatAmount: parseNumPlain(vat), description: memo.trim() || undefined,
+        accountId: Number(accountId), settleAccountId: Number(settleId), feeAmount: parseNumPlain(fee),
         eInvoiceKind: hasEKind(sales, vatType) ? eKind : undefined, vatOmitted: omitted, vatDetail: detailBody(),
       }
       if (editId) await api.put<JournalEntry>(`/journals/vat-slip/${editId}`, body)

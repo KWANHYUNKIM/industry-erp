@@ -4,7 +4,7 @@ import GridCode from '../../components/codepicker/GridCode'
 import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/codepicker/CodePickerField'
 import type { ProductLink } from './types'
-import { fmtAmountOf } from '../../utils/format'
+import { fmtAmountOf, parseNum } from '../../utils/format'
 
 /**
  * 원본 [설정] · [상세] 글자 — 정해졌으면 주황 바탕 흰 글자(.text-warning-inverse: 12px · 여백 0.9px 1.8px · 둥글기 6 · h 19.8),
@@ -25,10 +25,9 @@ export interface ProductOption { id: number; code: string; name: string; spec: s
 interface Row { itemId: string; spec: string; quantity: string; unitPrice: string; supply: string; vat: string }
 const MIN_ROWS = 5
 const empty = (): Row => ({ itemId: '', spec: '', quantity: '', unitPrice: '', supply: '', vat: '' })
-const num = (s: string) => Number(String(s).replace(/,/g, '')) || 0
 const qty = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const supplyOf = (q: string, p: string) => String(Math.round(num(q) * num(p)))
-const vatOf = (supply: string) => String(Math.floor(num(supply) / 10))
+const supplyOf = (q: string, p: string) => String(Math.round(parseNum(q) * parseNum(p)))
+const vatOf = (supply: string) => String(Math.floor(parseNum(supply) / 10))
 
 /**
  * '품목연결설정' 창 — 회계 II › 계약관리. 계약항목등록 [품목별단가 › 설정] 과 계약입력 줄 [상세] 가 같이 쓴다.
@@ -74,13 +73,13 @@ export default function ProductLinkModal({ open, value, products, onApply, onClo
     setRow(i, { itemId: id, quantity: rows[i].quantity || '1', unitPrice: rows[i].unitPrice || String(Number(p?.unitPrice ?? 0)) })
   }
   const filled = rows.filter((r) => r.itemId)
-  const sum = (k: 'quantity' | 'supply' | 'vat') => filled.reduce((s, r) => s + num(r[k]), 0)
+  const sum = (k: 'quantity' | 'supply' | 'vat') => filled.reduce((s, r) => s + parseNum(r[k]), 0)
 
   function apply() {
     onApply(filled.map((r) => {
       const p = byId(r.itemId)
       return { itemId: Number(r.itemId), itemCode: p?.code ?? null, itemName: p?.name ?? null, spec: r.spec.trim() || null,
-        quantity: num(r.quantity), unitPrice: num(r.unitPrice), supplyAmount: num(r.supply), vatAmount: num(r.vat) }
+        quantity: parseNum(r.quantity), unitPrice: parseNum(r.unitPrice), supplyAmount: parseNum(r.supply), vatAmount: parseNum(r.vat) }
     }))
   }
 

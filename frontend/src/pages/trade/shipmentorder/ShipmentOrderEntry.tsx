@@ -17,7 +17,7 @@ import { SlipHistoryModal, slipHeadLabel } from '../../../features/sliphistory/S
 import SourceDocSearch from '../../../features/slipload/components/SourceDocSearch'
 import EcIcon from '../../../components/ui/EcIcon'
 import { todayYmd } from '../../../utils/periods'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNumPlain } from '../../../utils/format'
 
 /**
  * 출하지시서입력(E040220) — 원본 영업관리 &gt; 출하지시서 &gt; <b>출하지시서입력</b>(2026-10-28 데이터이관 루프 18 실측).
@@ -59,7 +59,6 @@ const emptyLine = (): LineInput => ({ id: null, itemId: '', quantity: '', remark
 type SalesTab = 'ALL' | 'IN_APPROVAL' | 'UNCONFIRMED' | 'CONFIRMED'
 const SALES_TABS: [SalesTab, string][] = [['ALL', '전체'], ['IN_APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인']]
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
-const num = (s: string) => Number(s) || 0
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 interface SoDoc {
@@ -183,7 +182,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
   function addItemLine(itemId: string, qty = 1) {
     setLines((ls) => {
       const at = ls.findIndex((l) => l.itemId === itemId)
-      if (at >= 0) return ls.map((l, i) => (i === at ? { ...l, quantity: String(num(l.quantity) + qty) } : l))
+      if (at >= 0) return ls.map((l, i) => (i === at ? { ...l, quantity: String(parseNumPlain(l.quantity) + qty) } : l))
       const filled: LineInput = { id: null, itemId, quantity: String(qty), remark: '', spec: null }
       const blank = ls.findIndex((l) => !l.itemId)
       if (blank >= 0) return ls.map((l, i) => (i === blank ? filled : l))
@@ -191,7 +190,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
     })
   }
   const lineCount = lines.filter((l) => l.itemId).length
-  const totalQty = lines.reduce((a, l) => a + (l.itemId ? num(l.quantity) : 0), 0)
+  const totalQty = lines.reduce((a, l) => a + (l.itemId ? parseNumPlain(l.quantity) : 0), 0)
 
   // ── 툴바 동작 ─────────────────────────────────────────
   function sortLines() {
@@ -213,7 +212,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
   function verify() {
     const msgs: string[] = []
     if (!partnerId) msgs.push('거래처를 선택하세요.')
-    lines.forEach((l, i) => { if (l.itemId && num(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`) })
+    lines.forEach((l, i) => { if (l.itemId && parseNumPlain(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`) })
     if (lineCount === 0) msgs.push('품목을 1줄 이상 입력하세요.')
     setVerifyResult(msgs)
   }
@@ -298,7 +297,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
-    const filled = lines.filter((l) => l.itemId && num(l.quantity) > 0)
+    const filled = lines.filter((l) => l.itemId && parseNumPlain(l.quantity) > 0)
     if (filled.length === 0) {
       void ecAlert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n출하지시서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')
       return
@@ -311,7 +310,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
       projectId: projectId ? Number(projectId) : null,
       contact: contact || null, dueDate: dueDate || null,
       postalCode: postalCode || null, address: address || null, remark: remark || null,
-      lines: filled.map((l) => ({ id: l.id, itemId: Number(l.itemId), quantity: num(l.quantity), remark: l.remark || null, salesId: l.salesId ?? null, spec: l.spec ?? undefined, itemName: l.name ?? undefined })),
+      lines: filled.map((l) => ({ id: l.id, itemId: Number(l.itemId), quantity: parseNumPlain(l.quantity), remark: l.remark || null, salesId: l.salesId ?? null, spec: l.spec ?? undefined, itemName: l.name ?? undefined })),
     }
     const mode = afterSaveModeRef.current
     afterSaveModeRef.current = null

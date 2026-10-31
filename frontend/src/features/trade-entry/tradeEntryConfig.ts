@@ -1,5 +1,6 @@
 import type { SalesDoc, PurchaseDoc, Partner } from '../../types/api'
 import { roundWon } from '../../utils/lineSupply'
+import { parseNumPlain } from '../../utils/format'
 
 /* 판매입력 · 구매입력(pages/trade/sales/TradeEntry)의 판매 / 구매 설정(CFG) · 줄 모양 · 불러오기 자료형 — TradeEntry 에서 몸통 그대로 옮겼다(단계 10). */
 
@@ -113,7 +114,6 @@ export function splitDiscount(total: number, taxable: boolean) {
   const supply = taxable ? Math.round(t / 1.1) : t
   return { supply, vat: t - supply, total: t }
 }
-export const num = (s: string) => Number(s) || 0
 export const emptyLine = (): LineInput => ({
   itemId: '', quantity: '', unitPrice: '', lineRate: '', spec: null, name: null, lotNo: '', extraCost: '', remark: '',
   supplyOverride: '', supplyBase: '', vatOverride: '', vatBase: '',
@@ -131,8 +131,8 @@ export const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 
 /** 손으로 고친 공급가액 — 고친 뒤 수량·단가가 그대로일 때만 살아 있다(원본: 둘 중 하나를 바꾸면 다시 계산). */
 export function overriddenSupply(l: LineInput): number | null {
-  if (l.supplyOverride === '' || l.supplyBase !== `${num(l.quantity)}|${num(l.unitPrice)}`) return null
-  return roundWon(num(l.supplyOverride))
+  if (l.supplyOverride === '' || l.supplyBase !== `${parseNumPlain(l.quantity)}|${parseNumPlain(l.unitPrice)}`) return null
+  return roundWon(parseNumPlain(l.supplyOverride))
 }
 
 /** 원본 [전표불러오기] '메뉴검색' 창의 목록(2026-10-31 loginad — 판매입력에서는 [판매], 구매입력에서는 [구매] 가 빠진다). */

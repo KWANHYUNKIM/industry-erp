@@ -1,8 +1,7 @@
 import EcNumInput from '../../../components/EcNumInput'
 import type { PayItem } from '../../../types/api'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNum } from '../../../utils/format'
 
-const num = (s: string) => Number(String(s).replace(/,/g, '')) || 0
 
 /**
  * 사원등록 [급여지급사항] 의 금액 표들 (원본 E090101, 2026-10-12 실측 — 2019-002 변종호).
@@ -24,7 +23,7 @@ export default function EmployeePayItemTables({ items, baseSalary, onBaseSalary,
   const daily = active.filter((i) => i.kind === 'ALLOWANCE' && i.payMethod === 'DAILY')
   const hourly = active.filter((i) => i.kind === 'ALLOWANCE' && i.payMethod === 'HOURLY')
   const deduct = active.filter((i) => i.kind === 'DEDUCTION')
-  const fixedTotal = num(baseSalary) + fixed.reduce((s, i) => s + num(vals.get(i.id) ?? ''), 0)
+  const fixedTotal = parseNum(baseSalary) + fixed.reduce((s, i) => s + parseNum(vals.get(i.id) ?? ''), 0)
 
   const cell = (i: PayItem) => (
     <tr key={i.id}>

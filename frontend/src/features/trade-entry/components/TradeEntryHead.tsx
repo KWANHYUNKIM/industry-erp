@@ -1,8 +1,8 @@
 import EcDateField from '../../../components/EcDateField'
 import CodePickerField from '../../../components/codepicker/CodePickerField'
 import { partnerCodeItems } from '../../../utils/codeItems'
-import { fmtNumber } from '../../../utils/format'
-import { num, type Mode, type TradeEntryCfg } from '../tradeEntryConfig'
+import { fmtNumber, parseNumPlain } from '../../../utils/format'
+import { type Mode, type TradeEntryCfg } from '../tradeEntryConfig'
 import type { Partner, CustomFieldDef, EmployeeMaster, Project, Warehouse } from '../../../types/api'
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -168,7 +168,7 @@ export default function TradeEntryHead({
                   onChange={(e) => {
                     setCurrencyCode(e.target.value)
                     const c = currencies.find((x) => x.code === e.target.value)
-                    if (c?.latestRate && num(exchangeRate) <= 0) setExchangeRate(String(c.latestRate))
+                    if (c?.latestRate && parseNumPlain(exchangeRate) <= 0) setExchangeRate(String(c.latestRate))
                   }}
                 >
                   <option value="">외화 선택</option>

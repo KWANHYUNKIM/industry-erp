@@ -23,7 +23,7 @@ import { useSubmitting } from '../../../utils/useSubmitting'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../../features/sliphistory/SlipHistoryModal'
 import EcIcon from '../../../components/ui/EcIcon'
 import { todayYmd } from '../../../utils/periods'
-import { fmtNumber } from '../../../utils/format'
+import { fmtNumber, parseNumPlain } from '../../../utils/format'
 
 /**
  * 견적서입력 — 원본 영업관리 &gt; 견적서 &gt; <b>견적서입력</b>(E040201). 주문서입력 · 출하지시서입력과 같은 큰 입력 화면이다
@@ -54,7 +54,6 @@ const NOT_HERE = '이 기능은 이 ERP 에서 제공하지 않습니다.'
 interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */; name: string | null /* 줄 품목명 — null = 품목 이름을 따라감(원본은 고른 뒤 고쳐 쓴다) */ }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '', spec: null, name: null })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
-const num = (s: string) => Number(s) || 0
 const MEM_KEY = 'quotation-head'
 interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
 
@@ -215,13 +214,13 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
 
   /* 부가세는 줄마다 원 단위로 반올림해 더한다 — 서버(QuotationService)가 그렇게 저장한다. ÷10 은 ×0.1 의 부동소수 오차를 피하려는 것. */
   const computed = lines.map((l) => {
-    const supply = lineSupply(num(l.quantity), num(l.unitPrice))
+    const supply = lineSupply(parseNumPlain(l.quantity), parseNumPlain(l.unitPrice))
     const vat = taxable ? Math.round(supply / 10) : 0
     return { supply, vat, total: supply + vat }
   })
   const lineCount = lines.filter((l) => l.itemId).length
   const totals = computed.reduce<{ qty: number; supply: number; vat: number; total: number }>((a, c, i) => (lines[i].itemId
-    ? { qty: a.qty + num(lines[i].quantity), supply: a.supply + c.supply, vat: a.vat + c.vat, total: a.total + c.total } : a),
+    ? { qty: a.qty + parseNumPlain(lines[i].quantity), supply: a.supply + c.supply, vat: a.vat + c.vat, total: a.total + c.total } : a),
   { qty: 0, supply: 0, vat: 0, total: 0 })
 
   function addItemLine(itemId: string, qty = 1, price?: number) {
@@ -231,7 +230,7 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
       const at = ls.findIndex((l) => l.itemId === itemId)
       if (at >= 0) {
         const next = [...ls]
-        next[at] = { ...next[at], quantity: String(num(next[at].quantity) + qty) }
+        next[at] = { ...next[at], quantity: String(parseNumPlain(next[at].quantity) + qty) }
         return next
       }
       const filled: LineInput = { itemId, quantity: String(qty), unitPrice: String(price ?? it.unitPrice ?? 0), remark: '', spec: null, name: null }
@@ -278,8 +277,8 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
     if (!partnerId) msgs.push('거래처를 선택하세요.')
     lines.forEach((l, i) => {
       if (!l.itemId) return
-      if (num(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
-      if (num(l.unitPrice) <= 0) msgs.push(`${i + 1}행: 단가가 0입니다.`)
+      if (parseNumPlain(l.quantity) <= 0) msgs.push(`${i + 1}행: 수량이 0입니다.`)
+      if (parseNumPlain(l.unitPrice) <= 0) msgs.push(`${i + 1}행: 단가가 0입니다.`)
     })
     if (lineCount === 0) msgs.push('품목을 1줄 이상 입력하세요.')
     setVerifyResult(msgs)
@@ -343,7 +342,7 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
       projectId: projectId ? Number(projectId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
       validUntil: validUntil || undefined, taxable, remark: remark || undefined,
-      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: num(l.quantity), unitPrice: num(l.unitPrice), remark: l.remark || undefined, spec: l.spec ?? undefined, itemName: l.name ?? undefined })),
+      lines: kept.map((l) => ({ itemId: Number(l.itemId), quantity: parseNumPlain(l.quantity), unitPrice: parseNumPlain(l.unitPrice), remark: l.remark || undefined, spec: l.spec ?? undefined, itemName: l.name ?? undefined })),
     }
     try {
       const saved = editing
