@@ -412,8 +412,8 @@ frontend/src/
 ├─ main.tsx                 # 렌더만 한다
 ├─ app/
 │  ├─ App.tsx               # BrowserRouter · AuthProvider 로 감싼다
-│  ├─ router.tsx            # 라우트 표 (lazy import)
-│  └─ layout/               # EcountLayout(상단 메뉴, FLAT_MENU 단일 소스), Layout
+│  ├─ router.tsx            # routes/<모듈>.routes.tsx 의 라우트 조각(lazy import)을 차례대로 붙인다
+│  └─ layout/               # menu.ts(MENU · FLAT_MENU 단일 소스) · EcountLayout(상단 메뉴 틀) · Layout
 ├─ pages/<모듈>/             # URL 하나 = 화면 하나
 ├─ features/<기능>/          # 기능 전용: components/ · api/ · hooks/ · types.ts
 │  ├─ auth/                 # AuthContext, menuPermissions, components/ProtectedRoute
@@ -428,8 +428,8 @@ frontend/src/
 - **한 화면만 쓰는 컴포넌트·API 호출은 아직 `pages/` 파일 안에 있습니다.** 한 번에 빼지 말고,
   그 화면을 고칠 일이 생겼을 때 `features/<기능>/` 로 옮깁니다(4.4 와 같은 방식).
 - 공통인데 UI 가 아닌 것(계산·포맷)은 `components/` 가 아니라 `utils/` 에 둡니다.
-- `app/router.tsx`·`app/layout/EcountLayout.tsx`·`features/auth/menuPermissions.ts`·`utils/periods.ts` 는
-  `qa/ui-check.mjs` 가 경로로 읽습니다. 옮기면 그쪽 경로도 같이 고치세요.
+- `app/router.tsx`(+ `app/routes/*.routes.tsx`)·`app/layout/menu.ts`·`app/layout/EcountLayout.tsx`·`features/auth/menuPermissions.ts`·`utils/periods.ts` 는
+  `qa/ui-check.mjs` 등이 경로로 읽습니다(라우트 · 메뉴는 `qa/app-src.mjs` 한 곳). 옮기면 그쪽 경로도 같이 고치세요.
 
 
 ### 10.1 화면 디자인 규칙 (이카운트 ec56 과 같게)

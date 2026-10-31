@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { extractErrorMessage } from '../../api/client'
-import { FLAT_MENU } from '../../app/layout/EcountLayout'
+import { FLAT_MENU } from '../../app/layout/menu'
 import Modal from '../../components/Modal'
 import { myFolders, type MyFolder } from '../../features/mypage/api'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'

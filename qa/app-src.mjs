@@ -13,5 +13,8 @@ const read = (rel) => readFileSync(new URL(rel, SRC), 'utf8')
 export const routerSource = () => [read('router.tsx'),
   ...readdirSync(new URL('routes/', SRC)).filter((f) => f.endsWith('.routes.tsx')).sort().map((f) => read('routes/' + f))].join('\n')
 
-/** 상단 메뉴(FLAT_MENU) 등 레이아웃이 그리는 메뉴 자료 — EcountLayout.tsx 와 그 곁 파일들. */
-export const menuSource = () => read('layout/EcountLayout.tsx')
+/**
+ * 상단 · 왼쪽 메뉴 자료 — MENU · FLAT_MENU 는 layout/menu.ts 에, 그것을 그리는 틀은 layout/EcountLayout.tsx 에 있다.
+ * 메뉴 자료가 앞에 오게 이어 붙인다(쪼개기 전 EcountLayout.tsx 의 차례).
+ */
+export const menuSource = () => [read('layout/menu.ts'), read('layout/EcountLayout.tsx')].join('\n')

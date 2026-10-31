@@ -1,5 +1,5 @@
 import AppRouter from '../../app/router'
-import { FLAT_MENU } from '../../app/layout/EcountLayout'
+import { FLAT_MENU } from '../../app/layout/menu'
 import AppWindow from '../appbar/AppWindow'
 
 /** 메뉴 주소 → 메뉴 이름(창 제목). 메뉴에 없으면 fallback */

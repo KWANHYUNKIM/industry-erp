@@ -1,5 +1,5 @@
 // 업무권한(서버 WorkPermissionDtos) 타입과 업무 → 하위 메뉴.
-import { FLAT_MENU } from '../../app/layout/EcountLayout'
+import { FLAT_MENU } from '../../app/layout/menu'
 import { permForRoute } from './menuPermissions'
 
 export type WorkMode = 'ALLOW' | 'DENY' | 'EXC_ACTION' | 'EXC_MENU'
