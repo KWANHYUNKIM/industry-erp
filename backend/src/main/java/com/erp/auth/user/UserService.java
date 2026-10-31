@@ -7,6 +7,7 @@ import com.erp.auth.user.dto.UserDtos.UpdateUserRequest;
 import com.erp.auth.user.dto.UserDtos.UserResponse;
 import com.erp.auth.role.RoleRepository;
 import com.erp.settings.company.CompanyAccessService;
+import com.erp.security.CurrentUser;
 import com.erp.settings.securitypolicy.SecurityPolicyService;
 import com.erp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,7 @@ public class UserService {
         }
         requirePasswordPolicy(request.password());
         requireSeat();
+        requireMasterToGrantMaster(null, request.roleNames());
 
         User user = User.builder()
                 .username(request.username())
@@ -76,6 +78,7 @@ public class UserService {
     @Transactional
     public UserResponse setEnabled(Long id, boolean enabled) {
         User user = getUser(id);
+        requireMasterForMaster(user);
         if (enabled && !user.isEnabled()) requireSeat();
         if (!enabled && user.isEnabled()) user.revokeTokens();   // 사용중지 — 나간 토큰도 바로 끊는다(H6)
         user.setEnabled(enabled);
@@ -90,6 +93,8 @@ public class UserService {
     @Transactional
     public UserResponse update(Long id, UpdateUserRequest request) {
         User user = getUser(id);
+        requireMasterForMaster(user);
+        requireMasterToGrantMaster(user, request.roleNames());
         user.setName(request.name());
         user.setEmail(request.email());
         user.setDepartment(request.department());
@@ -188,12 +193,32 @@ public class UserService {
     @Transactional
     public void delete(Long id) {
         User user = getUser(id);
+        requireMasterForMaster(user);
         try {
             userRepository.delete(user);
             userRepository.flush();   // FK 위반을 트랜잭션 커밋이 아니라 여기서 잡는다
         } catch (DataIntegrityViolationException e) {
             throw ApiException.conflict("작성한 전표·문서가 있는 사용자는 삭제할 수 없습니다: "
                     + user.getUsername() + " (사용중지로 내리세요)");
+        }
+    }
+
+    /**
+     * 마스터 계정(비밀번호 · 권한 · 사용여부 · 삭제)은 마스터만 손댄다(docs/보안-점검.md H4).
+     * 사용자등록은 인가 인터셉터에서 이미 마스터 전용(USER_MANAGE)이지만, 경로 표에 기대지 않고 여기서도 본다.
+     */
+    private void requireMasterForMaster(User target) {
+        if (target.isMaster() && !CurrentUser.isMasterOrSystem()) {
+            throw ApiException.forbidden("마스터 계정은 마스터만 바꿀 수 있습니다.");
+        }
+    }
+
+    /** ADMIN(마스터) 역할을 붙이는 것은 마스터만 — 자기 권한 올리기 금지. 이미 마스터인 사람의 역할을 그대로 두는 것은 통과. */
+    private void requireMasterToGrantMaster(User target, Set<String> roleNames) {
+        if (roleNames == null || !roleNames.contains(User.MASTER_ROLE)) return;
+        if (target != null && target.isMaster()) return;
+        if (!CurrentUser.isMasterOrSystem()) {
+            throw ApiException.forbidden("마스터 권한은 마스터만 줄 수 있습니다.");
         }
     }
 

@@ -12,6 +12,7 @@ import com.erp.auth.workpermission.dto.WorkPermissionDtos.SaveWorkRow;
 import com.erp.auth.workpermission.dto.WorkPermissionDtos.UserWorksResponse;
 import com.erp.auth.workpermission.dto.WorkPermissionDtos.WorkRow;
 import com.erp.common.ApiException;
+import com.erp.security.CurrentUser;
 import com.erp.common.MenuPermissionCatalog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -316,6 +317,11 @@ public class WorkPermissionService {
     /** 마스터를 통째로 정한다 — ADMIN 역할을 붙이고 뗀다. 한 명 이상, 그리고 바꾸는 본인은 빠질 수 없다. */
     @Transactional
     public List<MasterResponse> saveMasters(List<Long> userIds, Long actorId) {
+        // 마스터 지정은 마스터만 — 자기 id 를 넣어 스스로 마스터가 되는 것을 막는다(docs/보안-점검.md H4).
+        // 인가 인터셉터(USER_MANAGE = 마스터 전용)가 먼저 막지만, 경로 표에 기대지 않고 여기서도 본다.
+        if (actorId == null || !user(actorId).isMaster() || !CurrentUser.isMasterOrSystem()) {
+            throw ApiException.forbidden("마스터만 마스터를 지정할 수 있습니다.");
+        }
         Set<Long> want = new HashSet<>(userIds);
         if (want.isEmpty()) throw ApiException.badRequest("마스터는 한 명 이상이어야 합니다.");
         if (actorId != null && !want.contains(actorId)) {
