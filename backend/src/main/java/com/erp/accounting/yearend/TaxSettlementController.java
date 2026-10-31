@@ -1,5 +1,6 @@
 package com.erp.accounting.yearend;
 
+import jakarta.validation.Valid;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.DeductionRequest;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.PrevEmployerRequest;
 import com.erp.accounting.yearend.dto.TaxSettlementDtos.SettlementResponse;
@@ -35,7 +36,7 @@ public class TaxSettlementController {
 
     /** 대상자추가 [적용(F8)] */
     @PostMapping("/targets")
-    public List<SettlementResponse> addTargets(@RequestBody TargetsRequest req) {
+    public List<SettlementResponse> addTargets(@Valid @RequestBody TargetsRequest req) {
         return service.addTargets(req.attributionYear(), req.kind() == null ? TaxSettlementKind.YEAR_END : req.kind(), req.employeeIds());
     }
 
@@ -47,7 +48,7 @@ public class TaxSettlementController {
 
     /** 중도정산 원천징수연월(지급연월) 선택 창 [저장(F8)] */
     @PutMapping("/{id}/withholding-month")
-    public SettlementResponse saveWithholdingMonth(@PathVariable Long id, @RequestBody WithholdingMonthRequest req) {
+    public SettlementResponse saveWithholdingMonth(@PathVariable Long id, @Valid @RequestBody WithholdingMonthRequest req) {
         return service.saveWithholdingMonth(id, req.withholdingMonth());
     }
 

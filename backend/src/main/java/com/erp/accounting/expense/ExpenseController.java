@@ -56,7 +56,7 @@ public class ExpenseController {
 
     /** 비용통제 — 저장 전에 화면이 묻는다(한도 · 사용인원). editingId 는 고치는 전표(그 금액은 누적에서 뺀다). */
     @PostMapping("/slip/control-check")
-    public List<ExpenseDtos.ControlViolation> controlCheck(@RequestBody ExpenseDtos.SlipRequest req,
+    public List<ExpenseDtos.ControlViolation> controlCheck(@Valid @RequestBody ExpenseDtos.SlipRequest req,
                                                            @RequestParam(required = false) Long editingId) {
         return expenseService.checkControl(req, editingId);
     }

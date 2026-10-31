@@ -96,7 +96,7 @@ public class ContractBillController {
 
     /** 청구자료수정 [삭제] · 목록 [선택삭제] */
     @PostMapping("/delete")
-    public void delete(@RequestBody ContractBillDtos.DeleteRequest req) {
+    public void delete(@Valid @RequestBody ContractBillDtos.DeleteRequest req) {
         service.delete(req.ids());
     }
 }

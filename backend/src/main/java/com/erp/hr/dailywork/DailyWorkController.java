@@ -36,7 +36,7 @@ public class DailyWorkController {
 
     /** 선택한 출역들을 지급 처리 */
     @PostMapping("/pay")
-    public List<DailyWorkResponse> pay(@RequestBody PayRequest req,
+    public List<DailyWorkResponse> pay(@Valid @RequestBody PayRequest req,
                                        @AuthenticationPrincipal UserPrincipal principal) {
         return service.pay(req, principal.getUsername());
     }

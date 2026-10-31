@@ -1,5 +1,6 @@
 package com.erp.settings.preference;
 
+import jakarta.validation.Valid;
 import com.erp.settings.preference.dto.PreferenceDtos.PreferenceRequest;
 import com.erp.settings.preference.dto.PreferenceDtos.PreferenceResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class PreferenceController {
     }
 
     @PutMapping
-    public PreferenceResponse save(@RequestBody PreferenceRequest req) {
+    public PreferenceResponse save(@Valid @RequestBody PreferenceRequest req) {
         return preferenceService.save(req);
     }
 }

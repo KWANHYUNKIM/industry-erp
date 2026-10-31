@@ -41,7 +41,7 @@ public class AsController {
     }
 
     @PatchMapping("/{id}")
-    public AsResponse update(@PathVariable Long id, @RequestBody UpdateAsRequest req) {
+    public AsResponse update(@PathVariable Long id, @Valid @RequestBody UpdateAsRequest req) {
         return asService.update(id, req);
     }
 

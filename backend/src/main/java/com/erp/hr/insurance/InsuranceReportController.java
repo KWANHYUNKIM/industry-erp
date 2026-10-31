@@ -23,10 +23,10 @@ public class InsuranceReportController {
     public List<WorkplaceResponse> workplaces() { return service.workplaces(); }
 
     @PostMapping("/workplaces")
-    public WorkplaceResponse createWorkplace(@RequestBody WorkplaceRequest req) { return service.createWorkplace(req); }
+    public WorkplaceResponse createWorkplace(@Valid @RequestBody WorkplaceRequest req) { return service.createWorkplace(req); }
 
     @PutMapping("/workplaces/{id}")
-    public WorkplaceResponse updateWorkplace(@PathVariable Long id, @RequestBody WorkplaceRequest req) { return service.updateWorkplace(id, req); }
+    public WorkplaceResponse updateWorkplace(@PathVariable Long id, @Valid @RequestBody WorkplaceRequest req) { return service.updateWorkplace(id, req); }
 
     @PostMapping("/workplaces/{id}/toggle")
     public WorkplaceResponse toggleWorkplace(@PathVariable Long id) { return service.toggleWorkplace(id); }

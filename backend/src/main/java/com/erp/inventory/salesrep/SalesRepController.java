@@ -47,7 +47,7 @@ public class SalesRepController {
     }
 
     @PutMapping("/{id}/active")
-    public SalesRepResponse setActive(@PathVariable Long id, @RequestBody ActiveRequest req) {
+    public SalesRepResponse setActive(@PathVariable Long id, @Valid @RequestBody ActiveRequest req) {
         return service.setActive(id, req.active());
     }
 

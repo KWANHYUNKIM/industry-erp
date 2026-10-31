@@ -31,7 +31,7 @@ public class PayLedgerController {
     }
 
     @PostMapping("/{id}/calculate")
-    public CalculateResult calculate(@PathVariable Long id, @RequestBody(required = false) CalculateRequest req,
+    public CalculateResult calculate(@PathVariable Long id, @Valid @RequestBody(required = false) CalculateRequest req,
                                      @AuthenticationPrincipal UserPrincipal principal) {
         return service.calculate(id, req, principal.getUsername());
     }

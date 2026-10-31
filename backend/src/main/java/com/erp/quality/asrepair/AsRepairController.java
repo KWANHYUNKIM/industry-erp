@@ -55,7 +55,7 @@ public class AsRepairController {
 
     /** 목록 [진행상태변경] — 진행중 · 완료. */
     @PatchMapping("/{id}/status")
-    public RepairResponse changeStatus(@PathVariable Long id, @RequestBody StatusRequest req) {
+    public RepairResponse changeStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest req) {
         return service.changeStatus(id, req.status());
     }
 

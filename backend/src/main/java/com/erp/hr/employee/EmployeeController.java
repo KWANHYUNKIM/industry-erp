@@ -181,7 +181,7 @@ public class EmployeeController {
 
     /** 부서 배치 (조직도에서 사원을 부서로 옮길 때) */
     @PutMapping("/{id}/department")
-    public EmployeeResponse assignDepartment(@PathVariable Long id, @RequestBody AssignDepartmentRequest req) {
+    public EmployeeResponse assignDepartment(@PathVariable Long id, @Valid @RequestBody AssignDepartmentRequest req) {
         return employeeService.assignDepartment(id, req);
     }
 }

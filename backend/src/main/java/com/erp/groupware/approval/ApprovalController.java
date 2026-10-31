@@ -59,7 +59,7 @@ public class ApprovalController {
     @PostMapping("/{id}/approve")
     public ApprovalResponse approve(
             @PathVariable Long id,
-            @RequestBody(required = false) ApprovalActionRequest req,
+            @Valid @RequestBody(required = false) ApprovalActionRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return approvalService.approve(id, req, principal.getUsername());
     }
@@ -67,7 +67,7 @@ public class ApprovalController {
     @PostMapping("/{id}/reject")
     public ApprovalResponse reject(
             @PathVariable Long id,
-            @RequestBody(required = false) ApprovalActionRequest req,
+            @Valid @RequestBody(required = false) ApprovalActionRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return approvalService.reject(id, req, principal.getUsername());
     }
@@ -76,7 +76,7 @@ public class ApprovalController {
     @PatchMapping("/{id}/label")
     public ApprovalResponse changeLabel(
             @PathVariable Long id,
-            @RequestBody ChangeLabelRequest req,
+            @Valid @RequestBody ChangeLabelRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return approvalService.changeLabel(id, req.labelText(), principal.getUsername());
     }
@@ -89,7 +89,7 @@ public class ApprovalController {
 
     /** ERP 전표 연결 (판매/구매/지출 중 하나) */
     @PostMapping("/{id}/vouchers")
-    public ApprovalResponse linkVoucher(@PathVariable Long id, @RequestBody LinkVoucherRequest req) {
+    public ApprovalResponse linkVoucher(@PathVariable Long id, @Valid @RequestBody LinkVoucherRequest req) {
         return approvalService.linkVoucher(id, req);
     }
 

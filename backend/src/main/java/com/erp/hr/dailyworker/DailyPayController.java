@@ -84,7 +84,7 @@ public class DailyPayController {
     }
 
     @PostMapping("/{id}/calculate")
-    public CalculateResponse calculate(@PathVariable Long id, @RequestBody(required = false) CalculateRequest req) {
+    public CalculateResponse calculate(@PathVariable Long id, @Valid @RequestBody(required = false) CalculateRequest req) {
         return service.calculate(id, req);
     }
 

@@ -48,7 +48,7 @@ public class SurveyController {
     /** 설문 응답. 예전에는 응답 수만 +1 했지만 이제 실제 답을 받는다. */
     @PostMapping("/{id}/respond")
     public SurveyResponseDto respond(@PathVariable Long id,
-                                     @RequestBody(required = false) SubmitResponseRequest req,
+                                     @Valid @RequestBody(required = false) SubmitResponseRequest req,
                                      @AuthenticationPrincipal UserPrincipal principal) {
         return surveyService.submit(id, req, principal.getUsername());
     }

@@ -1,5 +1,6 @@
 package com.erp.accounting.evidence;
 
+import jakarta.validation.Valid;
 import com.erp.accounting.evidence.dto.ExpenseEvidenceDtos.AccountSetting;
 import com.erp.accounting.evidence.dto.ExpenseEvidenceDtos.AccountSettingRequest;
 import com.erp.accounting.evidence.dto.ExpenseEvidenceDtos.CompareRow;
@@ -34,7 +35,7 @@ public class ExpenseEvidenceController {
     }
 
     @PutMapping("/accounts")
-    public List<AccountSetting> saveAccounts(@RequestBody AccountSettingRequest req) {
+    public List<AccountSetting> saveAccounts(@Valid @RequestBody AccountSettingRequest req) {
         return service.saveAccounts(req.shownIds());
     }
 }

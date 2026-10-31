@@ -33,7 +33,7 @@ public class CrmController {
     }
 
     @PatchMapping("/{id}")
-    public CrmResponse update(@PathVariable Long id, @RequestBody UpdateCrmRequest req) {
+    public CrmResponse update(@PathVariable Long id, @Valid @RequestBody UpdateCrmRequest req) {
         return crmService.update(id, req);
     }
 

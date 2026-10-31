@@ -1,5 +1,6 @@
 package com.erp.accounting.balanceadjust;
 
+import jakarta.validation.Valid;
 import com.erp.accounting.balanceadjust.dto.BalanceAdjustDtos.*;
 import com.erp.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -35,12 +36,12 @@ public class BalanceAdjustController {
 
     /** '거래처별집계구분' 창 [저장] — 계정의 ○없음 ◉거래처별 · ☑부서별집계 · ☑프로젝트별집계. */
     @PutMapping("/aggregation/{accountId}")
-    public void setAggregation(@PathVariable Long accountId, @RequestBody AggregationRequest req) {
+    public void setAggregation(@PathVariable Long accountId, @Valid @RequestBody AggregationRequest req) {
         service.setAggregation(accountId, req);
     }
 
     @PostMapping
-    public AdjustmentRow save(@RequestBody SaveRequest req, @AuthenticationPrincipal UserPrincipal principal) {
+    public AdjustmentRow save(@Valid @RequestBody SaveRequest req, @AuthenticationPrincipal UserPrincipal principal) {
         return service.save(req, principal.getUsername());
     }
 

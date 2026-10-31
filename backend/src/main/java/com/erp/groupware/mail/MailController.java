@@ -61,13 +61,13 @@ public class MailController {
     }
 
     @PostMapping("/drafts")
-    public ResponseEntity<MailResponse> saveDraft(@RequestBody SaveDraftRequest req,
+    public ResponseEntity<MailResponse> saveDraft(@Valid @RequestBody SaveDraftRequest req,
                                                   @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.saveDraft(req, principal.getUsername()));
     }
 
     @PutMapping("/drafts/{id}")
-    public MailResponse updateDraft(@PathVariable Long id, @RequestBody SaveDraftRequest req,
+    public MailResponse updateDraft(@PathVariable Long id, @Valid @RequestBody SaveDraftRequest req,
                                     @AuthenticationPrincipal UserPrincipal principal) {
         return service.updateDraft(id, req, principal.getUsername());
     }
@@ -134,7 +134,7 @@ public class MailController {
     /** 공용메일 처리 완료 */
     @PostMapping("/{id}/handle")
     public MailResponse handle(@PathVariable Long id,
-                               @RequestBody(required = false) HandleMailRequest req,
+                               @Valid @RequestBody(required = false) HandleMailRequest req,
                                @AuthenticationPrincipal UserPrincipal principal) {
         return service.handle(id, req, principal.getUsername());
     }

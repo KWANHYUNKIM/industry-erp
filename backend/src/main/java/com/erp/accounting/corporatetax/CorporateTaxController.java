@@ -35,7 +35,7 @@ public class CorporateTaxController {
     }
 
     @PutMapping("/{id}")
-    public TaxReturnResponse update(@PathVariable Long id, @RequestBody UpdateReturnRequest req) {
+    public TaxReturnResponse update(@PathVariable Long id, @Valid @RequestBody UpdateReturnRequest req) {
         return service.update(id, req);
     }
 

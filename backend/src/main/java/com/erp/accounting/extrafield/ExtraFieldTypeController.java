@@ -56,7 +56,7 @@ public class ExtraFieldTypeController {
     public List<AccountRow> accounts(@PathVariable Long id) { return service.accounts(id); }
 
     @PostMapping("/{id}/accounts")
-    public List<AccountRow> addAccounts(@PathVariable Long id, @RequestBody AddAccountsRequest req) {
+    public List<AccountRow> addAccounts(@PathVariable Long id, @Valid @RequestBody AddAccountsRequest req) {
         return service.addAccounts(id, req.accountIds());
     }
 

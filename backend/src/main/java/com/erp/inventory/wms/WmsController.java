@@ -36,7 +36,7 @@ public class WmsController {
     }
 
     @PutMapping("/locations/{id}")
-    public LocationResponse updateLocation(@PathVariable Long id, @RequestBody UpdateLocationRequest req) {
+    public LocationResponse updateLocation(@PathVariable Long id, @Valid @RequestBody UpdateLocationRequest req) {
         return service.updateLocation(id, req);
     }
 

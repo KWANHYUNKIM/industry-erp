@@ -41,7 +41,7 @@ public class PartnerController {
     }
 
     @PatchMapping("/{id}/price-group")
-    public PartnerResponse updatePriceGroup(@PathVariable Long id, @RequestBody UpdatePriceGroupRequest req) {
+    public PartnerResponse updatePriceGroup(@PathVariable Long id, @Valid @RequestBody UpdatePriceGroupRequest req) {
         return partnerService.updatePriceGroup(id, req);
     }
 

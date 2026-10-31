@@ -41,13 +41,13 @@ public class DepartmentController {
 
     /** 조직도등록 [부서장지정]. */
     @PutMapping("/{id}/head")
-    public DepartmentResponse setHead(@PathVariable Long id, @RequestBody DepartmentDtos.SetHeadRequest req) {
+    public DepartmentResponse setHead(@PathVariable Long id, @Valid @RequestBody DepartmentDtos.SetHeadRequest req) {
         return departmentService.setHead(id, req.employeeId());
     }
 
     /** 조직도등록 [부서장설정] 창 [저장(F8)]. */
     @PutMapping("/{id}/org")
-    public DepartmentResponse placeInOrg(@PathVariable Long id, @RequestBody DepartmentDtos.OrgPlacementRequest req) {
+    public DepartmentResponse placeInOrg(@PathVariable Long id, @Valid @RequestBody DepartmentDtos.OrgPlacementRequest req) {
         return departmentService.placeInOrg(id, req);
     }
 

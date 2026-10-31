@@ -55,7 +55,7 @@ public class QuotationController {
     /** 하단 [진행상태변경] — 미확인 · 진행중 · 완료. */
     @PatchMapping("/{id}/status")
     public QuotationResponse updateStatus(@PathVariable Long id,
-                                          @RequestBody QuotationDtos.UpdateQuotationStatusRequest req) {
+                                          @Valid @RequestBody QuotationDtos.UpdateQuotationStatusRequest req) {
         return service.updateStatus(id, req.status());
     }
 

@@ -73,7 +73,7 @@ public class PurchaseOrderController {
 
     /** 발주계획 확정 (납기일 지정) */
     @PostMapping("/{id}/plan")
-    public PurchaseOrderResponse plan(@PathVariable Long id, @RequestBody(required = false) PlanRequest req,
+    public PurchaseOrderResponse plan(@PathVariable Long id, @Valid @RequestBody(required = false) PlanRequest req,
                                       @AuthenticationPrincipal UserPrincipal principal) {
         return service.plan(id, req, principal.getUsername());
     }

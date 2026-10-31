@@ -71,7 +71,7 @@ public class ExportController {
 
     /** 원본 [진행상태변경] — 미확인 ↔ 확인. */
     @PatchMapping("/{id}/confirm")
-    public ExportResponse confirm(@PathVariable Long id, @RequestBody ConfirmRequest req) {
+    public ExportResponse confirm(@PathVariable Long id, @Valid @RequestBody ConfirmRequest req) {
         return service.confirm(id, req.confirmed());
     }
 
@@ -86,7 +86,7 @@ public class ExportController {
     }
 
     @PostMapping("/{id}/pay")
-    public ExportResponse pay(@PathVariable Long id, @RequestBody(required = false) PayRequest req) {
+    public ExportResponse pay(@PathVariable Long id, @Valid @RequestBody(required = false) PayRequest req) {
         return service.pay(id, req);
     }
 }

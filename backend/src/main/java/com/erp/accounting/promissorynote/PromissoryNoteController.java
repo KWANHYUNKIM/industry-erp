@@ -56,7 +56,7 @@ public class PromissoryNoteController {
 
     /** 만기결제 (계좌 입출금 + 분개) */
     @PostMapping("/{id}/settle")
-    public NoteResponse settle(@PathVariable Long id, @RequestBody SettleRequest req,
+    public NoteResponse settle(@PathVariable Long id, @Valid @RequestBody SettleRequest req,
                                @AuthenticationPrincipal UserPrincipal principal) {
         return service.settle(id, req, principal.getUsername());
     }
@@ -144,7 +144,7 @@ public class PromissoryNoteController {
 
     /** 부도 처리 (받을어음 전용) */
     @PostMapping("/{id}/dishonor")
-    public NoteResponse dishonor(@PathVariable Long id, @RequestBody(required = false) DishonorRequest req) {
+    public NoteResponse dishonor(@PathVariable Long id, @Valid @RequestBody(required = false) DishonorRequest req) {
         return service.dishonor(id, req);
     }
 }

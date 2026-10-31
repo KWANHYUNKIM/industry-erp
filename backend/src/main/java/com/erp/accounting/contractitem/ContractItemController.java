@@ -34,7 +34,7 @@ public class ContractItemController {
 
     /** 원본 [사용중단/재사용] */
     @PostMapping("/active")
-    public void setActive(@RequestBody ContractItemDtos.ActiveRequest req) {
+    public void setActive(@Valid @RequestBody ContractItemDtos.ActiveRequest req) {
         service.setActive(req.ids(), req.active());
     }
 

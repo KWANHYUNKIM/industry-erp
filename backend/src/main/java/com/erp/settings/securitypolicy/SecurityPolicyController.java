@@ -1,5 +1,6 @@
 package com.erp.settings.securitypolicy;
 
+import jakarta.validation.Valid;
 import com.erp.settings.securitypolicy.dto.SecurityPolicyDtos.SecurityPolicyRequest;
 import com.erp.settings.securitypolicy.dto.SecurityPolicyDtos.SecurityPolicyResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class SecurityPolicyController {
     }
 
     @PutMapping
-    public SecurityPolicyResponse save(@RequestBody SecurityPolicyRequest req) {
+    public SecurityPolicyResponse save(@Valid @RequestBody SecurityPolicyRequest req) {
         return securityPolicyService.save(req);
     }
 }
