@@ -329,15 +329,23 @@ public class PurchaseOrderService {
      * 발주요청 고치기 — 원본 발주요청조회에서 [발주요청일자]를 눌러 여는 '발주요청입력(수정)' 창(2026-10-13 loginaa 실측).
      *
      * <p>원본은 일자를 잠그고 나머지(거래처 · 품목 줄 · 창고 · 납기 …)를 고친다. 그래서 일자 · 번호는 그대로 두고
-     * 머리와 줄을 통째로 바꾼다. 발주계획 이후로 넘어간 것은 이미 다음 단계가 그 줄을 보고 있어 막는다.
+     * 머리와 줄을 통째로 바꾼다. 구매로 넘어간 것 · 취소한 것은 막는다(아래).
      */
     @Transactional
     public PurchaseOrderResponse update(Long id, CreatePurchaseOrderRequest req, String username) {
         PurchaseOrder po = get(id);
-        /* 발주계획조회의 [일자-No.] 도 같은 창(발주계획입력 수정)으로 계획을 고친다 — 단가확정 이후는 다음 단계가 본다. */
-        if (po.getStatus() != PurchaseOrderStatus.REQUESTED && po.getStatus() != PurchaseOrderStatus.PLANNED
-                && po.getStatus() != PurchaseOrderStatus.PRICE_REQUESTED) {
-            throw ApiException.badRequest("발주요청 · 발주계획 · 단가요청 상태에서만 고칠 수 있습니다. (현재: " + po.getStatus().getDisplayName() + ")");
+        /*
+         * 발주계획조회의 [일자-No.] 도 같은 창(발주계획입력 수정)으로 계획을 고친다. 발주서조회 [일자-No.] 의 '발주서수정' 창은
+         * 원본에서 단가확정 · 발주확정(미확인 · 진행중) 전표도 저장된다(2026-10-31 클릭대조 5번) — 판매 · 구매 수정처럼
+         * <b>다음 전표가 이 전표를 아직 안 봤으면</b> 고친다. 구매로 끊었으면(입고전환 · 일부 구매) 구매 줄이 이 발주를 출처로 보고
+         * 있어 막고, 취소한 것도 막는다.
+         */
+        if (po.getStatus() == PurchaseOrderStatus.RECEIVED || po.getConvertedPurchaseId() != null
+                || purchaseLineRepository.existsBySourceOrderId(id)) {
+            throw ApiException.badRequest("이미 구매로 전환된 발주서는 고칠 수 없습니다. 먼저 구매전표를 지우세요: " + po.getOrderNo());
+        }
+        if (po.getStatus() == PurchaseOrderStatus.CANCELLED) {
+            throw ApiException.badRequest("취소된 발주서는 고칠 수 없습니다: " + po.getOrderNo());
         }
         BusinessPartner partner = headPartner(req.partnerId(), po.getStatus());
         po.setPartner(partner);
