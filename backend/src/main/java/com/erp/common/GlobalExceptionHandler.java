@@ -3,6 +3,7 @@ package com.erp.common;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
  *   <li>{@code timestamp} — 예전 꼴과 같게.</li>
  *   <li>{@code errors[]} — 요청 본문 검증 실패일 때 칸마다 {@code {field, message}}.</li>
  *   <li>{@code permission} — 업무권한 거부일 때.</li>
+ *   <li>{@code requestId} — 요청 id({@link RequestIdFilter}). 서버 로그에서 같은 요청을 찾는다.</li>
  * </ul>
  * 상태코드 매핑은 ProblemDetail 이전과 한 줄도 다르지 않다.
  */
@@ -49,6 +51,8 @@ public class GlobalExceptionHandler {
         if (status instanceof HttpStatus hs) pd.setTitle(hs.getReasonPhrase());
         pd.setProperty("message", message);
         pd.setProperty("timestamp", LocalDateTime.now());
+        String requestId = MDC.get(RequestIdFilter.MDC_KEY);
+        if (requestId != null) pd.setProperty("requestId", requestId);
         return pd;
     }
 
@@ -361,12 +365,15 @@ public class GlobalExceptionHandler {
 
     /**
      * 예상하지 못한 오류. 예외 문구(SQL · 클래스명 · 내부 경로가 섞일 수 있다)는 응답에 싣지 않고
-     * 서버 로그에 스택과 함께 남긴다.
+     * 서버 로그에 스택과 함께 남긴다. 화면에는 요청 번호를 보여 로그에서 같은 요청을 찾게 한다.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGeneral(Exception e, HttpServletRequest request) {
         log.error("처리되지 않은 예외 {} {}", request.getMethod(), request.getRequestURI(), e);
+        String requestId = MDC.get(RequestIdFilter.MDC_KEY);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(problem(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."));
+                .body(problem(HttpStatus.INTERNAL_SERVER_ERROR, requestId == null
+                        ? "서버 오류가 발생했습니다."
+                        : "서버 오류가 발생했습니다. (요청 번호 " + requestId + ")"));
     }
 }

@@ -41,6 +41,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login").permitAll()
                         // 헬스체크
                         .requestMatchers("/api/health").permitAll()
+                        // Actuator — 노출은 health · info 둘뿐(application.yml management)
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         // CORS preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // 그 외 모든 요청은 인증 필요

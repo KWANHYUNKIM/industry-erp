@@ -53,6 +53,19 @@ app:
     # 토큰 유효기간 (밀리초): 8시간
     expiration-ms: 28800000
 
+# 관측 — Actuator 는 health · info 만 웹에 연다(나머지 엔드포인트는 닫힘). health 는 세부(DB 등)를 안 보인다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
 logging:
+  # 줄마다 요청 id(RequestIdFilter → MDC requestId). 요청 밖(기동 · 스케줄러)은 빈 [].
+  pattern:
+    level: "%5p [%X{requestId:-}]"
   level:
     org.hibernate.SQL: info
