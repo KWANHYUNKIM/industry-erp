@@ -9,7 +9,6 @@ import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseDoc, PurchaseOrder, PurchaseOrderStatus, StockRow, Warehouse } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
-import { ymd } from '../../components/EcPeriodPicks'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
 import { dateText } from '../../utils/dateText'
@@ -31,9 +30,9 @@ import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestF
 import ProductionSlipWindow from '../production/ProductionSlipWindow'
 import { dateNo } from '../../utils/dateNo'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => ymd(new Date())
 const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
 /** 생성한 전표가 있으면 원본처럼 주황 꼬리표(QuotationPage GEN_TAG 와 같은 실측 — 바탕 --ec-tag-warn · 흰 글자 · 둥글기 6). */
 const GEN_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
@@ -417,7 +416,7 @@ export default function PurchaseOrderPage() {
             onClose={() => setForm(null)}
             onSaved={() => { setForm(null); load() }}
             onDeleted={() => { setForm(null); load() }}
-            onCopy={(src) => openForm({ ...src, id: 0, orderDate: today(), dueDate: today() })}
+            onCopy={(src) => openForm({ ...src, id: 0, orderDate: todayYmd(), dueDate: todayYmd() })}
             onStep={step} />
         </ProductionSlipWindow>
       )}
@@ -669,7 +668,7 @@ export function PurchaseOrderForm({ items, partners, employees, warehouses, proj
   onClose: () => void; onSaved: () => void
 }) {
   const [partnerId, setPartnerId] = useState('')
-  const [orderDate, setOrderDate] = useState(today())
+  const [orderDate, setOrderDate] = useState(todayYmd())
   const [dueDate, setDueDate] = useState('')
   const [employeeId, setEmployeeId] = useState('')   // 담당자
   const [warehouseId, setWarehouseId] = useState('') // 입고창고

@@ -30,8 +30,8 @@ import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 import { shrinkImage } from '../../utils/imageResize'
 import EcIcon from '../../components/ui/EcIcon'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { pad2, todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 
 /**
  * 원본 목록 오른쪽 위의 조회 기간(= 조건 판 [게시일]의 기본값).
@@ -95,8 +95,7 @@ function stampText(iso?: string | null, postDate?: string | null) {
   const wd = WEEK[new Date(y, m - 1, dd).getDay()]
   if (!ok) return `${dateText(day)} (${wd})`
   const h = d!.getHours()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${dateText(day)} (${wd}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d!.getMinutes())}:${pad(d!.getSeconds())}`
+  return `${dateText(day)} (${wd}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad2(d!.getMinutes())}:${pad2(d!.getSeconds())}`
 }
 
 /** forwardAll: 원본 [전달자] 의 '전체'(켬) / '선택'(이름을 고른다). */
@@ -118,7 +117,7 @@ type Form = {
 /** 지금 시각 'YYYY-MM-DDTHH:mm'(로컬). */
 const nowLocal = () => { const d = new Date(); return `${ymd(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 const emptyForm = (stage = ''): Form => ({
-  title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage, weekNo: null, links: [null, null, null, null], extra: {},
+  title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: todayYmd(), stage, weekNo: null, links: [null, null, null, null], extra: {},
   project: '', kanbanPostId: null, ccAll: false, status: 'IN_PROGRESS', done: nowLocal(),
 })
 
@@ -600,7 +599,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK', popup }: {
     setFormDirty(false)
     setEditId(null)
     // 원본 통합회의록 입력 창은 제목에 오늘 날짜가 미리 들어 있다('2026/10/13 ').
-    setForm({ ...emptyForm(), title: cfg.minutes ? `${dateText(today())} ` : '', content: cfg.template ?? '', ccAll: !!cfg.ccAll })
+    setForm({ ...emptyForm(), title: cfg.minutes ? `${dateText(todayYmd())} ` : '', content: cfg.template ?? '', ccAll: !!cfg.ccAll })
     setAttachment(null)
     setError('')
     setShowForm(true)

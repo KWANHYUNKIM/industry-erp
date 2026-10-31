@@ -4,10 +4,10 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { ProjectProfitSummary } from '../../types/api'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const firstOfMonth = () => ymd(new Date()).slice(0, 8) + '01'
-const today = () => ymd(new Date())
 
 /**
  * 회계 II > 프로젝트별 손익 — 전표에 붙은 프로젝트를 집계한다.
@@ -18,7 +18,7 @@ const today = () => ymd(new Date())
  */
 export default function ProjectProfitPage() {
   const [from, setFrom] = useState(firstOfMonth())
-  const [to, setTo] = useState(today())
+  const [to, setTo] = useState(todayYmd())
   const [data, setData] = useState<ProjectProfitSummary | null>(null)
   const [onlyActive, setOnlyActive] = useState(true)
   const [error, setError] = useState('')
@@ -38,7 +38,7 @@ export default function ProjectProfitPage() {
   const rows = (data?.rows ?? []).filter((r) =>
     !onlyActive || r.revenue !== 0 || r.purchaseCost !== 0 || r.expense !== 0)
 
-  const reset = () => { setFrom(firstOfMonth()); setTo(today()); setOnlyActive(true) }
+  const reset = () => { setFrom(firstOfMonth()); setTo(todayYmd()); setOnlyActive(true) }
 
   return (
     <EcListShell

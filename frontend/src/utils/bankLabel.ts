@@ -1,3 +1,5 @@
+import type { BankAccountRow } from '../types/api'
+
 /** 통장 이름이 들어 있는 최소 모양 — /bank-cards/accounts 응답. */
 export interface BankLabelSource { name?: string | null; bankName?: string | null; accountNo?: string | null }
 
@@ -9,4 +11,15 @@ export interface BankLabelSource { name?: string | null; bankName?: string | nul
 export function bankLabel(a: BankLabelSource): string {
   if (a.name) return a.name
   return `${a.bankName ?? ''}-${(a.accountNo ?? '').replace(/\D/g, '').slice(-4)}`
+}
+
+/**
+ * 입금 · 수금 · 어음 입력의 통장 고르기 칸에 찍는 이름 — 등록한 통장명, 없으면 '은행명-끝4자리',
+ * 계좌번호 숫자가 4자리 미만이면 은행명만. 위 {@link bankLabel} 과 달리 숫자가 모자라면 '-' 를 안 붙인다
+ * (화면 7곳에 같은 몸통으로 복사돼 있던 것을 모았다 — 출력이 달라서 bankLabel 로 합치지 않았다).
+ */
+export function bankPickLabel(b: Pick<BankAccountRow, 'name' | 'bankName' | 'accountNo'>) {
+  if (b.name) return b.name
+  const digits = (b.accountNo ?? '').replace(/\D/g, '')
+  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
 }

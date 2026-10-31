@@ -21,13 +21,12 @@ import EcRichBody from '../../components/EcRichBody'
 import { htmlToText, isHtml, sanitizeHtml } from '../../utils/richText'
 import { shrinkImage } from '../../utils/imageResize'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { pad2, todayYmd } from '../../utils/periods'
 
 const WORKLOG_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '종료일', '최근3일+7일'] as const
 
-const today = () => ymd(new Date())
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 const dow = (d: string) => (d ? DOW[new Date(`${d}T00:00:00`).getDay()] : '')
-const pad2 = (n: number) => String(n).padStart(2, '0')
 /** 격자 머리 '10/05(월)'. */
 const dayHead = (d: string) => `${d.slice(5, 7)}/${d.slice(8, 10)}(${dow(d)})`
 /** 원본 '조회' 머리의 작성 시각 — '2026/10/03 오후 6:20:13'. */
@@ -56,7 +55,7 @@ function daysOf(from: string, to: string, onlyDow: string): string[] {
 }
 
 type Form = { reportDate: string; department: string; partnerName: string; projectId: string; title: string; content: string; attachment: { id: number; name: string } | null }
-const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerName: '', projectId: '', title: '', content: '', attachment: null })
+const emptyForm = (): Form => ({ reportDate: todayYmd(), department: '', partnerName: '', projectId: '', title: '', content: '', attachment: null })
 
 /**
  * 그룹웨어 > 업무관리 > 업무일지 (이카운트 E070304)

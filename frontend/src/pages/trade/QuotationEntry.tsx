@@ -22,6 +22,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { useSubmitting } from '../../utils/useSubmitting'
 import { SlipHistoryModal, SlipLastHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import EcIcon from '../../components/ui/EcIcon'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 견적서입력 — 원본 영업관리 &gt; 견적서 &gt; <b>견적서입력</b>(E040201). 주문서입력 · 출하지시서입력과 같은 큰 입력 화면이다
@@ -54,10 +55,6 @@ const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', r
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 const MEM_KEY = 'quotation-head'
 interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
 
@@ -78,7 +75,7 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
 
   // ── 머리 ──────────────────────────────────────────────
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [partnerId, setPartnerId] = useState('')
   /** 임의거래처(12341234)에 고친 거래처명 — 고른 거래처 id 와 같이 들어 다른 거래처를 고르면 저절로 버려진다. */
   const [anyName, setAnyName] = useState<{ id: string; name: string } | null>(null)
@@ -388,7 +385,7 @@ export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup 
   }
   /** 수정 중 [복사] — 같은 내용이 새 견적서가 된다(일자 오늘, 번호는 저장할 때 받는다). */
   function copyEditing() {
-    setEditing(null); setDate(today()); setPartnerMissing(false); setError('')
+    setEditing(null); setDate(todayYmd()); setPartnerMissing(false); setError('')
     if (popup) popup.onCopy?.()
     else navigate('/sales/quotation-entry', { replace: true })
   }

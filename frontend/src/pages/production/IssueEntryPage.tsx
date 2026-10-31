@@ -6,10 +6,11 @@ import GridFindButton from '../../components/GridFindButton'
 import EcDateField from '../../components/EcDateField'
 import EcSlipShell from '../../components/EcSlipShell'
 import { api, extractErrorMessage } from '../../api/client'
-import { ymd, periodOf } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import SlipLoadModal, { type LoadedSlip } from '../../features/slipload/components/SlipLoadModal'
+import { todayYmd } from '../../utils/periods'
 
 /** searchKeyword 는 원본 [검색창내용] — 코드도움이 이 값으로도 찾는다. */
 interface Item { id: number; code: string; name: string; spec?: string | null; unit: string; searchKeyword: string | null; lotManaged?: boolean }
@@ -52,11 +53,10 @@ interface WorkOrderFull {
 }
 
 const inputCls = 'ec-input w-full'
-const today = () => ymd(new Date())
 let nextLineKey = 1
 const emptyLine = (): FormLine => ({ key: nextLineKey++, itemId: '', qty: '', note: '' })
 const emptyForm = () => ({
-  warehouseId: '', toWarehouseId: '', employeeId: '', issueDate: today(),
+  warehouseId: '', toWarehouseId: '', employeeId: '', issueDate: todayYmd(),
   /** 원본 생산불출입력 머리의 [프로젝트]. 안 정할 수 있다. */
   projectId: '',
 })

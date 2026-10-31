@@ -6,15 +6,15 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Currency, ExportOrder, ExportSummary, Item, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
-import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
 import ExportSlipPickModal, { type PickedSlip } from '../../features/export/components/ExportSlipPickModal'
 import ExportMappingModal, { type ExportMapping } from '../../features/export/components/ExportMappingModal'
 import { requireSelection } from '../../components/EcDialog'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const fx = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 })
-const today = () => ymd(new Date())
 
 /** 원본 목록 탭 — 전체 · 미확인 · 확인(2026-10-04 실측). */
 const TABS = ['전체', '미확인', '확인'] as const
@@ -283,8 +283,8 @@ function ExportForm({ initial, partners, currencies, items, mappings, onClose, o
   const s = (v: string | null | undefined) => v ?? ''
 
   const initHead = () => ({
-    voucherDate: initial?.voucherDate ?? today(), partnerId: initial ? String(initial.partnerId) : '',
-    invoiceNo: s(initial?.invoiceNo), invoiceDate: initial?.invoiceDate ?? today(),
+    voucherDate: initial?.voucherDate ?? todayYmd(), partnerId: initial ? String(initial.partnerId) : '',
+    invoiceNo: s(initial?.invoiceNo), invoiceDate: initial?.invoiceDate ?? todayYmd(),
     lcNo: s(initial?.lcNo), lcDate: s(initial?.lcDate), lcBank: s(initial?.lcBank),
     shipper: s(initial?.shipper), messrs: s(initial?.messrs), notifyParty: s(initial?.notifyParty),
     portOfLoading: s(initial?.portOfLoading), destination: s(initial?.destination), carrier: s(initial?.carrier),

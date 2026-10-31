@@ -5,7 +5,6 @@ import type { Item, Partner, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { Link } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
@@ -18,6 +17,7 @@ import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, asReceiptC
   type AsFormLine, type AsReceiptDraft, type AsStatus } from '../../features/as/AsReceiptForm'
 import { ecConfirm } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 재고 II › A/S관리 › A/S접수조회(E040602) · A/S접수입력(E040601) · A/S접수수정
@@ -58,7 +58,6 @@ interface AsRow {
   extraNote: string | null
 }
 
-const today = () => ymd(new Date())
 
 /** 원본 [접수증] — 접수한 품목 줄을 찍는다(금액 없는 양식). */
 /** 목록 [접수증인쇄]는 고른 접수를 한 번에 찍는다. */
@@ -195,7 +194,7 @@ export default function AsManagePage() {
   /* 원본 수정 창 [복사] — 같은 내용으로 새 접수 창을 연다(일자는 오늘, 진행상태는 접수). */
   function copyEditing() {
     setEditing(null); setFormError('')
-    setF((x) => ({ ...x, receiptDate: today(), status: 'RECEIVED' }))
+    setF((x) => ({ ...x, receiptDate: todayYmd(), status: 'RECEIVED' }))
     setLines((ls) => ls.map((l) => ({ ...l })))
   }
 

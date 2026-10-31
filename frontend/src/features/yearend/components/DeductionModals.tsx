@@ -5,13 +5,13 @@ import { extractErrorMessage } from '../../../api/client'
 import { won, yearEndApi, type Deduction, type DeductionKind, type PrevEmployer, type Settlement } from '../api'
 import { NumInput } from './parts'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
+import { pad2 } from '../../../utils/periods'
 
 const today = new Date()
-const pad = (n: number) => String(n).padStart(2, '0')
 
 /** 원본 (11) 근무기간 기본값 — 귀속연도 1월 1일 ~ 귀속연도의 오늘(2025/01/01 ~ 2025/10/13 실측). */
 const blankPrev = (year: number): PrevEmployer => ({
-  bizNo: '', companyName: '', periodFrom: `${year}-01-01`, periodTo: `${year}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`,
+  bizNo: '', companyName: '', periodFrom: `${year}-01-01`, periodTo: `${year}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`,
   salary: 0, bonus: 0, otherPay: 0, nonTaxable: 0, reducedIncome: 0, nationalPension: 0, otherPension: 0,
   healthInsurance: 0, employmentInsurance: 0, decidedIncomeTax: 0, decidedLocalTax: 0, decidedRuralTax: 0,
 })

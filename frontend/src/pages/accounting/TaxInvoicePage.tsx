@@ -4,14 +4,13 @@ import EcStatusPanel from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { TaxInvoice, TaxInvoiceStatus, TaxInvoiceType } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import TaxInvoiceProgressPage from './TaxInvoiceProgressPage'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => ymd(new Date())
 
 const STATUS_TABS = ['전체', '작성', '발행', '전송', '승인'] as const
 type Tab = (typeof STATUS_TABS)[number]
@@ -36,7 +35,7 @@ export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
 function TradeTaxInvoicePage({ type }: { type: TaxInvoiceType }) {
   const [rows, setRows] = useState<TaxInvoice[]>([])
   const [from, setFrom] = useState(firstOfYear())
-  const [to, setTo] = useState(today())
+  const [to, setTo] = useState(todayYmd())
   const [tab, setTab] = useState<Tab>('전체')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -82,7 +81,7 @@ function TradeTaxInvoicePage({ type }: { type: TaxInvoiceType }) {
   const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
   const totals = shown.reduce((a, r) => ({ supply: a.supply + r.supplyAmount, vat: a.vat + r.vatAmount, total: a.total + r.totalAmount }), { supply: 0, vat: 0, total: 0 })
 
-  const reset = () => { setFrom(firstOfYear()); setTo(today()) }
+  const reset = () => { setFrom(firstOfYear()); setTo(todayYmd()) }
 
   return (
     <EcListShell

@@ -9,8 +9,8 @@ import { dateText } from '../../utils/dateText'
 import { useShortcut } from '../../utils/useShortcut'
 import { ecConfirm } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 실측). */
 const monthAgo = () => { const d = new Date(); d.setMonth(d.getMonth() - 1); return ymd(d) }
 
@@ -35,7 +35,7 @@ const monthAgo = () => { const d = new Date(); d.setMonth(d.getMonth() - 1); ret
 export default function FieldWorkPage() {
   const { user } = useAuth()
   const [from, setFrom] = useState(monthAgo())
-  const [to, setTo] = useState(today())
+  const [to, setTo] = useState(todayYmd())
   const [summary, setSummary] = useState<FieldWorkSummary | null>(null)
   const [users, setUsers] = useState<FieldWorkUser[]>([])
   const [error, setError] = useState('')

@@ -1,4 +1,4 @@
-const pad2 = (n: number) => String(n).padStart(2, '0')
+import { pad2 } from '../../utils/periods'
 
 /** 원본 ECDrive 의 일시 — '2026/10/03 오후 6:34:41'(목록 · 버전/이력 · 상세보기가 같다). */
 export function driveStamp(iso: string | null) {

@@ -1,3 +1,4 @@
+import { pad2 } from './periods.ts'
 /**
  * Self-Customizing > 환경설정 > 기본값설정(C001124) 의 표시 값 — 순수 함수.
  * 원본 실측(2026-10-22, plans/self.md): 0값표시 {표시, 표시안함(기본)} — "표시하지 않을 경우 공란으로 표시됩니다." ·
@@ -29,12 +30,11 @@ export function zeroText(n: number, fmt: (n: number) => string, zeroDisplay: boo
   return n === 0 && !zeroDisplay ? '' : fmt(n)
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
 
 /** 시각 — 12시간제 '오전 0:03' · '오후 12:30'(원본 적용예시), 24시간제 '0:03' · '13:30'. seconds 면 ':ss' 를 붙인다. */
 export function timeText(d: Date, clock24: boolean, seconds = false): string {
   const h = d.getHours()
-  const tail = `:${pad(d.getMinutes())}${seconds ? `:${pad(d.getSeconds())}` : ''}`
+  const tail = `:${pad2(d.getMinutes())}${seconds ? `:${pad2(d.getSeconds())}` : ''}`
   if (clock24) return `${h}${tail}`
   return `${h < 12 ? '오전' : '오후'} ${h === 12 ? 12 : h % 12}${tail}`
 }

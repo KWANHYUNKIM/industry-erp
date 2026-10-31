@@ -4,6 +4,7 @@ import { useAuth } from '../features/auth/AuthContext'
 import { api, extractErrorMessage } from '../api/client'
 import { ecAlert } from '../components/EcDialog'
 import '../styles/login.css'
+import { pad2 } from '../utils/periods'
 
 /**
  * 로그인 — login.ecount.com 과 같은 틀(2026-10-30 실측, plans/데이터이관/클릭대조/대조-로그인.md).
@@ -123,11 +124,10 @@ export default function LoginPage() {
   async function checkIn() {
     try {
       const now = new Date()
-      const pad = (n: number) => String(n).padStart(2, '0')
-      const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+      const today = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
       const rows = (await api.get<{ username: string; workDate: string }[]>('/attendances')).data
       if (rows.some((r) => r.workDate === today && r.username === username.trim())) return
-      await api.post('/attendances/record', { date: today, time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      await api.post('/attendances/record', { date: today, time: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
         place: '사무실', outsideWork: false, halfLeave: false, reason: '' })
     } catch (err) {
       await ecAlert('출근체크를 못 했습니다.\n' + extractErrorMessage(err))

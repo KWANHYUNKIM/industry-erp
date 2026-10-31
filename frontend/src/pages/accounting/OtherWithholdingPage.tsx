@@ -6,13 +6,12 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingSlip, WithholdingSlipListRow } from '../../types/api'
-import { ymd } from '../../utils/periods'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
 const ym = (s: string) => s.replace('-', '/')
 /** 오늘(이 기기 시각) — toISOString 은 UTC 라 한국 오전 9시 전에는 하루 전이 됐다(원본 기본 2026/10/14, 우리 10/13). */
-const today = () => ymd(new Date())
 const TYPES = ['사업소득', '이자배당소득', '기타소득', '비거주자사업기타소득']
 
 /**
@@ -29,14 +28,14 @@ const TYPES = ['사업소득', '이자배당소득', '기타소득', '비거주�
  */
 export default function OtherWithholdingPage() {
   const navigate = useNavigate()
-  const [from, setFrom] = useState(today().slice(0, 8) + '01')
-  const [to, setTo] = useState(today())
+  const [from, setFrom] = useState(todayYmd().slice(0, 8) + '01')
+  const [to, setTo] = useState(todayYmd())
   const [useAttr, setUseAttr] = useState(false)
-  const [attrFrom, setAttrFrom] = useState(today().slice(0, 7))
-  const [attrTo, setAttrTo] = useState(today().slice(0, 7))
+  const [attrFrom, setAttrFrom] = useState(todayYmd().slice(0, 7))
+  const [attrTo, setAttrTo] = useState(todayYmd().slice(0, 7))
   const [usePay, setUsePay] = useState(false)
-  const [payFrom, setPayFrom] = useState(today().slice(0, 7))
-  const [payTo, setPayTo] = useState(today().slice(0, 7))
+  const [payFrom, setPayFrom] = useState(todayYmd().slice(0, 7))
+  const [payTo, setPayTo] = useState(todayYmd().slice(0, 7))
   const [type, setType] = useState('')
   const [payee, setPayee] = useState('')
   const [rows, setRows] = useState<WithholdingSlipListRow[]>([])
@@ -215,7 +214,7 @@ type Account = { id: number; code: string; name: string }
  */
 function JournalModal({ draft, onClose }: { draft: JournalDraft; onClose: () => void }) {
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [entryDate, setEntryDate] = useState(today())
+  const [entryDate, setEntryDate] = useState(todayYmd())
   const [description, setDescription] = useState(draft.description)
   const [rows, setRows] = useState<JournalRow[]>(draft.rows)
   const [error, setError] = useState('')

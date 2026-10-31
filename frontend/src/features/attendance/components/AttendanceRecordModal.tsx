@@ -4,11 +4,11 @@ import { extractErrorMessage } from '../../../api/client'
 import type { Attendance } from '../../../types/api'
 import { timeText } from '../../../utils/displayPrefs'
 import { useDisplayPrefs } from '../../preference/displayPrefsStore'
+import { pad2 } from '../../../utils/periods'
 
 /** 시 고르기 — 원본은 '오전 2' 꼴(2026-10-14 실측). 0 ~ 11 오전, 12 ~ 23 오후(12 는 '오후 12'). */
 const HOURS = Array.from({ length: 24 }, (_, h) => ({ value: h, label: `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 && h >= 12 ? 12 : h % 12}` }))
 const MINUTES = Array.from({ length: 60 }, (_, m) => String(m).padStart(2, '0'))
-const pad = (n: number) => String(n).padStart(2, '0')
 
 /**
  * 출/퇴근기록부(ID) E070305 — 달력의 날짜 칸을 누르면 뜨는 '출/퇴근기록부' 창(원본 960 × 458, 2026-10-14 실측).
@@ -45,7 +45,7 @@ export default function AttendanceRecordModal({ date, userName, record, onClose,
   useEffect(() => {
     if (!date) return
     const d = new Date()
-    setNow(d); setHour(d.getHours()); setMinute(pad(d.getMinutes()))
+    setNow(d); setHour(d.getHours()); setMinute(pad2(d.getMinutes()))
     setPlace(record?.place ?? '사무실'); setOutside(record?.outsideWork ?? false); setHalfLeave(record?.halfLeave ?? false)
     setReason(''); setError('')
     const t = window.setInterval(() => setNow(new Date()), 1000)
@@ -59,7 +59,7 @@ export default function AttendanceRecordModal({ date, userName, record, onClose,
     if (!date || saving) return
     setSaving(true); setError('')
     try {
-      await onSubmit({ date, time: `${pad(hour)}:${minute}`, place, outsideWork: outside, halfLeave, reason })
+      await onSubmit({ date, time: `${pad2(hour)}:${minute}`, place, outsideWork: outside, halfLeave, reason })
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setSaving(false) }
   }

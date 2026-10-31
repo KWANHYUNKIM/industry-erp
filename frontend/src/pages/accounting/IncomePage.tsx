@@ -3,14 +3,13 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Account, BankAccountRow, Income, IncomeExpenseStatus, ReceiptMethod } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => ymd(new Date())
-const monthStart = () => today().slice(0, 8) + '01'
+const monthStart = () => todayYmd().slice(0, 8) + '01'
 
 type Tab = '수입등록' | '수입비용현황'
 
@@ -18,7 +17,7 @@ type Tab = '수입등록' | '수입비용현황'
 export default function IncomePage() {
   const [tab, setTab] = useState<Tab>('수입등록')
   const [from, setFrom] = useState(monthStart())
-  const [to, setTo] = useState(today())
+  const [to, setTo] = useState(todayYmd())
   const [rows, setRows] = useState<Income[]>([])
   const [status, setStatus] = useState<IncomeExpenseStatus | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -184,7 +183,7 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
   onClose: () => void
   onSaved: () => void
 }) {
-  const [incomeDate, setIncomeDate] = useState(today())
+  const [incomeDate, setIncomeDate] = useState(todayYmd())
   const [accountId, setAccountId] = useState('')
   const [content, setContent] = useState('')
   const [partnerName, setPartnerName] = useState('')

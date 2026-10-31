@@ -13,6 +13,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import type { BankAccountRow, CreditCardRow } from '../../types/api'
 import { cashQuickKind, type CashQuickField, type CashQuickType, type CashQuickVoucher } from '../../features/cashquick/kinds'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { bankPickLabel } from '../../utils/bankLabel'
 
 /**
  * 회계 I › 현금거래의 한 장짜리 입력 열한 종 — 매출처로부터(E010404) · 카드매출대금회수(E010405) · 일시적으로(입금 E010401 ·
@@ -34,12 +35,6 @@ interface AccountOption { id: number; code: string; name: string }
 interface PartnerOption { id: number; code: string; name: string }
 interface EmployeeOption { id: number; code: string; name: string }
 interface IssuerOption { id: number; code: string | null; name: string; feeRate: number; depositAccount: string | null }
-
-function bankLabel(b: BankAccountRow) {
-  if (b.name) return b.name
-  const digits = (b.accountNo ?? '').replace(/\D/g, '')
-  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
-}
 
 /** 통장입금액 → 총금액(수수료를 뗀 뒤 들어온 돈이 통장입금액이다). 원본 9,700 · 3% → 10,000. */
 function grossOf(deposit: number, rate: number) {
@@ -162,11 +157,11 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
 
   const activeBanks = useMemo(() => banks.filter((b) => b.active), [banks])
   const mainItems: CodeItem[] = useMemo(() => [
-    ...activeBanks.map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
+    ...activeBanks.map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankPickLabel(b) })),
     { value: '000', code: '000', name: '현금' },
   ], [activeBanks])
   const counterItems: CodeItem[] = useMemo(
-    () => activeBanks.map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankLabel(b) })), [activeBanks])
+    () => activeBanks.map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankPickLabel(b) })), [activeBanks])
   const accountItems: CodeItem[] = useMemo(() => accounts.map((a) => ({ value: String(a.id), code: a.code, name: a.name })), [accounts])
   const partnerItems: CodeItem[] = useMemo(() => partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [partners])
   const employeeItems: CodeItem[] = useMemo(() => employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name })), [employees])
@@ -182,7 +177,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     if (amount) setCardAmount(amount, Number(i.feeRate ?? 0))
     const dep = (i.depositAccount ?? '').trim()
     if (dep) {
-      const b = activeBanks.find((x) => x.code === dep || x.accountNo === dep || bankLabel(x) === dep || x.name === dep)
+      const b = activeBanks.find((x) => x.code === dep || x.accountNo === dep || bankPickLabel(x) === dep || x.name === dep)
       if (b) setMain(`b${b.id}`)
     }
   }

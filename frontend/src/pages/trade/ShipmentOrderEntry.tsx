@@ -16,6 +16,7 @@ import { useSubmitting } from '../../utils/useSubmitting'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 import EcIcon from '../../components/ui/EcIcon'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 출하지시서입력(E040220) — 원본 영업관리 &gt; 출하지시서 &gt; <b>출하지시서입력</b>(2026-10-28 데이터이관 루프 18 실측).
@@ -60,10 +61,6 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
 const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 interface SoDoc {
   id: number; orderNo: string; orderDate: string
@@ -96,13 +93,13 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
   const [myItems, setMyItems] = useState<MyItem[]>([])
 
   // ── 머리 ──────────────────────────────────────────────
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [partnerId, setPartnerId] = useState('')
   const [employeeId, setEmployeeId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [projectId, setProjectId] = useState('')
   const [contact, setContact] = useState('')
-  const [dueDate, setDueDate] = useState(today())
+  const [dueDate, setDueDate] = useState(todayYmd())
   const [postalCode, setPostalCode] = useState('')
   const [address, setAddress] = useState('')
   const [remark, setRemark] = useState('')
@@ -257,7 +254,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
   async function openSales() {
     setSalesDocs(null); setSalesPicked({}); setSalesTab('ALL'); setSalesQuery(''); setSalesByLine(false); setSalesOpen(true)
     try {
-      const res = await api.get<SalesDoc[]>('/shipment-orders/loadable-sales', { params: { to: date || today() } })
+      const res = await api.get<SalesDoc[]>('/shipment-orders/loadable-sales', { params: { to: date || todayYmd() } })
       setSalesDocs(res.data)
     } catch (err) { setSalesDocs([]); void ecAlert(extractErrorMessage(err)) }
   }
@@ -283,7 +280,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
     if (s.employeeId) setEmployeeId(String(s.employeeId))
     if (s.projectId) setProjectId(String(s.projectId))
     if (s.warehouseId) setWarehouseId(String(s.warehouseId))
-    setDueDate(today())
+    setDueDate(todayYmd())
     const loaded: LineInput[] = picked.flatMap((d) => d.lines.map((l) => ({ id: null, itemId: String(l.itemId), quantity: String(l.quantity), remark: '', salesId: d.id, spec: l.spec ?? null, name: l.itemName ?? null })))
     setLines((ls) => [...ls.filter((l) => l.itemId), ...loaded, emptyLine()])
     setSalesLoaded(true)
@@ -293,7 +290,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
   // ── 저장 ──────────────────────────────────────────────
   function reset(keepWarehouse = false) {
     setLines(emptyLines()); setError(''); setSalesLoaded(false); setPartnerId(''); setEmployeeId(''); setProjectId('')
-    setContact(''); setPostalCode(''); setAddress(''); setRemark(''); setDate(today()); setDueDate(today())
+    setContact(''); setPostalCode(''); setAddress(''); setRemark(''); setDate(todayYmd()); setDueDate(todayYmd())
     if (!keepWarehouse) setWarehouseId('')
   }
   /** 저장 요청이 도는 동안 두 번째 저장을 막는다(utils/useSubmitting). */
@@ -345,7 +342,7 @@ export default function ShipmentOrderEntry({ popup }: { popup?: ShipmentOrderEnt
     catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   function copyEditing() {
-    setEditing(null); setDate(today()); setDueDate(today()); setError('')
+    setEditing(null); setDate(todayYmd()); setDueDate(todayYmd()); setError('')
     setLines((ls) => ls.map((l) => ({ ...l, id: null })))
     if (popup) popup.onCopy?.()
     else setParams({}, { replace: true })

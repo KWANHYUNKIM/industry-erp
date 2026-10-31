@@ -8,7 +8,6 @@ import CodePickerField from '../../components/CodePickerField'
 import EcDateField from '../../components/EcDateField'
 import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { downloadStoredFile } from '../../utils/fileDownload'
 import SlipLoadModal, { type LoadedSlip } from '../../features/slipload/components/SlipLoadModal'
@@ -19,6 +18,7 @@ import { subcontractCost, subcontractVat } from '../../utils/subcontractCost'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { shrinkImage } from '../../utils/imageResize'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 원본(이카운트) <b>생산입고 I · II · III</b> 입력 화면. 셋은 뼈대가 같고 소모를 정하는 법만 다르다.
@@ -44,7 +44,6 @@ import { shrinkImage } from '../../utils/imageResize'
 
 const won = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : '')
 const num = (s: string) => { const n = Number(s); return Number.isFinite(n) ? n : 0 }
-const today = () => ymd(new Date())
 
 const NOT_HERE = '이 기능은 이 ERP 에서 제공하지 않습니다.'
 /** 원본 툴바에 있으나 받쳐 줄 것이 없는 단추 — 흐리게 두고 까닭을 풍선말로(판매입력과 같은 방식). */
@@ -137,7 +136,7 @@ export default function ProductionResultPage({ type = 'I', popup }: { type?: Pro
   /** 제품별 BOM 버전 — [BOM버전] 칸이 고른다(버전이 하나면 이름만 보인다). */
   const [bomVersions, setBomVersions] = useState<{ id: number; productId: number; versionName: string; defaultVersion: boolean }[]>([])
 
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [employeeId, setEmployeeId] = useState('')
   const [fromWarehouseId, setFromWarehouseId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
@@ -381,7 +380,7 @@ export default function ProductionResultPage({ type = 'I', popup }: { type?: Pro
   }
 
   function reset() {
-    setDate(today()); setEmployeeId(''); setFromWarehouseId(''); setWarehouseId(''); setProjectId(''); setAttachment(null); setWorkResultNo('')
+    setDate(todayYmd()); setEmployeeId(''); setFromWarehouseId(''); setWarehouseId(''); setProjectId(''); setAttachment(null); setWorkResultNo('')
     setLines(Array.from({ length: BLANK_ROWS }, blankLine))
     setMats(Array.from({ length: BLANK_ROWS }, () => blankMat()))
     setTab('생산'); setError(''); setOk('')

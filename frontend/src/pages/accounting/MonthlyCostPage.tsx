@@ -9,10 +9,10 @@ import type { TrialBalance } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
 import EcEmptyRow from '../../components/ui/EcEmptyRow'
+import { pad2 } from '../../utils/periods'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const BOLD: React.CSSProperties = { fontWeight: 700 }
-const pad2 = (n: number) => String(n).padStart(2, '0')
 const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); return `${ym}-${pad2(new Date(y, m, 0).getDate())}` }
 const dayBefore = (d: string) => { const t = new Date(`${d}T00:00:00`); t.setDate(t.getDate() - 1); return `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}` }
 function monthsBetween(fromYm: string, toYm: string): string[] {

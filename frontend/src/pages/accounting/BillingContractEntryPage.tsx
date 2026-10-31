@@ -8,7 +8,7 @@ import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import type { CodeItem } from '../../components/CodePickerField'
 import { useAuth } from '../../features/auth/AuthContext'
-import { ymd } from '../../utils/periods'
+import { ymd, pad2 } from '../../utils/periods'
 import type { Partner } from '../../types/api'
 import { VAT_TYPES, won, type BillingContractRow, type BillingUnitRow, type ContractItemRow, type ProductLink } from '../../features/billingcontract/types'
 import ProductLinkModal, { SetTag, type ProductOption } from '../../features/billingcontract/ProductLinkModal'
@@ -25,8 +25,7 @@ const vatOf = (supply: number) => Math.floor(supply * 0.1)
 function actedAt(iso: string) {
   const d = new Date(iso)
   const h = d.getHours()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 
 /**

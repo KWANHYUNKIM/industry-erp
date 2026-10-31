@@ -12,6 +12,7 @@ import EcBarChart from '../../components/EcBarChart'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import type { ReportEmbedProps } from '../../utils/reportEmbed'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 /**
  * 영업관리 > 미판매현황 (이카운트 E040212)
@@ -86,8 +87,7 @@ const init = (() => { const t = periodOf('금월(~오늘)')!.to; return { from: 
 function windowOf(date: string): { from: string; to: string } {
   const [y, m] = date.split('-').map(Number)
   const d = new Date(y, m - 1 - 11, 1)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return { from: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`, to: date }
+  return { from: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-01`, to: date }
 }
 
 /** {@code embed} — 기안서 '전표 출력물' 창이 이 화면을 띄울 때(utils/reportEmbed). 메뉴로 열면 없다. */

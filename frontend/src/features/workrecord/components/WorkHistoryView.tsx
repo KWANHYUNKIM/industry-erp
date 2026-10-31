@@ -3,7 +3,7 @@ import Modal from '../../../components/Modal'
 import EcPeriodPicks from '../../../components/EcPeriodPicks'
 import { EcCond } from '../../../components/EcStatusPanel'
 import CodePickerField from '../../../components/CodePickerField'
-import { periodOf } from '../../../utils/periods'
+import { periodOf, pad2 } from '../../../utils/periods'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../../api/client'
 import { timeText } from '../../../utils/displayPrefs'
@@ -38,8 +38,7 @@ const slipNo = (r: { slipDate: string; slipNo: number }) => `${slash(r.slipDate)
 /** '2026/10/13 오전 8:17:42' — 원본 H 창 작업일시. 시각은 기본값설정 12/24시간제를 따른다. */
 function actedAt(iso: string, clock24: boolean) {
   const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${timeText(d, clock24, true)}`
+  return `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${timeText(d, clock24, true)}`
 }
 
 /**

@@ -4,12 +4,12 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import type { DepreciationMethod, FixedAsset } from '../../types/api'
-import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
@@ -236,7 +236,7 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
     quantityManaged: asset.quantityManaged ? 'Y' : 'N', quantity: String(asset.quantity ?? 1),
     acquisitionFee: asset.acquisitionFee ? String(asset.acquisitionFee) : '', partnerId: asset.partnerId ? String(asset.partnerId) : '',
   } : {
-    name: '', assetAccountId: '', acquisitionDate: today(), acquisitionCost: '',
+    name: '', assetAccountId: '', acquisitionDate: todayYmd(), acquisitionCost: '',
     salvageValue: '', usefulLifeYears: '5', method: 'STRAIGHT_LINE' as DepreciationMethod,
     declineRate: '', remark: '',
     accumAccountId: String(byCode(accounts, '2099') ?? ''), expenseAccountId: String(byCode(accounts, '8239') ?? ''),
@@ -394,7 +394,7 @@ function AssetForm({ asset, accounts, onError, onSaved }: {
 function DisposeForm({ asset, accounts, onError, onSaved }: {
   asset: FixedAsset; accounts: AccountOption[]; onError: (m: string) => void; onSaved: (msg: string) => void
 }) {
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [type, setType] = useState<'SALE' | 'SCRAP'>('SALE')
   const [amount, setAmount] = useState('')
   const [vatText, setVatText] = useState<string | null>(null)
@@ -509,7 +509,7 @@ function DisposeForm({ asset, accounts, onError, onSaved }: {
 function IncreaseForm({ asset, accounts, onError, onSaved }: {
   asset: FixedAsset; accounts: AccountOption[]; onError: (m: string) => void; onSaved: (msg: string) => void
 }) {
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [qtyText, setQtyText] = useState('1')
   const [amount, setAmount] = useState('')
   const [vatText, setVatText] = useState<string | null>(null)

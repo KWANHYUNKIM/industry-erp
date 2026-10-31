@@ -14,7 +14,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import { journalNeighbors } from '../../utils/journalNav'
-import { ymd } from '../../components/EcPeriodPicks'
+import { todayYmd } from '../../utils/periods'
 
 interface Account { id: number; code: string; name: string }
 /**
@@ -29,7 +29,6 @@ interface Row { side: Side; accountId: string; partnerId: string; debit: string;
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const num = (v: string) => Number(String(v).replace(/,/g, '')) || 0
-const today = () => ymd(new Date())
 const emptyRow = (side: Side = '3'): Row => ({ side, accountId: '', partnerId: '', debit: '', credit: '', description: '', departmentId: '', currencyCode: '', foreignAmount: '' })
 const blankRows = () => [emptyRow(), emptyRow(), emptyRow()]
 const TEMP_KEY = 'temp-journal-entry'
@@ -81,7 +80,7 @@ export default function JournalEntryPage() {
   }, [])
   const deptProject = useDeptProjectItems()
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [entryDate, setEntryDate] = useState(today())
+  const [entryDate, setEntryDate] = useState(todayYmd())
   const [memo, setMemo] = useState('')
   const [acctDocNo, setAcctDocNo] = useState('')
   const [rows, setRows] = useState<Row[]>(blankRows)
@@ -158,7 +157,7 @@ export default function JournalEntryPage() {
   function applyTemp() {
     try {
       const s = JSON.parse(localStorage.getItem(TEMP_KEY) ?? 'null')
-      if (s) { setEntryDate(s.entryDate ?? today()); setMemo(s.memo ?? ''); setRows(Array.isArray(s.rows) && s.rows.length ? s.rows : blankRows()) }
+      if (s) { setEntryDate(s.entryDate ?? todayYmd()); setMemo(s.memo ?? ''); setRows(Array.isArray(s.rows) && s.rows.length ? s.rows : blankRows()) }
     } catch { /* 읽을 수 없으면 그냥 둔다 */ }
     setHasTemp(false)
   }
@@ -259,7 +258,7 @@ export default function JournalEntryPage() {
   function copy() {
     const keep = rows
     navigate('/accounting/journal-entry')
-    setTimeout(() => { setLoaded(null); setEntryDate(today()); setRows(keep) }, 0)
+    setTimeout(() => { setLoaded(null); setEntryDate(todayYmd()); setRows(keep) }, 0)
   }
 
   const nav = editId ? journalNeighbors(`/accounting/journal-entry?journal=${editId}`) : { prev: null, next: null }

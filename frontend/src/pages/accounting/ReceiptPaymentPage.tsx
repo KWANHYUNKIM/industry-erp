@@ -11,6 +11,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { BankAccountRow, FastVoucher } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { bankPickLabel } from '../../utils/bankLabel'
 
 /**
  * 회계 I › 현금거래 › 현금예금출금 › [영수증으로](E010402).
@@ -25,12 +26,6 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  */
 
 interface AccountOption { id: number; code: string; name: string }
-
-function bankLabel(b: BankAccountRow) {
-  if (b.name) return b.name
-  const digits = (b.accountNo ?? '').replace(/\D/g, '')
-  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
-}
 
 export default function ReceiptPaymentPage() {
   const navigate = useNavigate()
@@ -88,7 +83,7 @@ export default function ReceiptPaymentPage() {
   }, [editId, journalId])
 
   const settleItems: CodeItem[] = useMemo(() => [
-    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
+    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankPickLabel(b) })),
     { value: '000', code: '000', name: '현금' },
   ], [banks])
   const accountItems: CodeItem[] = useMemo(

@@ -3,11 +3,10 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Assignment, AssignmentType, Department, EmployeeMaster } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 
 const TYPES: { value: AssignmentType; label: string; hint: string }[] = [
   { value: 'TRANSFER', label: '전보', hint: '부서를 지정하세요.' },
@@ -183,7 +182,7 @@ function AssignmentForm({ employee, departments, onClose, onSaved }: {
   onSaved: (message: string) => void
 }) {
   const [type, setType] = useState<AssignmentType>(employee.active ? 'TRANSFER' : 'REHIRE')
-  const [assignDate, setAssignDate] = useState(today())
+  const [assignDate, setAssignDate] = useState(todayYmd())
   const [departmentId, setDepartmentId] = useState(employee.departmentId != null ? String(employee.departmentId) : '')
   const [jobTitle, setJobTitle] = useState(employee.jobTitle)
   const [remark, setRemark] = useState('')

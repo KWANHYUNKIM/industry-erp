@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { ecAlert } from '../../components/EcDialog'
 import type { JournalEntry } from '../../types/api'
-import { ymd } from '../../utils/periods'
+import { ymd, pad2 } from '../../utils/periods'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 
@@ -12,7 +12,6 @@ const thisMonth = () => ymd(new Date()).slice(0, 7)
 const slashMonth = (m: string) => m.replace('-', '/')
 const LAST_KEY = 'erp.balanceRecalcAt'
 const lastRecalcAt = (): number | null => { try { return Number(localStorage.getItem(LAST_KEY)) || null } catch { return null } }
-const pad2 = (n: number) => String(n).padStart(2, '0')
 /** 원본 '2026-10-22 00:53:17' 꼴 */
 const stamp = (t: number) => { const d = new Date(t); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}` }
 /** 시작월 ~ 종료월 사이의 달 목록 */

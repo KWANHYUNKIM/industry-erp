@@ -2,14 +2,13 @@ import { useRef, useEffect, useState, type FormEvent } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Page, StockTransaction, Warehouse } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
 import { dateText } from '../../utils/dateText'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const inputCls = 'ec-input w-full'
 
-const today = () => ymd(new Date())
 const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 72 }
 
 export default function StockIoPage() {
@@ -26,7 +25,7 @@ export default function StockIoPage() {
     increase: 'true',
     quantity: '',
     unitPrice: '',
-    transactionDate: today(),
+    transactionDate: todayYmd(),
     note: '',
   })
 

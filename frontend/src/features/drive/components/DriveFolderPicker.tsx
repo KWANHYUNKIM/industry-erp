@@ -3,8 +3,8 @@ import type { DriveDocument } from '../../../types/api'
 import Modal from '../../../components/Modal'
 import DriveFolderTree, { type DrivePlace } from './DriveFolderTree'
 import EcIcon from '../../../components/ui/EcIcon'
+import { pad2 } from '../../../utils/periods'
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
 const stampText = (iso: string | null) => {
   if (!iso) return ''
   const d = new Date(iso)

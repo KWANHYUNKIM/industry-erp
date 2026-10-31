@@ -7,11 +7,12 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { periodOf, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import { useSearchParams } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 재고 > 단계별재고조정 / 재고조정진행단계 (이카운트 E040604·E040650)
@@ -19,7 +20,6 @@ import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
  * 반영 시 일반 재고조정(ADJUST)을 생성해 실제 재고에 반영한다. 백엔드 신설: /api/staged-adjustments.
  */
 
-const today = () => ymd(new Date())
 type Tab = 'ALL' | StagedStatus
 const TABS: { v: Tab; label: string }[] = [
   { v: 'ALL', label: '전체' },
@@ -66,7 +66,7 @@ export default function StagedAdjustmentPage() {
   const [searchParams] = useSearchParams()
   const [form, setForm] = useState({
     itemId: searchParams.get('item') ?? '', warehouseId: '', actualQty: '',
-    requestDate: today(), reason: '',
+    requestDate: todayYmd(), reason: '',
   })
   /** 품목을 물고 왔으면 조정 폼을 바로 연다 — 한 번 더 누르게 하지 않는다. */
   const [showForm, setShowForm] = useState(Boolean(searchParams.get('item')))

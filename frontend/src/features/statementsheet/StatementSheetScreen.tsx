@@ -6,6 +6,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 /**
  * 회계기수마다 한 장을 저장하는 재무제표 — 현금흐름표(E010861) · 이익잉여금처분계산서(E010817). 2026-10-20 loginaa 실측.
@@ -47,7 +48,6 @@ interface Sheet {
   settleDate: string | null; allItems: boolean; lines: Line[]
 }
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
 const ymText = (ym: string) => ym.replace('-', '/')
 const fmt = (n: number) => (n ? n.toLocaleString('ko-KR') : '0')
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` }

@@ -11,6 +11,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { BankAccountRow, NoteSummary, Partner, PromissoryNote } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { bankPickLabel } from '../../utils/bankLabel'
 
 /**
  * 회계 I › 어음거래 › 받을어음 의 한 장 입력 둘 — 2026-10-20 loginaa 실측.
@@ -37,12 +38,6 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  */
 
 type Note = PromissoryNote & { departmentId?: number | null; projectId?: number | null; recordOnly?: boolean; closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null; closeJournalEntryId?: number | null; closePartnerId?: number | null }
-
-function bankLabel(b: BankAccountRow) {
-  if (b.name) return b.name
-  const digits = (b.accountNo ?? '').replace(/\D/g, '')
-  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
-}
 
 export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' | 'endorse' | 'pay-increase' | 'pay-decrease' }) {
   /** 지급어음 쪽(E010604 · E010605) */
@@ -131,7 +126,7 @@ export default function NoteEntryPage({ mode }: { mode: 'increase' | 'decrease' 
   const partnerItems: CodeItem[] = useMemo(() => partners.filter((p) => endorse || payable || p.type !== 'SUPPLIER')
     .map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [partners, endorse, payable])
   const bankItems: CodeItem[] = useMemo(() => banks.filter((b) => b.active !== false)
-    .map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankLabel(b) })), [banks])
+    .map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankPickLabel(b) })), [banks])
   /* 어음번호 코드도움 — 보유 중인 받을어음(수정 창은 그 어음도). 고르면 거래처명이 옆에 붙는다. */
   const noteItems: CodeItem[] = useMemo(() => notes
     .filter((n) => n.type === noteType && (n.status === 'HELD' || n.id === editId))

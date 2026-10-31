@@ -8,7 +8,6 @@ import EcFileDrop from '../../components/EcFileDrop'
 import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalFormTemplate, ApprovalOutput, ApprovalPreset, MemberOption } from '../../types/api'
 import { OutputChips, OutputLinkMenu, OutputMenuWindow, OutputReportWindow, OutputViewWindow, type OutputWindowState } from '../../features/approval/components/ApprovalOutputs'
-import { ymd } from '../../components/EcPeriodPicks'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
@@ -24,6 +23,7 @@ import { MenuButton } from '../../components/EcSlipShell'
 import EcIcon from '../../components/ui/EcIcon'
 import StampSignModal from '../../features/approval/components/StampSignModal'
 import { useAuth } from '../../features/auth/AuthContext'
+import { todayYmd } from '../../utils/periods'
 
 const TITLE = '기안서작성'
 /** 원본 [출력양식] 고를 거리 — 처음 값은 '기본양식(결재문서 별도 인쇄)'(2026-10-30 실측). */
@@ -44,7 +44,6 @@ function bodyForSave(html: string): string {
   return empty ? '' : clean
 }
 
-const today = () => ymd(new Date())
 
 /** 양식의 table 필드는 기본행(defaultRows)을 깔아준다. 예: 여비산정의 숙박비/교통비/… */
 function initialFormData(t: ApprovalFormTemplate): Record<string, unknown> {
@@ -95,7 +94,7 @@ export default function ApprovalDraftPage({ embedded }: {
   const groupNames = [...new Set(templates.map((t) => t.groupName).filter(Boolean))].sort() as string[]
   const sort = useTableSort(condTemplates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name, 구분: (t) => t.groupName ?? '' })
 
-  const [draftDate, setDraftDate] = useState(today())
+  const [draftDate, setDraftDate] = useState(todayYmd())
   const [title, setTitle] = useState('')
   const [department, setDepartment] = useState('')
   const [body, setBody] = useState('')

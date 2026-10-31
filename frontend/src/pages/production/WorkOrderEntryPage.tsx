@@ -6,7 +6,6 @@ import GridCode from '../../components/GridCode'
 import GridFindButton from '../../components/GridFindButton'
 import EcDateField from '../../components/EcDateField'
 import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
-import { ymd } from '../../components/EcPeriodPicks'
 import SlipLoadModal, { type LoadedSlip } from '../../features/slipload/components/SlipLoadModal'
 import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesorder/components/SalesOrderPickModal'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
@@ -17,6 +16,7 @@ import { ecConfirm } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../../features/sliphistory/SlipHistoryModal'
 import { shrinkImage } from '../../utils/imageResize'
 import { ecAlert } from '../../components/EcDialog'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 재고 I &gt; 생산/외주 &gt; <b>작업지시서입력</b>.
@@ -32,7 +32,6 @@ import { ecAlert } from '../../components/EcDialog'
 
 const won = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : '')
 const num = (s: string) => { const n = Number(s); return Number.isFinite(n) ? n : 0 }
-const today = () => ymd(new Date())
 
 interface Line { key: number; productId: string; qty: string; warehouseId: string; produced: number }
 let seq = 1
@@ -69,9 +68,9 @@ export default function WorkOrderEntryPage({ popup }: { popup?: WorkOrderEntryPo
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
 
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   /** 원본도 [납기일자]가 오늘로 뜬다 — 일자칸은 비워 둘 수 없어 보이는 값이 곧 저장값이다. */
-  const [dueDate, setDueDate] = useState(today())
+  const [dueDate, setDueDate] = useState(todayYmd())
   const [partnerId, setPartnerId] = useState('')
   const [projectId, setProjectId] = useState('')
   const [employeeId, setEmployeeId] = useState('')
@@ -210,7 +209,7 @@ export default function WorkOrderEntryPage({ popup }: { popup?: WorkOrderEntryPo
   const filled = lines.filter((l) => l.productId)
 
   function reset() {
-    setDate(today()); setDueDate(today()); setPartnerId(''); setProjectId(''); setEmployeeId('')
+    setDate(todayYmd()); setDueDate(todayYmd()); setPartnerId(''); setProjectId(''); setEmployeeId('')
     setLines(Array.from({ length: BLANK_ROWS }, () => blank())); setError(''); setOk('')
     if (popup) setPopupEditNo(null)
     else if (editNo) navigate(location.pathname, { replace: true })

@@ -1,3 +1,4 @@
+import { pad2 } from './periods.ts'
 /**
  * 회계거래현황 ○집계 — 전표를 집계조건(최대 4개)으로 묶어 집계대상 합을 낸다(2026-10-22 loginaa 실측).
  *
@@ -44,20 +45,19 @@ export interface AggNode {
   children: AggNode[]
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
 
 /** 날짜 묶음 이름. 일별 2026/09/28 · 월별 2026/09 · 연별 2026 (나머지는 원본 모양을 못 재서 짐작). */
 export function dateLabel(key: string, d: string): string {
   const [y, m, day] = d.split('-').map(Number)
-  if (key === '일별') return `${y}/${pad(m)}/${pad(day)}`
-  if (key === '월별') return `${y}/${pad(m)}`
+  if (key === '일별') return `${y}/${pad2(m)}/${pad2(day)}`
+  if (key === '월별') return `${y}/${pad2(m)}`
   if (key === '분기별') return `${y}/${Math.ceil(m / 3)}분기`
   if (key === '반기별') return `${y}/${m <= 6 ? '상' : '하'}반기`
   if (key === '연별') return `${y}`
   const t = new Date(y, m - 1, day)
   const jan1 = new Date(y, 0, 1)
   const week = Math.floor(((t.getTime() - jan1.getTime()) / 86400000 + jan1.getDay()) / 7) + 1
-  return `${y}/${pad(week)}주`
+  return `${y}/${pad2(week)}주`
 }
 
 function groupOf(key: string, e: AggEntry): { label: string; code: string } {
@@ -118,7 +118,7 @@ export function shiftPeriod(from: string, to: string, kind: Compare): { from: st
   }
   return { from: sh(from), to: sh(to) }
 }
-const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const fmt = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 
 /** 비율표시 — 전체 합 대비 정수 %. 0 이면 빈칸(원본 건축자재판매장 0.38% → 빈칸). */
 export function percentOf(v: number, total: number): string {

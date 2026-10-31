@@ -2,10 +2,10 @@ import { useMemo, useRef, useState } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import GridFindButton from '../../components/GridFindButton'
 import { EcWebUploadButton } from '../../components/EcGridToolbar'
-import { ymd } from '../../components/EcPeriodPicks'
 import type { useRequired } from '../../utils/useRequired'
 import type { Item, Partner, Warehouse } from '../../types/api'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 재고 II › A/S관리 › A/S접수 › <b>A/S접수입력</b>(E040601) 의 머리 칸 · 품목 격자.
@@ -34,12 +34,11 @@ export interface AsReceiptDraft {
 export type AsFormLine = { itemId: string; quantity: string; note: string }
 export const emptyAsLine = (): AsFormLine => ({ itemId: '', quantity: '', note: '' })
 
-const today = () => ymd(new Date())
 export const emptyAsLines = (): AsFormLine[] => [emptyAsLine(), emptyAsLine(), emptyAsLine()]
 /** 원본은 저장 뒤 새 창에 [창고]를 그대로 남긴다 — 같은 창고로 잇달아 받는다. */
 export const blankAsDraft = (warehouseId = ''): AsReceiptDraft => ({
-  receiptDate: today(), partnerId: '', charge: '', warehouseId, status: 'RECEIVED',
-  scheduledDate: today(), projectId: '', title: '', symptom: '', extraNote: '',
+  receiptDate: todayYmd(), partnerId: '', charge: '', warehouseId, status: 'RECEIVED',
+  scheduledDate: todayYmd(), projectId: '', title: '', symptom: '', extraNote: '',
 })
 
 const won = (n: number) => n.toLocaleString('ko-KR')

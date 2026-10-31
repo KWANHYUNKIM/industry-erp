@@ -15,6 +15,7 @@ import VoucherVatModal, { type LineVat, vatCellText } from '../../features/faste
 import SlipPrintModal from '../../features/journalprint/SlipPrintModal'
 import { journalSlipHtml, loadSlipHeader } from '../../features/journalprint/slipPrint'
 import type { BankAccountRow, FastVoucher, JournalEntry, Partner } from '../../types/api'
+import { bankPickLabel } from '../../utils/bankLabel'
 
 /**
  * 회계 I › 현금거래 › 현금예금출금 [지출결의서](E010408) · 현금예금입금 [입금보고서](E010403).
@@ -88,12 +89,6 @@ const CONF: Record<Kind, Conf> = {
 }
 
 /** 원본 계좌검색의 [계좌명] — 등록한 이름이 없으면 '은행-끝 4자리'(기업은행-1122). */
-function bankLabel(b: BankAccountRow) {
-  if (b.name) return b.name
-  const digits = (b.accountNo ?? '').replace(/\D/g, '')
-  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
-}
-
 type CellErr = { row: number; col: 'settle' | 'account' | 'amount' | 'extra'; msg: string }
 
 export default function CashReportEntryPage({ kind }: { kind: Kind }) {
@@ -166,7 +161,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   const settleItems: CodeItem[] = useMemo(() => advance
     ? employees.map((e) => ({ value: `e${e.id}`, code: e.code, name: e.name }))
     : [
-      ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
+      ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankPickLabel(b) })),
       { value: '000', code: '000', name: '현금' },
       /* 수금형태 '어음'으로 만든 결의서 — 돈 들어온 쪽이 계정(1109 받을어음)이라 그 계정도 고를 수 있게 둔다. */
       ...[...new Map((editing?.lines ?? []).filter((l) => l.settleAccountId)

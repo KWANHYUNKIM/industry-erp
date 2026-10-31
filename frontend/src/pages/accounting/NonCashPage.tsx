@@ -6,11 +6,11 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { NonCashTxn, NonCashType, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
-import { periodOf, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
@@ -193,7 +193,7 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
   onError: (m: string) => void; onSaved: (t: NonCashTxn) => void
 }) {
   const [type, setType] = useState<NonCashType>('OFFSET')
-  const [txnDate, setTxnDate] = useState(today())
+  const [txnDate, setTxnDate] = useState(todayYmd())
   const [amount, setAmount] = useState('')
   const [debitAccountId, setDebitAccountId] = useState('')
   const [creditAccountId, setCreditAccountId] = useState('')

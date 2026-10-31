@@ -21,6 +21,7 @@ import type { BoardLabel } from '../../features/board/labels'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 /**
  * 그룹웨어 > 사내관리 > 공용품관리 (이카운트 E070204)
@@ -105,7 +106,6 @@ function monthWeeks(c: Date): Date[][] {
 
 /** '2026/01/23 (금)' */
 const dayText = (d: string) => `${d.replace(/-/g, '/')} (${DOW[new Date(d).getDay()]})`
-const pad2 = (n: number) => String(n).padStart(2, '0')
 /** 공용품관리 라벨 칩 — 게시판 칩(둥글기 10)과 달리 둥글기 5 · 여백 4 5 3 · 오른쪽 5(2026-10-13 실측). */
 const CHIP = 'rounded-[5px] pt-[4px] px-[5px] pb-[3px] mr-[5px]'
 

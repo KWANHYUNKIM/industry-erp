@@ -9,8 +9,8 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const thisMonth = () => ymd(new Date()).slice(0, 7)
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -396,7 +396,7 @@ function TransferTab({ transfers, onError, onDone }: {
   transfers: PayrollTransfer[]; onError: (m: string) => void; onDone: (m: string) => void
 }) {
   const [payMonth, setPayMonth] = useState(thisMonth())
-  const [transferDate, setTransferDate] = useState(today())
+  const [transferDate, setTransferDate] = useState(todayYmd())
   const [bankAccountId, setBankAccountId] = useState('')
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [pending, setPending] = useState<Payslip[]>([])

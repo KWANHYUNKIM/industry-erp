@@ -6,12 +6,12 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
-import { periodOf, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS: { label: string; type: CheckType }[] = [
@@ -86,7 +86,7 @@ export default function CheckPage() {
     const bank = usable[Number(pick) - 1]
     if (!bank) return setError('계좌 선택이 올바르지 않습니다.')
     try {
-      await api.post(`/checks/${c.id}/deposit`, { bankAccountId: bank.id, depositDate: today() })
+      await api.post(`/checks/${c.id}/deposit`, { bankAccountId: bank.id, depositDate: todayYmd() })
       flash(`${c.checkNo} → ${bank.bankName} 입금 (계좌 잔액 +${won(c.amount)})`)
       await load()
     } catch (err) {
@@ -97,7 +97,7 @@ export default function CheckPage() {
   async function act(c: BankCheck, path: 'dishonor' | 'settle', message: string) {
     if (!(await ecConfirm(`${c.checkNo} (${won(c.amount)}원) — ${message}할까요?`))) return
     try {
-      await api.post(`/checks/${c.id}/${path}`, { settledDate: today() })
+      await api.post(`/checks/${c.id}/${path}`, { settledDate: todayYmd() })
       flash(`${c.checkNo} ${message} 처리`)
       await load()
     } catch (err) {
@@ -221,7 +221,7 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
 }) {
   const usable = banks.filter((b) => b.active)
   const [form, setForm] = useState({
-    checkNo: '', amount: '', issueDate: today(), bankName: '',
+    checkNo: '', amount: '', issueDate: todayYmd(), bankName: '',
     partnerId: '', bankAccountId: usable[0] ? String(usable[0].id) : '', remark: '',
   })
   const [saving, setSaving] = useState(false)

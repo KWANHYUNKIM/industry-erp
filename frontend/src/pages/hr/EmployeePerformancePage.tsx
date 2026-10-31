@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { PerformanceSummary } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-const today = () => ymd(new Date())
-const monthStart = () => today().slice(0, 8) + '01'
+const monthStart = () => todayYmd().slice(0, 8) + '01'
 
 /**
  * 담당자별 실적 — 전표에 붙은 담당 사원으로 판매·구매를 집계한다.
@@ -15,7 +14,7 @@ const monthStart = () => today().slice(0, 8) + '01'
  */
 export default function EmployeePerformancePage() {
   const [from, setFrom] = useState(monthStart())
-  const [to, setTo] = useState(today())
+  const [to, setTo] = useState(todayYmd())
   const [summary, setSummary] = useState<PerformanceSummary | null>(null)
   const [error, setError] = useState('')
 

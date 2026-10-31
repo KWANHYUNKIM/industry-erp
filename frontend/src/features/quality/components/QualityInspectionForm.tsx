@@ -4,11 +4,11 @@ import type { CommonCode, Item, QualityCheckValue, QualityInspection, QualityIns
 import { dateNo } from '../../../utils/dateNo'
 import Modal from '../../../components/Modal'
 import CodePickerField from '../../../components/CodePickerField'
-import { ymd } from '../../../components/EcPeriodPicks'
 import { useShortcut } from '../../../utils/useShortcut'
 import { ecConfirm } from '../../../components/EcDialog'
 import { DocPullButton, type PulledLine } from '../DocPull'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { todayYmd } from '../../../utils/periods'
 
 /**
  * 품질검사 입력 폼 — 원본 <b>품질검사입력</b>(E040621) 의 머리 · 줄 · 불러오기 · [검사항목] 창 · 단추.
@@ -35,10 +35,9 @@ const num = (v: string) => Number(v || 0)
 const qty0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /* 전수면 시료 = 수량(원본은 시료 칸을 막고 수량을 그대로 찍는다). 적격 = 시료 − 부적격. */
 const sampleOf = (l: LineForm) => (l.method === 'FULL' ? num(l.quantity) : num(l.sampleQty))
-const today = () => ymd(new Date())
 const headOf = (r: QualityInspection | null) => r
   ? { inspectionDate: r.inspectionDate, inspector: r.inspector ?? '', remark: r.remark ?? '' }
-  : { inspectionDate: today(), inspector: '', remark: '' }
+  : { inspectionDate: todayYmd(), inspector: '', remark: '' }
 const linesOf = (r: QualityInspection | null): LineForm[] => r
   ? [...r.lines.map((l) => ({
       method: l.method, itemId: String(l.itemId), quantity: String(l.quantity), sampleQty: String(l.sampleQty),

@@ -9,6 +9,7 @@ import type { CollectData, CollectDocType } from '../../types/api'
 import NumCheck from '../../components/NumCheck'
 import EcIcon from '../../components/ui/EcIcon'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 /**
  * 데이터센터 › 수집데이터등록 (이카운트 C001401)
@@ -40,12 +41,11 @@ function historyLine(r: CollectData | null): string {
   const at = r?.updatedAt ?? r?.createdAt
   if (!r || !at) return ''
   const d = new Date(at)
-  const pad = (n: number) => String(n).padStart(2, '0')
   const h = d.getHours()
   const ampm = h < 12 ? '오전' : '오후'
   const h12 = h % 12 === 0 ? 12 : h % 12
   const who = r.updatedBy ?? r.createdBy ?? ''
-  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${ampm} ${h12}:${pad(d.getMinutes())}:${pad(d.getSeconds())} [${who}]`
+  return `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${ampm} ${h12}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())} [${who}]`
 }
 
 

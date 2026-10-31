@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { loadVatSheet, ReturnSheet, type AccountOpt, type CompanyInfo, type Sheet, type VatReturnRow } from './VatReturnPage'
+import { pad2 } from '../../utils/periods'
 
 const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + 'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid gray;padding:3px}'
@@ -12,7 +13,6 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + '.sheet{page-break-after:always}'
 
 const dot = (d: string) => d.replace(/-/g, '/')
-const pad = (n: number) => String(n).padStart(2, '0')
 
 /**
  * 세무 › 부가세 › 부가세신고서(일반) › <b>부가세신고서 PDF 다운로드</b>(E030216) — 2026-10-12 loginaa 실측.
@@ -92,7 +92,7 @@ export default function VatReturnPdfPage() {
 
   const allPicked = rows.length > 0 && rows.every((r) => picked.has(r.id))
   const omitted = (r: VatReturnRow) => r.returnKind === 'FINAL'
-    ? `${pad((r.monthFrom <= 6 ? 0 : 6) + 1)}월 ~ ${pad((r.monthFrom <= 6 ? 0 : 6) + 3)}월` : ''
+    ? `${pad2((r.monthFrom <= 6 ? 0 : 6) + 1)}월 ~ ${pad2((r.monthFrom <= 6 ? 0 : 6) + 3)}월` : ''
 
   return (
     <EcListShell title="부가세신고서 PDF 다운로드" onSearch={search} option={false}
@@ -158,7 +158,7 @@ export default function VatReturnPdfPage() {
             <EcCond label="신고서 종류" span={2}>
               <div className="flex flex-col items-start gap-[4px]">
                 <span>{head.returnKind === 'MONTHLY' ? '월별신고(조기환급)' : '예정/확정'}</span>
-                <span>신고기간 {head.year}/ {pad(head.monthFrom)} ~ {pad(head.monthTo)}</span>
+                <span>신고기간 {head.year}/ {pad2(head.monthFrom)} ~ {pad2(head.monthTo)}</span>
               </div>
             </EcCond>
             <EcCond label="신고작성일자" span={2}>{dot(head.reportDate)}</EcCond>
@@ -178,7 +178,7 @@ export default function VatReturnPdfPage() {
             </thead>
             <tbody>
               <tr>
-                <td>{files.returnKind === 'MONTHLY' ? `${files.year}년 ${pad(files.monthFrom)}월 - ${pad(files.monthTo)}월` : files.periodName}</td>
+                <td>{files.returnKind === 'MONTHLY' ? `${files.year}년 ${pad2(files.monthFrom)}월 - ${pad2(files.monthTo)}월` : files.periodName}</td>
                 <td>{company?.bizRegNo ?? ''}</td>
                 <td>{omitted(files)}</td>
                 <td>{dot(files.reportDate)}</td>

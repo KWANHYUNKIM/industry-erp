@@ -4,10 +4,10 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 interface Project {
   id: number
@@ -27,7 +27,6 @@ const STATUS_COLOR: Record<Project['status'], string> = {
   PLANNING: 'var(--ec-label)', IN_PROGRESS: 'var(--ec-warn)', ON_HOLD: 'var(--ec-danger)', DONE: 'var(--ec-success)',
 }
 
-const today = () => ymd(new Date())
 
 /** 그룹웨어 > SW개발일정관리 — 개발 건(프로젝트)별 일정·진행률 관리 (실제 연동, /projects 재사용) */
 export default function SwSchedulePage() {
@@ -45,7 +44,7 @@ export default function SwSchedulePage() {
 
   const [name, setName] = useState('')
   const [manager, setManager] = useState('')
-  const [startDate, setStartDate] = useState(today())
+  const [startDate, setStartDate] = useState(todayYmd())
   const [endDate, setEndDate] = useState('')
   const [remark, setRemark] = useState('')
 

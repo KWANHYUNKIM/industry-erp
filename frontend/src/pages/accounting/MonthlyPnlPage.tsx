@@ -9,10 +9,10 @@ import { incomeBucketOf, incomeCalc, type IncomeBucket } from '../../utils/incom
 import type { IncomeStatement } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
+import { pad2 } from '../../utils/periods'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const BOLD: React.CSSProperties = { fontWeight: 700 }
-const pad2 = (n: number) => String(n).padStart(2, '0')
 const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); return `${ym}-${pad2(new Date(y, m, 0).getDate())}` }
 /** from ~ to 의 달 목록(YYYY-MM). */
 function monthsBetween(fromYm: string, toYm: string): string[] {

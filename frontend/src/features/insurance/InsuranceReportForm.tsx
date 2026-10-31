@@ -12,6 +12,7 @@ import type { EmployeeMaster } from '../../types/api'
 import WorkplaceModal from './WorkplaceModal'
 import { REJECT_HEAD, type InsuranceKind, type InsuranceReport, type InsuranceWorkplace } from './types'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 4대보험취득신고입력(N001769) · 4대보험상실신고입력(N001770) · 피부양자자격신고입력(N001771) — 2026-10-14 loginaa 실측.
@@ -78,10 +79,6 @@ const DEP_REQUIRED = ['관계부호', '취득/상실구분', '취득/상실년�
 const DEP_DATE_COLS = new Set(['취득/상실년월일'])
 
 type DepRow = Record<string, string>
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 const emptyDeps = (): DepRow[] => [{}, {}, {}]
 
 interface FormState {
@@ -97,7 +94,7 @@ interface FormState {
   deps: DepRow[]
 }
 const emptyForm = (): FormState => ({
-  reportDate: today(), workplaceId: '', employeeId: '', phone: '', residentNo: '', reportName: '',
+  reportDate: todayYmd(), workplaceId: '', employeeId: '', phone: '', residentNo: '', reportName: '',
   apply: { pension: false, health: false, employment: false, accident: false },
   dates: { pension: '', health: '', employment: '', accident: '' },
   detail: {}, deps: emptyDeps(),

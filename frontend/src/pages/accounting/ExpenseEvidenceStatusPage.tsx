@@ -7,9 +7,9 @@ import type { ExpenseEvidenceAccount, ExpenseEvidenceStatus } from '../../types/
 import { JournalVatCompareView, VAT_TYPES, type JvcInit } from './JournalVatComparePage'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcReportFoot } from '../../components/EcReportFrame'
+import { pad2 } from '../../utils/periods'
 
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
-const pad2 = (n: number) => String(n).padStart(2, '0')
 const ymOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`
 const lastDay = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0).getDate()
 /** 원본 머리의 기간 — '2026/01/01 ~2026/10/31'(물결 앞에만 띄어 쓴다) */

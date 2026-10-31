@@ -10,6 +10,7 @@ import { useBondMasters } from '../../features/bond/api'
 import { fetchBudgetReport } from '../../features/budget/api'
 import type { BudgetActualLine, BudgetReportPlan } from '../../features/budget/types'
 import { dateNo } from '../../utils/dateNo'
+import { pad2 } from '../../utils/periods'
 
 /**
  * 회계 II › 예산관리 › 출력물 다섯 — 2026-10-14 loginaa 실측(plans/회계2/E020201.md 3장).
@@ -34,7 +35,6 @@ const TITLES: Record<BudgetReportVariant, string> = {
 type Basis = 'M' | 'Q' | 'H' | 'Y'
 const BASIS: [Basis, string][] = [['M', '월별'], ['Q', '분기별'], ['H', '반기별'], ['Y', '연별']]
 
-const pad = (n: number) => String(n).padStart(2, '0')
 const fmt = (n: number, thousand = false) => {
   const v = thousand ? Math.round(n / 1000) : Math.round(n)
   return v.toLocaleString('ko-KR')
@@ -43,7 +43,7 @@ const fmt = (n: number, thousand = false) => {
 function bucketOf(ym: string, basis: Basis): string {
   const y = ym.slice(0, 4)
   const m = Number(ym.slice(5, 7))
-  if (basis === 'M') return `${y}/${pad(m)}`
+  if (basis === 'M') return `${y}/${pad2(m)}`
   if (basis === 'Q') return `${y}/${Math.ceil(m / 3)}분기`
   if (basis === 'H') return `${y}/${m <= 6 ? '상반기' : '하반기'}`
   return y
@@ -53,7 +53,7 @@ function monthsBetween(from: string, to: string): string[] {
   let y = Number(from.slice(0, 4)), m = Number(from.slice(5, 7))
   const ey = Number(to.slice(0, 4)), em = Number(to.slice(5, 7))
   while (y < ey || (y === ey && m <= em)) {
-    out.push(`${y}-${pad(m)}`)
+    out.push(`${y}-${pad2(m)}`)
     m++
     if (m > 12) { m = 1; y++ }
   }
@@ -71,7 +71,7 @@ export default function BudgetReportPage({ variant }: { variant: BudgetReportVar
   const navigate = useNavigate()
   const now = new Date()
   const thisYear = now.getFullYear()
-  const thisMonth = `${thisYear}-${pad(now.getMonth() + 1)}`
+  const thisMonth = `${thisYear}-${pad2(now.getMonth() + 1)}`
   const [from, setFrom] = useState(`${thisYear}-01`)
   const [to, setTo] = useState(`${thisYear}-12`)
   const [display, setDisplay] = useState<'SUM' | 'DEPT' | 'PROJECT'>('SUM')
@@ -123,7 +123,7 @@ export default function BudgetReportPage({ variant }: { variant: BudgetReportVar
       if (!keep(p)) continue
       const r = row(p.accountId, p.accountCode, p.accountName)
       p.months.forEach((v, i) => {
-        const ym = `${p.year}-${pad(i + 1)}`
+        const ym = `${p.year}-${pad2(i + 1)}`
         if (months.includes(ym)) r.budget.set(ym, (r.budget.get(ym) ?? 0) + Number(v))
       })
     }
@@ -145,7 +145,7 @@ export default function BudgetReportPage({ variant }: { variant: BudgetReportVar
   const pick = (label: string, f: string, t: string) => (
     <button key={label} type="button" className="ec-btn-pick" onClick={() => { setFrom(f); setTo(t) }}>{label}</button>
   )
-  const prevMonth = (() => { const d = new Date(thisYear, now.getMonth() - 1, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}` })()
+  const prevMonth = (() => { const d = new Date(thisYear, now.getMonth() - 1, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}` })()
   const picks = ledger ? [
     pick('금월(~오늘)', thisMonth, thisMonth), pick('금년', `${thisYear}-01`, `${thisYear}-12`),
     pick('1분기', `${thisYear}-01`, `${thisYear}-03`), pick('2분기', `${thisYear}-04`, `${thisYear}-06`),
@@ -163,7 +163,7 @@ export default function BudgetReportPage({ variant }: { variant: BudgetReportVar
       </select>
       {!(ledger && basis === 'Y') && (
         <select className="ec-input w-[60px] ml-[2px]" aria-label={`${which}월`} value={v.slice(5, 7)} onChange={(e) => set(`${v.slice(0, 4)}-${e.target.value}`)}>
-          {Array.from({ length: 12 }, (_, i) => pad(i + 1)).map((m) => <option key={m} value={m}>{m}</option>)}
+          {Array.from({ length: 12 }, (_, i) => pad2(i + 1)).map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
       )}
     </>

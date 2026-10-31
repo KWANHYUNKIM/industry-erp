@@ -4,8 +4,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { pad2 } from '../../utils/periods'
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
 
 /**
  * 회계 I › 출력물 › 주요재무제표 › <b>수입지출명세서</b>(E010832) — 2026-10-20 loginaa 실측.

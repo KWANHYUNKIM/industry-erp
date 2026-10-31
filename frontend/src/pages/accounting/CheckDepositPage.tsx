@@ -7,7 +7,8 @@ import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../types/
 import { dateText } from '../../utils/dateText'
 import NumCheck from '../../components/NumCheck'
 import CheckOnlyDecreaseModal from '../../features/bankcheck/components/CheckOnlyDecreaseModal'
-import CheckDepositReportModal, { bankLabel, type CheckDepositPick } from '../../features/bankcheck/components/CheckDepositReportModal'
+import CheckDepositReportModal, { type CheckDepositPick } from '../../features/bankcheck/components/CheckDepositReportModal'
+import { bankPickLabel } from '../../utils/bankLabel'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -69,7 +70,7 @@ export default function CheckDepositPage({ type = 'RECEIVED' }: { type?: CheckTy
     const b = (c.directEntry || !received) && c.bankAccountId != null ? bankById.get(c.bankAccountId) : undefined
     return b ? { code: b.glAccountCode, name: b.glAccountName } : { code: '1022', name: '받을수표' }
   }
-  const accountName = (c: BankCheck) => (c.bankAccountId != null && bankById.get(c.bankAccountId) ? bankLabel(bankById.get(c.bankAccountId)!) : '')
+  const accountName = (c: BankCheck) => (c.bankAccountId != null && bankById.get(c.bankAccountId) ? bankPickLabel(bankById.get(c.bankAccountId)!) : '')
   const total = held.reduce((s, c) => s + Number(c.amount), 0)
   const pickedTotal = held.filter((c) => picked.has(c.id)).reduce((s, c) => s + Number(c.amount), 0)
   const tableRef = useRef<HTMLTableElement>(null)

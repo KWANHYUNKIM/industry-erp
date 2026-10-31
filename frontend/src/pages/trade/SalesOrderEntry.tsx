@@ -24,6 +24,7 @@ import { useSubmitting } from '../../utils/useSubmitting'
 import { SlipHistoryModal } from '../../features/sliphistory/SlipHistoryModal'
 import SourceDocSearch from '../../features/slipload/components/SourceDocSearch'
 import EcIcon from '../../components/ui/EcIcon'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 주문서입력 — 원본 영업관리 &gt; 주문서 &gt; <b>주문서입력</b>(2026-10-28 진행자 실측). 판매입력(TradeEntry)과 같은 큰 입력 화면이다.
@@ -58,10 +59,6 @@ const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', r
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (s: string) => Number(s) || 0
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 const MEM_KEY = 'sales-order-head'
 /** 서버(SalesOrderService.delete)가 막을 때 첫 줄 — 원본 '알림' 창의 첫 줄 그대로. */
 const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.'
@@ -113,7 +110,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
   const [myItemsOpen, setMyItemsOpen] = useState(false)
 
   // ── 머리 ──────────────────────────────────────────────
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [partnerId, setPartnerId] = useState('')
   /** 임의거래처(12341234)에 고친 거래처명 — 고른 거래처 id 와 같이 들어 다른 거래처를 고르면 저절로 버려진다. */
   const [anyName, setAnyName] = useState<{ id: string; name: string } | null>(null)
@@ -122,7 +119,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
   const [taxable, setTaxable] = useState(true)
   const [projectId, setProjectId] = useState('')
   /* 원본 주문서입력은 납기일자가 오늘로 차서 열린다(2026-10-14 실측). */
-  const [dueDate, setDueDate] = useState(today())
+  const [dueDate, setDueDate] = useState(todayYmd())
   const [remark, setRemark] = useState('')
   const [lines, setLines] = useState<LineInput[]>(emptyLines)
   /** 수정 중인 주문. 있으면 저장이 POST 가 아니라 PUT 이다(일자는 잠긴다 — 번호가 일자에 묶여 있다). */
@@ -250,7 +247,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
         if (qs.length === 0) return
         const first = qs[0]
         setEditing(null)
-        setPartnerId(String(first.partnerId)); setDate(today()); setDueDate(today())
+        setPartnerId(String(first.partnerId)); setDate(todayYmd()); setDueDate(todayYmd())
         setTaxable(first.vatAmount > 0)
         setWarehouseId(first.warehouseId ? String(first.warehouseId) : '')
         setProjectId(first.projectId ? String(first.projectId) : '')
@@ -452,7 +449,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
   // ── 저장 ──────────────────────────────────────────────
   function reset(keepHeader = false) {
     setLines(emptyLines()); setRemark(''); setQtyErr(null); setError(''); setWhMissing(false); setQuoteLoaded(false)
-    setDueDate(today())
+    setDueDate(todayYmd())
     if (!keepHeader) { setPartnerId(''); setProjectId(''); setEmployeeId(rememberedEmpRef.current) }
   }
 
@@ -565,7 +562,7 @@ export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopu
   }
   /** 수정 중 [복사] — 같은 내용이 새 주문서가 된다: 일자 · 납기일자 오늘, 번호는 저장할 때 새로 받는다(2026-10-13 실측). */
   function copyEditing() {
-    setEditing(null); setDate(today()); setDueDate(today()); setWhMissing(false); setError('')
+    setEditing(null); setDate(todayYmd()); setDueDate(todayYmd()); setWhMissing(false); setError('')
     if (popup) popup.onCopy?.()
     else setParams({}, { replace: true })
   }

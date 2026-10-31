@@ -7,16 +7,13 @@ import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { Icon } from './icons'
 import CodePickerField from '../../components/CodePickerField'
 import EcIcon from '../../components/ui/EcIcon'
+import { todayYmd } from '../../utils/periods'
 
 /*
  * 앱바 창 안쪽들 — 원본 2026-10-30 loginaa 캡처(같은 폴더 02~11)대로.
  * 창 틀(제목줄 · 고정 · 새로고침 · 닫기)은 AppWindow 가 그리고, 여기는 안만 그린다.
  */
 
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 const slash = (ymd: string) => ymd.replace(/-/g, '/')
 const when = (iso: string | null) => (iso ? `${slash(iso.slice(0, 10))} ${iso.slice(11, 16)}` : '')
 
@@ -539,7 +536,7 @@ export function SmsWindow({ onClose }: { onClose: () => void }) {
 
 /* ── 10 타임라인 ─────────────────────────────────────────────── */
 export function TimelineWindow({ onClose }: { onClose: () => void }) {
-  const [day, setDay] = useState(today())
+  const [day, setDay] = useState(todayYmd())
   const [q, setQ] = useState('')
   const shift = (n: number) => {
     const d = new Date(`${day}T00:00:00`)

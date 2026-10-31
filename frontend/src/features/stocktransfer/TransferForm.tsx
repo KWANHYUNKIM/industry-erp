@@ -4,17 +4,16 @@ import CodePickerField from '../../components/CodePickerField'
 import EcSlipShell from '../../components/EcSlipShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockRow, StockTransfer as TransferRow, Warehouse } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { ecAlert } from '../../components/EcDialog'
 import { SlipHistoryModal, slipHeadLabel } from '../sliphistory/SlipHistoryModal'
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
+import { todayYmd } from '../../utils/periods'
 
 /** 창고이동 한 줄. 같은 이동번호의 줄들이 전표 한 장이다(서버 V426) — lineNo 는 전표 안 줄 차례. */
 export type StockTransfer = TransferRow & { lineNo?: number; createdAt?: string | null; updatedAt?: string | null }
 export interface CodeRow { id: number; code: string; name: string }
 
-const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 /** 원본 이동번호 꼴 '2026/10/21 -2' — 우리 이동번호 TR-20261021-0002 의 날짜와 일련번호. */
@@ -50,7 +49,7 @@ export function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, 
   const head = copied ? undefined : slip?.[0]
   const [showHistory, setShowHistory] = useState(false)
   const [form, setForm] = useState({
-    transferDate: head?.transferDate ?? today(),
+    transferDate: head?.transferDate ?? todayYmd(),
     projectId: head?.projectId ? String(head.projectId) : '',
     employeeId: head?.employeeId ? String(head.employeeId) : '',
     fromWarehouseId: head ? String(head.fromWarehouseId) : '',
@@ -78,7 +77,7 @@ export function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, 
   const whItems = warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))
 
   function reset() {
-    setForm({ transferDate: today(), projectId: '', employeeId: '', fromWarehouseId: form.fromWarehouseId, toWarehouseId: form.toWarehouseId, remark: '' })
+    setForm({ transferDate: todayYmd(), projectId: '', employeeId: '', fromWarehouseId: form.fromWarehouseId, toWarehouseId: form.toWarehouseId, remark: '' })
     setLines(Array.from({ length: 5 }, blankLine))
   }
 

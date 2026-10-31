@@ -7,9 +7,9 @@ import type { SimplePaymentKind, SimplePaymentSheet, SimplePaymentStatement } fr
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
-const pad2 = (n: number) => String(n).padStart(2, '0')
 const dot = (d: string) => d.replace(/-/g, '.')
 export type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; email?: string; address?: string; addressDetail?: string }
 

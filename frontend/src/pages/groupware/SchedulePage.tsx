@@ -24,6 +24,7 @@ import { EcHistoryModal } from '../../components/EcHistory'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcIcon from '../../components/ui/EcIcon'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 interface ScheduleEvent {
   id: number
@@ -142,7 +143,6 @@ function PermissionPopover({ form, onChange }: {
   )
 }
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
 
 /** 일간 · 사용자별 의 시간 줄 — 원본은 AM 08:00 ~ PM 06:00 이다. */
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]

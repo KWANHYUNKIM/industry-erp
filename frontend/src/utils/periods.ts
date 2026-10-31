@@ -10,11 +10,16 @@
  * 한국(UTC+9)에서 오전 9시 이전이면 <b>어제 날짜</b>가 나온다 — 그 함정을 피하려고 직접 만든다.
  */
 
+/** 두 자리로 — 3 → '03'. 화면마다 지역으로 두던 pad · pad2 를 여기로 모았다. */
+export const pad2 = (n: number) => String(n).padStart(2, '0')
+
 /** Date → 'YYYY-MM-DD' (로컬 기준) */
 export function ymd(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
+
+/** 오늘 'YYYY-MM-DD' (로컬 기준). `new Date().toISOString().slice(0, 10)` 은 UTC 라 쓰지 않는다. */
+export const todayYmd = () => ymd(new Date())
 
 const addDays = (d: Date, n: number) => {
   const x = new Date(d)

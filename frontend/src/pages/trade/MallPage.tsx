@@ -6,13 +6,12 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
-const today = () => ymd(new Date())
 
 /** 바깥 쇼핑몰과 주고받아야 하는 버튼의 안내. 원본은 연동 계정이 있어야 동작한다 — 원본 문구가 아니라 지은 문구(plans/재고1). */
 const MALL_LINK_MSG = '쇼핑몰 연동이 필요합니다.'
@@ -310,7 +309,7 @@ function FulfillForm({ order, action, onClose, onSaved }: {
   const [courier, setCourier] = useState(order.courier ?? '')
   const [trackingNo, setTrackingNo] = useState(order.trackingNo ?? '')
   const [reason, setReason] = useState('')
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const title = isShip ? '배송처리' : action === 'return' ? '반품처리' : '교환처리'
@@ -383,7 +382,7 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
 }) {
   const [mall, setMall] = useState(mallNames[0] ?? '스마트스토어')
   const [mallOrderNo, setMallOrderNo] = useState('')
-  const [orderDate, setOrderDate] = useState(today())
+  const [orderDate, setOrderDate] = useState(todayYmd())
   const [buyerName, setBuyerName] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
   const [address, setAddress] = useState('')

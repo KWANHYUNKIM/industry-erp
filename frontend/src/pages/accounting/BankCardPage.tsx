@@ -8,12 +8,11 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { periodOf } from '../../components/EcPeriodPicks'
 import type { BankAccountRow, BankTxn, CardType, CardUsage, CreditCardRow, Currency, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface AccountOption {
@@ -788,7 +787,7 @@ function BankTxnForm({ accounts, glAccounts, partners, onError, onSaved }: {
   const [form, setForm] = useState({
     bankAccountId: usable[0] ? String(usable[0].id) : '',
     deposit: 'true', amount: '', counterAccountId: '', partnerId: '',
-    txnDate: today(), description: '',
+    txnDate: todayYmd(), description: '',
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -867,7 +866,7 @@ function CardUsageForm({ cards, glAccounts, onError, onSaved }: {
   const [form, setForm] = useState({
     cardId: usable[0] ? String(usable[0].id) : '',
     merchant: '', expenseAccountId: '', supplyAmount: '', vatAmount: '',
-    usageDate: today(), description: '',
+    usageDate: todayYmd(), description: '',
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
 

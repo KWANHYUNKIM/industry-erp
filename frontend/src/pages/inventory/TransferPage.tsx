@@ -8,7 +8,6 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcIcon from '../../components/ui/EcIcon'
@@ -17,8 +16,8 @@ import NumCheck from '../../components/NumCheck'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { TransferForm, SlipPrint, slipNoText, type StockTransfer, type CodeRow } from '../../features/stocktransfer/TransferForm'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['창고이동', '자가사용', '불량처리', '대체사용', '폐기', '재고조정'] as const
@@ -529,7 +528,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
   onError: (m: string) => void; onSaved: (msg: string) => void
 }) {
   const [form, setForm] = useState({
-    adjustDate: today(), itemId: '', quantity: '', actualQty: '', reason: '',
+    adjustDate: todayYmd(), itemId: '', quantity: '', actualQty: '', reason: '',
     /* 원본 조건의 [프로젝트]·[담당자]. 창고이동과 같은 까닭이다. */
     projectId: '', employeeId: '',
     warehouseId: warehouses[0] ? String(warehouses[0].id) : '',
@@ -541,7 +540,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
    * 지난 날짜 실사는 <b>그날 재고</b>와 비교한다 — 서버가 그렇게 조정한다(QA 55회차). 미리보기도 같은 수를 본다.
    * 오늘이면 받아 둔 현재고 그대로.
    */
-  const past = isAdjust && form.adjustDate !== '' && form.adjustDate < today()
+  const past = isAdjust && form.adjustDate !== '' && form.adjustDate < todayYmd()
   const [asOfStock, setAsOfStock] = useState<StockRow[] | null>(null)
   useEffect(() => {
     if (!past) { setAsOfStock(null); return }

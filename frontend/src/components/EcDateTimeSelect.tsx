@@ -1,9 +1,9 @@
 import EcDateInput from './ui/EcDateInput'
+import { pad2 } from '../utils/periods'
 /**
  * 완료일시 칸 — 원본 간판제작 · 상담 이력관리(2026-10-21 실측): `2026 ▾ / 10 ▾ / 21 📅 오후 11 ▾ : 47 ▾`.
  * 값은 'YYYY-MM-DDTHH:mm'. 빈 값이면 아무것도 고르지 않은 칸.
  */
-const pad = (n: number) => String(n).padStart(2, '0')
 
 export default function EcDateTimeSelect({ value, onChange, label = '완료일시' }: {
   value: string
@@ -11,14 +11,14 @@ export default function EcDateTimeSelect({ value, onChange, label = '완료일�
   label?: string
 }) {
   const now = new Date()
-  const base = value || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T00:00`
+  const base = value || `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}T00:00`
   const [y, m, rest] = [base.slice(0, 4), base.slice(5, 7), base.slice(8)]
   const d = rest.slice(0, 2)
   const hh = Number(base.slice(11, 13))
   const mm = base.slice(14, 16)
   const put = (p: { y?: string; m?: string; d?: string; h?: number; mi?: string }) => {
     const ny = p.y ?? y, nm = p.m ?? m, nd = p.d ?? d, nh = p.h ?? hh, nmi = p.mi ?? mm
-    onChange(`${ny}-${nm}-${nd}T${pad(nh)}:${nmi}`)
+    onChange(`${ny}-${nm}-${nd}T${pad2(nh)}:${nmi}`)
   }
   const ampm = hh < 12 ? '오전' : '오후'
   const h12 = hh % 12 === 0 ? 12 : hh % 12
@@ -35,7 +35,7 @@ export default function EcDateTimeSelect({ value, onChange, label = '완료일�
       </select>
       :
       <select className="ec-input w-[52px]" aria-label="분" value={mm} onChange={(e) => put({ mi: e.target.value })}>
-        {Array.from({ length: 60 }, (_, k) => pad(k)).map((v) => <option key={v} value={v}>{v}</option>)}
+        {Array.from({ length: 60 }, (_, k) => pad2(k)).map((v) => <option key={v} value={v}>{v}</option>)}
       </select>
     </span>
   )

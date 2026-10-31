@@ -12,8 +12,8 @@ import {
   fetchSplit, groupsOf, HorizontalStatementTable, ShowModeRadios, StatementTable, toTrialBalance, useShowModes,
   type SLine, type Split, type SplitBy,
 } from '../../features/statement/showMode'
+import { pad2 } from '../../utils/periods'
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
 const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); return `${ym}-${pad2(new Date(y, m, 0).getDate())}` }
 const dayBefore = (d: string) => { const t = new Date(`${d}T00:00:00`); t.setDate(t.getDate() - 1); return `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}` }
 const shiftYear = (d: string, n: number) => `${Number(d.slice(0, 4)) + n}${d.slice(4)}`

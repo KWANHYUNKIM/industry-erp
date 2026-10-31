@@ -7,6 +7,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { pad2 } from '../../utils/periods'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 
@@ -29,7 +30,6 @@ const defaultRange = () => {
   return { from: ym(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: ym(now) }
 }
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
 const MONTH_PICKS = ['금월', '전월', '전월+금월', '금년', '전년', '종료월'] as const
 /** 원본 빠른선택 — 귀속연월(YYYY-MM) 범위. 종료월은 지금 끝 달 한 달. */
 function monthPick(label: (typeof MONTH_PICKS)[number], cur: { from: string; to: string }) {

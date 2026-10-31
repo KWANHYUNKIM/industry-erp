@@ -4,10 +4,10 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
@@ -28,7 +28,6 @@ interface Project {
   createdBy: string | null
 }
 
-const today = () => ymd(new Date())
 
 /** 그룹웨어 > 프로젝트 — 프로젝트 진행/진척 관리 (실제 연동) */
 export default function ProjectPage() {
@@ -41,7 +40,7 @@ export default function ProjectPage() {
 
   const [name, setName] = useState('')
   const [manager, setManager] = useState('')
-  const [startDate, setStartDate] = useState(today())
+  const [startDate, setStartDate] = useState(todayYmd())
   const [endDate, setEndDate] = useState('')
   const [status, setStatus] = useState<ProjectStatus>('PLANNING')
   const [remark, setRemark] = useState('')

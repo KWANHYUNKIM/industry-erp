@@ -7,7 +7,7 @@ import GridCode from '../../../components/GridCode'
 import type { CodeItem } from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
 import type { BankAccountRow, PromissoryNote } from '../../../types/api'
-import { bankLabel } from '../../bankcheck/components/CheckDepositReportModal'
+import { bankPickLabel } from '../../../utils/bankLabel'
 
 type MemoMode = 'SAME' | 'NOTENO' | 'DIRECT'
 type Group = 'LINE' | 'PARTNER'
@@ -55,7 +55,7 @@ export default function NoteVoucherReportModal({ receivable, picks, onClose, onS
   }, [picks])
 
   const settleItems: CodeItem[] = useMemo(() => [
-    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
+    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankPickLabel(b) })),
     { value: '000', code: '000', name: '현금' },
   ], [banks])
   const settleName = settleItems.find((x) => x.value === settle)?.name ?? ''

@@ -4,9 +4,10 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import EcPeriodPicks, { PROJECT_PICKS, ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { PROJECT_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 interface Project {
   id: number
@@ -31,7 +32,6 @@ const STATUSES: [Project['status'], string][] = [
   ['PLANNING', '계획'], ['IN_PROGRESS', '진행중'], ['ON_HOLD', '보류'], ['DONE', '완료'],
 ]
 
-const today = () => ymd(new Date())
 
 /**
  * 그룹웨어 > 프로젝트 > 건설예정공정표 (이카운트 C000044)
@@ -76,7 +76,7 @@ export default function ConstructionSchedulePage() {
 
   const [name, setName] = useState('')
   const [manager, setManager] = useState('')
-  const [startDate, setStartDate] = useState(today())
+  const [startDate, setStartDate] = useState(todayYmd())
   const [endDate, setEndDate] = useState('')
   const [remark, setRemark] = useState('')
 

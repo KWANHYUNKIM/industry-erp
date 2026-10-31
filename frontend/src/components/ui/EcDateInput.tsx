@@ -4,6 +4,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import EcIcon from './EcIcon'
+import { pad2 } from '../../utils/periods'
 
 /**
  * 일자칸 — 원본 `.wrapper-datepicker`(2026-10-30 loginaa 판매조회 조건 판 실측, plans/데이터이관/원본-아이콘-달력.md).
@@ -34,9 +35,8 @@ export type EcDateInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type
   ref?: Ref<HTMLInputElement>
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
 const daysIn = (y: number, m: number) => new Date(y, m, 0).getDate()
-const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` }
 const parse = (v: string | undefined) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v ?? '')
   return m ? { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) } : null
@@ -148,7 +148,7 @@ function Month({ y, m, onNav, sel, from, to, onDay, min, max, prev = true, next 
   const start = new Date(y, m - 1, 1 - first)
   for (let i = 0; i < 42; i += 1) {
     const dt = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
-    cells.push({ v: `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`, d: dt.getDate(), other: dt.getMonth() !== m - 1, dow: dt.getDay() })
+    cells.push({ v: `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`, d: dt.getDate(), other: dt.getMonth() !== m - 1, dow: dt.getDay() })
   }
   const rows = cells[35].other ? (cells[28].other ? 4 : 5) : 6
   const today = todayStr()
@@ -164,7 +164,7 @@ function Month({ y, m, onNav, sel, from, to, onDay, min, max, prev = true, next 
           {years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}
         </select>
         <select className="ec-cal-sel" aria-label="월" value={m} onChange={(e) => onNav(y, Number(e.target.value))}>
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((mm) => <option key={mm} value={mm}>{pad(mm)}</option>)}
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((mm) => <option key={mm} value={mm}>{pad2(mm)}</option>)}
         </select>
         <button type="button" className="nav" aria-label="다음 달" onClick={() => go(1)} hidden={!next}><EcIcon name="chevron-right" size={12} /></button>
       </div>
@@ -256,7 +256,7 @@ export default function EcDateInput(props: EcDateInputProps) {
   }
 
   const clamp = (v: string) => (min && v < min ? min : max && v > max ? max : v)
-  const emit = (y: number, m: number, d: number) => writeDate(native.current, clamp(`${y}-${pad(m)}-${pad(Math.min(Math.max(d, 1), daysIn(y, m)))}`))
+  const emit = (y: number, m: number, d: number) => writeDate(native.current, clamp(`${y}-${pad2(m)}-${pad2(Math.min(Math.max(d, 1), daysIn(y, m)))}`))
 
   /** 일 칸 확정 — 1~2자리는 그 달의 날, 8자리 · YYYY-MM-DD 는 날짜 통째, 빈칸은 지운다. */
   const commitDay = () => {
@@ -276,7 +276,7 @@ export default function EcDateInput(props: EcDateInputProps) {
   const maxY = max ? Number(max.slice(0, 4)) : Infinity
   const minY = min ? Number(min.slice(0, 4)) : -Infinity
   for (let i = Math.min(y0, now.y) - 10; i <= Math.max(y0, now.y) + 10; i += 1) if (i <= maxY && i >= minY) years.push({ v: i, t: String(i) })
-  const months = Array.from({ length: 12 }, (_, i) => ({ v: i + 1, t: pad(i + 1) }))
+  const months = Array.from({ length: 12 }, (_, i) => ({ v: i + 1, t: pad2(i + 1) }))
 
   return (
     <span className={`ec-date${invalid ? ' ec-invalid' : ''}${locked ? ' is-locked' : ''} ${wrapperClass(className)}`.trim()}
@@ -314,7 +314,7 @@ export default function EcDateInput(props: EcDateInputProps) {
         disabled={disabled}
         readOnly={readOnly}
         autoFocus={autoFocus}
-        value={dayDraft ?? (p ? pad(p.d) : '')}
+        value={dayDraft ?? (p ? pad2(p.d) : '')}
         onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => setDayDraft(e.target.value)}
         onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') commitDay(); onKeyDown?.(e) }}

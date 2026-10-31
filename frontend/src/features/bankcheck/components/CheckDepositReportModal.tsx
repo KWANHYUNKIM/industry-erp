@@ -7,6 +7,7 @@ import GridCode from '../../../components/GridCode'
 import type { CodeItem } from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
 import type { BankAccountRow, BankCheck, CheckType } from '../../../types/api'
+import { bankPickLabel } from '../../../utils/bankLabel'
 
 type MemoMode = 'SAME' | 'CHECKNO' | 'DIRECT'
 type Group = 'LINE' | 'PARTNER'
@@ -25,12 +26,6 @@ interface Line { pick: CheckDepositPick; memo: string }
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 원본 계좌검색의 [계좌명] — 등록한 이름이 없으면 '은행-끝 4자리'(기업은행-1122). */
-export function bankLabel(b: Pick<BankAccountRow, 'name' | 'bankName' | 'accountNo'>) {
-  if (b.name) return b.name
-  const digits = (b.accountNo ?? '').replace(/\D/g, '')
-  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
-}
-
 /**
  * 회계 II › 수표관리 › 수령수표입금처리(E060602) [입금보고서작성] — 2026-10-13 loginaa 실측.
  *
@@ -74,7 +69,7 @@ export default function CheckDepositReportModal({ type = 'RECEIVED', picks, onCl
   }, [picks])
 
   const settleItems: CodeItem[] = useMemo(() => [
-    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
+    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankPickLabel(b) })),
     { value: '000', code: '000', name: '현금' },
   ], [banks])
   const settleName = settleItems.find((x) => x.value === settle)?.name ?? ''

@@ -8,6 +8,7 @@ import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import type { JournalEntry } from '../../types/api'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 export interface AccountOpt { code: string; detailCategory: string | null }
@@ -127,8 +128,7 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
 export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Promise<Sheet> {
   const first = v.monthFrom, last = v.monthTo
   const end = new Date(v.year, last, 0).getDate()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const from = `${v.year}-${pad(first)}-01`, to = `${v.year}-${pad(last)}-${pad(end)}`
+  const from = `${v.year}-${pad2(first)}-01`, to = `${v.year}-${pad2(last)}-${pad2(end)}`
   const [r, pr, mk, tv] = await Promise.all([
     api.get<JournalList>('/journals', { params: { from, to, all: true } }),
     api.get<PartnerOpt[]>('/partners'),
@@ -751,7 +751,6 @@ function stamp(iso: string) {
 
 export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
   const p = s
-  const pad = (n: number) => String(n).padStart(2, '0')
   const sales = add(add(s.taxInvoice, s.cardSales), s.zeroInvoice)
   const purchase = add(add(s.purchaseGeneral, s.purchaseFixed), s.otherPurchase)
   /* 예전에 저장한 신고서는 (44) · (45) 를 안 나눠 들고 있다 — (15) 를 (44) 로. */
@@ -773,7 +772,7 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
       <p className="ec-report-title mb-[8px]">일반과세자 부가가치세 [{s.kind === '예정' ? 'v' : ' '}] 예정 [{s.kind === '확정' ? 'v' : ' '}] 확정 신고서</p>
       <table className="w-full ec-report mb-[8px]">
         <tbody>
-          <tr><th>신고기간</th><td colSpan={5}>{s.year} 년 제 {s.term} 기 ({pad(p.first)}월 01일 ~ {pad(p.last)}월 {pad(p.end)}일)</td></tr>
+          <tr><th>신고기간</th><td colSpan={5}>{s.year} 년 제 {s.term} 기 ({pad2(p.first)}월 01일 ~ {pad2(p.last)}월 {pad2(p.end)}일)</td></tr>
           <tr>
             <th>상호(법인명)</th><td>{c?.name ?? ''}</td><th>성명(대표자명)</th><td>{c?.ceo ?? ''}</td>
             <th>사업자등록번호</th><td>{c?.bizRegNo ?? ''}</td>
@@ -913,7 +912,6 @@ function Submitter({ rows }: { rows: [string, string][][] }) {
  */
 export function CardSalesSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
   const k = s.cards ?? CARDS0
-  const pad = (n: number) => String(n).padStart(2, '0')
   const address = [c?.address, c?.addressDetail].filter(Boolean).join(' ')
   const rowOf = (label: string, card: number, cash: number, bold = false) => (
     <tr key={label} className={bold ? 'ec-total' : undefined}>
@@ -926,7 +924,7 @@ export function CardSalesSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
     <>
       <p>■ 부가가치세법 시행규칙 [별지 제23호서식]</p>
       <p className="ec-report-title">신용카드 매출전표 등 발행금액 집계표</p>
-      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad(s.first)}월 01일 ~ {pad(s.last)}월 {pad(s.end)}일)</p>
+      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad2(s.first)}월 01일 ~ {pad2(s.last)}월 {pad2(s.end)}일)</p>
       <p className="mb-[4px]">1. 제출자 인적사항</p>
       <Submitter rows={[[['① 상호(법인명)', c?.name ?? ''], ['② 성명(대표자)', c?.ceo ?? '']],
         [['③ 사업장소재지', address], ['④ 사업자등록번호', c?.bizRegNo ?? '']]]} />
@@ -960,7 +958,6 @@ export function CardSalesSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
  */
 export function CardReceiptSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
   const k = s.cards ?? CARDS0
-  const pad = (n: number) => String(n).padStart(2, '0')
   const sum: Cnt = { n: k.recvCash.n + k.recvCard.n, supply: k.recvCash.supply + k.recvCard.supply, vat: k.recvCash.vat + k.recvCard.vat }
   const rowOf = (label: string, x: Cnt | null, always = false) => {
     const show = always || (x != null && x.n > 0)
@@ -977,7 +974,7 @@ export function CardReceiptSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) 
     <>
       <p>■ 부가가치세법 시행규칙 [별지 제16호서식(1)]</p>
       <p className="ec-report-title">신용카드 매출전표등 수령명세서(갑)</p>
-      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad(s.first)}월 01일 ~ {pad(s.last)}월 {pad(s.end)}일)</p>
+      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad2(s.first)}월 01일 ~ {pad2(s.last)}월 {pad2(s.end)}일)</p>
       <p className="mb-[4px]">1. 제출자 인적사항</p>
       <Submitter rows={[[['① 상 호 (법인명)', c?.name ?? ''], ['② 사업자등록번호', c?.bizRegNo ?? '']],
         [['③ 성 명 (대표자)', c?.ceo ?? ''], ['', '']]]} />
@@ -1017,7 +1014,6 @@ export function InvoiceSummarySheet({ side, s, c, invoices, written }: {
   written?: string
 }) {
   const p = s
-  const pad = (n: number) => String(n).padStart(2, '0')
   const who = side === '매출' ? '매출처' : '매입처'
   const tally = (list: Invoice[]) => ({
     partners: new Set(list.map((i) => i.partnerId ?? i.partner)).size, count: list.length,
@@ -1047,13 +1043,13 @@ export function InvoiceSummarySheet({ side, s, c, invoices, written }: {
     <>
       <p>■ 부가가치세법 시행규칙 [별지 제38호서식(2)]</p>
       <p className="ec-report-title">{who}별세금계산서합계표 (갑)</p>
-      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad(p.first)}월 01일 ~ {pad(p.last)}월 {pad(p.end)}일)</p>
+      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad2(p.first)}월 01일 ~ {pad2(p.last)}월 {pad2(p.end)}일)</p>
       <p className="mb-[4px]">1. 제출자 인적사항</p>
       <table className="w-full ec-report mb-[8px]">
         <tbody>
           <tr><th>①사업자등록번호</th><td>{c?.bizRegNo ?? ''}</td><th>②상호(법인명)</th><td>{c?.name ?? ''}</td></tr>
           <tr><th>③성명(대표자)</th><td>{c?.ceo ?? ''}</td><th>④사업장소재지</th><td>{address}</td></tr>
-          <tr><th>⑤거래기간</th><td>{s.year}년 {pad(p.first)}월 01일 ~ {s.year}년 {pad(p.last)}월 {pad(p.end)}일</td><th>⑥작성일</th><td>{written ?? ''}</td></tr>
+          <tr><th>⑤거래기간</th><td>{s.year}년 {pad2(p.first)}월 01일 ~ {s.year}년 {pad2(p.last)}월 {pad2(p.end)}일</td><th>⑥작성일</th><td>{written ?? ''}</td></tr>
         </tbody>
       </table>
       <p className="mb-[4px]">2. {side}세금계산서 총합계</p>

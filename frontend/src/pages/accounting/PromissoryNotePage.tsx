@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import CodePickerField from '../../components/CodePickerField'
 import { useRequired } from '../../utils/useRequired'
@@ -12,9 +11,9 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useNavigate } from 'react-router-dom'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => ymd(new Date())
 
 const TABS = ['전체', '보유', '결제완료', '할인', '부도'] as const
 type Tab = (typeof TABS)[number]
@@ -90,7 +89,7 @@ export default function PromissoryNotePage() {
     const bankAccountId = pickAccount(n.type === 'RECEIVABLE' ? '입금' : '출금')
     if (bankAccountId === null) return
     try {
-      await api.post(`/notes/${n.id}/settle`, { bankAccountId, settleDate: today() })
+      await api.post(`/notes/${n.id}/settle`, { bankAccountId, settleDate: todayYmd() })
       flash(`${n.noteNo} 만기결제 — 계좌 잔액과 분개 반영`)
       load()
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
@@ -104,7 +103,7 @@ export default function PromissoryNotePage() {
     const bankAccountId = pickAccount('할인 대금을 입금')
     if (bankAccountId === null) return
     try {
-      await api.post(`/notes/${n.id}/discount`, { bankAccountId, discountFee, discountDate: today() })
+      await api.post(`/notes/${n.id}/discount`, { bankAccountId, discountFee, discountDate: todayYmd() })
       flash(`${n.noteNo} 할인 — 할인료는 매출채권처분손실로 분개`)
       load()
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
@@ -122,7 +121,7 @@ export default function PromissoryNotePage() {
   async function dishonor(n: PromissoryNote) {
     if (!(await ecConfirm(`${n.noteNo}을(를) 부도 처리할까요? 어음채권이 외상매출금으로 환원됩니다.`))) return
     try {
-      await api.post(`/notes/${n.id}/dishonor`, { dishonorDate: today() })
+      await api.post(`/notes/${n.id}/dishonor`, { dishonorDate: todayYmd() })
       flash(`${n.noteNo} 부도 — 외상매출금으로 환원`)
       load()
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
@@ -191,7 +190,7 @@ export default function PromissoryNotePage() {
               <td>{n.typeName}</td>
               <td>{n.partnerName}</td>
               <td>{dateText(n.issueDate)}</td>
-              <td style={{ color: n.status === 'HELD' && n.dueDate <= today() ? 'var(--ec-danger)' : undefined }}>{dateText(n.dueDate)}</td>
+              <td style={{ color: n.status === 'HELD' && n.dueDate <= todayYmd() ? 'var(--ec-danger)' : undefined }}>{dateText(n.dueDate)}</td>
               <td className="text-right font-bold">{won(n.amount)}</td>
               <td className="text-right text-ec-hint">{n.discountFee ? won(n.discountFee) : ''}</td>
               <td>{n.bankName ?? ''}</td>
@@ -201,7 +200,7 @@ export default function PromissoryNotePage() {
                   <div className="inline-flex gap-[3px]">
                     <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => settle(n)}>만기결제</button>
                     {/* 할인은 만기 전에만 — 만기가 지났으면 만기결제로 받는다(서버도 거절, QA 57회차). */}
-                    {n.type === 'RECEIVABLE' && n.dueDate >= today() && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => discount(n)}>할인</button>}
+                    {n.type === 'RECEIVABLE' && n.dueDate >= todayYmd() && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => discount(n)}>할인</button>}
                     {n.type === 'RECEIVABLE' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => dishonor(n)}>부도</button>}
                     {/* 보유 중일 때만 지운다 — 수취·발행 분개도 같이 지워진다(QA 58회차). */}
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-text-hint)' }} onClick={() => remove(n)}>삭제</button>
@@ -239,9 +238,9 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
   const navigate = useNavigate()
   const [type, setType] = useState<'RECEIVABLE' | 'PAYABLE'>('RECEIVABLE')
   const [partnerId, setPartnerId] = useState('')
-  const [issueDate, setIssueDate] = useState(today())
+  const [issueDate, setIssueDate] = useState(todayYmd())
   const [noteNo, setNoteNo] = useState('')
-  const [dueDate, setDueDate] = useState(today())
+  const [dueDate, setDueDate] = useState(todayYmd())
   const [amount, setAmount] = useState('')
   const [remark, setRemark] = useState('')
   const [dept, setDept] = useState('')
@@ -255,7 +254,7 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
   const partnerItems = useMemo(() => candidates.map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [candidates])
 
   function reset() {
-    setPartnerId(''); setIssueDate(today()); setNoteNo(''); setDueDate(today()); setAmount(''); setRemark(''); setDept(''); setProject(''); setError(''); req.reset()
+    setPartnerId(''); setIssueDate(todayYmd()); setNoteNo(''); setDueDate(todayYmd()); setAmount(''); setRemark(''); setDept(''); setProject(''); setError(''); req.reset()
   }
 
   async function save(thenSlip: boolean) {

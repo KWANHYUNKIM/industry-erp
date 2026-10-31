@@ -11,6 +11,7 @@ import { insuranceEmployeeColumns } from '../../features/insurance/employeeColum
 import WorkplaceModal from '../../features/insurance/WorkplaceModal'
 import { INSURANCE_FORM_NAMES, INSURANCE_INPUT_PATHS, type InsuranceKind, type InsuranceReport } from '../../features/insurance/types'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 /**
  * 관리 › 급여관리 › 4대보험신고(원본 N001768, 2026-10-14 실측).
@@ -20,8 +21,7 @@ import { EcDateRange } from '../../components/ui/EcDateInput'
  * 신고 · 결과조회 · 인증서관리는 공단 EDI 전송이라 만들지 않는다(누르면 아무 일도 없다). 신고 전이라 신고일자 · 신고번호 · 처리상태는 빈칸.
  */
 const KINDS: InsuranceKind[] = ['ACQUIRE', 'LOSS', 'DEPENDENT']
-const pad = (n: number) => String(n).padStart(2, '0')
-const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const iso = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 const slash = (s: string) => s.replaceAll('-', '/')
 
 export default function InsuranceReportListPage() {

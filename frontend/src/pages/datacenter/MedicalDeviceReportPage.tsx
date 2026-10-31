@@ -14,6 +14,7 @@ import GridSortModal from '../../components/GridSortModal'
 import { MenuButton } from '../../components/EcSlipShell'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 데이터센터 › 의료기기공급내역보고 (이카운트 C001403)
@@ -70,7 +71,6 @@ interface SaleCandidate {
   confirmStatus: string | null; confirmStatusName: string | null
 }
 
-const today = () => ymd(new Date())
 /* 원본 기준일자 기본값 [최근 1년] — 2025/10/03 ~ 2026/10/03 (오늘 기준 1년 전 같은 날부터). */
 const lastYear = () => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return ymd(d) }
 const num = (v: number) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })
@@ -80,8 +80,8 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0
 
 const emptyCond = {
   view: '건별' as '건별' | '전표별',
-  from: lastYear(), to: today(),
-  useMonth: false, month: today().slice(0, 7),
+  from: lastYear(), to: todayYmd(),
+  useMonth: false, month: todayYmd().slice(0, 7),
   types: SUPPLY_TYPES.map((t) => t.value) as SupplyType[],
   shapes: [...SUPPLY_SHAPES] as string[],
   deliveryFrom: '', deliveryTo: '',
@@ -156,14 +156,14 @@ export default function MedicalDeviceReportPage() {
   /* ── 입력 · 수정 창 ─────────────────────────────────────────── */
   const [open, setOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
-  const [head, setHead] = useState({ year: today().slice(0, 4), month: today().slice(5, 7), supplyType: 'OUT' as SupplyType, supplyShape: SUPPLY_SHAPES[0] as string })
+  const [head, setHead] = useState({ year: todayYmd().slice(0, 4), month: todayYmd().slice(5, 7), supplyType: 'OUT' as SupplyType, supplyShape: SUPPLY_SHAPES[0] as string })
   const [lines, setLines] = useState<Line[]>([])
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
 
   function openNew() {
     setEditId(null); setFormError(''); setLines([])
-    setHead({ year: today().slice(0, 4), month: today().slice(5, 7), supplyType: 'OUT', supplyShape: SUPPLY_SHAPES[0] })
+    setHead({ year: todayYmd().slice(0, 4), month: todayYmd().slice(5, 7), supplyType: 'OUT', supplyShape: SUPPLY_SHAPES[0] })
     setOpen(true); openSales()
   }
   async function openEdit(entryId: number) {

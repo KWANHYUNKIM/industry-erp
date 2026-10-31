@@ -5,10 +5,10 @@ import type { Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 type SettlementType = 'RECEIPT' | 'PAYMENT'
 
@@ -27,7 +27,6 @@ interface Settlement {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => ymd(new Date())
 const METHODS = ['현금', '계좌이체', '어음', '카드']
 
 export default function SettlementPage() {
@@ -41,7 +40,7 @@ export default function SettlementPage() {
   const [partnerId, setPartnerId] = useState('')
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState('현금')
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [note, setNote] = useState('')
   /**
    * 귀속 프로젝트. 수금현황·지급현황의 [프로젝트] 조건이 이 값을 본다 —

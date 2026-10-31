@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { historyTime, type HistoryRow } from '../../components/EcHistory'
 import { api, extractErrorMessage } from '../../api/client'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 type Kind = 'BATCH' | 'LABOR' | 'RETIREMENT' | 'RESIDENT_OTHER' | 'RESIDENT_BUSINESS' | 'NONRESIDENT' | 'INTEREST_DIVIDEND' | 'MEDICAL'
 type Basis = 'ATTRIBUTION' | 'PAYMENT'
@@ -34,7 +35,6 @@ const KINDS: { value: Kind; label: string; mid?: boolean; basis?: boolean; other
   { value: 'MEDICAL', label: '의료비명세서' },
 ]
 const kindOf = (k: Kind) => KINDS.find((x) => x.value === k)!
-const pad2 = (n: number) => String(n).padStart(2, '0')
 
 type Form = Omit<PaymentStatementFile, 'id' | 'kindName'> & { id?: number }
 

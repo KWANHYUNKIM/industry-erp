@@ -7,6 +7,7 @@ import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { ecAlert } from '../../components/EcDialog'
 import { InvoiceSummarySheet, loadVatSheet, type AccountOpt, type CompanyInfo, type Sheet } from './VatReturnPage'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 interface MediaRow {
   id: number; year: number; monthFrom: number; monthTo: number; omittedFrom: number | null; omittedTo: number | null
@@ -18,7 +19,6 @@ interface MediaForm {
 }
 type Attach = '매출세금계산서' | '매입세금계산서'
 
-const pad = (n: number) => String(n).padStart(2, '0')
 const MONTHS = Array.from({ length: 12 }, (_, k) => k + 1)
 const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + 'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid gray;padding:3px}'
@@ -90,7 +90,7 @@ export default function VatMediaFilePage() {
     const first = today.getMonth() < 6 ? 1 : 7
     setFormError(''); setConfirmDelete(false)
     setForm({ year: thisYear, monthFrom: first, monthTo: first + 5, omittedFrom: null, omittedTo: null,
-      invoiceSummary: true, taxInvoiceSummary: true, reportDate: `${thisYear}-${pad(today.getMonth() + 1)}-25` })
+      invoiceSummary: true, taxInvoiceSummary: true, reportDate: `${thisYear}-${pad2(today.getMonth() + 1)}-25` })
   }
   const openRow = (r: MediaRow) => {
     setFormError(''); setConfirmDelete(false)
@@ -142,9 +142,9 @@ export default function VatMediaFilePage() {
       + `<body>${el.innerHTML}</body></html>`)
   }
 
-  const period = (r: { year: number; monthFrom: number; monthTo: number }) => `${r.year} / ${pad(r.monthFrom)} ~ ${pad(r.monthTo)}`
+  const period = (r: { year: number; monthFrom: number; monthTo: number }) => `${r.year} / ${pad2(r.monthFrom)} ~ ${pad2(r.monthTo)}`
   const omitted = (r: { omittedFrom: number | null; omittedTo: number | null }) =>
-    r.omittedFrom != null && r.omittedTo != null ? `${pad(r.omittedFrom)} ~ ${pad(r.omittedTo)}` : '없음'
+    r.omittedFrom != null && r.omittedTo != null ? `${pad2(r.omittedFrom)} ~ ${pad2(r.omittedTo)}` : '없음'
   const allPicked = rows.length > 0 && rows.every((r) => picked.has(r.id))
   const locked = !!form?.id
   const written = (d: string) => { const [y, m, dd] = d.split('-'); return `${y}년 ${m}월 ${dd}일` }
@@ -213,12 +213,12 @@ export default function VatMediaFilePage() {
                 <select className="ec-input w-[80px]" aria-label="시작연도" defaultValue={thisYear - 1}>
                   {[thisYear, thisYear - 1].map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
-                <select className="ec-input w-[60px]" aria-label="시작월" defaultValue={1}>{MONTHS.map((m) => <option key={m} value={m}>{pad(m)}</option>)}</select>
+                <select className="ec-input w-[60px]" aria-label="시작월" defaultValue={1}>{MONTHS.map((m) => <option key={m} value={m}>{pad2(m)}</option>)}</select>
                 ~
                 <select className="ec-input w-[80px]" aria-label="끝연도" defaultValue={thisYear}>
                   {[thisYear, thisYear - 1].map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
-                <select className="ec-input w-[60px]" aria-label="끝월" defaultValue={1}>{MONTHS.map((m) => <option key={m} value={m}>{pad(m)}</option>)}</select>
+                <select className="ec-input w-[60px]" aria-label="끝월" defaultValue={1}>{MONTHS.map((m) => <option key={m} value={m}>{pad2(m)}</option>)}</select>
               </span>
             </EcCond>
             <EcCond label="세무신고사업장선택" span={2}>
@@ -271,24 +271,24 @@ export default function VatMediaFilePage() {
                 <option value={thisYear}>{thisYear}</option>
               </select>
               <select className="ec-input flex-1" aria-label="시작월" disabled={locked} value={form.monthFrom} onChange={(e) => set({ monthFrom: Number(e.target.value) })}>
-                {MONTHS.map((m) => <option key={m} value={m}>{pad(m)}월</option>)}
+                {MONTHS.map((m) => <option key={m} value={m}>{pad2(m)}월</option>)}
               </select>
               ~
               <select className="ec-input flex-1" aria-label="끝월" disabled={locked} value={form.monthTo} onChange={(e) => set({ monthTo: Number(e.target.value) })}>
-                {MONTHS.map((m) => <option key={m} value={m}>{pad(m)}월</option>)}
+                {MONTHS.map((m) => <option key={m} value={m}>{pad2(m)}월</option>)}
               </select>
             </EcCond>
             <EcCond label="예정누락기간" span={2}>
               <select className="ec-input flex-1" aria-label="예정누락 시작월" disabled={locked} value={form.omittedFrom ?? ''}
                       onChange={(e) => set({ omittedFrom: e.target.value ? Number(e.target.value) : null })}>
                 <option value="">===</option>
-                {MONTHS.map((m) => <option key={m} value={m}>{pad(m)}월</option>)}
+                {MONTHS.map((m) => <option key={m} value={m}>{pad2(m)}월</option>)}
               </select>
               ~
               <select className="ec-input flex-1" aria-label="예정누락 끝월" disabled={locked} value={form.omittedTo ?? ''}
                       onChange={(e) => set({ omittedTo: e.target.value ? Number(e.target.value) : null })}>
                 <option value="">===</option>
-                {MONTHS.map((m) => <option key={m} value={m}>{pad(m)}월</option>)}
+                {MONTHS.map((m) => <option key={m} value={m}>{pad2(m)}월</option>)}
               </select>
             </EcCond>
             <EcCond label="세무신고사업장" span={2}>

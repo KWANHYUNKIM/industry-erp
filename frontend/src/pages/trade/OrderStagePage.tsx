@@ -11,7 +11,7 @@ import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
-import { ymd } from '../../utils/periods'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 재고2 > 오더관리 > 오더관리진행단계(E040904).
@@ -58,8 +58,7 @@ interface Form {
 }
 
 const initP = periodOf('최근30일(+1개월)')!
-const today = () => ymd(new Date())
-const emptyForm = (): Form => ({ name: '', orderTypeId: '', createdDate: today(), remarks1: '', remarks2: '', searchKeyword: '' })
+const emptyForm = (): Form => ({ name: '', orderTypeId: '', createdDate: todayYmd(), remarks1: '', remarks2: '', searchKeyword: '' })
 
 /**
  * {@code popup} — MyPage 오더관리진행단계 위젯이 이 화면을 숨긴 채(features/mypage/PopupHost) 창 하나만 띄울 때(원본 2026-10-30 홈 실측):

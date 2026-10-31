@@ -6,8 +6,8 @@ import { ecAlert } from '../../components/EcDialog'
 import { api, extractErrorMessage } from '../../api/client'
 import { exportTableToXlsx } from '../../utils/excel'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { ymd } from '../../utils/periods'
 
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 /**
  * 기준일자 처음값 — 원본(2026-10 loginaa 실측 '2025/10 ~ 2026/12'): 열두 달 전 달 1일 ~ 올해 12월 31일.

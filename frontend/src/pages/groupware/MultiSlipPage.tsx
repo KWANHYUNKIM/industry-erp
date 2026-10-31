@@ -16,6 +16,7 @@ import { exportTableToXlsx } from '../../utils/excel'
 import { shrinkImage } from '../../utils/imageResize'
 import EcIcon from '../../components/ui/EcIcon'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { pad2 } from '../../utils/periods'
 
 /**
  * 그룹웨어 › 다목적관리 — '다목적 전표' 넷(2026-10-14 loginaa 실측, .claude/skills/ecount-diff/plans/그룹웨어/E200276.md).
@@ -242,8 +243,7 @@ function stampText(iso?: string | null) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   const h = d.getHours()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${dateText(ymd(d))} (${WEEK[d.getDay()]}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${dateText(ymd(d))} (${WEEK[d.getDay()]}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 const slipNoText = (s: Slip) => `${dateText(s.slipDate)}-${s.slipNo}`
 const toFields = (o: Record<string, unknown>): Fields =>

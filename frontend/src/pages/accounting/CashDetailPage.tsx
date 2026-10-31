@@ -5,12 +5,12 @@ import { useTableSort } from '../../utils/useTableSort'
 import type {
   AccountTransfer, BankAccountRow, CardPayment, CardUsage, CreditCardRow,
 } from '../../types/api'
-import { periodOf, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['계좌간이동', '법인카드 대금결제'] as const
@@ -112,7 +112,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
   const [form, setForm] = useState({
     fromAccountId: usable[0] ? String(usable[0].id) : '',
     toAccountId: usable[1] ? String(usable[1].id) : '',
-    amount: '', transferDate: today(), description: '',
+    amount: '', transferDate: todayYmd(), description: '',
   })
   const [saving, setSaving] = useState(false)
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
@@ -238,7 +238,7 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
   const usableBanks = banks.filter((b) => b.active)
   const [cardId, setCardId] = useState(usableCards[0] ? String(usableCards[0].id) : '')
   const [bankAccountId, setBankAccountId] = useState('')
-  const [paymentDate, setPaymentDate] = useState(today())
+  const [paymentDate, setPaymentDate] = useState(todayYmd())
   const [unpaid, setUnpaid] = useState<CardUsage[]>([])
   const [openId, setOpenId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)

@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import { ymd } from '../../components/EcPeriodPicks'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 interface Account { id: number; code: string; name: string; division: string }
 interface Partner { id: number; code: string; name: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => ymd(new Date())
 
 /** 현금거래 — 입금/출금 간편입력. 입금은 차)현금·대)상대계정, 출금은 차)상대계정·대)현금 분개가 자동 생성된다. */
 export default function CashTxnPage({ mode }: { mode: 'deposit' | 'withdraw' }) {
@@ -19,7 +18,7 @@ export default function CashTxnPage({ mode }: { mode: 'deposit' | 'withdraw' }) 
   const title = deposit ? '현금예금입금' : '현금예금출금'
   const [accounts, setAccounts] = useState<Account[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
-  const [entryDate, setEntryDate] = useState(today())
+  const [entryDate, setEntryDate] = useState(todayYmd())
   const [counterAccountId, setCounterAccountId] = useState('')
   const [partnerId, setPartnerId] = useState('')
   const [amount, setAmount] = useState('')

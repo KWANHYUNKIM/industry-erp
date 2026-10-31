@@ -34,6 +34,7 @@ import { SlipMenuHistoryModal } from '../../features/sliphistory/SlipMenuHistory
 import { isAnyPartner } from '../../utils/anyPartner'
 import EcIcon from '../../components/ui/EcIcon'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 판매입력 / 구매입력 — 이카운트 ESD006M(판매입력) 화면 구조를 그대로 옮긴 전표 입력 화면.
@@ -164,10 +165,6 @@ function splitDiscount(total: number, taxable: boolean) {
   return { supply, vat: t - supply, total: t }
 }
 const num = (s: string) => Number(s) || 0
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 const emptyLine = (): LineInput => ({
   itemId: '', quantity: '', unitPrice: '', lineRate: '', spec: null, name: null, lotNo: '', extraCost: '', remark: '',
   supplyOverride: '', supplyBase: '', vatOverride: '', vatBase: '',
@@ -414,7 +411,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
   const [lineDefs, setLineDefs] = useState<CustomFieldDef[]>([])
 
   // ── 헤더 항목 ──────────────────────────────────────────
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(todayYmd())
   const [partnerId, setPartnerId] = useState('')
   /** 임의거래처(12341234)에 고친 거래처명 — 고른 거래처 id 와 같이 들어 다른 거래처를 고르면 저절로 버려진다. */
   const [anyName, setAnyName] = useState<{ id: string; name: string } | null>(null)
@@ -688,7 +685,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     const d = docs.find((x) => String(x.id) === returnFromId)
     if (!d) return
     returnLoaded.current = true
-    setDate(today())
+    setDate(todayYmd())
     setPartnerId(d.partnerId != null ? String(d.partnerId) : '')
     setAnyName(d.partnerId != null ? { id: String(d.partnerId), name: d.partnerName ?? '' } : null)
     setWarehouseId(String(d.warehouseId))
@@ -1577,7 +1574,7 @@ export default function TradeEntry({ mode, adjust = false, popup }: { mode: Mode
     if (!raw) return
     try {
       const s = JSON.parse(raw)
-      setDate(s.date ?? today()); setPartnerId(s.partnerId ?? ''); setEmployeeId(s.employeeId ?? '')
+      setDate(s.date ?? todayYmd()); setPartnerId(s.partnerId ?? ''); setEmployeeId(s.employeeId ?? '')
       setWarehouseId(s.warehouseId ?? ''); setTaxable(s.taxable ?? true); setForeign(s.foreign ?? false); setCurrencyCode(s.currencyCode ?? '')
       setExchangeRate(s.exchangeRate ?? '0'); setProjectId(s.projectId ?? ''); setRemark(s.remark ?? '')
       setCustomValues(s.customValues ?? {}); setLines(Array.isArray(s.lines) && s.lines.length ? s.lines : emptyLines())
@@ -1957,7 +1954,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
       label: cfg.cashLabel,
       onClick: () => {
         setCashMsg('')
-        setCashForm({ date: today(), departmentId: '', projectId: '', method: mode === 'sales' ? '현금' : '', amount: String(net.total || ''), fee: '0', note: '' })
+        setCashForm({ date: todayYmd(), departmentId: '', projectId: '', method: mode === 'sales' ? '현금' : '', amount: String(net.total || ''), fee: '0', note: '' })
         api.get<typeof cashBanks>('/bank-cards/accounts').then((r) => setCashBanks(r.data)).catch(() => setCashBanks([]))
         api.get<typeof cashDepts>('/departments').then((r) => setCashDepts(r.data)).catch(() => setCashDepts([]))
         setCashOpen(true)
@@ -2002,7 +1999,7 @@ ${cfg.title} - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
      * 거래처 · 담당자 · 출하창고 · 품목줄은 그대로, 일자는 <b>오늘</b>, No. 는 비어 저장할 때 새로 받는다(10/21 -4).
      * 아래 버튼줄도 신규 창 것(저장(F8) · 저장/전표(F7) · 다시 작성 · 현금수금 · 닫기 · 웹자료올리기)으로 바뀐다.
      */
-    { label: '복사', onClick: () => { copiedRef.current = true; setEditing(null); setDate(today()); popup.onCopy?.() } },
+    { label: '복사', onClick: () => { copiedRef.current = true; setEditing(null); setDate(todayYmd()); popup.onCopy?.() } },
     { label: '반품처리', onClick: popup.onReturn },
     ...(cashAction ? [{ ...cashAction, menu: undefined }] : []),
     { label: '이전', onClick: () => popup.onMove('prev') },

@@ -1,14 +1,14 @@
 import EcDateInput from './ui/EcDateInput'
+import { pad2 } from '../utils/periods'
 /**
  * 날짜/시간 범위 칸 — 원본 A/S 관리 입력 창(2026-10-22 실측): `2026 ▾ 10 ▾ 월 22 📅 오전 04 ▾ 05 ▾ ~ 오전 04 ▾ 05 ▾`.
  * 처음 값은 오늘 · 지금 시각(시작 · 끝이 같다). 시 목록은 '오전 00 ~ 오전 11 · 오후 12 ~ 오후 23', 분 목록은 00 ~ 59(1분 단위).
  * 값은 'YYYY-MM-DD HH:mm~HH:mm'. 빈 값이면 처음 값을 보여 준다(저장할 때 defaultRange() 로 채운다).
  */
-const pad = (n: number) => String(n).padStart(2, '0')
 
 export function defaultRange(now = new Date()) {
-  const t = `${pad(now.getHours())}:${pad(now.getMinutes())}`
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${t}~${t}`
+  const t = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} ${t}~${t}`
 }
 
 /** 'YYYY-MM-DD HH:mm~HH:mm' → 화면 글자 '2026/10/22 04:05 ~ 04:05'. */
@@ -17,7 +17,7 @@ export function rangeText(v: string) {
   return m ? `${m[1]}/${m[2]}/${m[3]} ${m[4]} ~ ${m[5]}` : v
 }
 
-const hourLabel = (h: number) => `${h < 12 ? '오전' : '오후'} ${pad(h)}`
+const hourLabel = (h: number) => `${h < 12 ? '오전' : '오후'} ${pad2(h)}`
 
 export default function EcDateTimeRange({ value, onChange, label = '날짜/시간' }: {
   value: string
@@ -28,9 +28,9 @@ export default function EcDateTimeRange({ value, onChange, label = '날짜/시�
   const [y, m, d] = [v.slice(0, 4), v.slice(5, 7), v.slice(8, 10)]
   const [h1, m1, h2, m2] = [Number(v.slice(11, 13)), v.slice(14, 16), Number(v.slice(17, 19)), v.slice(20, 22)]
   const put = (p: { y?: string; m?: string; d?: string; h1?: number; m1?: string; h2?: number; m2?: string }) =>
-    onChange(`${p.y ?? y}-${p.m ?? m}-${p.d ?? d} ${pad(p.h1 ?? h1)}:${p.m1 ?? m1}~${pad(p.h2 ?? h2)}:${p.m2 ?? m2}`)
+    onChange(`${p.y ?? y}-${p.m ?? m}-${p.d ?? d} ${pad2(p.h1 ?? h1)}:${p.m1 ?? m1}~${pad2(p.h2 ?? h2)}:${p.m2 ?? m2}`)
   const hours = Array.from({ length: 24 }, (_, k) => k)
-  const mins = Array.from({ length: 60 }, (_, k) => pad(k))
+  const mins = Array.from({ length: 60 }, (_, k) => pad2(k))
   return (
     <span className="inline-flex items-center gap-[4px] flex-wrap" role="group" aria-label={label}>
       {/* 날짜 — 원본 [2026 ▾] / [10 ▾] / [21] [달력] (components/ui/EcDateInput) */}

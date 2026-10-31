@@ -12,6 +12,7 @@ import { EcHistoryModal } from '../../components/EcHistory'
 import { matrixToXlsx } from '../../utils/excel'
 import EcIcon from '../../components/ui/EcIcon'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { ymd } from '../../utils/periods'
 
 /** 원본 BOM등록 창이 더 보내 주는 값 — 생산수량 · 생산공정, 줄의 입력수량(생산수량 기준) · 생산공정 · 위치 · 적요(V427). */
 type BomLineX = BomLine & {
@@ -230,7 +231,6 @@ export default function BomPage() {
     if (noQty) { setBad({ qty: noQty.i }); return }
     if (editing && !asked && shape(produceQty, lines) !== snapshot.current) {
       const t = new Date()
-      const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
       setRecalc({ on: false, from: ymd(new Date(t.getFullYear(), t.getMonth(), 1)), to: ymd(t) })
       return
     }

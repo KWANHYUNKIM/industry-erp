@@ -5,7 +5,6 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { expiryDirectRange } from '../../utils/expiryRange'
@@ -14,6 +13,7 @@ import BulkChangeModal from '../../components/BulkChangeModal'
 import EcHistoryButton from '../../components/EcHistory'
 import { ecConfirm } from '../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.등록</b> (이카운트 E040617)
@@ -31,9 +31,8 @@ const TABS: Tab[] = ['기본', '시리얼/로트No.정보', '부가정보']
 const USES = ['전체', '사용', '사용중단'] as const
 type Use = typeof USES[number]
 
-const today = () => ymd(new Date())
 /* 원본 유효기한 기본 = 오늘 + 5년 − 1일(2026/10/13 → 2031/10/12). */
-const defaultExpire = () => expiryDirectRange(today()).to
+const defaultExpire = () => expiryDirectRange(todayYmd()).to
 const emptyForm = () => ({ itemId: '', udiCode: '', expireDate: defaultExpire(), lotNos: '' })
 
 export default function SerialLotPage() {

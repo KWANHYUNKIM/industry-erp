@@ -6,11 +6,12 @@ import EcListShell from '../../components/EcListShell'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import CodePickerField from '../../components/CodePickerField'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { STOCK_MOVEMENT_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { STOCK_MOVEMENT_PICKS } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { stockBuckets, bucketTotals, type BucketTx, type StockBucket } from '../../utils/stockBuckets'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
@@ -40,7 +41,6 @@ type BucketRow = StockBucket
 
 const num = (n: number) => n.toLocaleString('ko-KR')
 const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
-const today = () => ymd(new Date())
 
 export default function StockMovementPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -51,7 +51,7 @@ export default function StockMovementPage() {
   const [error, setError] = useState('')
 
   const [from, setFrom] = useState(firstOfMonth())
-  const [to, setTo] = useState(today())
+  const [to, setTo] = useState(todayYmd())
   const [warehouseId, setWarehouseId] = useState('')
   const [keyword, setKeyword] = useState('')
   // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
@@ -156,7 +156,7 @@ export default function StockMovementPage() {
   )
 
   const reset = () => {
-    setFrom(firstOfMonth()); setTo(today())
+    setFrom(firstOfMonth()); setTo(todayYmd())
     setWarehouseId(''); setKeyword(''); setItemCond(''); setHideZero(false); setMode('집계'); setRollUp(false)
     setCategory(''); setItemGroup(''); setMgmtCond(''); setWithInactive(true)
   }

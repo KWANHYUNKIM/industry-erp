@@ -7,8 +7,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { IncomeType, WithholdingCodeItem, WithholdingPayee, WithholdingSlip } from '../../types/api'
-import { ymd } from '../../utils/periods'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 
@@ -58,7 +58,6 @@ const blankLine = (kind: Kind): Line => ({
 })
 const won = (n: number) => (n ? Math.trunc(n).toLocaleString('ko-KR') : '')
 /** 오늘(이 기기 시각) — toISOString 은 UTC 라 한국 오전 9시 전에는 하루 전이 됐다(원본 기본 2026/10/14, 우리 10/13). */
-const today = () => ymd(new Date())
 const floor10 = (n: number) => Math.floor(Math.floor(n) / 10) * 10
 
 /** 서버와 같은 셈 — 필요경비 원 미만 버림, 소득세 · 지방소득세 10원 미만 버림(원본 1,231,233 → 738,739 · 98,490 · 9,840). */
@@ -93,10 +92,10 @@ export default function OtherWithholdingInputPage() {
   const [params] = useSearchParams()
   const editing = params.get('date') && params.get('seq') ? { date: params.get('date')!, seq: Number(params.get('seq')) } : null
 
-  const [payDate, setPayDate] = useState(today())
+  const [payDate, setPayDate] = useState(todayYmd())
   const [kind, setKind] = useState<Kind>('BUSINESS')
-  const [attributionMonth, setAttributionMonth] = useState(today().slice(0, 7))
-  const [payMonth, setPayMonth] = useState(today().slice(0, 7))
+  const [attributionMonth, setAttributionMonth] = useState(todayYmd().slice(0, 7))
+  const [payMonth, setPayMonth] = useState(todayYmd().slice(0, 7))
   const [lines, setLines] = useState<Line[]>([blankLine('BUSINESS'), blankLine('BUSINESS'), blankLine('BUSINESS')])
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [payees, setPayees] = useState<WithholdingPayee[]>([])

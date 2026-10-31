@@ -5,11 +5,11 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { BusinessContract, BusinessContractStatus, BusinessContractType, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
-import { periodOf, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 const when = (s: string | null) => (s ? s.replace('T', ' ').slice(0, 16) : '')
 
@@ -98,7 +98,7 @@ export default function ContractPage() {
     const reason = window.prompt(`${c.contractNo} 해지 사유를 입력하세요.`, '')
     if (!reason) return
     try {
-      await api.post(`/contracts/${c.id}/terminate`, { reason, terminatedDate: today() })
+      await api.post(`/contracts/${c.id}/terminate`, { reason, terminatedDate: todayYmd() })
       flash(`${c.contractNo} 해지`)
       await load()
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -259,7 +259,7 @@ export function ContractForm({ partners, onError, onSaved, initial }: {
   const [form, setForm] = useState({
     title: initial?.title ?? '', type: (initial?.type ?? 'SALES') as BusinessContractType,
     partnerId: initial ? String(initial.partnerId) : '',
-    startDate: initial?.startDate ?? today(), endDate: initial?.endDate ?? '',
+    startDate: initial?.startDate ?? todayYmd(), endDate: initial?.endDate ?? '',
     amount: initial ? String(initial.amount) : '', paymentTerms: initial?.paymentTerms ?? '', content: initial?.content ?? '',
   })
   const [saving, setSaving] = useState(false)

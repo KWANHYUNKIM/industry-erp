@@ -11,6 +11,7 @@ import type { BankAccountRow } from '../../../types/api'
 import type { BondMasters } from '../api'
 import { won, type BondSide } from '../types'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { bankPickLabel } from '../../../utils/bankLabel'
 
 /** 채권감소등록에서 고른 채권 한 줄 — 감소금액 · 채권번호 · 증가 줄의 적요를 들고 온다. */
 export interface DepositPick {
@@ -46,12 +47,6 @@ function autoCheckNos(n: number, first = 1) {
 }
 
 /** 원본 계좌검색의 [계좌명] — 등록한 이름이 없으면 '은행-끝 4자리'(기업은행-1122). */
-function bankLabel(b: BankAccountRow) {
-  if (b.name) return b.name
-  const digits = (b.accountNo ?? '').replace(/\D/g, '')
-  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
-}
-
 /**
  * 회계 II › 채권관리 › 채권감소등록(E060402) [입금보고서작성] — 2026-10-13 loginaa 실측.
  *
@@ -120,7 +115,7 @@ export default function DepositReportModal({ side = 'RECEIVABLE', picks, masters
   }, [picks])
 
   const settleItems: CodeItem[] = useMemo(() => [
-    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
+    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankPickLabel(b) })),
     { value: '000', code: '000', name: '현금' },
   ], [banks])
   const settleName = settleItems.find((x) => x.value === settle)?.name ?? ''

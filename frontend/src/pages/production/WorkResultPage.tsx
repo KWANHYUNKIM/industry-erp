@@ -4,7 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import { periodOf, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item } from '../../types/api'
@@ -13,6 +13,7 @@ import { dateNo } from '../../utils/dateNo'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import { minToHours, hoursToMin, fmt2 } from '../../utils/workHours'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 /**
  * 생산관리 > 작업 > 작업내역입력 (/api/work-results).
@@ -61,10 +62,9 @@ interface Warehouse { id: number; code: string; name: string; kind: string; acti
 interface Project { id: number; code: string; name: string }
 
 const inputCls = 'ec-input w-full'
-const today = () => ymd(new Date())
 /** 원본 머리: 일자 · 생산공장 · 담당자 · 프로젝트. 줄마다 되풀이하지 않는다. */
 const emptyForm = {
-  warehouseId: '', worker: '', workDate: today(),
+  warehouseId: '', worker: '', workDate: todayYmd(),
   /** 원본 작업내역입력 머리의 [프로젝트]. 안 정할 수 있다. */
   projectId: '',
 }

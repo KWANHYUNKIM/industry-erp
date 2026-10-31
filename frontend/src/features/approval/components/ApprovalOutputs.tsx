@@ -7,6 +7,7 @@ import { findDataTable } from '../../../utils/tableExport'
 import type { ReportEmbedProps } from '../../../utils/reportEmbed'
 import type { ApprovalOutput } from '../../../types/api'
 import { sanitizeHtml } from '../bodyTemplate'
+import { pad2 } from '../../../utils/periods'
 
 /**
  * 기안서 [결재문서] › '전표 출력물' — 원본 2026-10-30 loginaa 실측(plans/데이터이관/원본-전자결재.md '결재문서 › 전표 출력물').
@@ -34,11 +35,10 @@ export const OUTPUT_MENUS: OutputMenu[] = [
 
 const menuOf = (name: string) => OUTPUT_MENUS.find((m) => m.name === name)
 
-const pad = (n: number) => String(n).padStart(2, '0')
 /** 지금 — 서버 LocalDateTime 꼴 'YYYY-MM-DDTHH:mm:ss'(시간대 없이 이 PC 의 시각). */
 const nowLocal = () => {
   const d = new Date()
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 
 /** 칩 글자 — 원본 '[판매현황]2026/10/30 오전 10:27:44'. */

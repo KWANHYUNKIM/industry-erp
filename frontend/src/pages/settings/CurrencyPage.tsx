@@ -3,12 +3,11 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import type { Currency, CurrencyConversion, ExchangeRate } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { useTableSort } from '../../utils/useTableSort'
 import { dateText } from '../../utils/dateText'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
-const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
 const rateText = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
 
@@ -258,7 +257,7 @@ function Converter({ currencies, onError }: { currencies: Currency[]; onError: (
   const usable = currencies.filter((c) => c.active)
   const [currencyId, setCurrencyId] = useState(usable[0] ? String(usable[0].id) : '')
   const [amount, setAmount] = useState('')
-  const [baseDate, setBaseDate] = useState(today())
+  const [baseDate, setBaseDate] = useState(todayYmd())
   const [result, setResult] = useState<CurrencyConversion | null>(null)
 
   async function convert() {
@@ -356,7 +355,7 @@ function RateForm({ currencies, onError, onSaved }: {
 }) {
   const usable = currencies.filter((c) => c.active)
   const [form, setForm] = useState({
-    currencyId: usable[0] ? String(usable[0].id) : '', rateDate: today(), rate: '',
+    currencyId: usable[0] ? String(usable[0].id) : '', rateDate: todayYmd(), rate: '',
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const selected = usable.find((c) => String(c.id) === form.currencyId)

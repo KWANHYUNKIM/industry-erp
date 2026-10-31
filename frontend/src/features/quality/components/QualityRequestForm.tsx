@@ -4,11 +4,11 @@ import GridFindButton from '../../../components/GridFindButton'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { Item, QualityInspectionRequest } from '../../../types/api'
 import CodePickerField from '../../../components/CodePickerField'
-import { ymd } from '../../../components/EcPeriodPicks'
 import { useShortcut } from '../../../utils/useShortcut'
 import { ecConfirm } from '../../../components/EcDialog'
 import { DocPullButton, type PullKind, type PulledLine } from '../DocPull'
 import EcDateInput from '../../../components/ui/EcDateInput'
+import { todayYmd } from '../../../utils/periods'
 
 /**
  * 품질검사요청 입력 폼 — 원본 <b>품질검사요청입력</b>(E040628) 의 머리 · 줄 · 단추.
@@ -27,10 +27,9 @@ type Method = 'FULL' | 'SAMPLING'
 interface LineForm { method: Method; itemId: string; extraQty: string; quantity: string }
 const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', extraQty: '', quantity: '' })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
-const today = () => ymd(new Date())
 const headOf = (r: QualityInspectionRequest | null) => r
   ? { requestDate: r.requestDate, requester: r.requester ?? '', projectId: r.projectId ? String(r.projectId) : '', remark: r.remark ?? '' }
-  : { requestDate: today(), requester: '', projectId: '', remark: '' }
+  : { requestDate: todayYmd(), requester: '', projectId: '', remark: '' }
 const linesOf = (r: QualityInspectionRequest | null): LineForm[] => r
   ? [...r.lines.map((l) => ({ method: l.method as Method, itemId: String(l.itemId), extraQty: l.extraQty == null ? '' : String(Number(l.extraQty)), quantity: String(l.quantity) })), emptyLine()]
   : emptyLines()

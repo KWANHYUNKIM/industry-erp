@@ -8,10 +8,10 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import EcDateInput from '../../components/ui/EcDateInput'
+import { todayYmd } from '../../utils/periods'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
-const today = () => ymd(new Date())
 
 /**
  * 관리 > 일용근로급여관리 — 출역(근무일) 단위 등록과 월별 급여대장.
@@ -64,7 +64,7 @@ export default function DailyWagePage() {
     const viaText = via ? `${via.bankName} ${via.accountNo}` : '현금'
     if (!(await ecConfirm(`선택한 ${selected.length}건을 지급 처리할까요?\n실지급액 합계: ${won(total)}원 (${viaText})\n회계전표: 차)잡급 / 대)예수금·${via ? '예금' : '현금'}`))) return
     try {
-      await api.post('/daily-works/pay', { ids: selected, paidDate: today(), bankAccountId: via ? via.id : null })
+      await api.post('/daily-works/pay', { ids: selected, paidDate: todayYmd(), bankAccountId: via ? via.id : null })
       flash(`${selected.length}건 지급 완료`)
       load()
     } catch (err) { void ecAlert(extractErrorMessage(err)) }
@@ -198,7 +198,7 @@ function DailyWorkForm({ employees, onClose, onSaved }: {
   onSaved: () => void
 }) {
   const [employeeId, setEmployeeId] = useState('')
-  const [workDate, setWorkDate] = useState(today())
+  const [workDate, setWorkDate] = useState(todayYmd())
   const [dailyWage, setDailyWage] = useState('150000')
   const [workHours, setWorkHours] = useState('8')
   const [remark, setRemark] = useState('')

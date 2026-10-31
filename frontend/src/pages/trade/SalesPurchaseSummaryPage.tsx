@@ -10,6 +10,7 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcDateRange } from '../../components/ui/EcDateInput'
+import { ymd } from '../../utils/periods'
 
 /**
  * 영업관리 > 판매구매집계표 (이카운트 E040725)
@@ -101,8 +102,6 @@ type Target = typeof TARGETS[number]
 /** 원본 [비교기간] 라디오(사용안함★ 먼저). */
 const CMPS = ['사용안함', '전년동일기간', '전월동일기간', '전주동일기간', '전일동일기간'] as const
 type Cmp = typeof CMPS[number]
-const pad2 = (n: number) => String(n).padStart(2, '0')
-const ymd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 /** 비교기간 — 전월동일기간은 10/01~10/21 → 09/01~09/21(없는 날은 그 달 말일). */
 function shiftDate(s: string, cmp: Cmp): string {
   if (!s || cmp === '사용안함') return s

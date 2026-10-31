@@ -16,6 +16,7 @@ import {
   IMPORT_ENTRY, IMPORT_VOUCHER_LIST,
   type ImportCostItem, type ImportCostKind, type ImportCostVoucher, type ImportLot,
 } from '../../features/importcost/api'
+import { bankPickLabel } from '../../utils/bankLabel'
 
 const BLOCKED_HEAD = '아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.'
 
@@ -25,12 +26,6 @@ interface AccountOption { id: number; code: string; name: string }
 const VAT_TYPES = ['세금계산서', '영세율', '계산서', '세금계산서(불공)', '세금계산서(수입)', '현금영수증', '카드매입', '세.계(고정-수입)',
   '세.계(고정자산)', '영세율(수입)', '계산서(수입)', '세.계(고정-불공)', '계산서(고정자산)', '신용카드(고정자산)', '매입자발행세금계산서',
   '현금영수증(고정자산)', '기타수입', '재활용', '기타매입']
-
-function bankLabel(b: BankAccountRow) {
-  if (b.name) return b.name
-  const digits = (b.accountNo ?? '').replace(/\D/g, '')
-  return digits.length >= 4 ? `${b.bankName}-${digits.slice(-4)}` : b.bankName
-}
 
 /**
  * 회계 II › 수입비용 입력 여섯 — 한 장 폼(원본 2026-10-14 loginaa 실측, plans/회계2/수입비용.md 2.3 ~ 2.5).
@@ -130,7 +125,7 @@ export default function ImportCostEntryPage({ kind }: { kind: ImportCostKind }) 
     .map((l) => ({ value: String(l.id), code: l.code, name: l.name, stopped: !l.active }))
   const partnerItems: CodeItem[] = partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))
   const accountItems: CodeItem[] = accounts.map((a) => ({ value: String(a.id), code: a.code, name: a.name }))
-  const bankItems: CodeItem[] = banks.filter((b) => b.active).map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankLabel(b) }))
+  const bankItems: CodeItem[] = banks.filter((b) => b.active).map((b) => ({ value: String(b.id), code: b.code ?? b.accountNo, name: bankPickLabel(b) }))
   const itemItems: CodeItem[] = items.filter((i) => i.active || String(i.id) === costItemId).map((i) => ({ value: String(i.id), code: i.code, name: i.name }))
   const itemValue = costItemId || itemItems[0]?.value || ''
 
