@@ -1,5 +1,5 @@
 {
-  "about": "재고1 원본 재기 — 견적서조회 [다른전표생성 ▴] › 주문서 › 전표라인별: '다른전표생성 입력' 창 → [저장(F8)] → 알림 '성공 : 1건 / 실패 : 0건' → 견적 [생성한전표] 에 주문서가 걸림(원본 2026-10-21 실측). 끝에 주문서 · 견적을 지운다.",
+  "about": "재고1 원본 재기 — 견적서조회 [다른전표생성 ▴] › 주문서 › 전표라인별: '다른전표생성 입력' 창 → [저장(F8)] → 알림 '성공 : 1건 / 실패 : 0건' → 견적 [생성한전표] 에 주문서가 걸림(원본 2026-10-21 실측). 끝에 주문서 · 견적을 지운다. · 2026-10-31: [다른전표생성 ▲] › 주문서 → 주문서 │ 1장라인별 · 전표라인별 · 직접설정 판(원본처럼 고른 줄 없이도 펼침이 뜬다).",
   "shots": [
     {
       "name": "견적 만들기(API)",
@@ -21,6 +21,8 @@
         "js:(() => { const t = JSON.parse(sessionStorage.getItem('qpl')); const n = String(Number(t.no.slice(-4))); const rows = [...document.querySelectorAll('tbody tr')].filter((x) => x.querySelector('input[type=checkbox]')); const r = rows.find((x) => new RegExp('-\\s?' + n + '\\b').test(x.innerText.split('\\n')[1] || x.innerText)) || rows[0]; r.querySelector('input[type=checkbox]').click(); return true })()",
         "wait:300",
         "click:다른전표생성",
+        "js:[...document.querySelectorAll('[role=menuitem]')].find((b) => b.textContent.trim() === '주문서').click(); true",
+        "wait:300",
         "wait:400",
         "click:전표라인별",
         "wait:500",
@@ -38,6 +40,8 @@
         "js:(() => { const t = JSON.parse(sessionStorage.getItem('qpl')); const n = String(Number(t.no.slice(-4))); const rows = [...document.querySelectorAll('tbody tr')].filter((x) => x.querySelector('input[type=checkbox]')); const r = rows.find((x) => new RegExp('-\\\\s?' + n + '\\\\b').test(x.innerText.split('\\n')[1] || x.innerText)) || rows[0]; r.querySelector('input[type=checkbox]').click(); return true })()",
         "wait:300",
         "click:다른전표생성",
+        "js:[...document.querySelectorAll('[role=menuitem]')].find((b) => b.textContent.trim() === '주문서').click(); true",
+        "wait:300",
         "wait:400",
         "click:직접설정",
         "wait:500",

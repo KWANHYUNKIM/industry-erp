@@ -1,5 +1,5 @@
 {
-  "about": "주문서입력(원본 영업관리 › 주문서 › 주문서입력, 2026-10-28 실측) — 판매입력과 같은 큰 입력 화면. 거래처 · 출하창고 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고(거래처는 비우고 창고는 남긴다), 주문서조회에 진행중으로 서며, 일자-No. 를 누르면 같은 화면이 수정으로 열린다(일자 잠김). Esc 로 입력이 사라지지 않는다. node qa/shot.mjs qa/flows/sales-order-entry.json 툴바 [견적] 은 원본 '견적서검색창(조회)' — 주문 일자보다 늦은 견적도 보이고, 담으면 담당자는 견적의 것으로 덮어쓰고 프로젝트는 비우며 툴바에서 견적 · 전표 바코드 · 전표불러오기가 빠진다(묶음 I). — 만든 주문 · 견적은 끝에 지운다.",
+  "about": "주문서입력(원본 영업관리 › 주문서 › 주문서입력, 2026-10-28 실측) — 판매입력과 같은 큰 입력 화면. 거래처 · 출하창고 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고(거래처는 비우고 창고는 남긴다), 주문서조회에 진행중으로 서며, 일자-No. 를 누르면 같은 화면이 수정으로 열린다(일자 잠김). Esc 로 입력이 사라지지 않는다. node qa/shot.mjs qa/flows/sales-order-entry.json 툴바 [견적] 은 원본 '견적서검색창(조회)' — 주문 일자보다 늦은 견적도 보이고, 담으면 담당자는 견적의 것으로 덮어쓰고 프로젝트는 비우며 툴바에서 견적 · 전표 바코드 · 전표불러오기가 빠진다(묶음 I). — 만든 주문 · 견적은 끝에 지운다. · 2026-10-31 클릭 대조 3번: 주문서조회의 [일자-No.] 는 목록 위 '주문서입력(수정)' 창(아래 줄 저장(F8) · … · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H), 저장 · 삭제하면 창이 닫히고 목록이 다시 읽힌다. 원본 표에 [합계] 열이 없어 줄 적요가 끝에서 둘째 칸.",
   "shots": [
     {
       "name": "주문서입력 — 코드도움으로 입력 → 저장하면 말 없이 빈 칸(거래처 비움 · 창고 남음)",
@@ -15,7 +15,7 @@
         "pickrow:QA-PROD",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|2",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1000",
-        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) td:nth-last-child(3) input|QA줄적요",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) td:nth-last-child(2) input|QA줄적요",
         "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
         "wait:300",
         "expect:location.pathname === '/sales/order-entry' && document.querySelector('tbody tr input.text-right').value === '2'",
@@ -28,19 +28,19 @@
       ]
     },
     {
-      "name": "주문서조회 — 방금 만든 주문이 진행중 2,200 으로 서고, [일자-No.] 를 누르면 같은 화면이 수정(일자 잠김)으로 열린다",
+      "name": "주문서조회 — 방금 만든 주문이 진행중 2,200 으로 서고, [일자-No.] 를 누르면 목록 위에 주문서입력(수정) 창(일자 잠김)이 뜬다 → 저장하면 창이 닫히고 목록이 3,300",
       "path": "/sales/orders",
       "steps": [
         "wait:1000",
         "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('soeDateNo')) && r.innerText.includes('2,200') && r.innerText.includes('진행중'))",
         "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('soeDateNo')).click(); true",
         "wait:1500",
-        "expect:location.pathname === '/sales/order-entry' && document.body.innerText.includes('주문서입력(수정)') && [...document.querySelectorAll('select')].some((s) => s.disabled)",
+        "expect:location.pathname === '/sales/orders' && !!document.querySelector('[role=dialog][aria-label=\"주문서입력(수정)\"]') && !!document.querySelector('[role=dialog] .ec-date-sel[aria-disabled=true]')",
         "expect:[...document.querySelectorAll('tbody tr:has(input[placeholder=\"품목 선택\"]) td input')].some((i) => i.value === 'QA줄적요')",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|3",
-        "click:수정저장(F8)",
+        "click:저장(F8)",
         "wait:1500",
-        "expect:location.pathname === '/sales/orders'",
+        "expect:location.pathname === '/sales/orders' && !document.querySelector('[role=dialog]')",
         "wait:800",
         "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('soeDateNo')) && r.innerText.includes('3,300'))"
       ]
@@ -73,7 +73,7 @@
         "expect:[...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('soeEmpB')) && [...document.querySelectorAll('input')].some((i) => i.value === sessionStorage.getItem('soeProj'))",
         "js:[...document.querySelectorAll('.ec-toolbar button')].find((b) => b.textContent.trim() === '견적').click(); true",
         "wait:800",
-        "expect:document.querySelector('[role=dialog]').innerText.includes('견적서검색창(조회)') && ['전체', '결재중', '미확인', '확인', '진행중', '완료'].every((t) => [...document.querySelectorAll('[role=dialog] .ec-pill')].some((b) => b.textContent.trim() === t))",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('견적서검색창(조회)') && ['전체', '결재중', '미확인', '확인 ▸', '진행중', '완료'].every((t) => [...document.querySelectorAll('[role=dialog] .ec-pill')].some((b) => b.textContent.trim() === t))",
         "expect:['일자-No.', '거래처명', '사원(담당)명', '품목명(요약)', '유효기간', '견적금액합계', '진행상태', '생성한전표', '인쇄'].every((t) => [...document.querySelectorAll('[role=dialog] thead th')].some((th) => th.textContent.trim() === t)) && ['라인별 ▾', '잔량적용(F8)', '전체적용', '신규(F2)', '리스트', '닫기'].every((t) => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent.trim() === t))",
         "js:(() => { const el = document.querySelector('[role=dialog] input[placeholder*=\"찾기\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, sessionStorage.getItem('soeQuote')); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
         "expect:(() => { const rows = [...document.querySelectorAll('[role=dialog] tbody tr')].filter((r) => r.cells.length > 1); return rows.length === 1 && rows[0].innerText.includes(sessionStorage.getItem('soeQDateNo')) && rows[0].innerText.includes('5,500') })()",
@@ -101,7 +101,7 @@
         "js:location.href = '/sales/order-entry?edit=' + sessionStorage.getItem('__cd'); true",
         "wait:2500",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
-        "expect:[...document.querySelectorAll('.ec-date-sel')][0]?.disabled === true",
+        "expect:[...document.querySelectorAll('.ec-date-sel')][0]?.getAttribute('aria-disabled') === 'true'",
         "click:Fn",
         "click:일자변경",
         "js:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const el = dlg.querySelector('input[type=date]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '2026-10-20'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()",

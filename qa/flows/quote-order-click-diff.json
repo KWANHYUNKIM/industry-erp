@@ -1,0 +1,82 @@
+{
+  "about": "클릭 대조 3번(견적서 · 주문서 조회 · 입력, 2026-10-31 loginad 기록) — 견적서조회 하단 [Email│▲] [진행상태변경 ▲] [보내기 ▲] [인쇄│▲] [바코드(품목)│▲] [다른전표생성 ▲] [전자결재] [선택삭제] [Excel(표시형식)│▲] [이력조회] [웹자료올리기], Option 원본 여섯(… 견적서조회(OLD)), 조건 판 내.외자구분 · 발송여부 단추 · 접힌 줄(⌄)에 규격 · 적요 …, [다른전표생성 ▲] 은 고른 줄 없이도 '주문서' 가 뜨고 1장라인별을 고를 때 원본 알림, [생성한전표] 는 주문서를 만든 줄만 주황 [조회]. [신규(F2)] 는 목록 위 '견적서입력' 창(유효기간 칸 · 표 부가세 · 합계 · 적요 · 아래 줄 ✈ · 저장(F8)▲ 저장/전자결재 · 저장/내용유지 · 저장/신규 · 닫기). 주문서조회: 알약에 C-Portal 없음 · 머리 정렬 화살표 없음 · 조건 내.외자구분 · 발송여부 · ⌄, [신규(F2)] 창 [주문서입력 ▾](Mobile_주문서입력 · 주문서입력 ✓ · 신규양식추가) · 표에 [합계] 열 없음. 저장하지 않는다. node qa/shot.mjs qa/flows/quote-order-click-diff.json",
+  "shots": [
+    {
+      "name": "견적서조회 — 하단 단추 · Option · 조건 판 · 다른전표생성(고른 줄 없이) · 생성한전표 배지",
+      "path": "/sales/quotations",
+      "steps": [
+        "wait:1500",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-footer button')].map((b) => b.textContent.trim()); return ['신규(F2)', 'Email', '진행상태변경▴', '보내기▴', '인쇄', '바코드(품목)', '다른전표생성▴', '전자결재', '선택삭제', 'Excel(표시형식)', '이력조회', '웹자료올리기'].every((x) => t.includes(x)) && !t.includes('Excel') })()",
+        "expect:['Email 더보기', '인쇄 더보기', '바코드(품목) 더보기', 'Excel(표시형식) 더보기'].every((l) => document.querySelector('.ec-footer button[aria-label=\"' + l + '\"]'))",
+        "click:Option",
+        "expect:(() => { const t = [...document.querySelectorAll('[role=menu] [role=menuitem]')].map((b) => b.textContent.trim()).join(','); return t.startsWith('업무설정,검색항목설정,양식설정') && t.includes('조건양식설정,문서발송내역,견적서조회(OLD)') })()",
+        "js:document.querySelector('.ec-backdrop-clear').click(); true",
+        "wait:200",
+        "click:Search(F3)",
+        "wait:400",
+        "expect:(() => { const c = document.querySelector('.ec-cond').innerText; return c.includes('내.외자구분') && c.includes('발송여부') && !c.includes('최종수정일시') && !/^메뉴/m.test(c) })()",
+        "expect:[...document.querySelectorAll('.ec-cond .ec-pill')].map((b) => b.textContent.trim()).join(',').includes('전체,내자,외자')",
+        "click:조건 더 보기",
+        "expect:document.querySelector('.ec-cond').innerText.includes('최종수정일시') && document.querySelector('.ec-cond').innerText.includes('유효기간')",
+        "click:조건 접기",
+        "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
+        "wait:300",
+        "js:window.__alerted = ''; window.alert = (m) => { window.__alerted = m }; [...document.querySelectorAll('.ec-footer button')].find((b) => b.textContent.trim().startsWith('다른전표생성')).click(); true",
+        "wait:200",
+        "expect:[...document.querySelectorAll('[role=menuitem]')].some((b) => b.textContent.trim() === '주문서')",
+        "js:[...document.querySelectorAll('[role=menuitem]')].find((b) => b.textContent.trim() === '주문서').click(); true",
+        "wait:200",
+        "expect:document.querySelector('[role=menu][aria-label=다른전표생성]').innerText.includes('1장라인별')",
+        "js:[...document.querySelectorAll('[role=menu][aria-label=다른전표생성] button')].find((b) => b.textContent.trim() === '1장라인별').click(); true",
+        "wait:300",
+        "expect:window.__alerted.startsWith('리스트에 선택된 자료가 없습니다.') && location.pathname === '/sales/quotations'",
+        "expect:(() => { const th = [...document.querySelectorAll('thead th')].map((x) => x.innerText.trim()); const gi = th.indexOf('생성한전표'); if (gi < 0) return false; return [...document.querySelectorAll('tbody tr')].filter((r) => r.cells.length > gi).every((r) => { const a = r.cells[gi].querySelector('a'); return !a || /rounded/.test(a.className) }) })()"
+      ]
+    },
+    {
+      "name": "견적서조회 [신규(F2)] — 주소는 그대로, 목록 위 '견적서입력' 창: 유효기간 칸 · 표 부가세 → 합계 → 적요 · 아래 줄 ✈ · 저장(F8)▲ · 닫기",
+      "path": "/sales/quotations",
+      "steps": [
+        "wait:1200",
+        "click:신규(F2)",
+        "wait:1200",
+        "expect:location.pathname === '/sales/quotations' && !!document.querySelector('[role=dialog][aria-label=\"견적서입력\"]')",
+        "expect:['새창', '고정', '새로고침'].every((t) => document.querySelector('[role=dialog] .ec-modal-bar button[title=\"' + t + '\"]'))",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-form .title')].map((x) => x.innerText.trim()).includes('유효기간')",
+        "expect:(() => { const h = [...document.querySelectorAll('[role=dialog] thead th')].map((x) => x.innerText.trim()).filter(Boolean); const i = h.indexOf('부가세'); return h[i + 1] === '합계' && h[i + 2] === '적요' })()",
+        "expect:(() => { const t = [...document.querySelectorAll('[role=dialog] .ec-slip-footer button')].map((b) => (b.textContent.trim() || b.getAttribute('aria-label') || '')); return ['보내기', '저장(F8)', '저장/전표(F7)', '다시 작성', '닫기', '웹자료올리기'].every((x) => t.includes(x)) && !t.includes('리스트') })()",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent.trim().startsWith('기본(수정불가)'))",
+        "clicklast:닫기",
+        "wait:400",
+        "expect:!document.querySelector('[role=dialog][aria-label=\"견적서입력\"]')"
+      ]
+    },
+    {
+      "name": "주문서조회 — 알약에 C-Portal 없음 · 머리 정렬 화살표 없음 · 조건 판 내.외자구분 · 발송여부 · ⌄ · [신규(F2)] 창 [주문서입력 ▾] · 표에 합계 열 없음",
+      "path": "/sales/orders",
+      "steps": [
+        "wait:1500",
+        "expect:[...[...document.querySelectorAll('.ec-pills')].find((p) => !p.closest('.ec-cond')).querySelectorAll('.ec-pill')].map((b) => b.textContent.trim()).join(',') === '전체,결재중,미확인,확인 ▸,진행중,완료'",
+        "expect:![...document.querySelectorAll('thead th')].some((th) => /[▼▲]/.test(th.innerText))",
+        "expect:(() => { const t = [...document.querySelectorAll('.ec-footer button')].map((b) => b.textContent.trim()); return ['진행상태변경▴', '보내기▴', '다른전표생성▴', '전자결재', 'Excel', '이력조회'].every((x) => t.includes(x)) })()",
+        "click:Search(F3)",
+        "wait:400",
+        "expect:(() => { const c = document.querySelector('.ec-cond').innerText; return c.includes('내.외자구분') && c.includes('발송여부') && !c.includes('납기일자') })()",
+        "click:조건 더 보기",
+        "expect:document.querySelector('.ec-cond').innerText.includes('납기일자') && document.querySelector('.ec-cond').innerText.includes('거래처관리담당자')",
+        "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
+        "wait:300",
+        "click:신규(F2)",
+        "wait:1200",
+        "expect:location.pathname === '/sales/orders' && !!document.querySelector('[role=dialog][aria-label=\"주문서입력\"]')",
+        "js:document.querySelector('[role=dialog] button[aria-label=\"입력 양식\"]').click(); true",
+        "expect:document.querySelector('[role=menu][aria-label=\"입력 양식\"]').innerText.replace(/\\n/g, ',') === 'Mobile_주문서입력,주문서입력 ✓,신규양식추가'",
+        "js:document.querySelector('[role=dialog] .ec-backdrop-clear').click(); true",
+        "expect:![...document.querySelectorAll('[role=dialog] thead th')].some((th) => th.innerText.trim() === '합계') && ![...document.querySelectorAll('[role=dialog] .ec-tab')].some((t) => t.innerText.includes('기본(수정불가)'))",
+        "clicklast:닫기",
+        "wait:400",
+        "expect:!document.querySelector('[role=dialog][aria-label=\"주문서입력\"]')"
+      ]
+    }
+  ]
+}

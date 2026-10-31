@@ -1,5 +1,5 @@
 {
-  "about": "주문서조회 — 원본 E040204 실측(2026-10-13): 출하창고를 비우고 저장하면 안내 없이 그 칸만 빨갛게, [진행상태변경] 은 고른 줄이 있어야 눌리고(원본은 안 고르면 '리스트에 선택된 자료가 없습니다.' — 우리는 미리 잠근다), 미확인 / 진행중 · 완료 메뉴, [생성한전표] '조회' → '생성한 전표' 창(주문서조회 : 일자-No.), 주문수정 창의 [복사] → '주문서입력'(일자 오늘). node qa/shot.mjs qa/flows/sales-order-inquiry.json — 만든 주문은 끝에 지운다.",
+  "about": "주문서조회 — 원본 E040204 실측(2026-10-13): 출하창고를 비우고 저장하면 안내 없이 그 칸만 빨갛게, [진행상태변경] 은 고른 줄이 있어야 눌리고(원본은 안 고르면 '리스트에 선택된 자료가 없습니다.' — 우리는 미리 잠근다), 미확인 / 진행중 · 완료 메뉴, [생성한전표] '조회' → '생성한 전표' 창(주문서조회 : 일자-No.), 주문수정 창의 [복사] → '주문서입력'(일자 오늘). node qa/shot.mjs qa/flows/sales-order-inquiry.json — 만든 주문은 끝에 지운다. · 2026-10-31 클릭 대조 3번: [진행상태변경 ▲] 은 고른 줄이 없어도 펼침이 뜨고 항목을 고를 때 '리스트에 선택된 자료가 없습니다.' (원본), 일자-No. 는 목록 위 창.",
   "shots": [
     {
       "name": "출하창고 없이 저장 — 칸만 빨갛게, 저장 안 됨",
@@ -11,7 +11,7 @@
         "pickrow:QA-PROD",
         "set:tbody input.text-right#0|2",
         "set:tbody input.text-right#1|1000",
-        "js:[...document.querySelectorAll('.ec-form li')].find((li) => li.innerText.includes('출하창고')).querySelector('button[title=\"선택 해제\"]').click(); true",
+        "js:[...document.querySelectorAll('.ec-form li')].find((li) => li.innerText.includes('출하창고')).querySelector('button[title=\"선택 해제\"]')?.click(); true",
         "click:저장(F8)",
         "wait:500",
         "expect:document.querySelector('[data-invalid]') !== null && !/수주 등록 완료/.test(document.body.innerText)",
@@ -26,16 +26,17 @@
       ]
     },
     {
-      "name": "[진행상태변경] — 안 고르면 알림(원본 그대로), 고르면 메뉴 → 완료",
+      "name": "[진행상태변경 ▲] — 안 고르고 항목을 고르면 알림(원본 그대로), 고르면 → 완료",
       "path": "/sales/orders",
       "steps": [
         "wait:800",
-        "js:window.__alerted = ''; window.alert = (m) => { window.__alerted = m }; [...document.querySelectorAll('.ec-footer button')].find((b) => b.textContent.trim() === '진행상태변경').click(); true",
+        "js:window.__alerted = ''; window.alert = (m) => { window.__alerted = m }; [...document.querySelectorAll('.ec-footer button')].find((b) => b.textContent.trim().startsWith('진행상태변경')).click(); true",
+        "js:[...document.querySelectorAll('[role=menu] button')].find((b) => b.textContent === '완료').click(); true",
         "wait:300",
         "expect:window.__alerted.startsWith('리스트에 선택된 자료가 없습니다.')",
         "js:[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes(sessionStorage.getItem('soiDateNo'))).querySelector('input[type=checkbox]').click(); true",
         "click:진행상태변경",
-        "expect:document.querySelector('[role=menu][aria-label=진행상태변경]').innerText.includes('미확인') && document.querySelector('[role=menu]').innerText.includes('진행중')",
+        "expect:document.querySelector('[role=menu]').innerText.includes('미확인') && document.querySelector('[role=menu]').innerText.includes('진행중')",
         "js:[...document.querySelectorAll('[role=menu] button')].find((b) => b.textContent === '완료').click(); true",
         "wait:1000",
         "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('soiDateNo')) && r.innerText.includes('완료'))"
@@ -54,7 +55,7 @@
         "wait:600",
         "wait:600",
         "click:복사",
-        "expect:document.body.innerText.includes('주문서입력') && !document.body.innerText.includes('주문서입력(수정)') && ![...document.querySelectorAll('select')].some((x) => x.disabled)",
+        "expect:document.body.innerText.includes('주문서입력') && !document.body.innerText.includes('주문서입력(수정)') && !document.querySelector('[role=dialog] .ec-date-sel[aria-disabled=true]')",
         "apidel:/sales-orders|@soiOrder|orderNo"
       ]
     }

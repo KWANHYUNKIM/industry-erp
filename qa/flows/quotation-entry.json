@@ -1,12 +1,12 @@
 {
-  "about": "견적서입력(원본 영업관리 › 견적서 › 견적서입력, 데이터이관 루프 21) — 주문서입력과 같은 큰 입력 화면. 메뉴 견적서 = 견적서조회 · 견적서입력 · 견적서현황 · 미주문현황. 거래처 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고, 견적서조회에 서며, [일자-No.] 를 누르면 같은 화면이 견적서수정으로 열린다. 줄 없이 저장하면 원본 '알림'. node qa/shot.mjs qa/flows/quotation-entry.json — 만든 견적은 끝에 지운다(회사 0001). · 머리 적요(원본 [새로운 항목 추가])를 넣어 저장 → 다시 열면 그대로. [Fn] 일자변경 창은 이름표가 한 줄 · 일 칸이 창 안.",
+  "about": "견적서입력(원본 영업관리 › 견적서 › 견적서입력, 데이터이관 루프 21) — 주문서입력과 같은 큰 입력 화면. 메뉴 견적서 = 견적서조회 · 견적서입력 · 견적서현황 · 미주문현황. 거래처 · 품목을 코드도움으로 골라 저장하면 말 없이 빈 칸으로 돌아가고, 견적서조회에 서며, [일자-No.] 를 누르면 같은 화면이 견적서수정으로 열린다. 줄 없이 저장하면 원본 '알림'. node qa/shot.mjs qa/flows/quotation-entry.json — 만든 견적은 끝에 지운다(회사 0001). · 머리 적요(원본 [새로운 항목 추가])를 넣어 저장 → 다시 열면 그대로. [Fn] 일자변경 창은 이름표가 한 줄 · 일 칸이 창 안. · 2026-10-31 클릭 대조 3번: 원본(loginad) 견적서입력 머리에 [유효기간] 이 늘 있다(통화 · 참조 · 결제조건 · 유효기간 · 첨부) — 예전엔 Option 펼치기 안에 숨겨 '유효기간 없음' 을 기대했는데 원본과 반대라 '있음' 으로 바꿨다. 표 차례는 부가세 · 합계 · 적요. 견적서조회의 [일자-No.] 는 화면을 옮기지 않고 목록 위 '견적서수정' 창을 띄운다(저장 · 삭제하면 창이 닫히고 목록이 다시 읽힌다).",
   "shots": [
     {
       "name": "견적서입력 — 줄 없이 저장하면 알림 · 코드도움으로 입력 → 저장하면 말 없이 빈 칸(거래처 비움)",
       "path": "/sales/quotation-entry",
       "steps": [
         "wait:1500",
-        "expect:document.body.innerText.includes('견적서입력') && !document.body.innerText.includes('유효기간') && document.body.innerText.includes('거래유형') && document.body.innerText.includes('웹자료올리기') && document.body.innerText.includes('전표불러오기') && !document.querySelector('[role=dialog]')",
+        "expect:document.body.innerText.includes('견적서입력') && document.body.innerText.includes('유효기간') && document.body.innerText.includes('거래유형') && document.body.innerText.includes('웹자료올리기') && document.body.innerText.includes('전표불러오기') && !document.querySelector('[role=dialog]')",
         "click:저장(F8)",
         "wait:600",
         "expect:document.body.innerText.includes('견적서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
@@ -18,7 +18,7 @@
         "pickrow:QA-PROD",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|3",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#1|1001",
-        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) td:nth-last-child(3) input|QA줄적요",
+        "set:tbody tr:has(input[placeholder=\"품목 선택\"]) td:nth-last-child(2) input|QA줄적요",
         "expect:document.querySelector('tfoot').innerText.includes('3,003') && document.querySelector('tfoot').innerText.includes('3,303')",
         "js:document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true",
         "wait:300",
@@ -41,20 +41,20 @@
       ]
     },
     {
-      "name": "견적서조회 — 방금 만든 견적이 3,303 으로 서고, [일자-No.] 를 누르면 같은 화면이 견적서수정으로 열린다 → 수량 고쳐 저장하면 목록으로",
+      "name": "견적서조회 — 방금 만든 견적이 3,303 으로 서고, [일자-No.] 를 누르면 목록 위에 '견적서수정' 창이 뜬다 → 수량 고쳐 저장하면 창이 닫히고 목록이 4,404",
       "path": "/sales/quotations",
       "steps": [
         "wait:1500",
         "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('qeDateNo')) && r.innerText.includes('3,303'))",
         "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent.trim() === sessionStorage.getItem('qeDateNo')).click(); true",
         "wait:1500",
-        "expect:location.pathname === '/sales/quotation-entry' && document.body.innerText.includes('견적서수정') && document.querySelector('tbody tr input.text-right').value === '3'",
+        "expect:location.pathname === '/sales/quotations' && !!document.querySelector('[role=dialog][aria-label=\"견적서수정\"]') && document.querySelector('[role=dialog] tbody tr input.text-right').value === '3'",
         "expect:[...document.querySelectorAll('tbody tr:has(input[placeholder=\"품목 선택\"]) td input')].some((i) => i.value === 'QA줄적요')",
         "expect:document.querySelector('input[aria-label=\"머리 적요\"]')?.value === 'QA머리적요' /* 머리 적요(원본 [새로운 항목 추가]) — 저장 · 다시 열기 */",
         "set:tbody tr:has(input[placeholder=\"품목 선택\"]) input.text-right#0|4",
         "click:저장(F8)",
         "wait:1500",
-        "expect:location.pathname === '/sales/quotations'",
+        "expect:location.pathname === '/sales/quotations' && !document.querySelector('[role=dialog]')",
         "wait:800",
         "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes(sessionStorage.getItem('qeDateNo')) && r.innerText.includes('4,404'))"
       ]
@@ -83,7 +83,7 @@
         "js:location.href = '/sales/quotation-entry?edit=' + sessionStorage.getItem('__cd'); true",
         "wait:2500",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
-        "expect:[...document.querySelectorAll('.ec-date-sel')][0]?.disabled === true",
+        "expect:[...document.querySelectorAll('.ec-date-sel')][0]?.getAttribute('aria-disabled') === 'true'",
         "click:Fn",
         "click:일자변경",
         "expect:(() => { const dlg = document.querySelector('[role=dialog][aria-label=\"일자변경\"]'); const r = dlg.getBoundingClientRect(); const lab = [...dlg.querySelectorAll('span')].filter((x) => /^(기존|변경)일자$/.test(x.textContent.trim())); const day = dlg.querySelector('.ec-date input[inputmode=numeric]').getBoundingClientRect(); return lab.length === 2 && lab.every((x) => x.getBoundingClientRect().height < 20) && day.right <= r.right })() /* 창이 좁아 이름표가 한 글자씩 접히고 일 칸이 창 밖으로 잘렸다(2026-10-29 QA) */",

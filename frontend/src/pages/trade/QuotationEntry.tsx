@@ -27,15 +27,27 @@ import EcIcon from '../../components/ui/EcIcon'
  * 견적서입력 — 원본 영업관리 &gt; 견적서 &gt; <b>견적서입력</b>(E040201). 주문서입력 · 출하지시서입력과 같은 큰 입력 화면이다
  * (원본 견적서 메뉴 = 견적서조회 · 견적서입력 · 견적서현황 · 미주문현황, 데이터이관 루프 21 실측).
  *
- * 머리는 원본 E040201(데이터이관 루프 22 실측) 그대로: 일자-No. · 거래처 · 담당자 · 출하창고 · 거래유형 · 통화(내자) · 프로젝트 · 첨부.
- * 원본 머리엔 유효기간 · 적요 칸이 없다. 견적서조회 목록엔 '유효기간' 열이 있어 지우지 않고, 판매입력처럼 [Option] › 추가항목 펼치기로만 보인다
- * (숨겨도 값은 그대로 들고 있어 수정 저장 때 지워지지 않는다).
+ * 머리는 원본(2026-10-31 loginad 견적서조회 [신규(F2)] 창): 일자-No. · 거래처 · 담당자 · 출하창고 · 거래유형 · 통화 · 참조 · 결제조건 · <b>유효기간</b> · 첨부.
+ * 참조 · 결제조건은 견적 요청(CreateQuotationRequest)에 자리가 없어 칸을 만들지 않았다(자료 없음). 프로젝트 · 적요는 저장하는 값이라 남긴다
+ * (loginaa 견적서입력 머리에는 프로젝트가 있었다 — 회사 양식 차이).
  * 툴바도 원본 차례: 찾기(F3) · 정렬 · 거래내역보기(견적) · My품목 · 할인 · 재고불러오기 · 생성한전표 · 바코드 · 검증 · 이익계산 · 전표불러오기.
- * 줄: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 합계(원본 2026-10-14 실측 — 3 × 1,001 → 3,003 · 300 · 3,303).
+ * 줄: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 합계 · 적요(원본 2026-10-31 loginad 차례 — 3 × 1,001 → 3,003 · 300 · 3,303).
  * 품목을 고르면 수량은 비어 있고 단가는 품목 출고단가(특별단가가 있으면 그것). 줄 없이 저장하면 '알림' 창, 거래처가 비면 그 칸만 빨갛게,
  * 출하창고는 비워도 저장된다. 저장하면 말 없이 빈 칸으로 돌아간다(거래처는 비우고 창고 · 담당자 · 일자는 남긴다).
- * 견적서조회의 [신규(F2)] · [일자-No.](`?edit=`) 가 이 화면으로 온다. 창이 아니라 화면이라 Esc 로 입력이 사라지지 않는다.
+ * 메뉴 [견적서입력] 은 이 화면, 견적서조회의 [신규(F2)] · [일자-No.] 는 목록 위에 떠 있는 창(popup)으로 연다(원본 2026-10-31 — 판매조회 · 작업지시서조회와 같다).
  */
+
+/** 견적서조회 위에 떠 있는 창으로 열 때. editId 가 null 이면 새 견적서. */
+export interface QuotationEntryPopup {
+  editId: number | null
+  /** 창을 닫는다. changed 면 목록을 다시 읽는다(저장 · 삭제 뒤). */
+  onClose: (changed: boolean) => void
+  /** [이전] · [다음] — 목록에서 앞 · 뒤 견적으로 옮긴다(판매조회 창과 같은 잣대). */
+  onMove: (dir: 'prev' | 'next') => void
+  /** [복사] — 창 제목을 '견적서입력' 으로 돌린다. */
+  onCopy?: () => void
+}
+const NOT_HERE = '이 기능은 이 ERP 에서 제공하지 않습니다.'
 
 interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */; name: string | null /* 줄 품목명 — null = 품목 이름을 따라감(원본은 고른 뒤 고쳐 쓴다) */ }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '', spec: null, name: null })
@@ -49,10 +61,13 @@ const today = () => {
 const MEM_KEY = 'quotation-head'
 interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
 
-export default function QuotationEntry() {
+export default function QuotationEntry({ popup }: { popup?: QuotationEntryPopup }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const editParam = params.get('edit')
+  const editParam = popup ? (popup.editId == null ? null : String(popup.editId)) : params.get('edit')
+  /** 창의 [저장/신규] · [저장/내용유지] — 저장하고 창을 닫지 않는다. 창에서 저장한 것이 있으면 닫을 때 목록을 다시 읽는다. */
+  const afterSaveModeRef = useRef<'new' | 'keep' | null>(null)
+  const savedRef = useRef(false)
   const { companyCode, user } = useAuth()
 
   // ── 마스터 ─────────────────────────────────────────────
@@ -94,8 +109,6 @@ export default function QuotationEntry() {
   const [myItemsOpen, setMyItemsOpen] = useState(false)
   const [barcodeOpen, setBarcodeOpen] = useState(false)
   const [barcode, setBarcode] = useState('')
-  /** [Option] › 추가항목 펼치기 — 원본 머리에 없는 유효기간 · 적요(판매입력 showExtra 와 같은 방식, 처음엔 접힘). */
-  const [showExtra, setShowExtra] = useState(false)
 
   const rememberedEmpRef = useRef('')
   const formRef = useRef<HTMLFormElement>(null)
@@ -352,9 +365,17 @@ export default function QuotationEntry() {
         if (saved?.lines) void printSaved(saved, win)
         else win?.close()
       }
+      const mode = afterSaveModeRef.current
+      afterSaveModeRef.current = null
+      savedRef.current = true
+      /* [저장/내용유지] — 저장하고 그 견적의 수정으로 바뀐다(판매입력과 같다). */
+      if (mode === 'keep') { if (saved?.lines) openQuote(saved); return }
+      /* 조회 위의 창 — 말 없이 닫히고 목록이 다시 읽힌다. [저장/신규] 는 창을 남기고 빈 칸으로. */
+      if (popup && mode !== 'new') { popup.onClose(true); return }
       /* 수정은 조회에서 들어온 길이다 — 저장하면 말 없이 목록으로 돌아간다. */
-      if (editing) { navigate('/sales/quotations'); return }
+      if (editing && !popup && mode !== 'new') { navigate('/sales/quotations'); return }
       /* 원본 견적서입력 [저장(F8)] — 말 없이 빈 칸으로 돌아간다. 번호는 견적서조회에서 본다. */
+      if (editing) setEditing(null)
       reset(true)
       setPartnerId('')
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -362,34 +383,54 @@ export default function QuotationEntry() {
 
   async function removeEditing() {
     if (!editing || !(await ecConfirm('전표를 삭제하겠습니까?\n- 견적서'))) return
-    try { await api.delete(`/quotations/${editing.id}`); navigate('/sales/quotations') }
+    try { await api.delete(`/quotations/${editing.id}`); if (popup) popup.onClose(true); else navigate('/sales/quotations') }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   /** 수정 중 [복사] — 같은 내용이 새 견적서가 된다(일자 오늘, 번호는 저장할 때 받는다). */
   function copyEditing() {
     setEditing(null); setDate(today()); setPartnerMissing(false); setError('')
-    navigate('/sales/quotation-entry', { replace: true })
+    if (popup) popup.onCopy?.()
+    else navigate('/sales/quotation-entry', { replace: true })
   }
   /** 리스트로 — 품목을 넣은 채면 원본 알림을 먼저 띄운다(주문서입력과 같다). */
   async function toList() {
     if (!editing && lines.some((l) => l.itemId) && !(await ecConfirm('작성한 내용이 저장되지 않았습니다. 페이지를 벗어나겠습니까?'))) return
-    navigate('/sales/quotations')
+    if (popup) popup.onClose(savedRef.current)
+    else navigate('/sales/quotations')
   }
 
-  /* 원본 견적서수정 하단(2026-10-14 실측): 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · H · 최종이력 — 이전 · 다음은 아직 없다. */
+  /*
+   * 원본 아래 줄(2026-10-31 loginad 견적서조회 [신규(F2)] · 일자-No. 창):
+   *   신규 — ✈ · 저장(F8)▲(저장/전자결재 · 저장/내용유지 · 저장/신규) · 저장/전표(F7) · 다시 작성 · 닫기 · 웹자료올리기
+   *   수정 — ✈ · 저장(F8)▾ · 저장/전표(F7)▲(명세서) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기▲ · H · 최종이력
+   * 메뉴 [견적서입력] 화면(창이 아님)은 [닫기] 자리에 [리스트] 를 두고, 이전 · 다음은 창에서만 선다(목록이 있어야 옮긴다).
+   * ✈ · 저장/전자결재 · 명세서 · 보내기 펼침 항목은 받쳐 줄 것이 없어 안내만 한다(보내기 펼침 항목은 원본 창에서 못 봐 견적서조회 [보내기 ▲] 와 같게 둔다).
+   */
+  const notHere = (what: string) => () => void ecAlert(`${NOT_HERE}\n(${what})`)
+  const sendAction: SlipAction = { label: '보내기', icon: 'send', onClick: notHere('전표 보내기') }
+  const saveMenu = [
+    { label: '저장/전자결재', onClick: notHere('저장/전자결재') },
+    { label: '저장/내용유지', onClick: () => { afterSaveModeRef.current = 'keep'; formRef.current?.requestSubmit() } },
+    { label: '저장/신규', onClick: () => { afterSaveModeRef.current = 'new'; formRef.current?.requestSubmit() } },
+  ]
+  const closeAction: SlipAction = popup ? { label: '닫기', onClick: () => void toList() } : { label: '리스트', onClick: () => void toList() }
   const actions: SlipAction[] = editing ? [
-    { label: '저장(F8)', primary: true, submit: true },
-    { label: '저장/전표(F7)', onClick: saveAndPrint },
+    sendAction,
+    { label: '저장(F8)', primary: true, submit: true, menu: saveMenu },
+    { label: '저장/전표(F7)', onClick: saveAndPrint, menu: [{ label: '명세서', onClick: notHere('명세서') }] },
     { label: '복사', onClick: copyEditing },
-    { label: '닫기', onClick: () => void toList() },
+    ...(popup ? [{ label: '이전', onClick: () => popup.onMove('prev') }, { label: '다음', onClick: () => popup.onMove('next') }] : []),
+    closeAction,
     { label: '삭제', onClick: () => void removeEditing() },
+    { label: '보내기', menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
     { label: 'H', onClick: () => setSlipHistory('H') },
     { label: '최종이력', onClick: () => setSlipHistory('last') },
   ] : [
-    { label: '저장(F8)', primary: true, submit: true },
+    sendAction,
+    { label: '저장(F8)', primary: true, submit: true, menu: saveMenu },
     { label: '저장/전표(F7)', onClick: saveAndPrint },
     { label: '다시 작성', onClick: () => reset(false) },
-    { label: '리스트', onClick: () => void toList() },
+    closeAction,
     { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
   ]
   /** 원본에 있으나 견적서에는 아직 없는 기능 — 흐리게 두고 이유를 단다(주문서입력과 같은 방식). */
@@ -402,8 +443,16 @@ export default function QuotationEntry() {
         formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
         activeFormTab="main"
         onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
+        /* 원본 머리 [기본(수정불가)▾] · [Option] · [도움말](2026-10-31 loginad 견적서입력 창 — 판매입력과 같은 꼴). */
+        layouts={{
+          label: '기본(수정불가)',
+          items: [
+            { label: '✓ 기본(수정불가)' },
+            { label: '신규양식추가', onClick: () => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.') },
+          ],
+        }}
+        plainOption
         options={[
-          { label: showExtra ? '추가항목 접기' : '추가항목 펼치기', onClick: () => setShowExtra((v) => !v) },
           { label: '입력값 초기화', onClick: () => reset(false) },
         ]}
         actions={actions}
@@ -413,7 +462,7 @@ export default function QuotationEntry() {
             <li>이카운트 <b>견적서입력</b> 구조를 따릅니다 — 헤더 항목 폼 · 명세 그리드 · 하단 버튼줄.</li>
             <li>저장하면 말 없이 빈 칸으로 돌아갑니다(거래처는 비우고 출하창고는 남깁니다). 번호는 [리스트](견적서조회)에서 봅니다.</li>
             <li>출하창고는 비워도 저장됩니다. 주문서로 넘길 때 정합니다.</li>
-            <li>유효기간 · 적요는 원본 머리에 없어 [Option] › 추가항목 펼치기로 엽니다. 흐리게 보이는 버튼은 원본에 있으나 아직 연결되지 않은 기능입니다.</li>
+            <li>흐리게 보이는 버튼은 원본에 있으나 아직 연결되지 않은 기능입니다.</li>
           </ul>
         }
       >
@@ -466,6 +515,11 @@ export default function QuotationEntry() {
               <select className="ec-input w-[80px]" value="D" onChange={() => {}} aria-label="통화" title="외자 견적서는 아직 없습니다."><option value="D">내자</option></select>
             </div>
           </li>
+          {/* 원본 차례: 통화 · 참조 · 결제조건 · <b>유효기간</b> · 첨부. 참조 · 결제조건은 저장할 자리가 없어 칸을 두지 않는다. */}
+          <li>
+            <div className="title">유효기간</div>
+            <div className="form"><EcDateField value={validUntil} onChange={setValidUntil} /></div>
+          </li>
           <li>
             <div className="title">프로젝트</div>
             <div className="form">
@@ -482,13 +536,6 @@ export default function QuotationEntry() {
             <div className="title">적요</div>
             <div className="form"><input className="ec-input flex-1" aria-label="머리 적요" maxLength={500} value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="새로운 항목 추가" /></div>
           </li>
-          {/* 원본 머리에 없는 칸 — [Option] › 추가항목 펼치기로만 보인다. 접어도 값은 state 에 남아 저장 때 그대로 간다. */}
-          {showExtra && (
-            <li>
-              <div className="title">유효기간</div>
-              <div className="form"><EcDateField value={validUntil} onChange={setValidUntil} /></div>
-            </li>
-          )}
         </ul>
 
         {/* ── 명세 탭 + 툴바 ───────────────────────────────── */}
@@ -544,7 +591,7 @@ export default function QuotationEntry() {
           <table className="ec-grid-input no-ec table-fixed">
             <colgroup>
               <col className="w-[26px]" /><col className="w-[100px]" /><col className="w-[200px]" /><col className="w-[110px]" />
-              <col className="w-[78px]" /><col className="w-[96px]" /><col className="w-[110px]" /><col className="w-[96px]" /><col className="w-[140px]" /><col className="w-[100px]" />
+              <col className="w-[78px]" /><col className="w-[96px]" /><col className="w-[110px]" /><col className="w-[96px]" /><col className="w-[100px]" /><col className="w-[140px]" />
               <col className="w-[30px]" />
             </colgroup>
             <thead>
@@ -552,7 +599,7 @@ export default function QuotationEntry() {
                 <th />
                 <th className="text-left">품목코드</th><th className="text-left">품목명</th><th className="text-left">규격</th>
                 <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th>
-                <th className="text-right">부가세</th><th className="text-left">적요</th><th className="text-right">합계</th><th />
+                <th className="text-right">부가세</th><th className="text-right">합계</th><th className="text-left">적요</th><th />
               </tr>
             </thead>
             <tbody>
@@ -581,8 +628,8 @@ export default function QuotationEntry() {
                     <td><EcNumInput className="cell text-right" value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} /></td>
                     <td className="pad text-right">{l.itemId ? won(computed[idx].supply) : ''}</td>
                     <td className="pad text-right">{l.itemId ? won(computed[idx].vat) : ''}</td>
-                    <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                     <td className="pad text-right font-semibold text-ec-text">{l.itemId ? won(computed[idx].total) : ''}</td>
+                    <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                     <td className="text-center">
                       {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint"><EcIcon name="close" size={12} glyph="✕" /></button>}
                     </td>
@@ -598,8 +645,8 @@ export default function QuotationEntry() {
                 <td />
                 <td className="text-right">{won(totals.supply)}</td>
                 <td className="text-right">{won(totals.vat)}</td>
-                <td />
                 <td className="text-right font-bold text-ec-blue">{won(totals.total)}</td>
+                <td />
                 <td />
               </tr>
             </tfoot>

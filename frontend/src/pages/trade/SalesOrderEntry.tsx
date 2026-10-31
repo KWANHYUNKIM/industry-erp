@@ -33,8 +33,24 @@ import EcIcon from '../../components/ui/EcIcon'
  * 저장은 말 없이 빈 칸으로 돌아간다(거래처는 비우고 창고는 남긴다). 머리 기억(일자 · 담당자 · 창고)은 판매입력과 같은 /me/memory.
  *
  * 저장 API 는 `/sales-orders` 그대로 — 줄 적요도 함께 보내고 다시 열면 보인다.
- * 주문서조회의 [신규(F2)] · [일자-No.] · `?edit=` · `?fromQuotes=` 가 모두 이 화면으로 온다. 창이 아니라 화면이라 Esc 로 닫히지 않는다.
+ * 메뉴 [주문서입력] · `?edit=` · `?fromQuotes=` 는 이 화면, 주문서조회의 [신규(F2)] · [일자-No.] 는 목록 위에 떠 있는 창(popup)으로 연다
+ * (원본 2026-10-31 loginad — 판매조회 · 작업지시서조회와 같다). 창이 아니라 화면이면 Esc 로 닫히지 않는다.
+ *
+ * 원본 머리의 참조 · 결제조건 · 유효기간 · 검색창내용, 표의 [납기일자] 열은 주문 요청(CreateSalesOrderRequest · OrderLineRequest)에 자리가 없어
+ * 칸을 만들지 않았다(자료 없음). 적요 · ★(My품목)는 우리 저장 값 · 기능이라 남긴다.
  */
+
+/** 주문서조회 위에 떠 있는 창으로 열 때. editId 가 null 이면 새 주문서. */
+export interface SalesOrderEntryPopup {
+  editId: number | null
+  /** 창을 닫는다. changed 면 목록을 다시 읽는다(저장 · 삭제 뒤). */
+  onClose: (changed: boolean) => void
+  /** [이전] · [다음] — 목록에서 앞 · 뒤 주문으로 옮긴다(판매조회 창과 같은 잣대). */
+  onMove: (dir: 'prev' | 'next') => void
+  /** [복사] — 창 제목을 '주문서입력' 으로 돌린다. */
+  onCopy?: () => void
+}
+const NOT_HERE = '이 기능은 이 ERP 에서 제공하지 않습니다.'
 
 interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string; spec: string | null /* 줄 규격 — null = 품목 규격을 따라감, '' = 일부러 비움 */; name: string | null /* 줄 품목명 — null = 품목 이름을 따라감 */ }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '', spec: null, name: null })
@@ -69,18 +85,22 @@ interface QuoteLite {
  * 결재는 우리에게 그 경로가 없어 늘 비어 있다(견적서조회 QuotationPage 와 같은 잣대).
  */
 type QuoteTab = 'ALL' | 'APPROVAL' | 'UNCONFIRMED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED'
-const QUOTE_TABS: [QuoteTab, string][] = [['ALL', '전체'], ['APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인'], ['IN_PROGRESS', '진행중'], ['COMPLETED', '완료']]
+const QUOTE_TABS: [QuoteTab, string][] = [['ALL', '전체'], ['APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인 ▸'], ['IN_PROGRESS', '진행중'], ['COMPLETED', '완료']]
 const QUOTE_TAB_MATCH: Record<QuoteTab, (s: string) => boolean> = {
   ALL: () => true, APPROVAL: () => false, UNCONFIRMED: (s) => s === 'UNCONFIRMED',
   CONFIRMED: (s) => s === 'IN_PROGRESS' || s === 'COMPLETED', IN_PROGRESS: (s) => s === 'IN_PROGRESS', COMPLETED: (s) => s === 'COMPLETED',
 }
 interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
 
-export default function SalesOrderEntry() {
+export default function SalesOrderEntry({ popup }: { popup?: SalesOrderEntryPopup }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const editParam = params.get('edit')
-  const quotesParam = params.get('fromQuotes')
+  const editParam = popup ? (popup.editId == null ? null : String(popup.editId)) : params.get('edit')
+  const quotesParam = popup ? null : params.get('fromQuotes')
+  /** 창에서 저장한 것이 있으면 닫을 때 목록을 다시 읽는다. */
+  const savedRef = useRef(false)
+  /** 머리 아래 [주문서입력 ▾] 양식 단추의 펼침. */
+  const [layoutOpen, setLayoutOpen] = useState(false)
   const { companyCode, user } = useAuth()
 
   // ── 마스터 ─────────────────────────────────────────────
@@ -180,12 +200,13 @@ export default function SalesOrderEntry() {
       const [p, w, i] = await Promise.all([api.get<Partner[]>('/partners'), api.get<Warehouse[]>('/warehouses'), api.get<Item[]>('/items')])
       setPartners(p.data); setWarehouses(w.data); setItems(i.data)
       if (editParam || quotesParam) return
-      /* 원본은 새 전표를 열면 마지막으로 쓴 머리(일자 · 담당자 · 창고)를 채운다. */
+      /*
+       * 원본은 새 전표를 열면 마지막으로 쓴 머리(일자 · 담당자 · 창고)를 채운다(loginaa 실측). 쓴 적이 없으면 담당자 · 출하창고는
+       * 비어서 시작한다(2026-10-31 loginad 주문서입력 창). 예전엔 기억이 없을 때 첫 창고를 넣었다 — 원본에 없는 채움이라 뺐다.
+       */
       const hd = await readHd()
       rememberedEmpRef.current = hd.employeeId ?? ''
-      const guide = (x: Warehouse) => x.code === '00000' || (x.name ?? '').startsWith('창고/공장/외주공장 등록')
-      const first = w.data.find((x) => x.active && !guide(x))
-      const start = w.data.find((x) => String(x.id) === (hd.warehouseId ?? '') && x.active) ?? first
+      const start = w.data.find((x) => String(x.id) === (hd.warehouseId ?? '') && x.active)
       setWarehouseId((prev) => prev || (start ? String(start.id) : ''))
       if (hd.date && /^\d{4}-\d{2}-\d{2}$/.test(hd.date)) setDate(hd.date)
       if (hd.employeeId) setEmployeeId((prev) => prev || hd.employeeId!)
@@ -516,6 +537,9 @@ export default function SalesOrderEntry() {
         if (saved?.lines) void printSaved(saved, win)
         else win?.close()
       }
+      savedRef.current = true
+      /* 조회 위의 창 — 원본은 저장하면 말 없이 창이 닫히고 목록이 다시 읽힌다. */
+      if (popup) { popup.onClose(true); return }
       if (editing) {
         /* 수정은 조회에서 들어온 길이다 — 저장하면 말 없이 목록으로 돌아가 새 금액을 본다(원본은 창이 닫히고 목록이 다시 읽힌다). */
         navigate('/sales/orders')
@@ -532,7 +556,7 @@ export default function SalesOrderEntry() {
   async function removeEditing() {
     if (!editing) return
     if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 주문서'))) return
-    try { await api.delete(`/sales-orders/${editing.id}`); navigate('/sales/orders') }
+    try { await api.delete(`/sales-orders/${editing.id}`); if (popup) popup.onClose(true); else navigate('/sales/orders') }
     catch (err) {
       const [head, ...rest] = extractErrorMessage(err).split('\n')
       if (head === BLOCKED_HEAD) setBlocked(rest.map((l) => l.split(' · ')))
@@ -542,26 +566,38 @@ export default function SalesOrderEntry() {
   /** 수정 중 [복사] — 같은 내용이 새 주문서가 된다: 일자 · 납기일자 오늘, 번호는 저장할 때 새로 받는다(2026-10-13 실측). */
   function copyEditing() {
     setEditing(null); setDate(today()); setDueDate(today()); setWhMissing(false); setError('')
-    setParams({}, { replace: true })
+    if (popup) popup.onCopy?.()
+    else setParams({}, { replace: true })
   }
   /** 리스트로 — 품목을 넣은 채면 원본 알림('작성한 내용이 저장되지 않았습니다. 페이지를 벗어나겠습니까?')을 먼저 띄운다. */
   async function toList() {
     if (!editing && lines.some((l) => l.itemId) && !(await ecConfirm('작성한 내용이 저장되지 않았습니다. 페이지를 벗어나겠습니까?'))) return
-    navigate('/sales/orders')
+    if (popup) popup.onClose(savedRef.current)
+    else navigate('/sales/orders')
   }
 
+  /*
+   * 원본 주문수정 창 아래 줄(2026-10-31 loginad): 저장(F8)▾ · 저장/전표(F7)▲ · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기▲ · H.
+   * 저장▾ · 저장/전표▲ · 보내기▲ 펼침 항목은 원본 기록이 없어 펼침을 달지 않고(보내기는 견적서조회와 같은 넷), 이전 · 다음은 창에서만 선다.
+   * 메뉴 [주문서입력] 화면(창이 아님)은 [닫기] 자리에 [리스트].
+   */
+  const notHere = (what: string) => () => void ecAlert(`${NOT_HERE}\n(${what})`)
+  const closeAction: SlipAction = popup ? { label: '닫기', onClick: () => void toList() } : { label: '리스트', onClick: () => void toList() }
   const actions: SlipAction[] = editing ? [
-    { label: '수정저장(F8)', primary: true, submit: true },
+    { label: popup ? '저장(F8)' : '수정저장(F8)', primary: true, submit: true },
     { label: '저장/전표(F7)', onClick: saveAndPrint },
     { label: '복사', onClick: copyEditing },
+    ...(popup ? [{ label: '이전', onClick: () => popup.onMove('prev') }, { label: '다음', onClick: () => popup.onMove('next') }] : []),
+    ...(popup ? [closeAction] : []),
     { label: '삭제', onClick: () => void removeEditing() },
-    { label: '리스트', onClick: () => void toList() },
+    ...(popup ? [] : [closeAction]),
+    ...(popup ? [{ label: '보내기', menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) }] : []),
     { label: 'H', onClick: () => setHistoryOpen(true) },
   ] : [
     { label: '저장(F8)', primary: true, submit: true },
     { label: '저장/전표(F7)', onClick: saveAndPrint },
     { label: '다시 작성', onClick: () => reset(false) },
-    { label: '리스트', onClick: () => void toList() },
+    closeAction,
     { label: '웹자료올리기', disabled: true, disabledReason: '파일 첨부는 [전자결재·드라이브]에서 씁니다.' },
   ]
   const todo = (why: string) => ({ disabled: true, title: why })
@@ -570,9 +606,7 @@ export default function SalesOrderEntry() {
     <form ref={formRef} onSubmit={submitting.wrap(submit)}>
       <EcSlipShell
         title={editing ? '주문서입력(수정)' : '주문서입력'}
-        formTabs={[{ id: 'main', label: '기본(수정불가)' }]}
-        activeFormTab="main"
-        onAddTab={() => flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.')}
+        plainOption
         options={[
           { label: '입력값 초기화', onClick: () => reset(false) },
         ]}
@@ -587,6 +621,24 @@ export default function SalesOrderEntry() {
           </ul>
         }
       >
+        {/*
+          원본 머리 [Option] [도움말] 아래 양식 단추 [주문서입력 ▾](2026-10-31 loginad — 펼치면 Mobile_주문서입력 · 주문서입력 ✓ · 신규양식추가).
+          양식은 하나라 다른 것을 고르면 안내만 한다.
+        */}
+        <div className="relative inline-flex mb-[6px]">
+          <button type="button" className="ec-btn" aria-label="입력 양식" aria-expanded={layoutOpen} onClick={() => setLayoutOpen((v) => !v)}>
+            주문서입력 <EcIcon name="chevron-down" size={12} glyph="▾" />
+          </button>
+          {layoutOpen && <>
+            <div className="ec-backdrop-clear" onClick={() => setLayoutOpen(false)} />
+            <div className="ec-menu" role="menu" aria-label="입력 양식">
+              <button type="button" role="menuitem" onClick={() => { setLayoutOpen(false); flash('입력 양식 바꾸기는 아직 없습니다 — 주문서입력 양식으로 입력합니다.') }}>Mobile_주문서입력</button>
+              <button type="button" role="menuitem" onClick={() => setLayoutOpen(false)}>주문서입력 ✓</button>
+              <button type="button" role="menuitem" onClick={() => { setLayoutOpen(false); flash('탭 추가는 [Self-Customizing > 입력양식]에서 설정합니다.') }}>신규양식추가</button>
+            </div>
+          </>}
+        </div>
+
         {/* ── 헤더 항목 폼 ─────────────────────────────────── */}
         <ul className="ec-form [&>li>.title]:basis-[120px]">
           <li>
@@ -715,14 +767,14 @@ export default function SalesOrderEntry() {
             <colgroup>
               <col className="w-[26px]" /><col className="w-[26px]" /><col className="w-[100px]" /><col className="w-[200px]" /><col className="w-[110px]" />
               <col className="w-[78px]" /><col className="w-[96px]" /><col className="w-[110px]" /><col className="w-[96px]" /><col className="w-[130px]" />
-              <col className="w-[100px]" /><col className="w-[30px]" />
+              <col className="w-[30px]" />
             </colgroup>
             <thead>
               <tr>
                 <th /><th title="My품목 담기/빼기">★</th>
                 <th className="text-left">품목코드</th><th className="text-left">품목명</th><th className="text-left">규격</th>
                 <th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th>
-                <th className="text-right">부가세</th><th className="text-left">적요</th><th className="text-right">합계</th><th />
+                <th className="text-right">부가세</th><th className="text-left">적요</th><th />
               </tr>
             </thead>
             <tbody>
@@ -763,7 +815,6 @@ export default function SalesOrderEntry() {
                     <td className="pad text-right">{l.itemId ? won(computed[idx].supply) : ''}</td>
                     <td className="pad text-right">{l.itemId ? won(computed[idx].vat) : ''}</td>
                     <td><input className="cell" value={l.remark} disabled={!l.itemId} onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
-                    <td className="pad text-right font-semibold text-ec-text">{l.itemId ? won(computed[idx].total) : ''}</td>
                     <td className="text-center">
                       {l.itemId && <button type="button" onClick={() => removeLine(idx)} className="no-ec border-0 bg-transparent cursor-pointer text-ec-hint"><EcIcon name="close" size={12} glyph="✕" /></button>}
                     </td>
@@ -779,8 +830,8 @@ export default function SalesOrderEntry() {
                 <td />
                 <td className="text-right">{won(totals.supply)}</td>
                 <td className="text-right">{won(totals.vat)}</td>
-                <td />
-                <td className="text-right font-bold text-ec-blue">{won(totals.total)}</td>
+                {/* 원본 주문서입력 표에는 [합계] 열이 없다 — 부가세 포함 총액은 합계 줄 적요 칸에. */}
+                <td className="text-right font-bold text-ec-blue" aria-label="합계">{won(totals.total)}</td>
                 <td />
               </tr>
             </tfoot>
@@ -887,13 +938,12 @@ export default function SalesOrderEntry() {
           <p className="mb-[6px]">주문서 : {dateNo(editing.orderDate, editing.orderNo)}</p>
           <table className="w-full text-left">
             <thead><tr>
-              <th className="w-[34px]"></th><th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th>
+              <th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th>
               <th>불러온 전표</th><th>불러온 전표일자-No.</th>
             </tr></thead>
             <tbody>
               {loaded.rows.map((r, i) => (
                 <tr key={i}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{r.code}</td><td>{r.name}</td><td>{r.spec ?? ''}</td><td className="text-right">{won(r.qty)}</td>
                   <td>{r.slip}</td><td>{r.slipNo}</td>
                 </tr>

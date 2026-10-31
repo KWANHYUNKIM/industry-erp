@@ -18,6 +18,9 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
+import EcIcon from '../../components/ui/EcIcon'
+import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import QuotationEntry from './QuotationEntry'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -35,6 +38,7 @@ const TAB_MATCH: Record<Tab, (s: QuotationStatus) => boolean> = {
 interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
 /** 생성한전표가 있으면 원본처럼 주황 꼬리표(2026-10-14 실측: 바탕 rgb(246, 136, 45) · 흰 글자 · 여백 0.9px 1.8px · 높이 16.3). */
 const GEN_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
+const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
 
 
 /** 견적서 — 영업 흐름의 시작점. 작성→발송→수주전환. 부가세 10% 자동. */
@@ -63,7 +67,9 @@ export default function QuotationPage() {
   const [keyword, setKeyword] = useState('')
   /** 하단 [진행상태변경 ▴] · [다른전표생성 ▴] 메뉴 — 버튼 위로 뜬다. */
   const [historyWin, setHistoryWin] = useState(false)
-  const [menuAt, setMenuAt] = useState<{ kind: 'status' | 'gen'; left: number; bottom: number } | null>(null)
+  const [menuAt, setMenuAt] = useState<{ kind: 'gen'; left: number; bottom: number } | null>(null)
+  /** [신규(F2)] · [일자-No.] — 목록 위 '견적서입력' 창(원본 2026-10-31 loginad). null 이면 닫힘, id 가 null 이면 새 견적. */
+  const [popup, setPopup] = useState<{ id: number | null; copied: boolean } | null>(null)
   const [generated, setGenerated] = useState<{ quote: Quotation; rows: GeneratedRow[] } | null>(null)
   const [error, setError] = useState('')
   /*
@@ -88,6 +94,10 @@ export default function QuotationPage() {
    * 여태 알약(진행 단계)으로만 갈라서 "아직 안 보낸 견적" 을 한 번에 볼 수가 없었다.
    */
   const [sentCond, setSentCond] = useState<'전체' | '발송' | '미발송'>('전체')
+  /* 원본 [내.외자구분](전체 · 내자 · 외자 단추). 우리 견적은 통화 칸이 내자 하나라 모두 내자다 — 외자를 고르면 빈 목록. */
+  const [fxCond, setFxCond] = useState<'전체' | '내자' | '외자'>('전체')
+  /* 원본 조건 판은 [기타] 까지가 한 판이고, 규격 · 적요 · 유효기간 · 작성자 … 는 접힌 줄(⌄)을 펼쳐야 나온다(2026-10-31 loginad). */
+  const [moreConds, setMoreConds] = useState(false)
   const [company, setCompany] = useState<DocParty | null>(null)
 
   /*
@@ -97,7 +107,7 @@ export default function QuotationPage() {
   function reset() {
     const p = periodOf('최근30일(+1개월)')!
     setFrom(p.from); setTo(p.to)
-    setItemCond(''); setNoCond(''); setWhCond(''); setProjCond(''); setSentCond('전체')
+    setItemCond(''); setNoCond(''); setWhCond(''); setProjCond(''); setSentCond('전체'); setFxCond('전체')
     setAuthorCond(''); setSpecCond(''); setRemarkCond(''); setValidCond(''); setPmCond('')
     setUpFrom(''); setUpTo('')
   }
@@ -214,10 +224,11 @@ export default function QuotationPage() {
     .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
     /* 원본 [발송여부] 는 Email · 보내기로 내보냈는가다 — 우리는 견적을 밖으로 보내지 않으므로 모두 미발송이다. */
     .filter(() => sentCond !== '발송')
+    .filter(() => fxCond !== '외자')
     /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 건은 만든 때가 곧 고친 때다. */
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id : 0)),
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [rows, tab, keyword, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options,
+    [rows, tab, keyword, from, to, itemCond, sentCond, fxCond, whCond, projCond, noCond, mgmtCond, mgmt.options,
       byUpdated, authorCond, partnerCond, specCond, remarkCond, validCond, pmCond, partners,
       upFrom, upTo])
   /**
@@ -274,6 +285,7 @@ export default function QuotationPage() {
    */
   function convertChecked() {
     setMenuAt(null)
+    if (!requireSelection(picked.size)) return
     const ids = shown.filter((q) => picked.has(q.id)).map((q) => q.id)
     if (ids.length === 0) return
     navigate(`/sales/orders?fromQuotes=${ids.join(',')}`)
@@ -334,15 +346,17 @@ export default function QuotationPage() {
     void ecAlert(`성공 : ${ok}건\n실패 : ${fail}건`)
   }
 
-  /** 하단 [진행상태변경] · [다른전표생성] — 버튼 위에 메뉴를 띄운다. 고른 줄이 없으면 셸이 먼저 알린다. */
-  function openMenu(kind: 'status' | 'gen', label: string) {
-    const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === label)
+  /**
+   * 하단 [다른전표생성 ▲] › 주문서 — 버튼 위에 '주문서 │ 1장라인별 · 전표라인별 · 직접설정' 판을 띄운다.
+   * 원본은 고른 줄이 없어도 목록이 뜨고(2026-10-31 loginad), 실제로 만들려 할 때 고른 줄을 묻는다.
+   */
+  function openMenu(kind: 'gen', label: string) {
+    const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim().startsWith(label))
     const r = btn?.getBoundingClientRect()
     setMenuAt({ kind, left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 })
   }
   /** 원본 메뉴 '▾미확인 › 미확인', '▾확인 › 진행중 · 완료' — 고르면 말 없이 목록이 바뀐다. */
   async function changeStatus(status: QuotationStatus) {
-    setMenuAt(null)
     /* 원본은 고른 줄이 없어도 [진행상태변경] 메뉴를 먼저 띄운다 — 알림은 고를 때(2026-10-30 클릭 대조). */
     if (!requireSelection(picked.size)) return
     const fails: string[] = []
@@ -353,6 +367,26 @@ export default function QuotationPage() {
     setPicked(new Set())
     load()
     if (fails.length) void ecAlert(fails.join('\n'))
+  }
+
+  /**
+   * 창의 [이전] · [다음] — 판매조회 창과 같은 잣대: 일자-No. 차례로 바로 앞(더 옛) 견적이 [이전], 바로 뒤가 [다음].
+   * 끝이면 '알림 / 다음 자료가 없습니다.' 를 띄우고 [확인] 하면 창도 닫힌다. 지금 걸러 보이는 견적 안에서만 옮긴다.
+   */
+  async function movePopup(dir: 'prev' | 'next') {
+    const ordered = [...shown].sort((a, b) => a.quoteDate.localeCompare(b.quoteDate) || a.quoteNo.localeCompare(b.quoteNo))
+    const i = ordered.findIndex((q) => q.id === popup?.id)
+    const to = ordered[dir === 'prev' ? i - 1 : i + 1]
+    if (i < 0 || !to) {
+      await ecAlert(`${dir === 'prev' ? '이전' : '다음'} 자료가 없습니다.`)
+      setPopup(null)
+      return
+    }
+    setPopup({ id: to.id, copied: false })
+  }
+  function closePopup(changed: boolean) {
+    setPopup(null)
+    if (changed) load()
   }
 
   async function openGenerated(q: Quotation) {
@@ -390,43 +424,80 @@ export default function QuotationPage() {
       search={keyword}
       onSearchChange={setKeyword}
       newLabel="신규(F2)"
-      onNew={() => navigate('/sales/quotation-entry')}
-      /* 원본 차례(2026-10-14 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 다른전표생성 · 전자결재 · 선택삭제 · Excel(표시형식) · 이력조회 · 웹자료올리기 — 바깥 발송 · 결재는 뺀다. */
+      onNew={() => setPopup({ id: null, copied: false })}
+      formMenu={{ current: '기본(수정불가)' }}
+      /* 원본 견적서조회 [Option](2026-10-31 loginad) — 판매조회와 같은 여섯. 우리에게 없는 설정이라 누르면 안내만 한다. */
+      optionMenu={[
+        { label: '업무설정', onClick: notHere('업무설정') },
+        { label: '검색항목설정', onClick: notHere('검색항목설정') },
+        { label: '양식설정', sub: [
+          { label: '기본(수정불가)', active: true, onClick: () => void ecAlert('양식은 하나만 지원합니다.') },
+          { label: '신규양식추가', onClick: () => void ecAlert('신규양식추가는 지원하지 않습니다(양식 하나).') },
+        ] },
+        { label: '조건양식설정', onClick: notHere('조건양식설정') },
+        { label: '문서발송내역', onClick: notHere('문서발송내역') },
+        { label: '견적서조회(OLD)', onClick: notHere('견적서조회(OLD)') },
+      ]}
+      /*
+       * 원본 하단(2026-10-31 loginad C000071): 신규(F2) · [Email│▲] · [진행상태변경 ▲] · [보내기 ▲] · [인쇄│▲ 프린트문제해결] ·
+       * [바코드(품목)│▲ 바코드(품목) · 바코드(사업장/번호No.)] · [다른전표생성 ▲ 주문서] · 전자결재 · 선택삭제 · [Excel(표시형식)│▲ Excel(데이터)] ·
+       * 이력조회 · 웹자료올리기. │▲ 는 갈라진 단추, 글자 ▲ 는 한 단추(판매조회와 같은 FooterButton). Email ▲ 항목은 원본 기록이 없어 판매조회와 같게(카카오톡).
+       * 보내기 · 전자결재 · 웹자료올리기 · 카카오톡 · 바코드는 받쳐 줄 것이 없어 안내만.
+       */
       actions={[
-        /* 2026-10-30 클릭 대조: [Email] 원본은 알림('데모에서는 …') · [바코드(품목)] 고른 줄 없으면 원본 알림 · [이력조회] '견적서 이력조회' 창. */
-        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE) },
-        { label: '진행상태변경', onClick: () => openMenu('status', '진행상태변경') },
-        { label: '인쇄', onClick: printChecked, selected: picked.size },
-        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: picked.size },
-        { label: '다른전표생성', onClick: () => openMenu('gen', '다른전표생성'), selected: picked.size },
+        { label: 'Email', onClick: () => void ecAlert(EMAIL_NOT_HERE), menu: [{ label: '카카오톡', onClick: notHere('카카오톡') }] },
+        /* 원본 펼침은 '▾ 미확인 › 미확인', '▾ 확인 › 진행중 · 완료' 두 묶음 — 셸 펼침에 묶음 머리가 없어 세 줄로 편다. 고른 줄은 고를 때 묻는다. */
+        { label: '진행상태변경', menuOnly: true, selected: picked.size, menu: [
+          { label: '미확인', onClick: () => void changeStatus('UNCONFIRMED') },
+          { label: '진행중', onClick: () => void changeStatus('IN_PROGRESS') },
+          { label: '완료', onClick: () => void changeStatus('COMPLETED') },
+        ] },
+        { label: '보내기', menuOnly: true, menu: ['E Note', '대화방', '사용자', '북마크'].map((l) => ({ label: l, onClick: notHere(`보내기 › ${l}`) })) },
+        { label: '인쇄', onClick: printChecked, selected: picked.size, menu: [{ label: '프린트문제해결', onClick: notHere('프린트문제해결') }] },
+        { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE), selected: picked.size, menu: [
+          { label: '바코드(품목)', onClick: () => void ecAlert(BARCODE_NOT_HERE) },
+          { label: '바코드(사업장/번호No.)', onClick: notHere('바코드(사업장/번호No.)') },
+        ] },
+        { label: '다른전표생성', menuOnly: true, menu: [{ label: '주문서', onClick: () => openMenu('gen', '다른전표생성') }] },
+        { label: '전자결재', onClick: notHere('전자결재') },
         { label: '선택삭제', onClick: removeChecked, selected: picked.size },
-        { label: 'Excel' },
+        { label: 'Excel(표시형식)', menu: [{ label: 'Excel(데이터)' }] },
         { label: '이력조회', onClick: () => setHistoryWin(true) },
+        { label: '웹자료올리기', onClick: notHere('웹자료올리기') },
       ]}>
+      {popup && (
+        <ProductionSlipWindow title={popup.id != null && !popup.copied ? '견적서수정' : '견적서입력'}
+                              popout={popup.id != null && !popup.copied ? `/sales/quotation-entry?edit=${popup.id}` : '/sales/quotation-entry'}
+                              onClose={() => closePopup(false)}>
+          {/* 원본 견적서수정 머리 [확인취소] — 판매입력(수정) 창과 같이 이 회사 설정으로는 알림만 뜬다. */}
+          {popup.id != null && !popup.copied && (
+            <div className="flex justify-end mb-[6px]">
+              <button type="button" className="ec-btn ec-btn-sm"
+                      onClick={() => void ecAlert('전표상태관리유형 설정으로 인해 전표상태를 변경할 수 없습니다.')}>확인취소</button>
+            </div>
+          )}
+          <QuotationEntry key={popup.id ?? 'new'} popup={{
+            editId: popup.copied ? null : popup.id,
+            onClose: closePopup,
+            onMove: (dir) => void movePopup(dir),
+            onCopy: () => setPopup((p) => (p ? { ...p, copied: true } : p)),
+          }} />
+        </ProductionSlipWindow>
+      )}
       {slipDocs && <EcSlipPrintModal title="견적서" docs={slipDocs} forms={['내자기본']} width={726} pdf excelLabel="Excel(표시형식)" onClose={() => setSlipDocs(null)} />}
       {historyWin && <SlipMenuHistoryModal menu="견적서" statusLabel="확인" onClose={() => setHistoryWin(false)} />}
       {menuAt && (
         <>
           <div className="ec-backdrop-clear" onClick={() => setMenuAt(null)} />
-          {menuAt.kind === 'status' ? (
-            <div className="ec-menu fixed" style={{ left: menuAt.left, bottom: menuAt.bottom }} role="menu" aria-label="진행상태변경">
-              <div className="px-[10px] pt-[4px] text-ec-label">▾ 미확인</div>
-              <button onClick={() => changeStatus('UNCONFIRMED')}>미확인</button>
-              <div className="px-[10px] pt-[4px] text-ec-label">▾ 확인</div>
-              <button onClick={() => changeStatus('IN_PROGRESS')}>진행중</button>
-              <button onClick={() => changeStatus('COMPLETED')}>완료</button>
+          <div className="ec-menu fixed" style={{ left: menuAt.left, bottom: menuAt.bottom }} role="menu" aria-label="다른전표생성">
+            {/* 원본 '주문서 │ 1장라인별 · 전표라인별 · 직접설정' 한 줄. 고른 줄이 없으면 고를 때 원본 알림. */}
+            <div className="flex items-center gap-[9px] px-[9px] py-[4.5px]">
+              <span>주문서</span>
+              <button className="ec-link" onClick={convertChecked}>1장라인별</button>
+              <button className="ec-link" onClick={() => { setMenuAt(null); if (requireSelection(picked.size)) { setGenByItem(false); setLineWin(true) } }}>전표라인별</button>
+              <button className="ec-link" onClick={() => { setMenuAt(null); if (requireSelection(picked.size)) setSetWin(true) }}>직접설정</button>
             </div>
-          ) : (
-            <div className="ec-menu fixed" style={{ left: menuAt.left, bottom: menuAt.bottom }} role="menu" aria-label="다른전표생성">
-              {/* 원본 '주문서 │ 1장라인별 · 전표라인별 · 직접설정' 한 줄.  */}
-              <div className="flex items-center gap-[9px] px-[9px] py-[4.5px]">
-                <span>주문서</span>
-                <button className="ec-link" onClick={convertChecked}>1장라인별</button>
-                <button className="ec-link" onClick={() => { setMenuAt(null); setGenByItem(false); setLineWin(true) }}>전표라인별</button>
-                <button className="ec-link" onClick={() => { setMenuAt(null); setSetWin(true) }}>직접설정</button>
-              </div>
-            </div>
-          )}
+          </div>
         </>
       )}
 
@@ -548,15 +619,15 @@ export default function QuotationPage() {
           원본 조건 판의 <b>맨 위 두 줄</b>(2026-09-08 견적서현황 실측).
           [메뉴]는 현황★·집계, [구분] 안에는 비교기간이 있다.
         */}
-        <EcCond label="메뉴">
+        {statusView && <EcCond label="메뉴">
           <div className="ec-pills">
             {(['현황', '집계'] as const).map((m) => (
               <button key={m} type="button" className={`ec-pill no-ec${menu === m ? ' active' : ''}`}
                       onClick={() => setMenu(m)}>{m}</button>
             ))}
           </div>
-        </EcCond>
-        <EcCond label="구분">
+        </EcCond>}
+        {statusView && <EcCond label="구분">
           <select className="ec-input" value={compare} style={{ width: 150 }}
                   onChange={(e) => setCompare(e.target.value as ComparePeriod)}>
             {COMPARE_PERIODS.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -567,7 +638,7 @@ export default function QuotationPage() {
               {' · 견적 '}{prevTotals.count}건 · {prevTotals.supply.toLocaleString()}원
             </span>
           )}
-        </EcCond>
+        </EcCond>}
         {/* 원본 조건 차례의 첫째 <b>[기준일자]</b>. 단추는 원본대로 종료일 다음에 최근30일(+1개월). */}
         <EcCond label="기준일자">
           <EcDateRange from={{ className: "ec-input", value: from, onChange: (e) => setFrom(e.target.value) }} to={{ className: "ec-input", value: to, onChange: (e) => setTo(e.target.value) }} />
@@ -579,6 +650,13 @@ export default function QuotationPage() {
         <EcCond label="견적No.">
           <input className="ec-input" value={noCond} placeholder="견적No."
                  onChange={(e) => setNoCond(e.target.value)} style={{ width: 160 }} />
+        </EcCond>
+        <EcCond label="내.외자구분">
+          <div className="ec-pills">
+            {(['전체', '내자', '외자'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${fxCond === v ? ' active' : ''}`} onClick={() => setFxCond(v)}>{v}</button>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
@@ -612,11 +690,14 @@ export default function QuotationPage() {
                            items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))} />
         </EcCond>
         <EcCond label="발송여부">
-          <select className="ec-input" value={sentCond} style={{ width: 100 }}
-                  onChange={(e) => setSentCond(e.target.value as '전체' | '발송' | '미발송')}>
-            <option>전체</option><option>발송</option><option>미발송</option>
-          </select>
+          <div className="ec-pills">
+            {(['전체', '미발송', '발송'] as const).map((v) => (
+              <button key={v} type="button" className={`ec-pill no-ec${sentCond === v ? ' active' : ''}`} onClick={() => setSentCond(v)}>{v}</button>
+            ))}
+          </div>
         </EcCond>
+        {/* 접힌 줄(⌄)을 펼치면 [발송여부] 와 [기타] 사이에 뒤쪽 칸이 들어선다(원본 차례: … 발송여부 · 규격 … 최종수정일시 · 기타). */}
+        {moreConds && <>
         {/*
           원본 견적서조회 차례: … 발송여부 · (오더관리번호) · <b>규격</b> · (담당자) ·
           <b>거래처관리담당자</b> · (거래유형) · <b>적요</b> · (적요1~3 · 문자형식1~5 ·
@@ -651,13 +732,21 @@ export default function QuotationPage() {
             <EcDateRange from={{ className: "ec-input", value: upFrom, onChange: (e) => setUpFrom(e.target.value) }} to={{ className: "ec-input", value: upTo, onChange: (e) => setUpTo(e.target.value) }} />
           </div>
         </EcCond>
-        {/* 원본 차례: [발송여부] 다음이 [기타] 다(2026-09-07 실측). */}
+        </>}
+        {/* 원본 차례: 판의 끝이 [기타] 다(2026-09-07 실측). */}
         <EcCond label="기타">
           <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
         </EcCond>
+        {/* 원본 접힌 줄(⌄) — 펼치면 뒤쪽 조건이 나오고, 다시 누르면 접힌다(작업지시서조회와 같은 단추). */}
+        <li className="full justify-center">
+          <button type="button" className="ec-btn ec-btn-sm" aria-expanded={moreConds}
+                  title={moreConds ? '조건 접기' : '조건 더 보기'} aria-label={moreConds ? '조건 접기' : '조건 더 보기'} onClick={() => setMoreConds((v) => !v)}>
+            <EcIcon name={moreConds ? 'chevron-up' : 'chevron-down'} size={12} glyph={moreConds ? '▴' : '▾'} />
+          </button>
+        </li>
       </ul>
 
       {/* 원본 제목 옆 알약: 전체 · 결재중 · 미확인 · 확인 ▸ 진행중 – 완료 */}
@@ -711,7 +800,7 @@ export default function QuotationPage() {
           ) : shown.flatMap((q) => q.lines.map((l) => ({ q, l }))).map(({ q, l }, i) => (
             <tr key={`${q.id}-${l.id}`}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td><a className="cursor-pointer" onClick={() => navigate(`/sales/quotation-entry?edit=${q.id}`)}>{dateNo(q)}</a></td>
+              <td><a className="cursor-pointer" onClick={() => setPopup({ id: q.id, copied: false })}>{dateNo(q)}</a></td>
               <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
               <td className="text-right">{won(l.quantity)}</td>
               <td className="text-right">{won(l.unitPrice)}</td>
@@ -751,7 +840,7 @@ export default function QuotationPage() {
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="text-center"><input type="checkbox" aria-label="선택" checked={picked.has(q.id)} onChange={() => pick(q.id)} /></td>
               {/* 원본은 [일자-No.] 를 누르면 그 견적이 든 입력 창이 뜬다. */}
-              <td><a className="cursor-pointer" onClick={() => navigate(`/sales/quotation-entry?edit=${q.id}`)}>{dateNo(q)}</a></td>
+              <td><a className="cursor-pointer" onClick={() => setPopup({ id: q.id, copied: false })}>{dateNo(q)}</a></td>
               <td>{q.partnerName}</td>
               <td>{q.employeeName ?? ''}</td>
               {/* 원본 '포장재 [30cm*40cm]' · '코카콜라 [355ml] 외 1건' — 첫 품목에 규격을 대괄호로. */}
@@ -759,7 +848,8 @@ export default function QuotationPage() {
               <td>{q.validUntil ? q.validUntil.replace(/-/g, '/') : ''}</td>
               <td className="text-right">{won(q.totalAmount)}</td>
               <td className="text-center text-ec-navy">{q.statusName}</td>
-              <td className="text-center"><a className={`cursor-pointer${q.convertedOrderId ? ` ${GEN_TAG}` : ''}`} onClick={() => void openGenerated(q)}>조회</a></td>
+              {/* 원본: 다른 전표(주문서)를 만든 줄만 주황 [조회] 배지가 선다 — 안 만든 줄은 빈칸(2026-10-31 loginad). */}
+              <td className="text-center">{q.convertedOrderId ? <a className={`cursor-pointer ${GEN_TAG}`} onClick={() => void openGenerated(q)}>조회</a> : null}</td>
               <td className="text-center"><a className="cursor-pointer" onClick={() => printQuote(q)}>인쇄</a></td>
             </tr>
           ))}

@@ -27,6 +27,8 @@
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow')))",
         "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow'))).querySelector('input[type=checkbox]').click(); true",
         "click:다른전표생성",
+        "js:[...document.querySelectorAll('[role=menuitem]')].find((b) => b.textContent.trim() === '주문서').click(); true",
+        "wait:300",
         "js:[...document.querySelectorAll('[role=menu] button')].find((b) => b.textContent.trim() === '1장라인별').click(); true",
         "wait:1500",
         "expect:location.pathname === '/sales/order-entry' && document.body.innerText.includes('주문서입력')",
