@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import LabelChip from '../features/board/components/LabelChip'
+import './EcKanban.css'
 
 /**
  * 원본 칸반 판(table.table-kanban — 2026-10-14 loginaa 실측).

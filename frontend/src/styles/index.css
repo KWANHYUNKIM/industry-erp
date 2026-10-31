@@ -1648,42 +1648,6 @@ th.ec-empty {
 .ec-invalid::after { content: ''; position: absolute; inset: -2.7px; border: var(--ec-hair) solid var(--ec-text-danger);
   border-radius: 6px; pointer-events: none; }
 
-/* 칸반 판 — 원본 table.table-kanban(칸반보드 활용 예시 E200190 · 프로젝트 진행현황 칸반 E200072, 2026-10-14 실측).
-   열 머리 12px · 바탕 #f7f8f9 · 여백 7.2 · 높이 41.6, 칸 여백 7.2, 카드 테두리 0.5 · 둥글기 20, 카드 줄 여백 2.7 9. EcKanban 이 그린다. */
-.ec-kanban { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--ec-bg-panel); }
-.ec-kanban th { height: 41.6px; padding: 7.2px; font-size: var(--ec-fs); font-weight: 400; text-align: left; vertical-align: middle;
-  background: var(--ec-bg-page); border-bottom: var(--ec-hair) solid var(--ec-line); }
-.ec-kanban th.lane { width: 120px; font-weight: 700; color: var(--ec-ink); }
-.ec-kanban td { padding: 7.2px; vertical-align: top; border-top: var(--ec-hair) solid var(--ec-line); }
-.ec-kanban td.lane { background: var(--ec-bg-page); font-weight: 700; vertical-align: middle; }
-.ec-kanban td.drop-over { background: var(--ec-blue-wash); }
-.ec-kanban-head { display: flex; align-items: center; gap: 4.5px; }
-.ec-kanban-head .name { font-weight: 700; color: var(--ec-ink); }
-.ec-kanban-head input { margin-left: auto; }
-.ec-kanban-count { display: inline-block; padding: 1.8px 4.5px; border-radius: 20px; font-size: 11px; line-height: 1.0;
-  color: var(--ec-bg-panel); background: var(--ec-page-off); }
-.ec-kanban-card { position: relative; overflow: hidden; margin-bottom: 7.2px; border: var(--ec-hair) solid var(--ec-line);
-  border-radius: var(--ec-radius-panel); background: var(--ec-bg-panel); cursor: grab; }
-.ec-kanban-card:last-child { margin-bottom: 0; }
-.ec-kanban-card.dragging { opacity: 0.5; }
-.ec-kanban-line { box-sizing: border-box; height: 23px; padding: 2.7px 44px 2.7px 9px; line-height: 17.6px;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ec-kanban-line + .ec-kanban-line { height: 22.5px; padding-right: 9px; }
-.ec-kanban-card.tone-pink .ec-kanban-line { background: var(--ec-kanban-pink); }
-.ec-kanban-card.tone-yellow .ec-kanban-line { background: var(--ec-kanban-yellow); }
-.ec-kanban-title { padding: 0; border: 0; background: transparent; color: var(--ec-navy); cursor: pointer; text-align: left; font: inherit; }
-.ec-kanban-title.bold { font-weight: 700; }
-.ec-kanban-card.closed .ec-kanban-title { color: var(--ec-kanban-closed); }
-.ec-kanban-reply { margin-left: 3px; font-weight: 700; color: var(--ec-navy); }
-.ec-kanban-new { margin-left: 3px; font-size: 11px; font-weight: 700; color: var(--ec-danger); }
-.ec-kanban-option { position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center;
-  width: 39.7px; height: 20.4px; background: var(--ec-kanban-option); border-bottom: var(--ec-hair) solid var(--ec-line-soft);
-  border-left: var(--ec-hair) solid var(--ec-line-soft); border-radius: 0 var(--ec-radius-panel); }
-.ec-kanban-more { margin-left: 3px; padding: 0 2px; border: 0; background: transparent; color: var(--ec-hint); cursor: pointer; line-height: 1; }
-.ec-kanban-menu { position: absolute; top: 20.4px; right: 0; z-index: 5; margin: 0; padding: 4px 0; list-style: none; min-width: 70px;
-  background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius); }
-.ec-kanban-menu button { display: block; width: 100%; padding: 4px 12px; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; }
-.ec-kanban-menu button:hover { background: var(--ec-blue-wash); }
 /* 종이 세금계산서(공급자 · 공급받는자 보관용) — 선 · 글자 색은 --tf 하나로 바꾼다. 원본 1px 선 · 12px Dotum · 제목 24px 700. */
 .ec-taxform { --tf: var(--ec-taxform-red); width: 590px; margin: 0 auto 18px; color: var(--tf); font-size: 12px; }
 .ec-taxform.buyer { --tf: var(--ec-taxform-blue); }
