@@ -12,6 +12,7 @@ import { useItemFlags } from '../../../utils/useInactiveItems'
 import { useItemMgmt } from '../../../utils/itemMgmtItems'
 import { stockBuckets, bucketTotals, type BucketTx, type StockBucket } from '../../../utils/stockBuckets'
 import { todayYmd } from '../../../utils/periods'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
@@ -39,7 +40,6 @@ interface MovementRow {
 /** 일별·월별 보기의 한 줄. 구간(날짜 또는 월)마다 기초·입고·출고·기말을 낸다(utils/stockBuckets). */
 type BucketRow = StockBucket
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
 
 export default function StockMovementPage() {
@@ -370,7 +370,7 @@ export default function StockMovementPage() {
               <tr key={b.key}>
                 <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                 <td>{b.key.replace(/-/g, '/')}</td>
-                <td className="text-right text-ec-hint">{num(b.count)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(b.count)}</td>
                 <td className="text-right">{qty2(b.opening)}</td>
                 <td className="text-right text-ec-blue">{qty2(b.inQty)}</td>
                 <td style={{ textAlign: 'right', color: '#a5561b' }}>{qty2(b.outQty)}</td>

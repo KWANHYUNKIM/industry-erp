@@ -13,6 +13,7 @@ import { dateText } from '../../../utils/dateText'
 import { ecAlert, ecConfirm } from '../../../components/EcDialog'
 import EcDateInput, { EcDateRange } from '../../../components/ui/EcDateInput'
 import { todayYmd } from '../../../utils/periods'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 재고 > 단계별재고조정 / 재고조정진행단계 (이카운트 E040604·E040650)
@@ -28,7 +29,6 @@ const TABS: { v: Tab; label: string }[] = [
   { v: 'REJECTED', label: '반려' },
 ]
 const statusColor = (s: StagedStatus) => (s === 'REQUESTED' ? 'var(--ec-warn)' : s === 'APPLIED' ? 'var(--ec-success)' : 'var(--ec-danger)')
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function StagedAdjustmentPage() {
   const [rows, setRows] = useState<StagedAdjustment[]>([])
@@ -110,12 +110,12 @@ export default function StagedAdjustmentPage() {
       else if (rd && to && rd > to) setTo(rd)
       else await load()
       const d = res.data
-      setOk(`${d.adjustNo} 조정요청 등록 완료 · ${d.itemName} · ${d.warehouseName} · 장부 ${num(d.bookQty)} → 실사 ${num(d.actualQty)}`)
+      setOk(`${d.adjustNo} 조정요청 등록 완료 · ${d.itemName} · ${d.warehouseName} · 장부 ${fmtNumber(d.bookQty)} → 실사 ${fmtNumber(d.actualQty)}`)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
   async function act(r: StagedAdjustment, kind: 'apply' | 'reject') {
-    if (kind === 'apply' && !(await ecConfirm(`${r.adjustNo}을(를) 반영할까요? 재고가 ${num(r.actualQty)}(으)로 조정됩니다.`))) return
+    if (kind === 'apply' && !(await ecConfirm(`${r.adjustNo}을(를) 반영할까요? 재고가 ${fmtNumber(r.actualQty)}(으)로 조정됩니다.`))) return
     try { await api.post(`/staged-adjustments/${r.id}/${kind}`); await load() }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
@@ -227,9 +227,9 @@ export default function StagedAdjustmentPage() {
               <td>{dateText(r.requestDate)}</td>
               <td>{r.itemName}</td>
               <td>{r.warehouseName}</td>
-              <td className="text-right text-ec-label">{num(r.bookQty)}</td>
-              <td className="text-right font-semibold">{num(r.actualQty)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.diff > 0 ? 'var(--ec-success)' : r.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{r.diff > 0 ? '+' : ''}{num(r.diff)}</td>
+              <td className="text-right text-ec-label">{fmtNumber(r.bookQty)}</td>
+              <td className="text-right font-semibold">{fmtNumber(r.actualQty)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.diff > 0 ? 'var(--ec-success)' : r.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{r.diff > 0 ? '+' : ''}{fmtNumber(r.diff)}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td className="text-center whitespace-nowrap">
                 {r.status === 'REQUESTED' ? (

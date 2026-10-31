@@ -17,8 +17,8 @@ import { ecAlert, ecConfirm } from '../../../components/EcDialog'
 import { TransferForm, SlipPrint, slipNoText, type StockTransfer, type CodeRow } from '../../../features/stocktransfer/TransferForm'
 import EcDateInput, { EcDateRange } from '../../../components/ui/EcDateInput'
 import { todayYmd } from '../../../utils/periods'
+import { fmtNumber } from '../../../utils/format'
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 const TABS = ['창고이동', '자가사용', '불량처리', '대체사용', '폐기', '재고조정'] as const
 type Tab = (typeof TABS)[number]
@@ -469,7 +469,7 @@ export default function TransferPage() {
                 <td>{r.fromWarehouseName}</td>
                 <td>{r.toWarehouseName}</td>
                 <td>{r.itemName}</td>
-                <td className="text-right">{num(r.quantity)}</td>
+                <td className="text-right">{fmtNumber(r.quantity)}</td>
                 <td className="text-center"><a className="cursor-pointer" onClick={() => openPrint(r.transferNo)}>인쇄</a></td>
               </tr>
             ))}
@@ -503,11 +503,11 @@ export default function TransferPage() {
                 <td>{dateText(r.adjustDate)}</td>
                 <td>{r.itemName}</td>
                 <td>{r.warehouseName}</td>
-                <td className="text-right text-ec-hint">{num(r.beforeQty)}</td>
+                <td className="text-right text-ec-hint">{fmtNumber(r.beforeQty)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                  {r.quantityChange > 0 ? '+' : ''}{num(r.quantityChange)}
+                  {r.quantityChange > 0 ? '+' : ''}{fmtNumber(r.quantityChange)}
                 </td>
-                <td className="text-right font-semibold">{num(r.afterQty)} {r.unit}</td>
+                <td className="text-right font-semibold">{fmtNumber(r.afterQty)} {r.unit}</td>
                 <td className="text-ec-label">{r.reason ?? ''}</td>
                 <td className="text-center">
                   <button onClick={() => removeAdjustment(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
@@ -608,7 +608,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
         </Field>
         <Field label={past ? `${form.adjustDate} 재고` : '현재고'}>
           <div className="ec-input" style={{ width: 90, textAlign: 'right', background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
-            {current === null ? '-' : num(current)}
+            {current === null ? '-' : fmtNumber(current)}
           </div>
         </Field>
         {isAdjust ? (
@@ -622,7 +622,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
         )}
         {isAdjust && diff !== null && (
           <div style={{ fontSize: 12.5, paddingBottom: 5, color: diff === 0 ? 'var(--ec-text-hint)' : diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontWeight: 700 }}>
-            증감 {diff > 0 ? '+' : ''}{num(diff)}
+            증감 {diff > 0 ? '+' : ''}{fmtNumber(diff)}
           </div>
         )}
         <Field label="프로젝트">

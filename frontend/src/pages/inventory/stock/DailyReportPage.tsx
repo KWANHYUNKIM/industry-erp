@@ -12,6 +12,7 @@ import { dateNo, shortDateNo } from '../../../utils/dateNo'
 import { useCondPickers } from '../../../utils/useCondPickers'
 import { useItemMgmt } from '../../../utils/itemMgmtItems'
 import { useRequired } from '../../../utils/useRequired'
+import { fmtNumberOf } from '../../../utils/format'
 
 /**
  * 재고 > 출력물 > 일보 (이카운트 E040708) — 2026-10-22 원본 실측.
@@ -35,7 +36,6 @@ import { useRequired } from '../../../utils/useRequired'
  * [결재방표시]는 머리 오른쪽에 결재란. [기본]/[전체] 탭은 조건이 같다. 기준일자 기본은 금월(~오늘).
  */
 type Row = { cells: string[]; bold?: boolean; span?: number }
-const num = (n: number) => Number(n).toLocaleString('ko-KR')
 const qty2 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const shortNo = (date: string, no: string) => { const seq = no.split('-').pop() ?? ''; return `${date.slice(5).replace('-', '/')}-${Number(seq) || seq}` }
 const itemLabel = (name: string, spec: string | null | undefined) => (spec ? `${name} [${spec}]` : name)
@@ -145,7 +145,7 @@ export default function DailyReportPage() {
         const rows = d.quotes.filter((q) => inP(q.quoteDate) && ok({ partnerId: q.partnerId, warehouseIds: [q.warehouseId], projectId: q.projectId, itemIds: q.lines.map((l) => l.itemId) }))
           .sort(byDesc((q) => q.quoteDate, (q) => q.quoteNo))
         return { kind: k, node: <LineTable head={['일자-No.', '거래처명', '적요', '품목명[규격]', '수량', '단가', '금액']} right={[4, 5, 6]}
-          rows={rows.flatMap((q) => q.lines.map((l) => [dateNo(q.quoteDate, q.quoteNo), q.partnerName, q.remark ?? '', itemLabel(l.itemName, l.spec), num(l.quantity), num(l.unitPrice), num(l.supplyAmount)]))} /> }
+          rows={rows.flatMap((q) => q.lines.map((l) => [dateNo(q.quoteDate, q.quoteNo), q.partnerName, q.remark ?? '', itemLabel(l.itemName, l.spec), fmtNumberOf(l.quantity), fmtNumberOf(l.unitPrice), fmtNumberOf(l.supplyAmount)]))} /> }
       }
       if (k === '판매') {
         const docs = d.sales.filter((s) => inP(s.saleDate) && ok({ partnerId: s.partnerId, warehouseIds: [s.warehouseId], projectId: s.projectId, itemIds: s.lines.map((l) => l.itemId) }))
@@ -153,11 +153,11 @@ export default function DailyReportPage() {
         const months = [...new Set(docs.map((s) => s.saleDate.slice(0, 7)))]
         const sum = (rows: SalesDoc[]) => rows.flatMap((s) => s.lines).reduce((a, l) => ({
           q: a.q + Number(l.quantity), u: a.u + Number(l.unitPrice), s: a.s + Number(l.supplyAmount), v: a.v + Number(l.vatAmount) }), { q: 0, u: 0, s: 0, v: 0 })
-        const fmt = (a: { q: number; u: number; s: number; v: number }) => [num(a.q), num(a.u), num(a.s), num(a.v), num(a.s + a.v), '']
+        const fmt = (a: { q: number; u: number; s: number; v: number }) => [fmtNumberOf(a.q), fmtNumberOf(a.u), fmtNumberOf(a.s), fmtNumberOf(a.v), fmtNumberOf(a.s + a.v), '']
         const body: { cells: string[]; bold?: boolean }[] = []
         months.forEach((m) => {
           const ms = docs.filter((s) => s.saleDate.startsWith(m))
-          ms.forEach((s) => s.lines.forEach((l) => body.push({ cells: [shortNo(s.saleDate, s.docNo), itemLabel(l.itemName, l.spec), num(l.quantity), num(l.unitPrice), num(l.supplyAmount), num(l.vatAmount), num(Number(l.supplyAmount) + Number(l.vatAmount)), s.partnerName] })))
+          ms.forEach((s) => s.lines.forEach((l) => body.push({ cells: [shortNo(s.saleDate, s.docNo), itemLabel(l.itemName, l.spec), fmtNumberOf(l.quantity), fmtNumberOf(l.unitPrice), fmtNumberOf(l.supplyAmount), fmtNumberOf(l.vatAmount), fmtNumberOf(Number(l.supplyAmount) + Number(l.vatAmount)), s.partnerName] })))
           body.push({ cells: [`${Number(m.slice(5))} 계`, '', ...fmt(sum(ms))], bold: true })
         })
         if (docs.length) body.push({ cells: ['합계', '', ...fmt(sum(docs))], bold: true })
@@ -167,21 +167,21 @@ export default function DailyReportPage() {
         const type = k === '수금' ? 'RECEIPT' : 'PAYMENT'
         const rows = d.settles.filter((s) => s.type === type && inP(s.settleDate) && ok({ partnerId: s.partnerId, projectId: s.projectId }))
           .sort(byAsc((s) => s.settleDate, (s) => s.docNo))
-        const body = rows.map((s) => ({ cells: [dateNo(s.settleDate, s.docNo), s.partnerName, num(s.amount), s.note ?? ''] as string[] }))
-        if (rows.length) body.push({ cells: ['합계', '', num(rows.reduce((a, s) => a + Number(s.amount), 0)), ''] })
+        const body = rows.map((s) => ({ cells: [dateNo(s.settleDate, s.docNo), s.partnerName, fmtNumberOf(s.amount), s.note ?? ''] as string[] }))
+        if (rows.length) body.push({ cells: ['합계', '', fmtNumberOf(rows.reduce((a, s) => a + Number(s.amount), 0)), ''] })
         return { kind: k, node: <LineTable head={['일자-No.', '거래처명', '금액', '적요']} right={[2]} rows={body} /> }
       }
       if (k === '구매') {
         const rows = d.purchases.filter((p) => inP(p.purchaseDate) && ok({ partnerId: p.partnerId, warehouseIds: [p.warehouseId], projectId: p.projectId, itemIds: p.lines.map((l) => l.itemId) }))
           .sort(byDesc((p) => p.purchaseDate, (p) => p.docNo))
         return { kind: k, node: <LineTable head={['일자-No.', '거래처명', '적요', '품목명[규격]', '수량', '단가', '금액']} right={[4, 5, 6]}
-          rows={rows.flatMap((p) => p.lines.map((l) => [dateNo(p.purchaseDate, p.docNo), p.partnerName, p.remark ?? '', itemLabel(l.itemName, l.spec), num(l.quantity), num(l.unitPrice), num(l.supplyAmount)]))} /> }
+          rows={rows.flatMap((p) => p.lines.map((l) => [dateNo(p.purchaseDate, p.docNo), p.partnerName, p.remark ?? '', itemLabel(l.itemName, l.spec), fmtNumberOf(l.quantity), fmtNumberOf(l.unitPrice), fmtNumberOf(l.supplyAmount)]))} /> }
       }
       if (k === '주문서') {
         const rows = shown.foreign === 'F' ? [] : d.orders.filter((o) => inP(o.orderDate) && ok({ partnerId: o.partnerId, warehouseIds: [o.warehouseId], projectId: o.projectId, itemIds: o.lines.map((l) => l.itemId) }))
           .sort(byDesc((o) => o.orderDate, (o) => o.orderNo))
         return { kind: k, node: <LineTable head={['일자-No.', '거래처명', '적요', '품목명[규격]', '수량', '단가', '금액']} right={[4, 5, 6]}
-          rows={rows.flatMap((o) => o.lines.map((l) => [dateNo(o.orderDate, o.orderNo), o.partnerName, o.remark ?? '', itemLabel(l.itemName, l.spec), num(l.quantity), num(l.unitPrice), num(l.supplyAmount)]))} /> }
+          rows={rows.flatMap((o) => o.lines.map((l) => [dateNo(o.orderDate, o.orderNo), o.partnerName, o.remark ?? '', itemLabel(l.itemName, l.spec), fmtNumberOf(l.quantity), fmtNumberOf(l.unitPrice), fmtNumberOf(l.supplyAmount)]))} /> }
       }
       if (k === '출하지시서' || k === '출하') {
         const st = k === '출하' ? 'SHIPPED' : 'READY'
@@ -202,7 +202,7 @@ export default function DailyReportPage() {
         const rows = d.pos.filter((o) => (o.status === 'ORDERED' || o.status === 'RECEIVED') && inP(o.orderDate)
           && ok({ partnerId: o.partnerId, warehouseIds: [o.warehouseId], projectId: o.projectId, itemIds: o.lines.map((l) => l.itemId) }))
           .sort(byAsc((o) => o.orderDate, (o) => o.orderNo))
-        const blank = (n: number) => (Number(n) ? num(n) : '')
+        const blank = (n: number) => (Number(n) ? fmtNumberOf(n) : '')
         return { kind: k, node: (
           <table className="w-full text-left">
             <thead>
@@ -217,7 +217,7 @@ export default function DailyReportPage() {
                 </tr>,
                 ...o.lines.map((l) => (
                   <tr key={`l${o.id}-${l.id}`}>
-                    <td colSpan={3}>{itemLabel(l.itemName, l.spec)}</td><td className="text-right">{qty2(l.quantity)}</td><td className="text-right">{num(l.unitPrice)}</td>
+                    <td colSpan={3}>{itemLabel(l.itemName, l.spec)}</td><td className="text-right">{qty2(l.quantity)}</td><td className="text-right">{fmtNumberOf(l.unitPrice)}</td>
                     <td className="text-right">{blank(l.supplyAmount)}</td><td className="text-right">{blank(l.vatAmount)}</td><td>{o.dueDate ? ymd(o.dueDate) : ''}</td>
                   </tr>)),
               ])}
@@ -255,7 +255,7 @@ export default function DailyReportPage() {
         const rows = d.adjusts.filter((a) => a.type === 'ADJUST' && inP(a.adjustDate) && ok({ warehouseIds: [a.warehouseId], projectId: a.projectId, itemIds: [a.itemId] }))
           .sort(byAsc((a) => a.adjustDate, (a) => a.adjustNo))
         return { kind: k, node: <LineTable head={['일자-No.', '품목코드', '품목명[규격]', '창고명', '장부수량', '실사수량', '조정수량', '금액(수량*입고단가)', '적요']} right={[4, 5, 6, 7]}
-          rows={rows.map((a) => [shortDateNo(a.adjustDate, a.adjustNo), a.itemCode, itemLabel(a.itemName, a.spec), a.warehouseName, num(a.beforeQty), num(a.afterQty), num(a.quantityChange), '', a.reason ?? ''])} /> }
+          rows={rows.map((a) => [shortDateNo(a.adjustDate, a.adjustNo), a.itemCode, itemLabel(a.itemName, a.spec), a.warehouseName, fmtNumberOf(a.beforeQty), fmtNumberOf(a.afterQty), fmtNumberOf(a.quantityChange), '', a.reason ?? ''])} /> }
       }
       if (k === '생산입고') {
         const rows = d.productions.filter((p) => inP(p.productionDate) && ok({ warehouseIds: [p.warehouseId, p.fromWarehouseId], projectId: p.projectId, itemIds: [p.productId] }))
@@ -270,8 +270,8 @@ export default function DailyReportPage() {
       const days = [...new Set(rows.map((t) => t.transferDate))]
       days.forEach((day) => {
         const ds = rows.filter((t) => t.transferDate === day)
-        ds.forEach((t) => body.push({ cells: [dateNo(t.transferDate, t.transferNo), t.fromWarehouseName, t.toWarehouseName, t.itemName, num(t.quantity), '', t.reason ?? ''] }))
-        body.push({ cells: [`${day.replace(/-/g, '/')} 계`, '', '', '', num(ds.reduce((a, t) => a + Number(t.quantity), 0)), '', ''], bold: true })
+        ds.forEach((t) => body.push({ cells: [dateNo(t.transferDate, t.transferNo), t.fromWarehouseName, t.toWarehouseName, t.itemName, fmtNumberOf(t.quantity), '', t.reason ?? ''] }))
+        body.push({ cells: [`${day.replace(/-/g, '/')} 계`, '', '', '', fmtNumberOf(ds.reduce((a, t) => a + Number(t.quantity), 0)), '', ''], bold: true })
       })
       return { kind: k, node: <LineTable head={['일자-No.', '출고창고명', '입고창고명', '품목명[규격]', '수량', '금액(수량*입고단가)', '적요']} right={[4, 5]} rows={body} /> }
     })

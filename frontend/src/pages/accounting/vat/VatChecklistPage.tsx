@@ -9,7 +9,7 @@ import EcPeriodPicks, { periodOf } from '../../../components/EcPeriodPicks'
 import { EcReportFoot, reportDate } from '../../../components/EcReportFrame'
 import { useAuth } from '../../../features/auth/AuthContext'
 import type { IncomeStatement, JournalEntry } from '../../../types/api'
-import { fmtAmountBlank } from '../../../utils/format'
+import { fmtAmount, fmtAmountBlank } from '../../../utils/format'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface AccountOpt { code: string; detailCategory: string | null; division: string }
@@ -33,7 +33,6 @@ const CASH_CODES = ['1019', '1029', '1039']
 /** 원본 4. 의 상대 — 이카운트(회사)와 주고받은 세금계산서. */
 const ECOUNT = '이카운트'
 /** 6. 중복거래의 부가세는 0 도 찍는다(원본 계산서 줄 '100,000 · 0 · 100,000'). */
-const num = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const lastDay = (m: string) => {
   const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)
   return `${m}-${String(d.getDate()).padStart(2, '0')}`
@@ -234,10 +233,10 @@ export default function VatChecklistPage() {
           <p className="mt-[12px] mb-[4px]">6.중복거래 확인대상 자료</p>
           <p className="mb-[4px]">매출</p>
           <CheckTable title="6. 중복 매출" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]} cols={[99, 290, 120, 120, 120]}
-                      rows={sheet.dupSales.map((r) => [reportDate(r.date), r.partner, fmtAmountBlank(r.supply), num(r.vat), fmtAmountBlank(r.supply + r.vat)])} />
+                      rows={sheet.dupSales.map((r) => [reportDate(r.date), r.partner, fmtAmountBlank(r.supply), fmtAmount(r.vat), fmtAmountBlank(r.supply + r.vat)])} />
           <p className="mt-[8px] mb-[4px]">매입</p>
           <CheckTable title="6. 중복 매입" head={['일자', '거래처명', '공급가액', '부가세', '합계']} right={[2, 3, 4]} cols={[99, 290, 120, 120, 120]}
-                      rows={sheet.dupPurchases.map((r) => [reportDate(r.date), r.partner, fmtAmountBlank(r.supply), num(r.vat), fmtAmountBlank(r.supply + r.vat)])} />
+                      rows={sheet.dupPurchases.map((r) => [reportDate(r.date), r.partner, fmtAmountBlank(r.supply), fmtAmount(r.vat), fmtAmountBlank(r.supply + r.vat)])} />
 
           <EcReportFoot page={false} />
         </div>

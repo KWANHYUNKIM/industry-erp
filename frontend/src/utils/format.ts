@@ -53,6 +53,9 @@ export const fmtNumberBlankOf = (n: number | null | undefined) => (Number(n) ? N
 /** Number 로 바꿔서 · null · undefined 는 '0' (연말정산 공제자료) */
 export const fmtNumberOrZero = (n: number | null | undefined) => Number(n ?? 0).toLocaleString('ko-KR')
 
+/** Number 로 바꿔서 · null · undefined · 0(문자열 '0' 포함)은 빈칸 — NaN 은 'NaN' 그대로 (원천징수 비교 · 연말정산 검토) */
+export const fmtNumberNullZeroBlank = (n: number | null | undefined) => (n == null || Number(n) === 0 ? '' : Number(n).toLocaleString('ko-KR'))
+
 /** 입력칸 글자 → 콤마 찍은 글자 · 빈 글자는 빈칸 · 콤마가 이미 있으면 'NaN' (일용직 입력칸 — 값은 콤마 없는 글자로 들고 있다) */
 export const fmtNumberText = (s: string) => (s === '' ? '' : Number(s).toLocaleString('ko-KR'))
 

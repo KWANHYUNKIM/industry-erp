@@ -3,8 +3,8 @@ import EcListShell from '../../../components/EcListShell'
 import { EcCond } from '../../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../../api/client'
 import type { WithholdingComparisonRow } from '../../../types/api'
+import { fmtNumberNullZeroBlank } from '../../../utils/format'
 
-const num = (n: number | null | undefined) => (n == null || Number(n) === 0 ? '' : Number(n).toLocaleString('ko-KR'))
 type Company = { name?: string; bizRegNo?: string }
 
 /**
@@ -100,14 +100,14 @@ export default function WithholdingComparisonPage() {
               <tr key={`${r.month ?? 'sum'}-${r.kind}`}>
                 {firstOfGroup(i) && <td rowSpan={groupSize(i)} className="text-center">{r.month ? `${r.month.slice(5)}월` : '합계'}</td>}
                 <td>{r.kind}</td>
-                <td className="text-right">{num(r.count)}</td>
-                <td className="text-right">{num(r.gross)}</td>
-                <td className="text-right">{num(r.nonTaxable)}</td>
-                <td className="text-right">{num(r.incomeTax)}</td>
-                <td className="text-right">{num(r.localIncomeTax)}</td>
-                <td className="text-right">{num(r.reportedCount)}</td>
-                <td className="text-right">{num(r.reportedGross)}</td>
-                <td className="text-right">{num(r.reportedTax)}</td>
+                <td className="text-right">{fmtNumberNullZeroBlank(r.count)}</td>
+                <td className="text-right">{fmtNumberNullZeroBlank(r.gross)}</td>
+                <td className="text-right">{fmtNumberNullZeroBlank(r.nonTaxable)}</td>
+                <td className="text-right">{fmtNumberNullZeroBlank(r.incomeTax)}</td>
+                <td className="text-right">{fmtNumberNullZeroBlank(r.localIncomeTax)}</td>
+                <td className="text-right">{fmtNumberNullZeroBlank(r.reportedCount)}</td>
+                <td className="text-right">{fmtNumberNullZeroBlank(r.reportedGross)}</td>
+                <td className="text-right">{fmtNumberNullZeroBlank(r.reportedTax)}</td>
                 <td className="text-center">{r.differs ? <span className="text-[var(--ec-bg-tag)]" title="차이">✔</span> : ''}</td>
               </tr>
             ))}

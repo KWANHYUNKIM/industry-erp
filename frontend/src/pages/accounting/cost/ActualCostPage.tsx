@@ -14,7 +14,7 @@ import CodePickerField from '../../../components/codepicker/CodePickerField'
 import { useCostPeriods, costPeriodText, inCostPeriod } from '../../../utils/costPeriods'
 import { useCondPickers } from '../../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
-import { fmtAmountOrDash } from '../../../utils/format'
+import { fmtAmountOrDash, fmtNumber } from '../../../utils/format'
 
 /** 원본 [Option] (이익관리 현황 3화면 2026-10-22 실측) — 검색항목설정 · 양식설정 ▸(✓ 기본(수정불가) · ✓ 현재 양식 · 신규양식추가). 양식 · 검색항목 디자이너는 두지 않는다. */
 const OPTION_MENU = [
@@ -127,7 +127,6 @@ interface CostLedgerRow {
   decreaseQty: number; decreaseAmount: number; closingQty: number; closingAmount: number
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 원가집계표는 0 을 찍지 않는다(증가 · 감소가 없는 달은 빈칸). */
 const nz = (n: number | null) => (n == null || n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 /** 원본 [누계] 줄의 수량은 소수 둘째 자리까지 찍힌다('546,009.00'). */
@@ -758,7 +757,7 @@ export default function ActualCostPage() {
                     <td>{r.itemCode}</td>
                     <td>{r.itemName}</td>
                     <td>{r.warehouseName}</td>
-                    <td className="text-right">{num(qty)} <span className="text-[11px] text-ec-hint">{r.unit}</span></td>
+                    <td className="text-right">{fmtNumber(qty)} <span className="text-[11px] text-ec-hint">{r.unit}</span></td>
                     <td style={{ textAlign: 'right', color: price == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{fmtAmountOrDash(price)}</td>
                     <td className="text-right font-bold">{fmtAmountOrDash(price == null ? null : qty * price)}</td>
                     <td className="text-ec-label">{r.note ?? ''}</td>
@@ -771,7 +770,7 @@ export default function ActualCostPage() {
                 <tr className="font-bold bg-ec-page">
                   <td colSpan={5} className="text-right">합계 ({detail.length}건)</td>
                   <td className="text-right">
-                    {num(detail.reduce((n, r) => n + Math.abs(r.quantityChange), 0))}
+                    {fmtNumber(detail.reduce((n, r) => n + Math.abs(r.quantityChange), 0))}
                   </td>
                   <td></td>
                   <td className="text-right text-ec-navy">

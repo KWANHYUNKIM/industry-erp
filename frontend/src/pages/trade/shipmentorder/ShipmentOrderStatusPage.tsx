@@ -10,6 +10,7 @@ import { dateNo } from '../../../utils/dateNo'
 import { useItemMgmt } from '../../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../../utils/partnerManagers'
 import { EcDateRange } from '../../../components/ui/EcDateInput'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 영업관리 > 출력물 > <b>출하지시서현황</b>.
@@ -82,7 +83,6 @@ interface Shipment {
  */
 type Mode = '현황' | '집계'
 const MODES = ['현황', '집계'] as const
-const num = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 수량 칸 — '4.00' 소수 둘(2026-10-20 E040222 실측). */
 const qty = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -386,15 +386,15 @@ export default function ShipmentOrderStatusPage() {
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{r.spec ? r.name + '(' + r.spec + ')' : r.name}</td>
                 <td>{r.unit}</td>
-                <td className="text-right">{num(r.count)}</td>
-                <td className="text-right font-semibold text-ec-warn">{num(r.qty)}</td>
+                <td className="text-right">{fmtNumber(r.count)}</td>
+                <td className="text-right font-semibold text-ec-warn">{fmtNumber(r.qty)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
               <td colSpan={4} className="text-right">합계 ({byItem.length}품목)</td>
-              <td className="text-right text-ec-warn">{num(totalQty)}</td>
+              <td className="text-right text-ec-warn">{fmtNumber(totalQty)}</td>
             </tr>
           </tfoot>
         </table>

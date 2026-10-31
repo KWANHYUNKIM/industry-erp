@@ -18,6 +18,7 @@ import EcGridToolbar, { EcWebUploadButton } from '../../../components/EcGridTool
 import { useMyItemsPick, MyItemsNote } from '../../../components/codepicker/MyItemsButton'
 import EcDateInput from '../../../components/ui/EcDateInput'
 import GridSortModal from '../../../components/GridSortModal'
+import { fmtNumber } from '../../../utils/format'
 
 /** reason = 줄 [새로운 항목 추가](줄 적요 — 원본 '다양한 내역을 입력해보세요'). */
 type Line = { itemId: string; quantity: string; kind: string; reason: string }
@@ -25,7 +26,6 @@ type Grid = 'defect' | 'normal'
 const blank = (): Line => ({ itemId: '', quantity: '', kind: '', reason: '' })
 /** 원본 격자는 빈 줄 셋으로 뜬다. */
 const blankLines = () => [blank(), blank(), blank()]
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 /**
  * 재고 I › 기타이동 › 자가사용 › <b>자가사용입력</b>(E040503) · 자가사용조회에서 연 <b>자가사용수정</b> — 2026-10-12 loginaa 실측.
@@ -403,7 +403,7 @@ export default function SelfUseInputPage({ adjustNo: openedNo, onDone: onDonePro
               })}
               <tr className="ec-total">
                 <td colSpan={4} />
-                <td className="text-right">{num(totalQty)}</td>
+                <td className="text-right">{fmtNumber(totalQty)}</td>
                 <td />
                 <td />
               </tr>

@@ -4,13 +4,13 @@ import { EcCond } from '../../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../../api/client'
 import { yearEndApi, type Settlement } from '../../../features/yearend/api'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
+import { fmtNumberNullZeroBlank } from '../../../utils/format'
 
 type Emp = { id: number; code: string; name: string; department?: string | null; hireDate?: string | null; resignDate?: string | null }
 type Company = { name?: string; bizRegNo?: string }
 type Who = '전체' | '재직자' | '퇴사자'
 
 /** 0 은 빈칸 — 원본 검토표 II 합계줄이 자료 없을 때 빈칸이다. */
-const num = (n: number | null | undefined) => (n == null || Number(n) === 0 ? '' : Number(n).toLocaleString('ko-KR'))
 const ymd = (d?: string | null) => (d ? d.replace(/-/g, '/') : '')
 
 /**
@@ -152,7 +152,7 @@ function ReviewOne({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
           const leadCells = [
             [<td key="c" colSpan={3} className="text-center">{e?.code ?? ''}</td>],
             [<td key="n" colSpan={3} className="text-center">{e?.name ?? ''}</td>],
-            [<td key="a" className="text-center">{num(dependents)}</td>, <td key="b" />, <td key="c" />],
+            [<td key="a" className="text-center">{fmtNumberNullZeroBlank(dependents)}</td>, <td key="b" />, <td key="c" />],
             [<td key="a" />, <td key="b" />, <td key="c" />],
           ]
           return (
@@ -160,7 +160,7 @@ function ReviewOne({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
               {cells.map((line, i) => (
                 <tr key={i}>
                   {leadCells[i]}
-                  {line.map((v, j) => <td key={j} className="text-right">{typeof v === 'number' ? num(v) : v}</td>)}
+                  {line.map((v, j) => <td key={j} className="text-right">{typeof v === 'number' ? fmtNumberNullZeroBlank(v) : v}</td>)}
                 </tr>
               ))}
             </Fragment>
@@ -213,7 +213,7 @@ function ReviewTwo({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
             <tr key={l.empId}>
               <td className="text-center">{e?.code ?? ''}</td><td className="text-center">{e?.name ?? ''}</td>
               <td className="text-center">{ymd(e?.hireDate)}</td><td className="text-center">{ymd(e?.resignDate)}</td>
-              {[l.a, l.b, l.c, l.d, l.e, l.target, l.f, l.g, l.diff].map((v, i) => <td key={i} className="text-right">{num(v)}</td>)}
+              {[l.a, l.b, l.c, l.d, l.e, l.target, l.f, l.g, l.diff].map((v, i) => <td key={i} className="text-right">{fmtNumberNullZeroBlank(v)}</td>)}
             </tr>
           )
         })}
@@ -221,9 +221,9 @@ function ReviewTwo({ list, emp }: { list: Settlement[]; emp: (id: number) => Emp
       <tfoot>
         <tr>
           <td colSpan={4} className="text-center">합계</td>
-          <td className="text-right">{num(sum('a'))}</td><td className="text-right">{num(sum('b'))}</td><td className="text-right">{num(sum('c'))}</td>
-          <td className="text-right">{num(sum('d'))}</td><td className="text-right">{num(sum('e'))}</td><td className="text-right">{num(sum('target'))}</td>
-          <td className="text-right">{num(sum('f'))}</td><td className="text-right">{num(sum('g'))}</td><td className="text-right">{num(sum('diff'))}</td>
+          <td className="text-right">{fmtNumberNullZeroBlank(sum('a'))}</td><td className="text-right">{fmtNumberNullZeroBlank(sum('b'))}</td><td className="text-right">{fmtNumberNullZeroBlank(sum('c'))}</td>
+          <td className="text-right">{fmtNumberNullZeroBlank(sum('d'))}</td><td className="text-right">{fmtNumberNullZeroBlank(sum('e'))}</td><td className="text-right">{fmtNumberNullZeroBlank(sum('target'))}</td>
+          <td className="text-right">{fmtNumberNullZeroBlank(sum('f'))}</td><td className="text-right">{fmtNumberNullZeroBlank(sum('g'))}</td><td className="text-right">{fmtNumberNullZeroBlank(sum('diff'))}</td>
         </tr>
       </tfoot>
     </table>

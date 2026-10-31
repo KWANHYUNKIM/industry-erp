@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {
   fmtAmount, fmtAmountBlank, fmtAmountNz, fmtAmountOf, fmtAmountOrDash, fmtDecimal4, fmtNumber, fmtNumberBlank, fmtNumberOf, fmtNumberOrBlank,
   fmtTrunc, fmtTruncBlankOf,
-  fmtNumberNz, fmtNumberBlankOf, fmtNumberOrZero, fmtNumberText, fmtAmountOrBlank, fmtAmountHalfAway, fmtTruncNz,
+  fmtNumberNz, fmtNumberBlankOf, fmtNumberOrZero, fmtNumberNullZeroBlank, fmtNumberText, fmtAmountOrBlank, fmtAmountHalfAway, fmtTruncNz,
 } from './format.ts'
 
 // 서버 값이 타입과 달리 문자열 · null 로 오는 경우까지 — 지역 won 이 그때 찍던 그대로여야 한다.
@@ -130,6 +130,17 @@ test('fmtNumberOrZero — null 은 0', () => {
   assert.equal(fmtNumberOrZero(-1234.5), '-1,234.5')
   assert.equal(fmtNumberOrZero(odd('')), '0')
   assert.equal(fmtNumberOrZero(odd('1234.5')), '1,234.5')
+})
+
+test('fmtNumberNullZeroBlank — null · 0 은 빈칸, NaN 은 NaN', () => {
+  assert.equal(fmtNumberNullZeroBlank(0), '')
+  assert.equal(fmtNumberNullZeroBlank(null), '')
+  assert.equal(fmtNumberNullZeroBlank(undefined), '')
+  assert.equal(fmtNumberNullZeroBlank(odd('')), '')
+  assert.equal(fmtNumberNullZeroBlank(odd('0')), '')
+  assert.equal(fmtNumberNullZeroBlank(NaN), 'NaN')
+  assert.equal(fmtNumberNullZeroBlank(-1234.5), '-1,234.5')
+  assert.equal(fmtNumberNullZeroBlank(0.25), '0.25')
 })
 
 test('fmtNumberText — 입력 글자, 빈 글자는 빈칸', () => {

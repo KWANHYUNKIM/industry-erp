@@ -12,6 +12,7 @@ import { periodOf } from '../../../components/EcPeriodPicks'
 import { useItemFlags } from '../../../utils/useInactiveItems'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../../components/EcReportFrame'
+import { fmtNumber } from '../../../utils/format'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -35,7 +36,6 @@ interface LedgerResponse {
   truncated: boolean
 }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 interface ServerFilters {
   from: string; to: string; itemId: string; warehouseId: string
@@ -443,7 +443,7 @@ export default function StockLedgerPage() {
       */}
       {truncated && (
         <p style={{ background: 'var(--ec-warn-bg)', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
-          모두 {num(totalRows)}줄 중 앞 {num(rows.length)}줄만 보고 있습니다.
+          모두 {fmtNumber(totalRows)}줄 중 앞 {fmtNumber(rows.length)}줄만 보고 있습니다.
           기간을 좁히거나 품목·창고를 고르면 전부 볼 수 있고, 그대로 다 보려면 [오천건이상조회]를 누르세요.
         </p>
       )}
@@ -548,8 +548,8 @@ export default function StockLedgerPage() {
               <td className="text-right">{inQ ? qty2(inQ) : ''}</td>
               <td className="text-right">{outQ ? qty2(outQ) : ''}</td>
               <td className="text-right">{qty2(bal)}</td>
-              {showPrice && <td className="text-right">{basePrice != null ? num(basePrice) : ''}</td>}
-              {showPrice && <td className="text-right">{amount != null ? num(amount) : ''}</td>}
+              {showPrice && <td className="text-right">{basePrice != null ? fmtNumber(basePrice) : ''}</td>}
+              {showPrice && <td className="text-right">{amount != null ? fmtNumber(amount) : ''}</td>}
             </tr>,
           )
         })

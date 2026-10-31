@@ -9,12 +9,12 @@ import { SlipHistoryModal, slipHeadLabel } from '../sliphistory/SlipHistoryModal
 import EcGridToolbar, { EcWebUploadButton } from '../../components/EcGridToolbar'
 import { useMyItemsPick, MyItemsNote } from '../../components/codepicker/MyItemsButton'
 import { todayYmd } from '../../utils/periods'
+import { fmtNumber } from '../../utils/format'
 
 /** 창고이동 한 줄. 같은 이동번호의 줄들이 전표 한 장이다(서버 V426) — lineNo 는 전표 안 줄 차례. */
 export type StockTransfer = TransferRow & { lineNo?: number; createdAt?: string | null; updatedAt?: string | null }
 export interface CodeRow { id: number; code: string; name: string }
 
-const num = (n: number) => n.toLocaleString('ko-KR')
 
 /** 원본 이동번호 꼴 '2026/10/21 -2' — 우리 이동번호 TR-20261021-0002 의 날짜와 일련번호. */
 export function slipNoText(date: string, no: string) {
@@ -221,7 +221,7 @@ export function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, 
                   <input className="ec-input text-right w-[90px]" type="number" step="any" aria-label={`${i + 1}번째 줄 수량`}
                          value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} />
                 </td>
-                <td className="text-right text-ec-hint">{have === null ? '' : num(have)}</td>
+                <td className="text-right text-ec-hint">{have === null ? '' : fmtNumber(have)}</td>
                 <td>
                   <input className="ec-input w-full" type="text" aria-label={`${i + 1}번째 줄 적요`} value={l.reason}
                          onChange={(e) => setLine(i, 'reason', e.target.value)} />
@@ -234,7 +234,7 @@ export function TransferForm({ slip, onDelete, onPrint, onNav, onCopy, onClose, 
             <td colSpan={3} className="text-ec-hint">
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => setLines((ls) => [...ls, blankLine()])}>줄 추가</button>
             </td>
-            <td className="text-right font-semibold">{num(total)}</td>
+            <td className="text-right font-semibold">{fmtNumber(total)}</td>
             <td colSpan={3}></td>
           </tr>
         </tbody>
