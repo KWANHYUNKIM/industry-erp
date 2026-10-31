@@ -1,6 +1,11 @@
 package com.erp.common;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -19,50 +24,65 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 전역 예외 처리. 일관된 JSON 형태로 오류를 반환한다.
+ * 전역 예외 처리. 오류는 RFC 9457 Problem Details({@code application/problem+json})로 돌려준다.
+ *
+ * <p>표준 필드 {@code type · title · status · detail · instance} 에 더해 확장 필드를 싣는다:
+ * <ul>
+ *   <li>{@code message} — {@code detail} 과 같은 문구. 프론트 {@code api/client.ts} 와 {@code qa/*.mjs} 가
+ *       이것만 읽으므로 남긴다(docs/백엔드-API-설계.md 5장 2번 — 유지).</li>
+ *   <li>{@code timestamp} — 예전 꼴과 같게.</li>
+ *   <li>{@code errors[]} — 요청 본문 검증 실패일 때 칸마다 {@code {field, message}}.</li>
+ *   <li>{@code permission} — 업무권한 거부일 때.</li>
+ * </ul>
+ * 상태코드 매핑은 ProblemDetail 이전과 한 줄도 다르지 않다.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private record ErrorResponse(int status, String message, LocalDateTime timestamp) {
-        static ErrorResponse of(HttpStatus status, String message) {
-            return new ErrorResponse(status.value(), message, LocalDateTime.now());
-        }
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /** 확장 필드 {@code errors[]} 의 한 칸. */
+    public record FieldProblem(String field, String message) {}
+
+    static ProblemDetail problem(HttpStatusCode status, String message) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(status, message);
+        if (status instanceof HttpStatus hs) pd.setTitle(hs.getReasonPhrase());
+        pd.setProperty("message", message);
+        pd.setProperty("timestamp", LocalDateTime.now());
+        return pd;
     }
 
     /** 업무권한 거부 — 본문에 permission{work, workName, kind, action, menu} 를 더 싣는다. */
-    private record PermissionErrorResponse(int status, String message, LocalDateTime timestamp,
-                                           PermissionDeniedException.Detail permission) {}
-
     @ExceptionHandler(PermissionDeniedException.class)
-    public ResponseEntity<PermissionErrorResponse> handlePermission(PermissionDeniedException e) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new PermissionErrorResponse(403, e.getMessage(), LocalDateTime.now(), e.getDetail()));
+    public ResponseEntity<ProblemDetail> handlePermission(PermissionDeniedException e) {
+        ProblemDetail pd = problem(HttpStatus.FORBIDDEN, e.getMessage());
+        pd.setProperty("permission", e.getDetail());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(pd);
     }
 
     @ExceptionHandler(ApiException.class)
-    public ResponseEntity<ErrorResponse> handleApi(ApiException e) {
+    public ResponseEntity<ProblemDetail> handleApi(ApiException e) {
         return ResponseEntity.status(e.getStatus())
-                .body(ErrorResponse.of(e.getStatus(), e.getMessage()));
+                .body(problem(e.getStatus(), e.getMessage()));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException e) {
+    public ResponseEntity<ProblemDetail> handleBadCredentials(BadCredentialsException e) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ErrorResponse.of(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."));
+                .body(problem(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."));
     }
 
     /** 사용중지한 아이디로 로그인 — 전에는 '서버 오류가 발생했습니다: User is disabled'(500)로 새었다. 원본 문구 미실측. */
     @ExceptionHandler(DisabledException.class)
-    public ResponseEntity<ErrorResponse> handleDisabled(DisabledException e) {
+    public ResponseEntity<ProblemDetail> handleDisabled(DisabledException e) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ErrorResponse.of(HttpStatus.UNAUTHORIZED, "사용이 중지된 아이디입니다.\n마스터에게 문의 바랍니다."));
+                .body(problem(HttpStatus.UNAUTHORIZED, "사용이 중지된 아이디입니다.\n마스터에게 문의 바랍니다."));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException e) {
+    public ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorResponse.of(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."));
+                .body(problem(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."));
     }
 
     /**
@@ -92,7 +112,7 @@ public class GlobalExceptionHandler {
      * (3) 항목을 쉼표로 나눈다.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
+    public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(GlobalExceptionHandler::describe)
                 .distinct()
@@ -100,8 +120,14 @@ public class GlobalExceptionHandler {
         if (message.isBlank()) {
             message = "입력값이 올바르지 않습니다.";
         }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, message));
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, message);
+        // 어느 칸이 틀렸는지 화면이 집을 수 있게 칸마다 따로 싣는다(P3). 문구는 제약에 적힌 그대로.
+        pd.setProperty("errors", e.getBindingResult().getFieldErrors().stream()
+                .map(fe -> new FieldProblem(fe.getField(),
+                        fe.getDefaultMessage() == null || fe.getDefaultMessage().isBlank()
+                                ? "값이 올바르지 않습니다." : fe.getDefaultMessage()))
+                .toList());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(pd);
     }
 
     private static String describe(FieldError error) {
@@ -122,7 +148,7 @@ public class GlobalExceptionHandler {
             MethodArgumentTypeMismatchException.class,
             HttpMessageNotReadableException.class,
     })
-    public ResponseEntity<ErrorResponse> handleBadRequest(Exception e) {
+    public ResponseEntity<ProblemDetail> handleBadRequest(Exception e) {
         String message;
         if (e instanceof MissingServletRequestParameterException me) {
             message = "필수 요청 파라미터가 없습니다: " + me.getParameterName();
@@ -132,7 +158,7 @@ public class GlobalExceptionHandler {
             message = "요청 본문을 읽을 수 없습니다.";
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, message));
+                .body(problem(HttpStatus.BAD_REQUEST, message));
     }
 
     /**
@@ -140,10 +166,10 @@ public class GlobalExceptionHandler {
      * 사용자 잘못이므로 500 이 아니라 400 으로 돌려준다.
      */
     @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
-    public ResponseEntity<ErrorResponse> handleUploadTooLarge(
+    public ResponseEntity<ProblemDetail> handleUploadTooLarge(
             org.springframework.web.multipart.MaxUploadSizeExceededException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "파일이 너무 큽니다. 최대 "
+                .body(problem(HttpStatus.BAD_REQUEST, "파일이 너무 큽니다. 최대 "
                         + (FileStorageService.MAX_FILE_BYTES / 1024 / 1024) + "MB 까지 올릴 수 있습니다."));
     }
 
@@ -153,18 +179,18 @@ public class GlobalExceptionHandler {
      * 서버가 고장난 게 아니라 요청이 규약에 안 맞는 것이므로 제 상태코드로 돌려준다.
      */
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+    public ResponseEntity<ProblemDetail> handleMethodNotAllowed(
             org.springframework.web.HttpRequestMethodNotSupportedException e) {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(ErrorResponse.of(HttpStatus.METHOD_NOT_ALLOWED,
+                .body(problem(HttpStatus.METHOD_NOT_ALLOWED,
                         "이 주소에서 지원하지 않는 방식입니다: " + e.getMethod()));
     }
 
     @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
-    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(
+    public ResponseEntity<ProblemDetail> handleUnsupportedMediaType(
             org.springframework.web.HttpMediaTypeNotSupportedException e) {
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                .body(ErrorResponse.of(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                .body(problem(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
                         "본문 형식을 지원하지 않습니다. JSON 으로 보내세요."));
     }
 
@@ -175,19 +201,19 @@ public class GlobalExceptionHandler {
      * 왜 그런지 알아낼 방법이 없었다.
      */
     @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
-    public ResponseEntity<ErrorResponse> handleNotAcceptable(
+    public ResponseEntity<ProblemDetail> handleNotAcceptable(
             org.springframework.web.HttpMediaTypeNotAcceptableException e) {
         return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE)
-                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .body(ErrorResponse.of(HttpStatus.NOT_ACCEPTABLE,
+                .contentType(org.springframework.http.MediaType.APPLICATION_PROBLEM_JSON)
+                .body(problem(HttpStatus.NOT_ACCEPTABLE,
                         "요청한 응답 형식을 만들 수 없습니다. 이 API 는 JSON 만 돌려줍니다."));
     }
 
     @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
-    public ResponseEntity<ErrorResponse> handleMultipart(
+    public ResponseEntity<ProblemDetail> handleMultipart(
             org.springframework.web.multipart.MultipartException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST,
+                .body(problem(HttpStatus.BAD_REQUEST,
                         "파일 업로드 형식이 아닙니다. multipart/form-data 로 보내세요."));
     }
 
@@ -200,9 +226,9 @@ public class GlobalExceptionHandler {
             org.springframework.web.servlet.resource.NoResourceFoundException.class,
             org.springframework.web.servlet.NoHandlerFoundException.class,
     })
-    public ResponseEntity<ErrorResponse> handleNotFound(Exception e) {
+    public ResponseEntity<ProblemDetail> handleNotFound(Exception e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of(HttpStatus.NOT_FOUND, "요청한 경로를 찾을 수 없습니다."));
+                .body(problem(HttpStatus.NOT_FOUND, "요청한 경로를 찾을 수 없습니다."));
     }
 
     /**
@@ -214,7 +240,7 @@ public class GlobalExceptionHandler {
      * 그건 서버 잘못이 아니라 요청이 성립하지 않는 것이므로 409 로 돌려준다.
      */
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDataIntegrity(
+    public ResponseEntity<ProblemDetail> handleDataIntegrity(
             org.springframework.dao.DataIntegrityViolationException e) {
         String sqlState = sqlStateOf(e);
         String raw = rootMessage(e);
@@ -223,7 +249,7 @@ public class GlobalExceptionHandler {
         if ("23503".equals(sqlState)) {
             String where = referencingTable(raw);
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ErrorResponse.of(HttpStatus.CONFLICT,
+                    .body(problem(HttpStatus.CONFLICT,
                             where == null
                                     ? "다른 자료에서 쓰고 있어 지울 수 없습니다."
                                     : "%s에서 쓰고 있어 지울 수 없습니다. 먼저 그쪽을 정리하세요.".formatted(where)));
@@ -231,16 +257,16 @@ public class GlobalExceptionHandler {
         // 23505 unique_violation
         if ("23505".equals(sqlState)) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ErrorResponse.of(HttpStatus.CONFLICT, "이미 같은 값이 등록돼 있습니다."));
+                    .body(problem(HttpStatus.CONFLICT, "이미 같은 값이 등록돼 있습니다."));
         }
         // 23502 not_null_violation · 23514 check_violation — 값이 잘못된 것이라 400
         if ("23502".equals(sqlState)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "필수 값이 비어 있습니다."));
+                    .body(problem(HttpStatus.BAD_REQUEST, "필수 값이 비어 있습니다."));
         }
         if ("23514".equals(sqlState)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "허용되지 않는 값입니다."));
+                    .body(problem(HttpStatus.BAD_REQUEST, "허용되지 않는 값입니다."));
         }
         /*
          * 22001 string_data_right_truncation — 글자가 칸보다 길다.
@@ -257,17 +283,17 @@ public class GlobalExceptionHandler {
             java.util.regex.Matcher m =
                     java.util.regex.Pattern.compile("character varying\\((\\d+)\\)").matcher(raw);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, m.find()
+                    .body(problem(HttpStatus.BAD_REQUEST, m.find()
                             ? "입력한 글자가 너무 깁니다. %s자까지 넣을 수 있습니다.".formatted(m.group(1))
                             : "입력한 글자가 너무 깁니다."));
         }
         // 22003 numeric_value_out_of_range — 숫자가 칸보다 크다. 이것도 값이 잘못된 것이다.
         if ("22003".equals(sqlState)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ErrorResponse.of(HttpStatus.BAD_REQUEST, "입력한 숫자가 너무 큽니다. 자릿수를 확인하세요."));
+                    .body(problem(HttpStatus.BAD_REQUEST, "입력한 숫자가 너무 큽니다. 자릿수를 확인하세요."));
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.of(HttpStatus.CONFLICT, "저장할 수 없습니다. 자료가 서로 맞지 않습니다."));
+                .body(problem(HttpStatus.CONFLICT, "저장할 수 없습니다. 자료가 서로 맞지 않습니다."));
     }
 
     private static String sqlStateOf(Throwable e) {
@@ -333,10 +359,14 @@ public class GlobalExceptionHandler {
             Map.entry("employees", "사원"),
             Map.entry("payslips", "급여명세"));
 
+    /**
+     * 예상하지 못한 오류. 예외 문구(SQL · 클래스명 · 내부 경로가 섞일 수 있다)는 응답에 싣지 않고
+     * 서버 로그에 스택과 함께 남긴다.
+     */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneral(Exception e) {
+    public ResponseEntity<ProblemDetail> handleGeneral(Exception e, HttpServletRequest request) {
+        log.error("처리되지 않은 예외 {} {}", request.getMethod(), request.getRequestURI(), e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.of(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "서버 오류가 발생했습니다: " + e.getMessage()));
+                .body(problem(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."));
     }
 }
