@@ -16,7 +16,7 @@ import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 import { fmtAmount } from '../../utils/format'
 
 /** 원본 날짜 모양 — 연도를 두 자리로 찍는다(26/10/12-2 · 25/07/12, 2026-10-03 실측). */
@@ -383,7 +383,7 @@ export default function PurchaseRequestListPage() {
         </tbody>
       </table>
       {form && (
-        <ProductionSlipWindow title={form.order && form.order.id > 0 ? '발주요청입력(수정)' : '발주요청입력'}
+        <SlipWindow title={form.order && form.order.id > 0 ? '발주요청입력(수정)' : '발주요청입력'}
                               popout="/sales/purchase-request-input" onClose={() => setForm(null)}>
           {/* 원본 발주요청입력(수정) 머리 [확인취소] — 이 회사 설정으로는 알림만 뜬다(판매 · 주문 수정 창과 같다). */}
           {form.order && form.order.id > 0 && (
@@ -398,7 +398,7 @@ export default function PurchaseRequestListPage() {
             onDeleted={() => { setForm(null); void load() }}
             onCopy={(src) => openForm({ ...src, id: 0, orderDate: new Date().toLocaleDateString('sv-SE'), dueDate: new Date().toLocaleDateString('sv-SE') })}
             onStep={step} />
-        </ProductionSlipWindow>
+        </SlipWindow>
       )}
       {planSeed && (
         <PurchaseRequestForm key={planSeed.key} editing={null} plan seed={planSeed}

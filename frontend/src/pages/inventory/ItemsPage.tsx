@@ -22,7 +22,7 @@ import { shrinkImage } from '../../utils/imageResize'
 import EcIcon from '../../components/ui/EcIcon'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import { MenuButton } from '../../components/EcSlipShell'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 
 /** 원본에 있고 우리에게 받쳐 줄 것이 없는 메뉴 · 단추 — 누르면 안내만 한다. */
 const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
@@ -913,7 +913,7 @@ export default function ItemsPage() {
         알약 탭 기본 · 품목정보 · 수량 · 단가 · 원가 · 부가정보 · 관리대상.
       */}
       {showForm && (
-      <ProductionSlipWindow title="품목등록" popout="/inventory/items" onClose={closeForm}>
+      <SlipWindow title="품목등록" popout="/inventory/items" onClose={closeForm}>
         <form onSubmit={submit} className="my-[8px] p-[14px] bg-ec-panel"
               onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); void submit() } }}>
           {error && <p role="alert" className="ec-error">{error}</p>}
@@ -1144,7 +1144,7 @@ export default function ItemsPage() {
             <EcHistoryButton target="ITEM" id={editId} />
           </div>
         </form>
-      </ProductionSlipWindow>
+      </SlipWindow>
       )}
 
       {/* 원본 '삭제불가코드' — 전표 · 자료가 걸린 품목을 [삭제](C000029, 2026-10-21 실측: 간편재고조정 한 건 → 자료 '재고조정'). */}

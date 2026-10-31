@@ -1,18 +1,9 @@
 import { useEffect, useState } from 'react'
-import { api } from '../../api/client'
-import { DEFAULT_DISPLAY_PREFS, toDisplayPrefs, type DisplayPrefs } from '../../utils/displayPrefs'
+import { DEFAULT_DISPLAY_PREFS, type DisplayPrefs } from '../../utils/displayPrefs'
+import { loadDisplayPrefs } from '../../utils/displayPrefsStore'
 
-/** 기본값설정의 표시 값 — 한 번 읽어 두고 같이 쓴다. 기본값설정에서 저장하면 resetDisplayPrefs() 로 비운다. */
-let cached: Promise<DisplayPrefs> | null = null
-
-export function loadDisplayPrefs(): Promise<DisplayPrefs> {
-  cached ??= api.get<Partial<DisplayPrefs> | null>('/preferences')
-    .then((r) => toDisplayPrefs(r.data))
-    .catch(() => { cached = null; return DEFAULT_DISPLAY_PREFS })
-  return cached
-}
-
-export function resetDisplayPrefs() { cached = null }
+/** 읽어 두는 일(캐시)은 utils/displayPrefsStore — 인쇄도 같은 값을 쓴다. */
+export { loadDisplayPrefs, resetDisplayPrefs } from '../../utils/displayPrefsStore'
 
 export function useDisplayPrefs(): DisplayPrefs {
   const [p, setP] = useState<DisplayPrefs>(DEFAULT_DISPLAY_PREFS)

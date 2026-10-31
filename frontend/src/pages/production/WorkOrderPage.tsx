@@ -18,7 +18,7 @@ import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDia
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import EcIcon from '../../components/ui/EcIcon'
 import WorkOrderEntryPage from './WorkOrderEntryPage'
-import ProductionSlipWindow from './ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 
 
 /**
@@ -464,13 +464,13 @@ export default function WorkOrderPage() {
         </tbody>
       </table>
       {entry && (
-        <ProductionSlipWindow
+        <SlipWindow
           title={entry.editNo ? '작업지시서입력(수정)' : '작업지시서입력'}
           popout={entry.editNo ? `/production/work-order-entry?no=${encodeURIComponent(entry.editNo)}` : '/production/work-order-entry'}
           onClose={() => setEntry(null)}
         >
           <WorkOrderEntryPage popup={{ editNo: entry.editNo, onClose: (changed) => { setEntry(null); if (changed) void load() } }} />
-        </ProductionSlipWindow>
+        </SlipWindow>
       )}
     </EcListShell>
   )

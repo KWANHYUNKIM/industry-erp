@@ -27,7 +27,7 @@ import { purchaseOrderSlip } from '../../utils/slipLetter'
 import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestForm'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 import { dateNo } from '../../utils/dateNo'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import { todayYmd } from '../../utils/periods'
@@ -111,7 +111,7 @@ const initP = periodOf('최근30일(+1개월)')!
  *       거래처관리담당자 · 적요 · 참조 · 최초작성자 · 최종수정자 · 최초작성일자 · 최종작업일자 · 기타, 아래 줄 적용양식.</li>
  *   <li>표: ☑ · 일자-No. · 거래처명 · 담당자명 · 품목명[규격명] · 납기일자 · 발주금액합계 · 진행상태(완료 주황) · 생성한 전표(주황 [조회]) · 인쇄.</li>
  *   <li>하단: 신규(F2) · Email│▲ · 진행상태변경 ▲ · 보내기 ▲ · 인쇄│▲ · 바코드(품목)│▲ · 다른전표생성 ▲ · 전자결재 · 선택삭제 · Excel · 이력조회.</li>
- *   <li>[신규(F2)] · 일자-No. = 목록 위 떠 있는 '발주서입력' · '발주서수정' 창(견적서 · 주문서와 같은 ProductionSlipWindow).</li>
+ *   <li>[신규(F2)] · 일자-No. = 목록 위 떠 있는 '발주서입력' · '발주서수정' 창(견적서 · 주문서와 같은 SlipWindow).</li>
  * </ul>
  */
 export default function PurchaseOrderPage() {
@@ -403,7 +403,7 @@ export default function PurchaseOrderPage() {
       {slipDocs && <EcSlipPrintModal title="발주서" docs={slipDocs} forms={['내자기본']} width={782} onClose={() => setSlipDocs(null)} />}
       {historyWin && <SlipMenuHistoryModal menu="발주서" statusLabel="확인" noLabel="전표번호" onClose={() => setHistoryWin(false)} />}
       {form && (
-        <ProductionSlipWindow title={form.order && form.order.id > 0 ? '발주서수정' : '발주서입력'}
+        <SlipWindow title={form.order && form.order.id > 0 ? '발주서수정' : '발주서입력'}
                               popout="/sales/purchase-order-input" onClose={() => setForm(null)}>
           {/* 원본 발주서수정 머리 [확인취소] — 판매 · 주문 수정 창과 같이 이 회사 설정으로는 알림만 뜬다. */}
           {form.order && form.order.id > 0 && (
@@ -418,7 +418,7 @@ export default function PurchaseOrderPage() {
             onDeleted={() => { setForm(null); load() }}
             onCopy={(src) => openForm({ ...src, id: 0, orderDate: todayYmd(), dueDate: todayYmd() })}
             onStep={step} />
-        </ProductionSlipWindow>
+        </SlipWindow>
       )}
 
       <ul className="ec-cond mb-[8px]">

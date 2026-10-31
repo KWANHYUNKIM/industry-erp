@@ -14,7 +14,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import EcIcon from '../../components/ui/EcIcon'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 import ShipmentOrderEntry from './ShipmentOrderEntry'
 
 /**
@@ -242,7 +242,7 @@ export default function ShipmentOrderPage() {
       ]}
     >
       {popup && (
-        <ProductionSlipWindow title={popup.id != null && !popup.copied ? '출하지시서입력(수정)' : '출하지시서입력'}
+        <SlipWindow title={popup.id != null && !popup.copied ? '출하지시서입력(수정)' : '출하지시서입력'}
                               popout={popup.id != null && !popup.copied ? `/sales/shipment-order-entry?edit=${popup.id}` : '/sales/shipment-order-entry'}
                               onClose={() => closePopup(false)}>
           <ShipmentOrderEntry key={popup.id ?? 'new'} popup={{
@@ -252,7 +252,7 @@ export default function ShipmentOrderPage() {
             onCopy: () => setPopup((p) => (p ? { ...p, copied: true } : p)),
             onEdit: (id) => { void load(); setPopup({ id, copied: false }) },
           }} />
-        </ProductionSlipWindow>
+        </SlipWindow>
       )}
       {menuHistory && <SlipMenuHistoryModal menu="출하지시서" statusLabel="확인" onClose={() => setMenuHistory(false)} />}
       <ul className="ec-cond">

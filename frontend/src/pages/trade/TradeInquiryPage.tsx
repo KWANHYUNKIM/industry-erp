@@ -13,7 +13,7 @@ import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } fr
 import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDialog'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import TradeEntry from './TradeEntry'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 import Modal from '../../components/Modal'
 import EcSlipPrintModal, { type SlipPrintDoc } from '../../components/EcSlipPrintModal'
 import { EcDateRange } from '../../components/ui/EcDateInput'
@@ -1034,7 +1034,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       {popupOpen && (
         /* 원본 창은 바깥을 눌러도 닫히지 않는다 — 고치던 것이 날아가지 않게 [닫기] · ✕ 로만 닫는다. */
         <div className="ec-modal-back">
-          <ProductionSlipWindow title={popupTitle} popout={`${isSales ? '/sales/sell' : '/sales/buy'}${popupId != null && !popupCopied ? `?edit=${popupId}` : ''}`} onClose={() => closePopup(false)}>
+          <SlipWindow title={popupTitle} popout={`${isSales ? '/sales/sell' : '/sales/buy'}${popupId != null && !popupCopied ? `?edit=${popupId}` : ''}`} onClose={() => closePopup(false)}>
               {/* 원본 판매입력(수정) 머리 오른쪽 [확인취소] — 이 회사는 전표상태관리유형이 꺼져 있어 원본도 이 알림만 띄운다(plans 재고1:80). */}
               {isSales && popupId != null && !popupCopied && (
                 <div className="flex justify-end mb-[6px]">
@@ -1050,7 +1050,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 docs: rawDocs,
                 onReturn: () => { const id = popupId; closePopup(false); navigate(`${isSales ? '/sales/sell' : '/sales/buy'}?returnFrom=${id}`) },
               }} />
-          </ProductionSlipWindow>
+          </SlipWindow>
         </div>
       )}
       {/*

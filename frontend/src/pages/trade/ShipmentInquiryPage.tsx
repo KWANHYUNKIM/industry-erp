@@ -16,7 +16,7 @@ import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../fe
 import { type ShipmentRes } from '../../features/shipment/useShipmentEntry'
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import EcIcon from '../../components/ui/EcIcon'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 import ShipmentEntryPage from './ShipmentEntryPage'
 
 /**
@@ -272,9 +272,9 @@ export default function ShipmentInquiryPage() {
         { label: '웹자료올리기', onClick: notHere('웹자료올리기') },
       ]}>
       {popup && (
-        <ProductionSlipWindow title={popup.editing ? '출하입력(수정)' : '출하입력'} popout="/sales/shipment-entry" onClose={() => closePopup(false)}>
+        <SlipWindow title={popup.editing ? '출하입력(수정)' : '출하입력'} popout="/sales/shipment-entry" onClose={() => closePopup(false)}>
           <ShipmentEntryPage key={popup.editing?.id ?? 'new'} popup={{ editing: popup.editing, onClose: closePopup }} />
-        </ProductionSlipWindow>
+        </SlipWindow>
       )}
       {menuHistory && <SlipMenuHistoryModal menu="출하" statusLabel="확인" onClose={() => setMenuHistory(false)} />}
 

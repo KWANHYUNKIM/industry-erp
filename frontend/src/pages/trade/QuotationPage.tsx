@@ -19,7 +19,7 @@ import { ecAlert, ecConfirm, requireSelection } from '../../components/EcDialog'
 import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../features/sliphistory/SlipMenuHistoryModal'
 import EcDateInput, { EcDateRange } from '../../components/ui/EcDateInput'
 import EcIcon from '../../components/ui/EcIcon'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 import QuotationEntry from './QuotationEntry'
 import { fmtNumber } from '../../utils/format'
 
@@ -466,7 +466,7 @@ export default function QuotationPage() {
         { label: '웹자료올리기', onClick: notHere('웹자료올리기') },
       ]}>
       {popup && (
-        <ProductionSlipWindow title={popup.id != null && !popup.copied ? '견적서수정' : '견적서입력'}
+        <SlipWindow title={popup.id != null && !popup.copied ? '견적서수정' : '견적서입력'}
                               popout={popup.id != null && !popup.copied ? `/sales/quotation-entry?edit=${popup.id}` : '/sales/quotation-entry'}
                               onClose={() => closePopup(false)}>
           {/* 원본 견적서수정 머리 [확인취소] — 판매입력(수정) 창과 같이 이 회사 설정으로는 알림만 뜬다. */}
@@ -482,7 +482,7 @@ export default function QuotationPage() {
             onMove: (dir) => void movePopup(dir),
             onCopy: () => setPopup((p) => (p ? { ...p, copied: true } : p)),
           }} />
-        </ProductionSlipWindow>
+        </SlipWindow>
       )}
       {slipDocs && <EcSlipPrintModal title="견적서" docs={slipDocs} forms={['내자기본']} width={726} pdf excelLabel="Excel(표시형식)" onClose={() => setSlipDocs(null)} />}
       {historyWin && <SlipMenuHistoryModal menu="견적서" statusLabel="확인" onClose={() => setHistoryWin(false)} />}

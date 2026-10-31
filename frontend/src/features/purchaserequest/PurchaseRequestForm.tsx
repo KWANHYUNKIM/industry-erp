@@ -94,7 +94,7 @@ export default function PurchaseRequestForm({ editing, page, bare, plan, order, 
   /** 창이 아니라 '발주요청입력' 화면으로 그린다. */
   page?: boolean
   /**
-   * 목록 위 떠 있는 입력 창 안에 그린다 — 창 틀(제목줄 새창 · 고정 · 새로고침 · 최대화 · 닫기)은 부르는 화면이 ProductionSlipWindow 로 두른다
+   * 목록 위 떠 있는 입력 창 안에 그린다 — 창 틀(제목줄 새창 · 고정 · 새로고침 · 최대화 · 닫기)은 부르는 화면이 SlipWindow 로 두른다
    * (원본 2026-10-31 loginad 발주서조회 · 발주요청조회 [신규(F2)] · 일자-No. — 견적서 · 주문서 창과 같은 꼴). 머리 [양식▾] · Option · 도움말,
    * 아래 줄 ✈ · 저장(F8)▲ · 저장/전표(F7) · 다시 작성 · 닫기 · 웹자료올리기(수정: … 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기▲ · H).
    */

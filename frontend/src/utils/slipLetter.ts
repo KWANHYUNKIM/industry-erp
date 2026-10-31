@@ -1,4 +1,4 @@
-import type { SlipPrintDoc, SlipPrintLine } from '../components/EcSlipPrintModal'
+import type { SlipPrintDoc, SlipPrintLine } from './slipTypes'
 import { amountToKorean } from './amountToKorean'
 import type { DocParty } from './printDocument'
 import { fmtNumberOf } from './format.ts'

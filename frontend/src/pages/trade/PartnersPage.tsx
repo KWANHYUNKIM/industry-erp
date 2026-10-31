@@ -8,7 +8,7 @@ import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { MenuButton } from '../../components/EcSlipShell'
 import EcIcon from '../../components/ui/EcIcon'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
@@ -598,7 +598,7 @@ export default function PartnersPage() {
         머리 오른쪽 [Option], 알약 탭 기본 · 거래처정보 · 여신/단가 · 부가정보.
       */}
       {showForm && (
-      <ProductionSlipWindow title="거래처등록" popout="/sales/partners" onClose={() => { if (!dupPartner) setShowForm(false) }}>
+      <SlipWindow title="거래처등록" popout="/sales/partners" onClose={() => { if (!dupPartner) setShowForm(false) }}>
         <form onSubmit={submit} className="my-[8px] p-[14px] bg-ec-panel">
           {error && <p role="alert" className="ec-error">{error}</p>}
           <div className="flex items-center gap-[4px] mb-[10px]">
@@ -985,7 +985,7 @@ export default function PartnersPage() {
             <EcHistoryButton target="PARTNER" id={editId} />
           </div>
         </form>
-      </ProductionSlipWindow>
+      </SlipWindow>
       )}
 
       {/* 원본: 코드가 겹치면 [공지] 창 — 이미 있는 거래처를 작은 표로 보이고 [거래처등록] 으로 그 거래처를 연다. 입력 창은 그대로. */}
@@ -1087,7 +1087,7 @@ export default function PartnersPage() {
         const q = bankQ.trim()
         const shownBank = rows.filter((x) => !q || `${x.bankName ?? ''} ${x.accountNo ?? ''} ${x.accountHolder ?? ''}`.includes(q))
         return (
-          <ProductionSlipWindow title="이체정보리스트" popout="/sales/partners" onClose={() => setBankOf(null)}>
+          <SlipWindow title="이체정보리스트" popout="/sales/partners" onClose={() => setBankOf(null)}>
             <div className="flex justify-end mb-[6px]">
               <input className="ec-input w-[200px]" placeholder="검색" aria-label="이체정보 검색" value={bankQ} onChange={(e) => setBankQ(e.target.value)} />
             </div>
@@ -1128,7 +1128,7 @@ export default function PartnersPage() {
               }}>신규(F2)</button>
               <button type="button" className="ec-btn" onClick={() => setBankOf(null)}>닫기</button>
             </div>
-          </ProductionSlipWindow>
+          </SlipWindow>
         )
       })()}
 

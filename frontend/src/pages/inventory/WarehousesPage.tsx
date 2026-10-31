@@ -10,7 +10,7 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 import NumCheck from '../../components/NumCheck'
 import { EcCond } from '../../components/EcStatusPanel'
 import { MenuButton } from '../../components/EcSlipShell'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 
 /** 원본에 있고 우리에게 받쳐 줄 것이 없는 메뉴 · 단추 — 누르면 안내만 한다. */
 const notHere = (what: string) => () => void ecAlert(`이 기능은 이 ERP 에서 제공하지 않습니다.\n(${what})`)
@@ -268,7 +268,7 @@ export default function WarehousesPage() {
         [위치]는 원본에 없는 우리 칸(계층그룹 창이 위치로 묶는다) — 지우지 않는다.
       */}
       {showForm && (
-      <ProductionSlipWindow title={editId ? '창고수정' : '창고등록'} popout="/inventory/warehouses" onClose={() => { setShowForm(false); setEditId(null) }}>
+      <SlipWindow title={editId ? '창고수정' : '창고등록'} popout="/inventory/warehouses" onClose={() => { setShowForm(false); setEditId(null) }}>
         <form onSubmit={submit} className="my-[8px] p-[14px] bg-ec-panel">
           {error && <p role="alert" className="ec-error">{error}</p>}
           <div className="flex justify-end mb-[10px]">
@@ -339,7 +339,7 @@ export default function WarehousesPage() {
             <EcHistoryButton target="WAREHOUSE" id={editId} last />
           </div>
         </form>
-      </ProductionSlipWindow>
+      </SlipWindow>
       )}
 
       <div className="overflow-x-auto">

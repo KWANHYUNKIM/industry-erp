@@ -3,7 +3,7 @@ import { fillAndPrint, openPrintWindow, signLineHtml, signModuleOf, type PrintSi
 import { amountToKorean } from './amountToKorean'
 import { escapeHtml } from './escapeHtml'
 import { DEFAULT_DISPLAY_PREFS, printPageCss, zeroText, type DisplayPrefs } from './displayPrefs'
-import { loadDisplayPrefs } from '../features/preference/displayPrefsStore'
+import { loadDisplayPrefs } from './displayPrefsStore'
 import { fmtAmount } from './format.ts'
 
 export { amountToKorean }

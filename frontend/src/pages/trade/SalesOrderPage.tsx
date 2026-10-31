@@ -19,7 +19,7 @@ import { SlipMenuHistoryModal, EMAIL_NOT_HERE, BARCODE_NOT_HERE } from '../../fe
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import EcIcon from '../../components/ui/EcIcon'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
-import ProductionSlipWindow from '../production/ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 import SalesOrderEntry from './SalesOrderEntry'
 import { fmtNumber } from '../../utils/format'
 
@@ -293,7 +293,7 @@ export default function SalesOrderPage() {
         { label: '이력조회', onClick: () => setHistoryWin(true) }]}
     >
       {popup && (
-        <ProductionSlipWindow title={popup.id != null && !popup.copied ? '주문서입력(수정)' : '주문서입력'}
+        <SlipWindow title={popup.id != null && !popup.copied ? '주문서입력(수정)' : '주문서입력'}
                               popout={popup.id != null && !popup.copied ? `/sales/order-entry?edit=${popup.id}` : '/sales/order-entry'}
                               onClose={() => closePopup(false)}>
           {/* 원본 주문수정 머리 [확인취소] — 판매입력(수정) 창과 같이 이 회사 설정으로는 알림만 뜬다. */}
@@ -309,7 +309,7 @@ export default function SalesOrderPage() {
             onMove: (dir) => void movePopup(dir),
             onCopy: () => setPopup((p) => (p ? { ...p, copied: true } : p)),
           }} />
-        </ProductionSlipWindow>
+        </SlipWindow>
       )}
       {slipDocs && <EcSlipPrintModal title="주문서" docs={slipDocs} forms={['내자기본']} width={726} onClose={() => setSlipDocs(null)} />}
       {/* 원본 '주문서 이력조회' 창 둘째 열은 [전표번호](2026-10-31 loginad — 판매 이력조회와 같다). */}

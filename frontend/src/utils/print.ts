@@ -1,6 +1,6 @@
 import { tableToMatrix } from './tableExport'
 import { escapeHtml } from './escapeHtml'
-import { ecAlert } from '../components/EcDialog'
+import { ecAlert } from './dialog'
 import { exportAllowed } from './exportGuard'
 
 const PRINT_CSS = `

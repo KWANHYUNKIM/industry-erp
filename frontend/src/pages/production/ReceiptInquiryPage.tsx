@@ -12,7 +12,7 @@ import { ecAlert, ecConfirm, NO_SELECTION_MESSAGE } from '../../components/EcDia
 import { EcDateRange } from '../../components/ui/EcDateInput'
 import EcIcon from '../../components/ui/EcIcon'
 import ProductionResultPage, { TITLES } from './ProductionResultPage'
-import ProductionSlipWindow from './ProductionSlipWindow'
+import SlipWindow from '../../components/SlipWindow'
 
 /**
  * 생산관리 > 생산입고조회 — 완제품 생산입고 내역 조회 (/api/productions 연동).
@@ -481,13 +481,13 @@ export default function ReceiptInquiryPage() {
         </tbody>
       </table>
       {entry && (
-        <ProductionSlipWindow
+        <SlipWindow
           title={TITLES[entry.type] + (entry.editNo ? '(수정)' : '')}
           popout={`${ENTRY_PATH[entry.type]}${entry.editNo ? `?no=${encodeURIComponent(entry.editNo)}` : ''}`}
           onClose={() => setEntry(null)}
         >
           <ProductionResultPage type={entry.type} popup={{ editNo: entry.editNo, onClose: (changed) => { setEntry(null); if (changed) void load() } }} />
-        </ProductionSlipWindow>
+        </SlipWindow>
       )}
     </EcListShell>
   )
